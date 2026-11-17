@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "MEDIUM",
+  "findings": [
+    {
+      "id": "F1-bottom-to-top-vertical-not-counted",
+      "origin": "reviewer",
+      "claim": "recover_vertical_texts counts a PyMuPDF line as vertical only when its direction is (0, 1); a line with direction (0, -1) (bottom-to-top text) is counted in neither bucket, so a page whose vertical text runs bottom-to-top is never classified as predominantly vertical.",
+      "impact": "On such a page the complete pdfminer page text is not used; the page keeps its Markdown and edge lines and only pdfminer LTTextBoxVertical boxes not already present are appended. Text is usually still searchable, but the predominance rule is not applied to these pages.",
+      "evidence": "addons/intelligence/app/extractors/pdf.py:103-106 tests abs(x)<=0.01 and abs(y-1)<=0.01 for the vertical count and abs(x-1)<=0.01 and abs(y)<=0.01 for the horizontal count; a line with y=-1 matches neither. The branch choice is at pdf.py:108. The acceptance tests use rotate=270 (test_pdf_vertical_acceptance.py), so no test produces (0,-1).",
+      "repro": "not_reproduced: traced by reading only; no PDF with bottom-to-top text was run. Expected: a page whose vertical lines are all (0,-1) yields counts [0, n] and takes the mixed branch.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "The code matches the I2 revision, which states that other directions, including (0,-1), are ignored in both counts. This is a declared exclusion, not a broken invariant. Whether to extend the rule to (0,-1) is a spec decision for a person."
+      },
+      "severity": "LOW",
+      "proposed_fix": "Decide in the spec whether (0,-1) counts as vertical. If it does, count abs(abs(y)-1)<=0.01 for the vertical bucket and add a bottom-to-top fixture."
+    }
+  ],
+  "specification_compliance": [
+    "I5: the orientation read no longer has its own try/except (pdf.py:91-95). Any exception from get_text('dict') now reaches the outer handler at pdf.py:126-131 and is raised as VerticalTextError, so metadata.py:400-401 returns False before any text_indexed write. The 9ffc0839 fix is effective.",
+    "I5 (fallback): _fitz_chunks now always receives the path (pdf.py:565, 582, 601) and calls recover_vertical_texts unconditionally, so the nameless-document silent skip is gone. 271e78b4 is effective.",
+    "I5 (pymupdf4llm path): a fitz.open failure raises VerticalTextError (pdf.py:278-285), not a silent skip.",
+    "I8: PdfExtractor.extract holds PYMUPDF_LOCK around both the primary and fallback paths (pdf.py:175-180). document_text._pdf_units holds the same lock around _pdf_range, which calls recover_vertical_texts (document_text.py:147-152, 224). pdfminer does not call PyMuPDF.",
+    "I7: the document_text change that skips read_edge_lines when start > MAX_PAGES (document_text.py:168) does not change the edges returned, because read_edge_lines caps its walk at MAX_PAGES (pdf.py:346). The late-page read therefore receives no edges with or without the guard.",
+    "I2 (counts): the counts skip empty spans via the isspace comparison and use the 0.01 tolerance on both components (pdf.py:98-106). Direction (0,-1) is ignored, as the I2 revision states (see F1).",
+    "I4 and I3: scanned pages are excluded from recovery (pdf.py:76; document_text.py:200, 220), and stored OCR is substituted before recovery (_page_text_for at pdf.py:483-494). Non-scanned text is unchanged on pages with no vertical boxes, because only LTTextBoxVertical boxes not contained in the text are appended.",
+    "I6: PDF_TEXT_RULES_VERSION is '2' (per the diff at pdf.py:40); database.py is not edited."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "Text placed inside pdfminer LTFigure containers is not iterated: boxes are the top-level LTTextContainer children of the layout (pdf.py:107, 110, 117). On a predominantly vertical page this would drop such text from the 'complete pdfminer page text'. The spec does not say what to do here, and the pdfminer 20260107 source is not available in this review environment, so this is unverified.",
+    "A page whose vertical lines run bottom-to-top (0,-1) has an outcome the spec fixes only by exclusion (see F1); the spec does not say whether a human should revisit it."
+  ],
+  "regression_risks": [
+    "PYMUPDF_LOCK is held for the whole indexing extraction (pdf.py:175-180), and pdfminer now parses every indexed page inside it. A long vertical-heavy book can hold the lock for seconds, so document reads queued on the 10 s acquisition at document_text.py:147 can return Busy. The spec requires a benchmark before merge; none is in the diff.",
+    "Existing tests that stub get_text (test_pdf_extractor.py, test_pdf_indexing_e2e.py) now receive a {'blocks': []} answer for the dict call. The fixtures also changed from fake bytes to real fitz documents, so they now exercise pdfminer. Other stub-based tests (test_pdf_edge_lines*.py, test_document_text_pymupdf_lock.py, test_extract_unchanged.py) were not read.",
+    "Changing the predominance test to include (0,-1) would change which bottom-to-top pages are replaced by plain text, and existing indexed chunks for those pages would change at the next rules-version reset."
+  ],
+  "test_coverage": [
+    "No test asserts the containment rule at pdf.py:121-124. grep finds no reference to _is_contained or to a duplicated vertical box in addons/intelligence/tests, so removing the check would leave the acceptance tests green.",
+    "No test covers direction (0,-1); the fixtures use rotate=270, which PyMuPDF reports as (0,1) (F1).",
+    "The orientation-failure test (test_spec_addon_115_i5_orientation_failure_keeps_existing_index) and the nameless-document fallback test cover the two changes in 9ffc0839 and 271e78b4. The nameless-document test is now testing that the fallback receives the path, and its name no longer describes the behaviour.",
+    "The dominant-page test checks MARKDOWNONLY absence and presence, which covers the replacement branch. The mixed-page test checks that MIXEDLABEL appears, which covers the append branch."
+  ],
+  "not_verified": [
+    "I did not run any tests or extract any PDF. All conclusions come from reading the repository at the review commit.",
+    "The pdfminer 20260107 source is not in this environment (Glob for pdfminer/converter.py returned nothing), so the LTFigure behaviour, the box order and the LAParams detect_vertical output were not checked against the library.",
+    "The PyMuPDF sign convention for dir (0,-1) versus (0,1) was taken from library knowledge, not from a repository source.",
+    "I did not read the diff of a2e1e745 by itself; I used the cumulative diff against origin/develop given in the prompt, plus the two fix commits 9ffc0839 and 271e78b4 as listed.",
+    "The reconciliation path that re-enqueues text_indexed=0 files (indexer.py) and the status readers (routers/files.py, admin.py, file_find.py, main.py) were not re-read. The r2 finding on them is carried over and still unaddressed by this change.",
+    "The benchmark requirement and the lock hold time for long PDFs were not measured.",
+    "_normalise (pdf.py:462-466) was read but its markup set _MARKDOWN_MARKUP was not checked against the spec's character list.",
+    "Other stub-based regression tests (test_pdf_edge_lines*.py, test_document_text_pymupdf_lock.py, test_extract_unchanged.py) were not read."
+  ],
+  "confidence": 74,
+  "trajectory": "Read in order. r2 and r3 each left a silent-skip or warn-and-continue branch at a different call site: the status readers (r2), the fitz.open skip and bottom-to-top gap (r3), and in r4 the orientation warn-and-continue (pdf.py:97-102 at that commit) plus the nameless-document guard (pdf.py:608-609). 9ffc0839 removes the orientation try/except so the exception reaches VerticalTextError, and adds a test; 271e78b4 removes the doc.name guard by passing the path into _fitz_chunks, and adds a test. Both fixes remove a branch rather than add one, and they answer r4's F2 and F3. The bottom-to-top gap (r3 V1, r4 F1) is not patched: the I2 revision explicitly excludes (0,-1), so it is a declared exclusion and not a branch the design keeps adding. The r2 status-reader note is still open and unaddressed. Overall the last two rounds reduce branches, but the r2 note has not moved.\"]"
+}

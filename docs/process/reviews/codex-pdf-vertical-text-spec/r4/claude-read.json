@@ -1,0 +1,89 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "MEDIUM",
+  "findings": [
+    {
+      "id": "F1-bottom-to-top-vertical-not-counted",
+      "origin": "reviewer",
+      "claim": "recover_vertical_texts counts a PyMuPDF line as vertical only when its direction is (0, 1); a line with direction (0, -1) (bottom-to-top vertical text) is counted in neither bucket.",
+      "impact": "On a page whose vertical text runs bottom-to-top, the vertical count stays at zero, so the page is not treated as predominantly vertical and keeps its Markdown and edge lines instead of the complete pdfminer page text required by I2. Vertical boxes are still appended on the mixed path, so the text is usually recovered, but the predominance rule is not applied.",
+      "evidence": "addons/intelligence/app/extractors/pdf.py:110-113 tests abs(x)<=0.01 and abs(y-1)<=0.01 for the vertical count and abs(x-1)<=0.01 and abs(y)<=0.01 for the horizontal count; y=-1 matches neither. The branch choice is at pdf.py:115 (counts[0] > counts[1]). The test fixture in test_pdf_vertical_acceptance.py uses rotate=270, which PyMuPDF reports as (0, 1), so no test exercises (0, -1).",
+      "repro": "not_reproduced: traced by reading only. A page whose vertical lines have dir (0,-1) and whose horizontal count is larger than its vertical count yields counts [0, n], so the mixed branch is taken; no PDF with bottom-to-top text was run.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "A",
+        "invariant_ref": "I2",
+        "reason": "Orientation classification ignores one of the two vertical directions, so a predominantly vertical page does not use the complete pdfminer page text as I2 requires. It is in normal use, not crafted input."
+      },
+      "severity": "LOW",
+      "proposed_fix": "Count both vertical directions, for example abs(x) <= 0.01 and abs(abs(y) - 1) <= 0.01, and add a fixture with bottom-to-top vertical text."
+    },
+    {
+      "id": "F2-orientation-read-failure-silently-picks-branch",
+      "origin": "reviewer",
+      "claim": "When the PyMuPDF orientation read raises, the code logs a warning, sets blocks to empty and continues, so both counts stay zero and the page takes the mixed path. The page then reports success even though its vertical classification failed.",
+      "impact": "A transient or per-page PyMuPDF failure during the vertical step turns a predominantly vertical page into Markdown plus appended boxes, which can silently miss or change text, and the text task is marked successful. I5 requires a vertical extraction exception not to mark the task successful.",
+      "evidence": "addons/intelligence/app/extractors/pdf.py:97-102 catches the exception from doc[number-1].get_text('dict') and sets blocks = []; counts remain [0, 0] (lines 90, 110-113); pdf.py:115 then takes the else branch and returns normally; addons/intelligence/app/workers/metadata.py:400-401 only handles VerticalTextError, so index_text_content proceeds to success.",
+      "repro": "not_reproduced: traced by reading. Making Page.get_text raise for the 'dict' call with flags on a predominantly vertical page should leave the index successful with only the mixed-path text; not run.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "A",
+        "invariant_ref": "I5",
+        "reason": "The orientation step is part of vertical extraction; its exception is downgraded to a warning and the task succeeds, which I5 forbids."
+      },
+      "severity": "LOW"
+    },
+    {
+      "id": "F3-fitz-fallback-silent-skip",
+      "origin": "reviewer",
+      "claim": "The fitz fallback skips vertical recovery without a log or error when the document has no string name, which is the same silent-skip pattern that 70aa2785 removed from the pymupdf4llm path.",
+      "impact": "Unreachable in practice: _extract_with_fitz_fallback opens the file with fitz.open(str(path)), so doc.name is the path. Listed only as a remaining inconsistency.",
+      "evidence": "addons/intelligence/app/extractors/pdf.py:608-609 guards recover_vertical_texts with hasattr(doc, 'name') and isinstance(doc.name, str) and doc.name, with no else branch. Compare pdf.py:285-292, which now raises VerticalTextError.",
+      "repro": "not_reproduced: requires a fitz document without a name, which the code path does not create.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "No declared invariant is broken in reachable use; the guard is inconsistent with the sibling path."
+      },
+      "severity": "INFO"
+    }
+  ],
+  "specification_compliance": [
+    "I5: vertical extraction exceptions in recover_vertical_texts raise VerticalTextError (pdf.py:133-146), and the pymupdf4llm path raises when fitz.open fails (pdf.py:285-292). The commit 70aa2785 removed the earlier silent document=None skip there. index_text_content returns False on VerticalTextError without a text_indexed write (metadata.py:400-401), and document-text converts any exception to 422 (routers/document_text.py:94-98). Orientation-read failure (F2) is an exception to I5 because it is not raised.",
+    "I8: PdfExtractor.extract holds PYMUPDF_LOCK around both the pymupdf4llm path and the fitz fallback (pdf.py:182-187); _pdf_units takes the same lock (document_text.py:147). The fitz.open calls in recover paths run inside it. pdfminer does not use PyMuPDF.",
+    "I6: PDF_TEXT_RULES_VERSION is '2' (pdf.py:40) and database.py:1365-1388 is unchanged, so the once-only reset applies as before.",
+    "I2: the predominance test uses the (0,1) direction only (F1); the mixed path appends LTTextBoxVertical boxes that are not contained in the normalised text (pdf.py:124-131), matching the containment rule.",
+    "I7: document-text does not call read_edge_lines for start > MAX_PAGES (document_text.py:168), and the late-page test asserts no edge reads."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "A PyMuPDF orientation read that raises during recovery is handled as an all-horizontal page with only a warning (pdf.py:97-102), and the spec is silent on this case.",
+    "Bottom-to-top vertical text (direction (0,-1)) has no defined classification in the spec or the code (pdf.py:110-113).",
+    "_fitz_chunks skips vertical recovery silently when doc.name is not a non-empty string (pdf.py:608-609)."
+  ],
+  "regression_risks": [
+    "The new pdfminer call runs on every PDF read and index, so existing tests that stub pymupdf4llm.to_markdown or fitz.open (test_pdf_edge_lines_failures.py:116-117, test_pdf_edge_lines*.py, test_document_text_pymupdf_lock.py) now also run recover_vertical_texts; the one I traced (line 116) still passes because the orientation read is caught, but the others were not read.",
+    "Replacing the fake PDF fixtures in test_pdf_extractor.py and test_pdf_indexing_e2e.py with real fitz documents changes what those tests exercise."
+  ],
+  "test_coverage": [
+    "tests/test_pdf_vertical_acceptance.py covers vertical-dominant replacement, a mixed-page vertical box, the 500-page reader cap, parser failure, empty vertical extraction, stored OCR, reopen failure, and no edge reads past the cap.",
+    "No test covers bottom-to-top vertical text (F1), so the (0,-1) gap is untested.",
+    "No test covers an orientation read failure (F2).",
+    "No test covers the containment rule that suppresses a vertical box already present in the Markdown (I2 'not already present'). Removing the check would not fail any test in the file.",
+    "No test checks that a horizontal-only PDF produces unchanged chunks through the new recover path; the existing test_extract_unchanged.py was not read."
+  ],
+  "not_verified": [
+    "I did not run any tests or extract any PDF; every conclusion comes from reading the code at commit 70aa2785.",
+    "The PyMuPDF sign convention for dir (0,-1) versus (0,1) was taken from library knowledge, not from a repository source.",
+    "Whether pdfminer's LTTextContainer filter drops any text that the spec requires (for example lone characters in LTFigure or outside containers) was not checked against the pdfminer 20260107 source.",
+    "The reconciliation path that re-enqueues text_indexed=0 files (indexer.py) was not traced, so the retry claim is unverified.",
+    "The status readers that treat text_indexed=0 as pending (routers/files.py, admin.py, file_find.py, main.py) are unchanged by this commit and were not re-read.",
+    "The benchmark requirement and the time cost of pdfminer on long PDFs were not assessed.",
+    "_normalise and _is_contained were read but not tested, and the test files other than test_pdf_edge_lines_failures.py were not read."
+  ],
+  "confidence": 72,
+  "trajectory": "Each round adds a defensive branch at one more call site. r2 noted the status readers without a code change. r3 found the bottom-to-top gap and the silent fitz.open skip. Commit 70aa2785 removes one branch, the silent document=None skip in the pymupdf4llm path, replacing it with a raise and a warning, and adds a reopen test. It leaves the identical silent skip in _fitz_chunks (pdf.py:608-609) and the warn-and-continue orientation fallback (pdf.py:97-102) in place. It does not touch the orientation classification that r3 flagged, and the r2 status-reader note is still unaddressed. So this round removed one branch and added a state, but the design is still being patched one failure branch at a time."
+}

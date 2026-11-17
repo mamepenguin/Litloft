@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "MEDIUM",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1-bottom-to-top-vertical-not-counted",
+      "status": "confirmed",
+      "note": "addons/intelligence/app/extractors/pdf.py:110 counts a line as vertical only when abs(x)<=0.01 and abs(y-1)<=0.01, and pdf.py:112 counts it as horizontal only when abs(x-1)<=0.01 and abs(y)<=0.01. A PyMuPDF line with dir (0,-1), i.e. bottom-to-top text, matches neither test, so its size is added to neither counts[0] nor counts[1]. pdf.py:115 then compares counts[0] > counts[1]; a page whose vertical text is entirely (0,-1) gets counts [0, horizontal] and takes the mixed branch at pdf.py:122-132 instead of the predominantly-vertical replacement at pdf.py:116-121. This contradicts I2 for such pages (the complete pdfminer text is required where vertical characters predominate). Confirmed by reading the code only; no PDF with rotated-90 text was executed."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F2-orientation-read-failure-silently-picks-branch",
+      "status": "confirmed",
+      "note": "pdf.py:94-102: an exception from doc[number-1].get_text('dict') is caught, a warning is logged, and blocks is set to []. counts stays [0, 0] (pdf.py:90), so pdf.py:115 takes the else branch (mixed path). Nothing raises VerticalTextError on this path; the outer handlers at pdf.py:133-146 only see exceptions escaping the inner try. recover_vertical_texts therefore returns normally, pdf.py:294-303 returns a successful ExtractionResult, and metadata.py:400-401 (the only VerticalTextError handler on this path) does not fire, so the text task is marked successful. This is a vertical-extraction exception that does not fail the task, which conflicts with I5. Confirmed by code reading; the warning-only behaviour is at pdf.py:98-101."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F3-fitz-fallback-silent-skip",
+      "status": "rejected_with_evidence",
+      "note": "The only caller of the fitz fallback that reaches the guard is _extract_with_fitz_fallback at pdf.py:567, which opens the document with fitz.open(str(path)) and therefore always has a non-empty string doc.name. So the condition at pdf.py:608 (hasattr, isinstance str, non-empty) is true for every production call and the 'no name' skip branch cannot be reached from this code path. The guard therefore does not silently skip vertical recovery in practice. Other silent fallbacks in _fitz_chunks (page exceptions at pdf.py:602-603) are pre-existing and are not the subject of this finding."
+    }
+  ],
+  "specification_compliance": [
+    "I2: not met for predominantly bottom-to-top vertical pages (F1), which fall into the mixed branch instead of the complete-text replacement.",
+    "I5: not met for an orientation read exception (F2), which is swallowed as a warning and yields a successful extraction instead of failing the text task.",
+    "I1, I3, I4, I6, I7, I8, I9: not assessed in depth beyond what the listed findings touch; no defect found in the code read for these.",
+    "PYMUPDF_LOCK (I8): not checked in this review for the new fitz calls at pdf.py:92-96 and 283-286 beyond noting the lock is declared at pdf.py:63."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "A PDF whose orientation read fails on a predominantly vertical page is treated as horizontal with only a log warning; the spec does not state this case explicitly beyond I5.",
+    "Pages whose text is rotated 90 degrees (dir (0,-1)) have no specified classification in the spec or tests."
+  ],
+  "regression_risks": [
+    "Changing the direction test to accept (0,-1) alters the predominance decision for bottom-to-top pages, which could newly replace their horizontal Markdown; existing tests use rotate=270 only.",
+    "Making the orientation read failure raise VerticalTextError would make such pages fail indexing rather than succeed silently; that is intended by I5 but changes observable behaviour."
+  ],
+  "test_coverage": [
+    "Per the findings, test_pdf_vertical_acceptance.py uses rotate=270, which PyMuPDF reports as dir (0,1); no test covers (0,-1) (F1).",
+    "No test was identified in this review that forces the orientation get_text exception path (F2).",
+    "The fitz fallback guard (F3) is not exercised with a nameless document; the production caller always supplies a path."
+  ],
+  "not_verified": [
+    "Did not execute code or tests; all confirmations rest on reading pdf.py and metadata.py at the given commit.",
+    "Did not verify PyMuPDF's and pdfminer's actual behaviour for rotated-90 text (whether dir is reported as (0,-1) for the relevant fixtures).",
+    "Did not inspect the test files (test_pdf_vertical_acceptance.py and the PDF indexing regression tests) to confirm coverage claims.",
+    "Did not check other callers of recover_vertical_texts or the document-text endpoint in app/document_text.py for the orientation exception behaviour.",
+    "Did not verify the PYMUPDF_LOCK wrapping of each new PyMuPDF call (I8)."
+  ],
+  "confidence": 80
+}

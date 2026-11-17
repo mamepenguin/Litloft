@@ -1,0 +1,125 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "MEDIUM",
+  "findings": [
+    {
+      "id": "F1-containment-rule-untested",
+      "origin": "reviewer",
+      "claim": "No test exercises the mixed-page rule that drops a vertical box whose normalized text is already in the assembled page text, so removing the `_is_contained` check leaves every test green.",
+      "impact": "If the de-duplication regressed, a vertical line already present in the page text would be indexed twice. One example is a vertical label that crosses the top or bottom 50 pt band: `_page_band_lines` recovers lines in any direction, so the edge recovery already holds it. The duplicate would reach chunks, `pdf_markdown` and `read_document`, and no test would catch it.",
+      "evidence": "addons/intelligence/app/extractors/pdf.py:130-133 is the only place the I2 'not already present' rule is applied. In tests/test_pdf_vertical_acceptance.py, the mixed-page fixtures put MIXEDLABEL (vertical_pdf page 2) and NESTEDVERTICALWORD (nested.pdf page 2) on pages whose Markdown does not contain them, and both tests assert only `word in text`. pdf.py:380-396 shows that `_page_band_lines` does not filter by line direction, so a vertical band line can already be in the edge text.",
+      "repro": "Mutation, traced by reading and not run: replace `if _normalise(part) and not _is_contained(part, _normalise(text)):` with `if _normalise(part):`. Every assertion in test_pdf_vertical_acceptance.py stays true because each one checks presence, not single occurrence. The one exact-text assertion, `splitlines() == [...]`, is on the dominant branch, which this mutation does not touch.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "The code implements the I2 containment rule. This is a test gap that would let a regression through, not a broken invariant."
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add a mixed page whose vertical label lies in the top band, or is otherwise already in the Markdown, and assert that the label appears exactly once in that page's indexed and on-demand text."
+    },
+    {
+      "id": "F2-unreadable-page-diverges-between-index-and-reader",
+      "origin": "reviewer",
+      "claim": "When PyMuPDF raises on one page's `get_text`, indexing classifies the page as non-scanned and runs vertical recovery on it, while the document reader classifies the same page as scanned and skips recovery. The two paths therefore diverge, and the whole PDF's text task now fails on that one page.",
+      "impact": "In a PDF where one page's text layer cannot be read by PyMuPDF, recovery's `get_text(\"dict\")` on that page is likely to raise as well. That raises VerticalTextError for the whole file. Before this change such a file was indexed from the PyMuPDF4LLM text. Now a new file of this kind is never indexed and an existing one keeps its old index forever with `text_indexed` = 0, while `read_document` on the same page succeeds. Spec item 4 requires the indexed and on-demand text of an unchanged page to agree.",
+      "evidence": "addons/intelligence/app/extractors/pdf.py:316-320: `_empty_text_pages` hits `continue` on an exception, so the page is not added to `scanned`. pdf.py:102-104 then calls `get_text(\"dict\")` on it, and any exception becomes VerticalTextError at pdf.py:135-140. metadata.py:400-401 returns False for the whole file. In app/document_text.py:196-200 the same exception gives `layer = \"\"` and `scanned = True`, and lines 219-226 then pass `{number}` as a scanned page, so recovery is skipped.",
+      "repro": "not_reproduced: requires a PDF page on which PyMuPDF `get_text` raises. Traced by reading only.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "I5 holds: the failure marks nothing successful and replaces nothing. The behavior is a divergence between the two paths and a loss of indexing for files that indexed before, on an unusual per-page read error. No declared invariant is broken."
+      },
+      "severity": "LOW",
+      "proposed_fix": "Classify a page whose text-layer read raises the same way in `_empty_text_pages` and in `_pdf_page`."
+    }
+  ],
+  "specification_compliance": [
+    "I2 (r4): pdf.py:105-115 counts the non-whitespace characters of lines with direction (0,1) and (1,0), with a 0.01 tolerance on each component, and ignores other directions. pdf.py:117 applies a strict `>`, so the vertical count must also be nonzero. The dominant branch at pdf.py:118-123 joins the text of every box. The mixed branch at pdf.py:124-134 appends only LTTextBoxVertical boxes that are not already contained, normalizing with NFKC, `isspace` and the characters *_`#|>- (pdf.py:44, 471-480).",
+    "I10/I11: `text_boxes` (pdf.py:85-90) recurses through LTFigure in depth-first layout order, and `all_texts=True` is set at pdf.py:94.",
+    "I4: scanned pages are excluded from recovery in all three paths (pdf.py:76, 296, 607-610; document_text.py:219-226), and stored OCR is substituted before that. No code path writes `pdf_page_ocr_texts`.",
+    "I5: a VerticalTextError from the primary path, the fitz fallback or the fitz.open at pdf.py:287-294 propagates through `_extract_file_content` (metadata.py:151-152). `index_text_content` returns False at metadata.py:400-401 before any write. An empty dominant page raises at pdf.py:121-122. The document-text router turns any exception into 422 (routers/document_text.py:94-98).",
+    "I6: the rules version is '2' (pdf.py:40). database.py:1424-1449 resets `text_indexed` only for `mime_type = 'application/pdf'` and does not touch OCR rows. database.py is unchanged by this change.",
+    "I7: the indexing paths cap at MAX_PAGES (pdf.py:275, 595). The reader parses only the requested page (document_text.py:224-226), skips the edge walk when `start > MAX_PAGES` (document_text.py:168), and writes nothing.",
+    "I8: every new PyMuPDF call runs inside PYMUPDF_LOCK: `extract` (pdf.py:184-189) on the indexing side and `_pdf_units` (document_text.py:147-152) on the reader side. The reader's lock acquisition and timeout are unchanged.",
+    "I9: the existing changed-chunk path (`_pdf_chunks_unchanged`, metadata.py:424-485) is unchanged."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "Page alignment depends on pdfminer and PyMuPDF enumerating pages in the same order (pdf.py:92-98 `next(layouts)` per number). For a PDF with a damaged page tree that PyMuPDF repairs differently from pdfminer's fallback object scan, recovered text could be attributed to the wrong page. Unverified.",
+    "For pages with a /Rotate entry, whether PyMuPDF reports `line['dir']` in rotated or unrotated page space determines whether horizontal text on a rotated page counts as (0,1). Not checked against PyMuPDF 1.25.5."
+  ],
+  "regression_risks": [
+    "PYMUPDF_LOCK is held while pdfminer parses up to 500 pages with `all_texts=True` (pdf.py:184-189, 296). Document reads waiting at document_text.py:147 can therefore return Busy for longer than before. The spec asks for a benchmark before merge, and none is in the diff.",
+    "A PDF that PyMuPDF opens but pdfminer cannot parse now fails text indexing on every attempt (pdf.py:141-148). Before this change it was indexed. A newly added file of this kind is not searchable at all. This is spec-compliant (item 2), but it is a behavior change for such files.",
+    "In the regression tests that use the fake_pdf fixture (three blank fitz pages), every page counts as scanned, so `recover_vertical_texts` returns early (pdf.py:76-78). Those tests no longer reach pdfminer, and their unchanged assertions say nothing about the new recovery path."
+  ],
+  "test_coverage": [
+    "test_pdf_vertical_acceptance.py covers dominant replacement, mixed-page box addition, figure recursion on both branches with an exact depth-first order, the reader past the 500-page cap without an edge walk, parser failure, empty dominant text, a reopen failure, an orientation-read failure, stored OCR on image-only pages, and the fitz fallback.",
+    "Gap (F1): no test has a vertical box that is already in the assembled text, so the containment rule is unpinned.",
+    "Gap: no test asserts that the indexed and on-demand text of the same page are equal before chunking (spec item 4). The tests check only that given words are present in both.",
+    "Gap: no test with a horizontal-only PDF that has a real text layer asserts that chunks are unchanged under the new path (I3). test_extract_unchanged.py was not read.",
+    "The edited test in test_pdf_edge_lines_failures.py:116-118 now stubs `read_edge_lines` instead of `fitz.open`. It still covers the catch in `_safe_edge_lines` (pdf.py:330-339)."
+  ],
+  "not_verified": [
+    "I did not run any test, mutation or extraction. All conclusions come from reading the code in the working tree, with the submodule at the reviewed commit.",
+    "I did not check that the product code is byte-identical to the code reviewed in r7. I inferred that it is unchanged from the earlier rounds' line references and from the diff.",
+    "I did not trace whether the indexer's reconciliation (indexer.py:878-905) re-enqueues a permanently failing PDF in a tight loop.",
+    "I did not check PyMuPDF's direction convention for rotated pages or for invisible (render mode 3) text against library source.",
+    "I did not read pdfminer 20260107 source for page enumeration, LTFigure handling or `detect_vertical` heuristics.",
+    "I did not read test_pdf_indexing_e2e.py beyond the diff hunks, nor test_extract_unchanged.py or tests/document_text_api.py.",
+    "I did not measure lock hold time or pdfminer cost on long PDFs."
+  ],
+  "coverage": [
+    {
+      "path": "addons/intelligence/app/document_text.py",
+      "read": "partial",
+      "reason": "Read lines 120-239: `_checked_path`, `_pdf_units`, `_pdf_range` and `_pdf_page`, which include every changed hunk and its enclosing functions. Also grepped the router's exception handling."
+    },
+    {
+      "path": "addons/intelligence/app/extractors/pdf.py",
+      "read": "full",
+      "reason": "Read the whole file (633 lines)."
+    },
+    {
+      "path": "addons/intelligence/app/workers/metadata.py",
+      "read": "partial",
+      "reason": "Read lines 115-174 (`_extract_file_content`) and 370-489 (`index_text_content`), which cover both changed hunks and their enclosing functions. The import change at line 32 was seen through grep."
+    },
+    {
+      "path": "addons/intelligence/requirements-test.txt",
+      "read": "partial",
+      "reason": "Read only the one-line diff hunk that adds pdfminer.six==20260107; did not open the file."
+    },
+    {
+      "path": "addons/intelligence/requirements.txt",
+      "read": "partial",
+      "reason": "Read only the one-line diff hunk that adds pdfminer.six==20260107; did not open the file."
+    },
+    {
+      "path": "addons/intelligence/tests/test_pdf_edge_lines_failures.py",
+      "read": "partial",
+      "reason": "Read lines 60-139, which include the changed test and its neighbours."
+    },
+    {
+      "path": "addons/intelligence/tests/test_pdf_extractor.py",
+      "read": "partial",
+      "reason": "Read lines 36-235, which include the changed fixture and `_install_fitz` and the tests that use them."
+    },
+    {
+      "path": "addons/intelligence/tests/test_pdf_indexing_e2e.py",
+      "read": "partial",
+      "reason": "Read only the two diff hunks (the fake_pdf fixture and `_stub_fitz`)."
+    },
+    {
+      "path": "addons/intelligence/tests/test_pdf_vertical_acceptance.py",
+      "read": "full",
+      "reason": "New file; read in full from the diff (393 lines)."
+    }
+  ],
+  "confidence": 74,
+  "trajectory": "Since r7, the commits that touch this feature are 2da65334 (a snapshot of the vertical-PDF integration rebased onto current develop), 9089edf8 (tests renamed to cite the approved spec id SPEC-ADDON-122 instead of 115, whose id is now taken by the Smart Collection spec) and dbb0060a (a docs record of R-5). Almost all of the other listed commits are unrelated develop work merged in: the Smart Collection id filter, SPEC-ADDON-116 frame requests and the workbench layout. In the product files, this round adds no branch, state or prediction that an earlier round also added, and removes none. As far as I can tell from earlier rounds' line references, `recover_vertical_texts`, the fallback wiring and the metadata error path read as they did in r6 and r7. The earlier history still stands: r3 and r4 added defensive branches; 70aa2785, 9ffc0839 and 271e78b4 replaced silent skips with raises; r6 added the figure recursion. Since then the design has not been patched further. The two open items, the untested containment rule and the scanned-classification difference between indexing and the reader, are test and consistency gaps, not a new accumulation of branches."
+}
