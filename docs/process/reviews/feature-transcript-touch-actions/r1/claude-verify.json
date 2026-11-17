@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-1",
+      "status": "confirmed",
+      "note": "addons/intelligence/app/main.py:61-63 contains a comment about pdfminer FontBBox warnings and `logging.getLogger(\"pdfminer\").setLevel(logging.ERROR)`. docs/process/reviews/feature-transcript-touch-actions/r1/product-files.txt:1 lists addons/intelligence/app/main.py as a changed product file for this review. The spec's Touch points (docs/specs/transcript-touch-actions.md:257-276) name no backend file. invariants.md has an empty Revisions section. The change is unrelated to transcript touch actions. pdfminer is imported at addons/intelligence/app/extractors/pdf.py:80-81."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-2",
+      "status": "confirmed",
+      "note": "addons/intelligence/frontend/ExtractionEditsReview.test.tsx:427-434 has a new comment and `expect(edit.className).not.toContain(\"pointer-coarse:min-h-11\")`, plus an assertion that 保存 contains `pointer-coarse:min-h-11`. r1/product-files.txt:2 lists this file as changed. Touch points (spec lines 263-264) and §7 (spec lines 182-188) name only TranscriptSection.test.tsx and TranscriptSectionCorrections.test.tsx."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-3",
+      "status": "confirmed",
+      "note": "addons/intelligence/frontend/TranscriptSectionTouch.test.tsx exists, and r1/product-files.txt:6 lists it as changed. Spec §7 (lines 182-188) says the coarse-path tests replace the assertions in TranscriptSection.test.tsx and that coarse tests in TranscriptSectionCorrections.test.tsx move to the dialog. Touch points (lines 263-264) list only those two test files and no new test file."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-4",
+      "status": "confirmed",
+      "note": "frontend/src/__tests__/row-action-reveal.test.ts:133-135 defines COARSE_DRAWS_STRIP_INSTEAD = [\"addons/intelligence/frontend/TranscriptSection.tsx\"]. Line 185 adds it to the offenders filter, so the whole file is exempt from the coarse reveal check. frontend/src/__tests__/ime-enter-guard.test.ts:58 adds intelligence/frontend/TranscriptEditDialog.tsx, and line 111 asserts toHaveLength(10). r1/test-files.txt lists both guard files as changed. Touch points (spec lines 274-275) pass through only DESIGN.md and .claude/rules/frontend-conventions.md, and neither guard test file is listed."
+    }
+  ],
+  "specification_compliance": [
+    "The diff touches four paths outside the spec's Touch points: addons/intelligence/app/main.py, ExtractionEditsReview.test.tsx, the new TranscriptSectionTouch.test.tsx, and two core guard tests. invariants.md has no Revisions that would cover them."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "The pdfminer logger is raised to ERROR in addons/intelligence/app/main.py:63. This is a backend logging behavior change that no spec in this review covers."
+  ],
+  "regression_risks": [
+    "row-action-reveal.test.ts exempts all of TranscriptSection.tsx from the coarse-pointer reveal check. A future control that leaks into a non-selected row on a coarse pointer would not be caught by this guard, only by the addon's own tests."
+  ],
+  "test_coverage": [
+    "Not assessed beyond the four scope findings. The coarse-path tests live in the new TranscriptSectionTouch.test.tsx, not in the files the spec named."
+  ],
+  "not_verified": [
+    "Could not run git diff, so I did not confirm directly that each change is new relative to origin/develop. Diff membership relies on r1/product-files.txt and r1/test-files.txt plus the current file contents.",
+    "Did not check the full contents of TranscriptSectionTouch.test.tsx (claimed 1045 lines) or whether the old guard count was 9.",
+    "Did not check whether the submodule pointer in core actually pins the addon commit that contains these changes."
+  ],
+  "confidence": 85,
+  "coverage": [
+    {
+      "path": "addons/intelligence/app/main.py",
+      "read": "partial",
+      "reason": "Lines 50-69 around the pdfminer logger change"
+    },
+    {
+      "path": "docs/specs/transcript-touch-actions.md",
+      "read": "partial",
+      "reason": "§7 through Touch points (lines 160-279)"
+    },
+    {
+      "path": "frontend/src/__tests__/row-action-reveal.test.ts",
+      "read": "partial",
+      "reason": "Grep context around COARSE_DRAWS_STRIP_INSTEAD"
+    },
+    {
+      "path": "frontend/src/__tests__/ime-enter-guard.test.ts",
+      "read": "partial",
+      "reason": "Grep context around TranscriptEditDialog and the length assertion"
+    },
+    {
+      "path": "addons/intelligence/frontend/ExtractionEditsReview.test.tsx",
+      "read": "partial",
+      "reason": "Grep context around the pointer-coarse assertions"
+    }
+  ]
+}

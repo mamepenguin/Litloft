@@ -1,0 +1,169 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "TP-1",
+      "origin": "reviewer",
+      "claim": "The commit changes addons/intelligence/app/main.py to raise the `pdfminer` logger to ERROR. That backend logging change is not in the spec's touch-point list and has nothing to do with transcript touch actions.",
+      "impact": "In the intelligence service, every pdfminer WARNING is now silent, for all PDFs and not only the per-glyph FontBBox noise the comment names. A PDF whose text pdfminer extracts poorly but only warns about will no longer leave any trace in the logs. The change also ships under a transcript-UI spec, with no spec or test of its own.",
+      "evidence": "addons/intelligence/app/main.py:61-63 adds `logging.getLogger(\"pdfminer\").setLevel(logging.ERROR)`. The touch points in docs/specs/transcript-touch-actions.md name no backend file, and invariants.md has no Revisions. pdfminer is used by addons/intelligence/app/extractors/pdf.py.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "It breaks no declared invariant. It is an unplanned place outside the declared touch points, and it changes a log level for the whole service.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Move the pdfminer log-level change into its own change (or the PDF spec that owns pdfminer), or add it to this spec's touch points."
+    },
+    {
+      "id": "TP-2",
+      "origin": "reviewer",
+      "claim": "The commit edits addons/intelligence/frontend/ExtractionEditsReview.test.tsx, a SPEC-ADDON-070 design test, and the touch points do not list it. §7 names only TranscriptSection.test.tsx and TranscriptSectionCorrections.test.tsx as existing tests to change.",
+      "impact": "An existing assertion that 修正 carries `pointer-coarse:min-h-11` is inverted, and a new one is added on 保存. Because this file is not a declared touch point, nobody was told that a guard from another spec was changed.",
+      "evidence": "addons/intelligence/frontend/ExtractionEditsReview.test.tsx hunk @@ -424: `expect(edit.className).not.toContain(\"pointer-coarse:min-h-11\")`, plus a new 保存 class assertion.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is an unplanned touch point. The change itself matches the coarse path the spec replaces.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Add ExtractionEditsReview.test.tsx to the spec's touch points, or record it in invariants.md Revisions."
+    },
+    {
+      "id": "TP-3",
+      "origin": "reviewer",
+      "claim": "The commit adds a new test file, addons/intelligence/frontend/TranscriptSectionTouch.test.tsx, which the touch points do not list. The spec says coarse-path tests go into TranscriptSection.test.tsx or move within TranscriptSectionCorrections.test.tsx.",
+      "impact": "The coarse-path guard for I1–I9 lives in a file the plan does not name. TranscriptSectionCorrections.test.tsx, which the plan does name, is untouched.",
+      "evidence": "The new file addons/intelligence/frontend/TranscriptSectionTouch.test.tsx (1045 lines) is in the diff. The spec's Touch points name only the two existing test files.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is an unplanned touch point, but the tests are additive.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "List TranscriptSectionTouch.test.tsx in the touch points."
+    },
+    {
+      "id": "TP-4",
+      "origin": "reviewer",
+      "claim": "The commit changes two core convention-guard tests, frontend/src/__tests__/ime-enter-guard.test.ts and frontend/src/__tests__/row-action-reveal.test.ts, and neither is in the touch-point list. The reveal guard now exempts TranscriptSection.tsx entirely from its coarse-pointer reveal check.",
+      "impact": "A core repository-wide guard gains an exemption list (COARSE_DRAWS_STRIP_INSTEAD) that skips the whole of TranscriptSection.tsx. A later hover-only control added to that file would no longer be caught on the coarse path. The Enter guard's declared count also moves from 9 to 10.",
+      "evidence": "In frontend/src/__tests__/row-action-reveal.test.ts, the new constant COARSE_DRAWS_STRIP_INSTEAD is added to the offenders filter. In frontend/src/__tests__/ime-enter-guard.test.ts, TranscriptEditDialog.tsx is added to ADDON_TEXT_FIELD_ENTER and toHaveLength(9) becomes toHaveLength(10). The Touch points name only `.claude/rules/frontend-conventions.md` as rules passed through, not these guard files.",
+      "repro": "Mutation in thought: add a REVEAL-only hover control to TranscriptSection.tsx that is not gated by `!coarse`. With the file exempted, row-action-reveal.test.ts would not flag it.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "It breaks no declared invariant. It is an unplanned touch point that widens a core guard's exemptions at file granularity.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add both guard tests to the spec's touch points. Consider narrowing the exemption so it does not cover the whole file."
+    }
+  ],
+  "specification_compliance": [
+    "The diff reaches these places outside the declared touch points: addons/intelligence/app/main.py (TP-1), addons/intelligence/frontend/ExtractionEditsReview.test.tsx (TP-2), addons/intelligence/frontend/TranscriptSectionTouch.test.tsx (TP-3), and frontend/src/__tests__/ime-enter-guard.test.ts plus frontend/src/__tests__/row-action-reveal.test.ts (TP-4).",
+    "frontend/e2e-components/fixtures/app.tsx, fixtures/transcriptTouch.tsx, spec-viewport.spec.ts and transcript-touch.spec.ts fall under the declared `frontend/e2e-components/` touch point.",
+    "TranscriptSection.tsx, TranscriptEditDialog.tsx, TranscriptSection.test.tsx, messages/ja.json and en.json, both docs pages and the submodule pointer bump are all declared touch points.",
+    "TranscriptSectionCorrections.test.tsx is declared but not changed. That is not an unplanned reach."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "The service-wide pdfminer log level drops to ERROR (addons/intelligence/app/main.py:63). No spec covers this."
+  ],
+  "regression_risks": [
+    "pdfminer warnings that once showed degraded PDF extraction are now silent in the intelligence service's logs.",
+    "row-action-reveal.test.ts now exempts all of TranscriptSection.tsx, so a future hover-only control in that file would not be caught for coarse pointers."
+  ],
+  "test_coverage": [
+    "No test covers the main.py logging change.",
+    "TranscriptSectionTouch.test.tsx covers I1–I9 in jsdom. transcript-touch.spec.ts covers I10/I11 and §10 in a real browser at 390x844 and 375x667."
+  ],
+  "not_verified": [
+    "I did not run any test or the e2e spec.",
+    "I did not check whether pdfminer emits WARNINGs that matter for extraction quality in addons/intelligence/app/extractors/pdf.py.",
+    "I did not open TranscriptSectionCorrections.test.tsx to check for coarse-pointer assumptions.",
+    "I did not read the full body of row-action-reveal.test.ts to see what the exempted check covers in detail."
+  ],
+  "coverage": [
+    {
+      "path": "addons/intelligence/app/main.py",
+      "read": "full",
+      "reason": "Read lines 1-80, which include the only changed hunk and its module context."
+    },
+    {
+      "path": "addons/intelligence/frontend/ExtractionEditsReview.test.tsx",
+      "read": "partial",
+      "reason": "Read only the changed hunk at @@ -424 in the diff. I did not open the enclosing it() start."
+    },
+    {
+      "path": "addons/intelligence/frontend/TranscriptEditDialog.tsx",
+      "read": "full",
+      "reason": "New file; read the whole file."
+    },
+    {
+      "path": "addons/intelligence/frontend/TranscriptSection.test.tsx",
+      "read": "full",
+      "reason": "Read both changed hunks with their enclosing it() blocks in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/TranscriptSection.tsx",
+      "read": "partial",
+      "reason": "Read lines 225-644, 800-880 and 1100-1366, which cover every changed hunk and its enclosing code. The rest of the file was not read."
+    },
+    {
+      "path": "addons/intelligence/frontend/TranscriptSectionTouch.test.tsx",
+      "read": "full",
+      "reason": "New file; read the whole file in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/messages/en.json",
+      "read": "full",
+      "reason": "Read the one-line changed hunk in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/messages/ja.json",
+      "read": "full",
+      "reason": "Read the one-line changed hunk in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/app.tsx",
+      "read": "full",
+      "reason": "Read both changed hunks (import and arrangement spread) in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/transcriptTouch.tsx",
+      "read": "full",
+      "reason": "New file; read the whole file in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/spec-viewport.spec.ts",
+      "read": "full",
+      "reason": "Read the one-line changed hunk in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/transcript-touch.spec.ts",
+      "read": "full",
+      "reason": "New file; read the whole file in the diff."
+    },
+    {
+      "path": "frontend/src/__tests__/ime-enter-guard.test.ts",
+      "read": "partial",
+      "reason": "Read only the diff hunks."
+    },
+    {
+      "path": "frontend/src/__tests__/row-action-reveal.test.ts",
+      "read": "partial",
+      "reason": "Read only the diff hunks."
+    }
+  ],
+  "confidence": 85
+}
