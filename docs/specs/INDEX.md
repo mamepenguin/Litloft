@@ -254,3 +254,5 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-119 | implemented | docs/specs/loft-fetch-pacing.md | sha256:bb074bafe164478e54676dcc11ff209e3066003f74a4b8794c1b0b35b0057a80 |
 | SPEC-CORE-118 | implemented | docs/specs/app-target-collections.md | sha256:5d19d0bc7e3b4c67b7c46ebe24ec10439f15fb3ea5e6eb5d31444d7169f038c2 |
 | SPEC-CORE-119 | implemented | docs/specs/app-target-collections.md | sha256:5d19d0bc7e3b4c67b7c46ebe24ec10439f15fb3ea5e6eb5d31444d7169f038c2 |
+| SPEC-CORE-120 | draft | docs/specs/trash-batch-progress.md | |
+| SPEC-CORE-121 | draft | docs/specs/trash-batch-progress.md | |
