@@ -383,7 +383,7 @@ interface SwitchReading {
     filled: boolean;
   }[];
   firstTileTop: number;
-  /** Elements whose box reaches past the section's sides. */
+  /** Elements whose visible box reaches past the section's sides. */
   outside: string[];
 }
 
@@ -432,7 +432,17 @@ async function switchReading(page: Page): Promise<SwitchReading> {
         .filter((el) => {
           const r = rect(el);
           if (r.width === 0 && r.height === 0) return false;
-          return r.left < box.left - 1 || r.right > box.right + 1;
+          // A box an ancestor inside the section clips is not drawn past that
+          // ancestor, so only the clipped part can reach the section's sides.
+          let left = r.left;
+          let right = r.right;
+          for (let up = el.parentElement; up && up !== root; up = up.parentElement) {
+            if (getComputedStyle(up).overflowX === "visible") continue;
+            const clip = rect(up);
+            left = Math.max(left, clip.left);
+            right = Math.min(right, clip.right);
+          }
+          return left < box.left - 1 || right > box.right + 1;
         })
         .map((el) => `${el.tagName.toLowerCase()}.${el.className}`),
     };
