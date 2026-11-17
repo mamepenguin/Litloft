@@ -76,3 +76,34 @@ describe("SPEC-CORE-105 I9 the beside decision", () => {
     expect(isRowBeside(0, 830, 16)).toBe(false);
   });
 });
+
+describe("SPEC-CORE-105 I9 (revised by SPEC-CORE-126) the threshold with the split button drawn", () => {
+  it("SPEC-CORE-105 I9 with the split button the threshold is 16.25rem: beside at exactly that and not at 1px less (floor, W = 480)", () => {
+    // Side space = C - 480 - 16; 16.25rem = 260.
+    expect(isRowBeside(756, 830, 16, true)).toBe(true);
+    expect(isRowBeside(755, 830, 16, true)).toBe(false);
+    expect(isRowBeside(756, 600, 16, true)).toBe(true);
+    expect(isRowBeside(755, 600, 16, true)).toBe(false);
+  });
+
+  it("SPEC-CORE-105 I9 without the split button the threshold stays 13rem", () => {
+    expect(isRowBeside(704, 830, 16, false)).toBe(true);
+    expect(isRowBeside(703, 830, 16, false)).toBe(false);
+    // Beside without the button, not with it.
+    expect(isRowBeside(740, 830, 16, false)).toBe(true);
+    expect(isRowBeside(740, 830, 16, true)).toBe(false);
+  });
+
+  it("SPEC-CORE-105 I9 scales the split button's 3.25rem with the root font size", () => {
+    // At 20px: side space = C - 480 - 20 >= 325.
+    expect(isRowBeside(825, 830, 20, true)).toBe(true);
+    expect(isRowBeside(824, 830, 20, true)).toBe(false);
+  });
+
+  it("SPEC-CORE-105 I9 with the split button the share term of W still applies", () => {
+    const width = w(1074, 0.3);
+    const threshold = width + 16 + 260;
+    expect(isRowBeside(Math.ceil(threshold), 1074, 16, true)).toBe(true);
+    expect(isRowBeside(Math.floor(threshold) - 1, 1074, 16, true)).toBe(false);
+  });
+});

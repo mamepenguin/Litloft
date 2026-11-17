@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R1",
+      "status": "confirmed",
+      "note": "Reproduced by reading the code. ShellLayout.tsx:165-199 adds scrollRoot state, an attachScrollRoot callback and a useLayoutEffect that measures offsetWidth on every ResizeObserver callback. attachScrollRoot goes to FileDetailShell (:491) and also to MarkdownDocumentLayout (:560), the non-canvas branch for text, markdown and HTML preview. So the measurement and its setState run on those pages too, and on non-player canvas pages such as images, PDFs and archives. Its result is only used through splitEligible (:263-268), which needs workbenchWide and therefore hasPlayer (:235-236). Off player pages the effect cannot change the layout; it only adds re-renders when W changes."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R2",
+      "status": "confirmed",
+      "note": "Reproduced by reading the code. globals.css:1181-1185 sets max-width and margin-inline on `.media-detail-host[data-workbench-split=\"on\"] > .media-detail-player[data-framed=\"true\"]`, and that box is defined in MediaPlayerBlock.tsx:92-93. globals.css:1172-1174 (`> * + *` margin-top: 0) also matches the third host child, the heavy-summaries wrapper at MediaCanvas.tsx:88-90. Neither file is a named touch point. In practice it does no harm: heavySummaries is null whenever hasPlayer is true (ShellLayout.tsx:347), and split needs hasPlayer, so in the split layout that wrapper is empty and `empty:hidden` hides it. It is never auto-placed into grid row 2, column 1, so it does not overlap the absolutely positioned row."
+    }
+  ],
+  "specification_compliance": [
+    "The split host grid (globals.css:1163-1205) matches the touch-point mechanism: two columns on the host, the player in column 1, the workbench root spanning both rows in column 2, and the row absolutely positioned into the left column under the frame.",
+    "MediaCanvas.tsx:67-68 sets data-workbench-split only when split. ShellLayout.tsx:274-275 makes playerFocusApplies false while split, so data-player-focus is absent in the split layout (I4)."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The W ResizeObserver also runs on non-player pages (R1). It has no effect on layout there."
+  ],
+  "regression_risks": [
+    "If heavySummaries is ever rendered for player files, the split grid would auto-place that wrapper in row 2, column 1. It would then lie under the absolutely positioned row and overlap it."
+  ],
+  "test_coverage": [
+    "I did not inspect tests for whether the measurement on non-player pages is covered."
+  ],
+  "not_verified": [
+    "I could not run git diff, so I did not confirm that MarkdownDocumentLayout previously received onScrollRootChange directly rather than through attachScrollRoot.",
+    "I did not check any rendered geometry in a browser (I2, I3).",
+    "I did not read the rest of the diff (Workbench.tsx, workbenchSplit.ts, mediaHostStyle.ts) beyond what the two findings needed."
+  ],
+  "confidence": 88,
+  "coverage": [
+    {
+      "path": "frontend/src/components/FileDetail/ShellLayout.tsx",
+      "read": "partial",
+      "reason": "Lines 150-290 and 470-570, for the measurement and its wiring."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/MediaCanvas.tsx",
+      "read": "partial",
+      "reason": "Host attributes and children."
+    },
+    {
+      "path": "frontend/src/app/globals.css",
+      "read": "partial",
+      "reason": "Lines 1100-1260, the split rules."
+    }
+  ]
+}

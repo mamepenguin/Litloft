@@ -1547,7 +1547,8 @@
     "close": "Close {label}",
     "showMore": "Show more",
     "showLess": "Show less",
-    "enlargePanels": "Enlarge panels"
+    "enlargePanels": "Enlarge panels",
+    "splitPanels": "Show panels beside the player"
   },
   "driveUnavailable": {
     "title": "Can't open the drive “{name}”",
