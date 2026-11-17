@@ -615,9 +615,14 @@ export function FolderBrowser({
   // `[selection]` would defeat `FileCard`'s memo.
   const { toggle: toggleSelection, selectRange, keepOnly } = selection;
 
+  // Keyed on the filter text, not on the rows: a reload empties `files`
+  // for a moment, and pruning against that would clear the selection.
+  const prunedForTextRef = useRef("");
   useEffect(() => {
-    if (nameFilter.isActive) keepOnly(visibleFileIds);
-  }, [nameFilter.isActive, visibleFileIds, keepOnly]);
+    if (loading || nameFilter.appliedText === prunedForTextRef.current) return;
+    prunedForTextRef.current = nameFilter.appliedText;
+    if (nameFilter.appliedText) keepOnly(visibleFileIds);
+  }, [loading, nameFilter.appliedText, visibleFileIds, keepOnly]);
 
   const handleMetaSelect = useCallback((id: string) => {
     setSelectable(true);

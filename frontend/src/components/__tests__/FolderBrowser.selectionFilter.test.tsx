@@ -10,6 +10,7 @@ const FILES = [
   { id: "b", filename: "beta.txt", file_type: "text" },
   { id: "c", filename: "gamma.mp4", file_type: "video" },
 ];
+const listing = { files: FILES, loading: false };
 
 vi.mock("@/components/folder/FolderContent", () => ({
   FolderContent: ({
@@ -114,10 +115,10 @@ vi.mock("@/hooks/useCreateFile", () => ({
 }));
 vi.mock("@/components/folder/useFolderFiles", () => ({
   useFolderFiles: () => ({
-    files: FILES,
+    files: listing.files,
     folders: [],
-    total: FILES.length,
-    loading: false,
+    total: listing.files.length,
+    loading: listing.loading,
     loadingMore: false,
     hasMore: false,
     pagesLoaded: 1,
@@ -137,7 +138,11 @@ vi.mock("@/hooks/useFolderViewMode", () => ({
   useFolderViewMode: () => ({ viewMode: "list" as const, setViewMode: vi.fn() }),
 }));
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  listing.files = FILES;
+  listing.loading = false;
+});
 
 async function narrowTo(text: string) {
   fireEvent.change(screen.getByLabelText("name filter"), { target: { value: text } });
@@ -174,6 +179,36 @@ describe("FolderBrowser — selection under the name filter", () => {
     expect(selected()).toBe("a,b");
     await narrowTo(".mp4");
     await waitFor(() => expect(selected()).toBe("a"));
+  });
+
+  it("keeps the selection when the list reloads under the filter", async () => {
+    const view = render(<FolderBrowser driveName="d" folderPath="" />);
+    await narrowTo(".mp4");
+    fireEvent.click(screen.getByRole("button", { name: "meta a" }));
+    fireEvent.click(screen.getByRole("button", { name: "meta c" }));
+    listing.files = [];
+    listing.loading = true;
+    view.rerender(<FolderBrowser driveName="d" folderPath="" />);
+    // A reload brings back only the first page.
+    listing.files = FILES.slice(0, 2);
+    listing.loading = false;
+    view.rerender(<FolderBrowser driveName="d" folderPath="" />);
+    expect(selected()).toBe("a,c");
+  });
+
+  it("waits for a reload before pruning against newly typed text", async () => {
+    const view = render(<FolderBrowser driveName="d" folderPath="" />);
+    fireEvent.click(screen.getByRole("button", { name: "meta a" }));
+    listing.files = [];
+    listing.loading = true;
+    view.rerender(<FolderBrowser driveName="d" folderPath="" />);
+    fireEvent.change(screen.getByLabelText("name filter"), { target: { value: ".mp4" } });
+    await new Promise((r) => setTimeout(r, 400));
+    listing.files = FILES;
+    listing.loading = false;
+    view.rerender(<FolderBrowser driveName="d" folderPath="" />);
+    await waitFor(() => expect(screen.getAllByTestId("row")).toHaveLength(2));
+    expect(selected()).toBe("a");
   });
 
   it("selects only the clicked row on Shift after the anchor was hidden", async () => {
