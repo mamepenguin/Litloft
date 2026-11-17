@@ -37,6 +37,8 @@ export interface InboxPresenterProps {
   onSelectionDone: (ids: string[]) => void;
   onClearSelection: () => void;
   onSelectAll: () => void;
+  onSelectOnly: (ids: string[]) => void;
+  onProcessed: (ids: string[]) => void;
   onReload: () => void;
 }
 
@@ -64,6 +66,8 @@ export function InboxPresenter({
   onSelectionDone,
   onClearSelection,
   onSelectAll,
+  onSelectOnly,
+  onProcessed,
   onReload,
 }: InboxPresenterProps) {
   const t = useTranslations("inbox");
@@ -172,6 +176,8 @@ export function InboxPresenter({
           onSelectAll={onSelectAll}
           onClear={onClearSelection}
           onComplete={onReload}
+          onSelectOnly={onSelectOnly}
+          onProcessed={onProcessed}
         />
       )}
     </PageFrame>

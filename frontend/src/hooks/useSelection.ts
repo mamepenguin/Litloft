@@ -49,6 +49,13 @@ export function useSelection() {
     setSelectedIds(new Set(ids));
   }, []);
 
+  // The anchor belongs to the rows that were being ranged over; after a
+  // replacement it may name a row that is no longer selected.
+  const replace = useCallback((ids: string[]) => {
+    lastToggledIdRef.current = null;
+    setSelectedIds(new Set(ids));
+  }, []);
+
   const clear = useCallback(() => {
     lastToggledIdRef.current = null;
     setSelectedIds(new Set());
@@ -65,6 +72,7 @@ export function useSelection() {
     toggle,
     selectRange,
     selectAll,
+    replace,
     clear,
     isSelected,
   };

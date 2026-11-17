@@ -318,6 +318,12 @@ export function FolderBrowser({
   // about to come back to.
   useEffect(() => () => { flushSnapshotRef.current?.(); }, []);
 
+  const handleProcessed = useCallback((processed: string[]) => {
+    const dropped = new Set(processed);
+    setFiles((prev) => prev.filter((f) => !dropped.has(f.id)));
+    removeContinuationFiles(processed);
+  }, [setFiles, removeContinuationFiles]);
+
   const handleReshuffle = useCallback(() => {
     reset();
     clearListSnapshot();
@@ -956,6 +962,8 @@ export function FolderBrowser({
             if (removed) removeContinuationFiles(cleared);
             if (!onlyContinuation) refresh();
           }}
+          onSelectOnly={selection.replace}
+          onProcessed={handleProcessed}
         />
       )}
       </div>

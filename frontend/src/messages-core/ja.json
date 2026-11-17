@@ -24,6 +24,8 @@
     "loadContent": "読み込む",
     "fileSizeLarge": "ファイルサイズが大きすぎます ({size})",
     "loadFailed": "読み込みに失敗しました: {error}",
+    "working": "処理中",
+    "wholeListFailed": "処理できませんでした。もう一度お試しください。",
     "discardUnsaved": {
       "title": "未保存の変更があります",
       "message": "このファイルには保存されていない編集があります。移動すると失われる可能性があります。",
@@ -422,7 +424,13 @@
     "tag": "タグ",
     "tagging": "タグ付け",
     "collection": "コレクション",
-    "rename": "名前変更"
+    "rename": "名前変更",
+    "progress": "処理中 {done} / {total} 件",
+    "partial": "{done} 件を処理し、{failed} 件は処理できませんでした。",
+    "stopped": "{done} 件を処理したあと止まりました。{remaining} 件は選択に残しています。",
+    "retryNote": "前回の処理で処理済みの file が含まれることがあります。",
+    "processRemaining": "残りを処理",
+    "retryMessage": "{remaining} 件を処理しますか？"
   },
   "favorite": {
     "add": "お気に入りに追加",
