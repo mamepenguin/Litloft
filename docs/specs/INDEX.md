@@ -257,4 +257,3 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-CORE-119 | implemented | docs/specs/app-target-collections.md | sha256:5d19d0bc7e3b4c67b7c46ebe24ec10439f15fb3ea5e6eb5d31444d7169f038c2 |
 | SPEC-CORE-122 | draft | docs/specs/phone-polish.md | |
 | SPEC-CORE-123 | draft | docs/specs/phone-polish.md | |
-| SPEC-CORE-124 | draft | docs/specs/phone-polish.md | |
