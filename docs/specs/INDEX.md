@@ -260,5 +260,5 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-CORE-122 | implemented | docs/specs/phone-polish.md | sha256:60535145f7a1c4c8df045a41a2326ed11996ad70ddf190a5d4e967f1ec441943 |
 | SPEC-CORE-123 | implemented | docs/specs/phone-polish.md | sha256:60535145f7a1c4c8df045a41a2326ed11996ad70ddf190a5d4e967f1ec441943 |
 | SPEC-CORE-125 | implemented | docs/specs/drive-unavailable.md | sha256:e9f9b0a9e569095f6578e0e75e0cc306a6729290d76598bdda6f7c61b163cc12 |
-| SPEC-CORE-126 | approved | docs/specs/workbench-split.md | sha256:5e4a96c6cf2598ae8a2d8ed22d6364a51d219e3326173c9fece6adae2590bdc1 |
-| SPEC-CORE-127 | approved | docs/specs/workbench-split.md | sha256:5e4a96c6cf2598ae8a2d8ed22d6364a51d219e3326173c9fece6adae2590bdc1 |
+| SPEC-CORE-126 | implemented | docs/specs/workbench-split.md | sha256:5e4a96c6cf2598ae8a2d8ed22d6364a51d219e3326173c9fece6adae2590bdc1 |
+| SPEC-CORE-127 | implemented | docs/specs/workbench-split.md | sha256:5e4a96c6cf2598ae8a2d8ed22d6364a51d219e3326173c9fece6adae2590bdc1 |

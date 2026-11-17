@@ -1,0 +1,157 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "R1",
+      "origin": "reviewer",
+      "claim": "The W measurement added to ShellLayout (scroll-root state, a layout effect and a ResizeObserver) is wired through the wrapped `attachScrollRoot` callback into the MarkdownDocumentLayout branch as well. So it also runs on text, markdown and HTML-preview pages, which the touch-point list does not mention: it describes W only for the player canvas.",
+      "impact": "No visible effect was found. On non-player pages `splitEligible` is false because `workbenchWide` requires `hasPlayer`, so the measurement is unused. Each resize of the scroll container on a document page now causes one extra ShellLayout state update. MarkdownDocumentLayout gets a different callback identity but the same call semantics, and `setShellScrollRoot` is a stable setter, so this callback is not re-created on every render.",
+      "evidence": "frontend/src/components/FileDetail/ShellLayout.tsx:170-199 adds attachScrollRoot and the useLayoutEffect ResizeObserver. ShellLayout.tsx:560 passes `onScrollRootChange={attachScrollRoot}` to MarkdownDocumentLayout, the non-canvas branch, as well as to FileDetailShell at :491. MarkdownDocumentLayout.tsx:155 forwards it. ShellLayout.tsx:263-268 gates split on workbenchWide, which needs hasPlayer (:235-236).",
+      "repro": "not_reproduced. Found by reading: open a markdown file and the ShellLayout layout effect observes the scroll root, while `split` stays false.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "It breaks no declared invariant. It is reach beyond the touch-point description (the document-page branch of ShellLayout), and the answer to the question asks for exactly that.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Pass `attachScrollRoot` only on the `usesCanvasViewer` branch and keep `onScrollRootChange` on the MarkdownDocumentLayout branch. Alternatively, return early from the measuring effect when `!hasPlayer`."
+    },
+    {
+      "id": "R2",
+      "origin": "reviewer",
+      "claim": "The new globals.css rules style MediaPlayerBlock's `.media-detail-player[data-framed=\"true\"]` box (max-width, margin-inline, grid placement), and its `> * + *` rule also reaches the host's third child, the heavy-summaries wrapper. Neither MediaPlayerBlock.tsx nor that wrapper is a named touch point.",
+      "impact": "No user-visible defect was found. On a player file the summaries wrapper is empty and `empty:hidden`, so it takes no grid cell. The player box keeps its parent, which matches the placement mechanism. This is listed only as reach into an element whose markup the change depends on, the `media-detail-player` class and the `data-framed` attribute, without editing that file.",
+      "evidence": "globals.css new block (diff lines after 1151): `.media-detail-host[data-workbench-split=\"on\"] > .media-detail-player[data-framed=\"true\"] { max-width: calc(var(--player-avail, 100dvh) * 16 / 9); margin-inline: 0; }`. MediaPlayerBlock.tsx:92-93 defines `className=\"media-detail-player\"` and `data-framed`. MediaCanvas.tsx:88-90 is the third host child.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "It is covered in spirit by the touch point's placement-mechanism bullet (\"the player is in the left column\"). It breaks no invariant. It is reported because the question asks for files the change depends on that the list does not name.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    }
+  ],
+  "specification_compliance": [
+    "Answer to the question: every edited product path is named in the touch-point list. ShellLayout, MediaCanvas, mediaHostStyle, useCompanionMetrics, Workbench, workbenchSplit.ts, setup.ts, workbenchBeside.ts, layoutSizes.ts, globals.css, ja.json and en.json are named directly. DESIGN.md and the user guide are also named. The e2e spec and the two registries (projects.ts, spec-viewport.spec.ts) fall under 'Tests: frontend/e2e-components/', and the three vitest files fall under 'vitest under frontend/src/'. docs/specs and INDEX.md are implicit touch points.",
+    "Reach beyond the list is behavioural, not a matter of which files were edited: the W measurement also runs on the MarkdownDocumentLayout branch of ShellLayout (R1), and the new CSS styles MediaPlayerBlock's player box and the host's summaries wrapper (R2).",
+    "useCompanionMetrics.ts is named as carrying the split frame budget but changes only in a comment. The budget works through the existing rowBlockPx: the row is absolute in split, so it is not inside `[data-row-beside]`, and its offsetHeight plus 2rem is still subtracted. With the CSS row top of min(col*9/16, --player-avail)+1rem, the row bottom then lands at visible height − 1rem. That is consistent with I2, so this is not unplanned reach.",
+    "Workbench is also used by the collection surface. That use passes no split or splitButton props, so split defaults to false and isRowBeside receives splitButton=false, which keeps it unchanged."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The ShellLayout ResizeObserver runs on document pages, where its result is unused (R1)."
+  ],
+  "regression_risks": [
+    "globals.css: the new `.media-detail-host[data-workbench-split=\"on\"] > .media-detail-player[data-framed]` rule has the same specificity as the existing workbench player-cap rules. It wins only by source order, so moving the block above the existing rules would silently re-apply the 50%/30% cap in split.",
+    "The `.media-detail-workbench > .media-detail-workbench-row` absolute `left: calc(-150% - 1rem); width: 150%` relies on the 1.5fr/1fr track ratio matching WORKBENCH_SPLIT_SHARE = 0.6. Changing either one alone would misplace the row; only the e2e geometry checks would catch it."
+  ],
+  "test_coverage": [
+    "The e2e workbench-split-desktop.spec.ts covers I1, I2 (three windows, one and two panels, both pointers), I3, I4, I5 (normal cases and full screen), I6, I7, I8 and I9 in a real browser.",
+    "Vitest covers splitFits at 61rem and at 61rem minus 1px for 16px and 20px roots, the isRowBeside threshold with and without the split button, and the message strings.",
+    "No test asserts that document (markdown) pages are unaffected by the new measurement. No defect there is expected."
+  ],
+  "not_verified": [
+    "Did not run any test, vitest or Playwright. Every claim comes from reading the code.",
+    "Did not read the existing globals.css workbench rules before line 1151 to confirm specificity and order against the new block.",
+    "Did not read FileDetailPresenter.tsx (collection surface) beyond the grep showing it calls mediaHostStyle(metrics) without the split argument.",
+    "Did not verify whether the commit 7a8e9e9f2 itself touches only docs; the review was done against the diff supplied."
+  ],
+  "coverage": [
+    {
+      "path": "frontend/e2e-components/projects.ts",
+      "read": "full",
+      "reason": "The changed hunk (one array entry in DESKTOP_ONLY) and the array around it, read in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/spec-viewport.spec.ts",
+      "read": "full",
+      "reason": "The changed hunk (one entry in AT_THE_DESKTOP_WIDTH) and the array around it, read in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/workbench-split-desktop.spec.ts",
+      "read": "full",
+      "reason": "A new file. Its whole content was read in the diff."
+    },
+    {
+      "path": "frontend/src/app/globals.css",
+      "read": "partial",
+      "reason": "Read the whole new block after line 1151 in the diff and located it with Grep (lines 1163-1205). Did not read the existing workbench rules before it."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/MediaCanvas.tsx",
+      "read": "full",
+      "reason": "Read the whole file."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/ShellLayout.tsx",
+      "read": "full",
+      "reason": "Read the whole file."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/hooks/useCompanionMetrics.ts",
+      "read": "full",
+      "reason": "Read the whole file."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/mediaHostStyle.ts",
+      "read": "full",
+      "reason": "Read the whole file."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/workbench/Workbench.tsx",
+      "read": "full",
+      "reason": "Read the whole file."
+    },
+    {
+      "path": "frontend/src/lib/layoutSizes.ts",
+      "read": "partial",
+      "reason": "Read lines 1-50, which include the changed hunk and the constants it derives from."
+    },
+    {
+      "path": "frontend/src/lib/workbenchBeside.ts",
+      "read": "full",
+      "reason": "The changed hunk contains the whole isRowBeside function, read in the diff."
+    },
+    {
+      "path": "frontend/src/lib/workbenchSplit.ts",
+      "read": "full",
+      "reason": "A new file. Its whole content was read in the diff."
+    },
+    {
+      "path": "frontend/src/messages-core/en.json",
+      "read": "full",
+      "reason": "Read the changed hunk (workbench.splitPanels) and its enclosing object in the diff."
+    },
+    {
+      "path": "frontend/src/messages-core/ja.json",
+      "read": "full",
+      "reason": "Read the changed hunk (workbench.splitPanels) and its enclosing object in the diff."
+    },
+    {
+      "path": "frontend/src/test/setup.ts",
+      "read": "partial",
+      "reason": "Read only the diff hunks (the import and the tail of afterEach), not the whole afterEach body."
+    },
+    {
+      "path": "frontend/src/lib/__tests__/workbenchBeside.test.ts",
+      "read": "partial",
+      "reason": "Read the added describe block in the diff, and the earlier assertions only through Grep."
+    },
+    {
+      "path": "frontend/src/lib/__tests__/workbenchSplit.test.ts",
+      "read": "full",
+      "reason": "A new file, read in the diff."
+    },
+    {
+      "path": "frontend/src/lib/__tests__/workbenchSplitMessages.test.ts",
+      "read": "full",
+      "reason": "A new file, read in the diff."
+    }
+  ],
+  "confidence": 78
+}
