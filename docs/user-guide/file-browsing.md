@@ -21,7 +21,7 @@ The row above a listing shows where you are. Every part of it is a link back to 
 
 ## Folders
 
-- A folder card shows how many files it holds, counting its subfolders too, and the main kinds: *138 items · Video 135 · Document 3*.
+- A folder card shows how many files it holds, counting its subfolders too: *138 items*.
 - Click a folder to open it.
 - Right-click it, or long-press it on a touch screen, for **Open**, **Pin / Unpin**, **Rename**, **Move** and **Delete**. In the folder tree the same menu also offers **New file here** and **New folder here**.
 - Empty folders are listed too, with a count of 0.

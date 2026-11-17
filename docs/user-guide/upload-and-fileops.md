@@ -2,7 +2,7 @@
 
 ## Uploading files
 
-Drop files or a folder onto any folder listing, or choose **Files** or **Folder** from the **Add** menu. A drop on Home uploads to the drive root. A dropped folder keeps its subfolders.
+Drop files or a folder onto any folder listing, or choose **Upload files** or **Upload folder** from the **Add** menu. A drop on Home uploads to the drive root. A dropped folder keeps its subfolders.
 
 ![Upload progress drawer showing queued and completed uploads](../images/user-guide/upload-progress-drawer.png)
 

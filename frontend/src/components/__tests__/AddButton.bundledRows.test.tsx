@@ -83,9 +83,9 @@ describe.runIf(addonsLinked)("the Add menu with the bundled addon rows", () => {
     renderAdd({ path: "recipes", surface: "library" });
     await waitFor(() =>
       expect(rows()).toEqual([
-        "Files",
-        "Folder",
-        "New Folder",
+        "Upload files",
+        "Upload folder",
+        "New folder",
         "Import from URL",
         "New note",
         "Clip web page",
