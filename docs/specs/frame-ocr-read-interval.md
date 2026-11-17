@@ -62,25 +62,33 @@ Reading one video (the frame reader of SPEC-ADDON-066, `index_frame_ocr`):
    seconds passed since that read. Before this change: 16 bits and 10 seconds. The
    frame reader gets constants of its own; the frame scan keeps the shared ones.
 3. Reading a frame (SPEC-ADDON-123). All geometry is in the image passed to the engine
-   (after `_ocr_image` scaling). A box is the axis-aligned bounding rectangle of a
-   quadrilateral the engine's detection returns.
-   1. A frame makes at most two engine calls, each through `run_engine`: detection,
-      then one call that classifies and recognises every box needing it, using the
-      engine's own crop, classification and recognition steps (the ones `engine(image)`
-      runs). Before each call the reader waits while the indexing queue is paused, then
-      continues the same frame. Time spent paused does not count towards the 120 s
-      stall limit.
+   (after `_ocr_image` scaling), in integer pixels. A box is the axis-aligned bounding
+   rectangle of a quadrilateral the engine's detection returns. **Detection order** is
+   the order of the boxes after the engine's own box sorting, which is the order in
+   which one `engine(image)` call returns its lines.
+   1. A frame makes at most two engine calls: detection, then one call that classifies
+      and recognises every box needing it, using the engine's own preprocessing, crop,
+      classification, recognition and `text_score` steps (the ones `engine(image)`
+      runs, in the pinned RapidOCR). Both go through the same one-at-a-time lock as
+      `run_engine`, whose existing whole-image form stays unchanged for its other
+      callers (`index_ocr`, `page_ocr`, `image_query`). Before each call the reader
+      waits while the indexing queue is paused, then continues the same frame. Time
+      spent paused does not count towards the 120 s stall limit.
    2. The boxes of this frame are taken in detection order. Each looks among the boxes
       of the previous read frame not yet taken by an earlier box of this frame, for
-      those with intersection over union of at least 0.8 with it, and picks the one with
-      the highest; a tie goes to the earlier box in the previous frame's order.
+      those whose unpadded rectangles have intersection over union of at least 0.8
+      with it, and picks the one with the highest; a tie goes to the earlier box in the
+      previous frame's detection order. A picked box is taken whether or not the
+      region test below passes.
    3. The picked box's region is unchanged when, over this frame's box padded by
-      4 pixels and clipped to the image, the grayscale (0–255) absolute difference
+      4 pixels and clipped to the image, the absolute difference of grayscale values
       between this frame and the picked box's recognition frame has a mean below 2.0 in
-      every window. The windows are squares whose side is the padded box's shorter side,
-      placed along its longer side from its start every half side, the last one clipped
-      at the end. A horizontal box is walked left to right, a vertical one top to
-      bottom.
+      every window. Grayscale is PIL's `L` conversion (ITU-R 601-2 luma, 0–255). The
+      windows are squares whose side `s` is the padded box's shorter side, placed along
+      its longer side at offsets 0, `max(1, s // 2)`, 2 × that, … while the offset is
+      inside the box; a window that reaches past the end is cut at the end and averages
+      only the pixels inside. A box at least as wide as it is tall is walked left to
+      right, a taller one top to bottom.
    4. An unchanged match gives this box the picked box's result again: its line, or no
       line when the engine dropped that box (`text_score`).
    5. Every other box is recognised in the frame's recognition call. A box's
@@ -120,9 +128,15 @@ Storing and re-reading (SPEC-ADDON-122):
    and `indexed.frame_ocr` excludes it (`get_status` and the status endpoint in
    `main.py`), so the widget's `indexed + pending` stays the number of videos. Index
    details report its `status.frame_ocr` as `false`. `prioritize` queues it at 100 like
-   any pending frame task. A reindex request for `frame_ocr` on a video whose re-read
-   is already queued raises that queued task to 100 instead of answering
-   `already_queued` with nothing changed.
+   any pending frame task. A reindex request for `frame_ocr` on a video that is outdated
+   at request time and has a frame task queued (not running) answers `already_queued`,
+   as today, and raises that queued task to 100, changing no flag, as the `.loft`
+   reindex does (SPEC-ADDON-117 I13). Any other reindex of `frame_ocr`, including one
+   while a frame task runs, behaves as today. The status, index details, `prioritize`
+   and reindex all use one shared definition of "outdated".
+10. Re-reads do not hold back `.loft` work: the rule that no backlog `.loft` download
+    starts while a native `frame_ocr` task is queued or processing counts only native
+    tasks that are not re-reads (Revises, SPEC-ADDON-117 I3).
 
 ### 2. Failure cases
 
@@ -136,9 +150,11 @@ Storing and re-reading (SPEC-ADDON-122):
   `video_frame_texts`, the search rows, `frame_ocr_read` or `frame_ocr_indexed`. It
   sets `frame_ocr_rule` to 2, so the video keeps its earlier read and is not tried
   again automatically; a reindex still reads it.
-- A re-read that cannot reach the file, cannot create the engine, finds the row no
-  longer active, or fails to write: nothing is written, `frame_ocr_rule` included, and
-  a later backlog pass tries again.
+- A re-read that cannot reach the file, cannot create the engine, loses the engine
+  partway, finds the row no longer active, or fails to write: nothing is written,
+  `frame_ocr_rule` included, and a later backlog pass tries again.
+- Until a re-read's store step, a running re-read changes no row and no flag, so the
+  earlier frame text stays searchable while it runs.
 - A `.loft` is never re-read automatically; a reindex reads its downloaded source under
   the new rule as any reindex does.
 
@@ -155,7 +171,8 @@ Per native video, with `R` = `frame_ocr_read`, `X` = `frame_ocr_indexed`, `F` =
 | (true, false, any) | build fails | unchanged, retried |
 | (true, true, NULL), outdated | re-read stored | (true, false, 2), then build → (true, true, 2) |
 | (true, true, NULL), outdated | re-read incomplete (item 2) | (true, true, 2), earlier rows kept |
-| (true, true, NULL), outdated | re-read unreachable, no engine, inactive, write failure | unchanged, retried |
+| (true, true, NULL), outdated | re-read unreachable, no engine, engine lost, inactive, write failure | unchanged, retried |
+| (true, true, any) | text-embedding model change (`database.py`) | (true, false, same F); after the build, a row with F NULL is outdated again |
 | (true, true, NULL), not `on_index` | none (not outdated) | unchanged; becomes outdated if the mode is set to `on_index` and the process restarts |
 | any | reindex `frame_ocr` | R and X false, F unchanged |
 | (true, true, 2) | none | unchanged |
@@ -209,8 +226,11 @@ drive policy gates (`index` feature) apply as they do today.
   first appearance instead of within 10. Between a re-read's store and build (normally
   seconds), the video's frame text is out of search and find in file reports it as not
   indexed when it has no transcript (`file_find._stage_done`), as after a first read.
-- **Picture OCR and image queries** share the engine and `run_engine`'s one-at-a-time
-  lock. They now wait between more, shorter engine calls. An image query that waits
+- **`.loft` backlog fetches** wait today while any native `frame_scan` or `frame_ocr`
+  task is queued or processing (SPEC-ADDON-117 I3). Without step 10 the re-read would
+  stop them for its 9–11 days; with it, they keep going alongside the re-read.
+- **Picture OCR, scanned-PDF page OCR and image queries** share the engine and
+  `run_engine`'s one-at-a-time lock. They now wait between more, shorter engine calls. An image query that waits
   with a timeout may time out more often while the re-read runs; its behaviour on
   timeout is unchanged.
 - **The backlog**: the re-read adds every native video at -10, behind new files
@@ -223,7 +243,9 @@ drive policy gates (`index` feature) apply as they do today.
 
 As today: a failed frame logs one warning (`Frame OCR failed for one frame`), a failed
 read leaves the video pending with the existing log lines. An incomplete re-read logs
-one warning naming the outcome and that the earlier read was kept. Nothing new is shown
+one warning naming the outcome and that the earlier read was kept, in place of the
+first-read lines for that outcome ("keeping the frames read", "closing it as read"),
+which would be false for a re-read. Nothing new is shown
 in the UI beyond the pending counts of item 1, step 9.
 
 ### 9. User-visible behavior
@@ -245,12 +267,27 @@ in the UI beyond the pending counts of item 1, step 9.
 
 - Time: about 10 minutes per video hour on the production Mac mini, at most 15 for
   videos dense with text. This replaces the B2b target of about 5 minutes
-  (`feature-frame-ocr` clarifications). The gate is per clip: before the change ships,
-  the implementing session measures the addon build to be merged on the production Mac
-  mini, in a one-off container of that image with the indexing queue paused, on the same
-  seven clips, and records the minutes per video hour and the share of lines caught per
-  clip in `docs/process/reviews/<topic>/decisions.md`. If any clip exceeds 15 minutes per
-  video hour, stop and ask. The 10-minute figure is a description, not a gate.
+  (`feature-frame-ocr` clarifications).
+- Shipping gate, per clip. The implementing session:
+  - commits the measuring harness under `scripts/dev/frame_ocr_bench/`: an
+    every-second reference read, and a run of the frame reader as built that reports
+    the engine time (decoding excluded) per video hour and the share of reference
+    lines its segments catch, lines merged at similarity 0.8;
+  - uses the seven clips of 2026-11-17, kept on the development Mac under
+    `~/Downloads/動画サンプル/` (first 600 s of the anime, home video, subtitled talk,
+    slide talk and coding screencast, first 400 s of the pitch) and the 77 s cooking
+    video, and names each file in `decisions.md`;
+  - runs the harness on the production Mac mini in a one-off container of the addon
+    image to be merged, mounting only the clips and an output directory (no `data/`),
+    with the production intelligence queue paused for the run and resumed after;
+  - records the minutes per video hour and the share caught per clip in
+    `docs/process/reviews/<topic>/decisions.md`.
+  If any clip exceeds 15 minutes per video hour, or catches a share more than 0.05
+  below this spec's table, stop and ask. The 10-minute figure is a description, not a
+  gate.
+- Size: production holds 102,277 frame-text rows (1.3 M characters) in a 9.5 GB
+  `search.db`. Two to three times as many segments and their embeddings is expected,
+  well under 1 GB added.
 - Concurrency: one engine call at a time across all callers, as today. The frame reader
   makes no call while the queue is paused, counting detection and recognition calls
   separately.
@@ -271,8 +308,13 @@ in the UI beyond the pending counts of item 1, step 9.
   re-read outcomes, the store step (`frame_ocr_rule`, `frame_ocr_indexed`).
 - `addons/intelligence/app/workers/frame_scan.py`: read only. Its module docstring calls
   the shared constants "the frame-OCR rule" (prose to correct).
-- `addons/intelligence/app/workers/ocr.py`: `run_engine`, and the engine's detection,
-  crop, classification and recognition steps, called separately.
+- `addons/intelligence/app/workers/ocr.py`: `run_engine` and its lock; the engine's
+  detection, crop, classification and recognition steps, called separately. The
+  whole-image `run_engine` keeps its behaviour for `index_ocr`,
+  `app/workers/page_ocr.py` and `app/image_query.py` (read only).
+- `addons/intelligence/app/workers/loft_media.py` / the `.loft` download gate in
+  `indexer.py`: the native-task condition of SPEC-ADDON-117 I3 excludes re-reads.
+- `scripts/dev/frame_ocr_bench/` (core): the measuring harness of item 10.
 - `addons/intelligence/app/workers/loft_media.py`: read only (the `.loft` caller of
   `index_frame_ocr`); a `.loft` read writes `frame_ocr_rule` 2 through the store step.
 - `addons/intelligence/app/indexer.py`: `_collect_incomplete` (outdated rows),
@@ -323,18 +365,23 @@ in the UI beyond the pending counts of item 1, step 9.
 
 I1. A video, or the downloaded source of a `.loft`, is read at its first decoded frame and at a later decoded frame only when that frame's 256-bit difference hash differs from the last read frame's by at least 8 bits and at least 3 seconds have passed since that read, so no two read frames are less than 3 seconds apart; the frame scan's change seconds still use 16 bits and 10 seconds.
 I2. For a read frame in which no box is reused (the first read frame, a frame after a failed frame, a frame whose boxes all changed), the stored lines and their order equal those of one `engine(image)` call on the same image, including boxes the engine drops.
-I3. A detected box takes an earlier result only from a not-yet-taken box of the previous read frame with intersection over union of at least 0.8 (the highest such), and only when every square window along the padded box (side = its shorter side) has a mean absolute grayscale difference below 2.0 against the frame where that result was recognised, never against a frame that only reused it; a box in which one character changed is therefore recognised again, whatever its length or direction.
+I3. A detected box takes an earlier result only from a not-yet-taken box of the previous read frame with intersection over union of at least 0.8 (the highest such), and only when every square window along the padded box (side = its shorter side) has a mean absolute grayscale difference below 2.0 against the frame where that result was recognised, never against a frame that only reused it; a change whose mean difference within one window is 2.0 or more is therefore recognised again, whatever the box's length or direction. A picked box is taken whether or not it passes.
 I4. A reused box gives exactly the earlier result: the same line, or no line when the engine dropped that box.
 I5. A frame where any engine call fails stores no text, as today, and none of its boxes is reused by the next read frame.
 I6. A stored read writes `frame_ocr_rule` 2 and `frame_ocr_indexed` false in the same transaction as its `video_frame_texts` rows, and the build that follows sets `frame_ocr_indexed` true only after the search rows exist; `frame_ocr_rule` is never lowered, and the rebuild-only path, a reindex and the closing paths that read nothing never write it; the migration adding the column can run twice and leaves existing rows' values and flags unchanged (NULL).
-I7. Under `on_index`, every outdated native video (`frame_ocr_read` and `frame_ocr_indexed` true, `frame_ocr_rule` NULL or below 2) is queued at -10, counts in `pending.frame_ocr` and `pending.total` and not in `indexed.frame_ocr`, shows `status.frame_ocr` false in index details, can be prioritized, and is read again when its task runs; under `manual` or `false`, or for a `.loft`, none of this happens and a task that reaches such a row reads nothing. A rebuild after a text-embedding model change calls no engine whatever `frame_ocr_rule` holds.
-I8. A re-read that is not complete (ended early, `Unreadable`, no frame decoded, `times_failed`, or an engine call raised on any frame) leaves the video's `video_frame_texts`, `text_content` and `fts_text_content` rows and its `frame_ocr_read` and `frame_ocr_indexed` as they were and sets `frame_ocr_rule` to 2; a re-read that cannot reach the file, create the engine, find the row active or write changes nothing, `frame_ocr_rule` included.
-I9. No two engine calls run at once across all callers, and the frame reader starts none (detection or recognition) while the indexing queue is paused, including between the two calls of one frame.
-I10. A reindex of `frame_ocr` on a video whose re-read is already queued leaves exactly one queued frame task for it, at priority 100.
+I7. Under `on_index`, every outdated native video (`frame_ocr_read` and `frame_ocr_indexed` true, `frame_ocr_rule` NULL or below 2) is queued at -10, counts in `pending.frame_ocr` and `pending.total` and not in `indexed.frame_ocr`, shows `status.frame_ocr` false in index details, gets a frame task at 100 from `prioritize`, and is read again when its task runs; under `manual` or `false`, or for a `.loft`, none of this happens and a task that reaches such a row reads nothing. A rebuild after a text-embedding model change calls no engine whatever `frame_ocr_rule` holds.
+I8. A running re-read changes no row and no flag before its store step. A re-read that is not complete (ended early, `Unreadable`, no frame decoded, `times_failed`, or an engine call raised on any frame) leaves the video's `video_frame_texts`, `text_content` and `fts_text_content` rows and its `frame_ocr_read` and `frame_ocr_indexed` as they were and sets `frame_ocr_rule` to 2; a re-read that cannot reach the file, create the engine, keep the engine, find the row active or write changes nothing, `frame_ocr_rule` included.
+I9. No two engine calls run at once across all callers. The frame reader makes at most one detection and one recognition call per frame, starts none while the indexing queue is paused (including between the two calls of one frame), does not count paused time towards the 120 s stall limit, and keeps across frames only the grayscale images of recognition frames that a box of the last read frame refers to.
+I10. A reindex of `frame_ocr` on a video that is outdated and has a frame task queued answers `already_queued` and leaves exactly one queued frame task for it, at priority 100, with its flags unchanged.
+I11. A backlog `.loft` download is not held back by a queued or processing native re-read; it is still held back by any other native `frame_scan` or `frame_ocr` task, as SPEC-ADDON-117 I3 states.
 
 ## Revises
 
 SPEC-ADDON-066 I1. A video is read only at its first decoded frame and at frames whose 256-bit difference hash differs from the last read frame's by at least 8 bits and that come at least 3 seconds after it, so no two read frames of a video are less than 3 seconds apart.
+
+SPEC-ADDON-117 I3. No download starts while another fetch runs, while the queue is paused, at priority -10 while a native `frame_scan` or `frame_ocr` task that is not a re-read of an outdated read (SPEC-ADDON-122) is queued or processing, while the drive's `index` feature is off, when no stage is wanted, when the model or engine a wanted stage needs is unavailable, or when the disk guard fails; a fetch that ends before its stages ran changes nothing but the duration (from NULL after a lookup), the loft source, the failure count, the flags closed for source `other`, the wanted stages closed at the cap, and the candidates, tile files and `clip_indexed` its storyboard step wrote (SPEC-ADDON-121).
+
+SPEC-ADDON-117 I10. On every start, the fetch directory is emptied and every unclassified `.loft` with no scan row and no frame-text row has its three flags opened, both before any `loft_media` task is queued, and no native video's or classified `.loft`'s flags are changed by that step; `/status` counts pipeline videos and unclassified `.loft`s as native videos with the same flags (`pending.frame_ocr` under `on_index` only), except that a native video's outdated read (SPEC-ADDON-122) counts as pending frame OCR and a `.loft` is never outdated, and never counts a `.loft` of source `other`.
 
 ## Checked, no action
 
