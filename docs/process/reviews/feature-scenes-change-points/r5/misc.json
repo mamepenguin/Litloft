@@ -1,0 +1,73 @@
+{
+ "nochange-mov": {
+  "api": {
+   "status": 200,
+   "keys": [
+    "file_id",
+    "drive",
+    "timestamps",
+    "changes",
+    "available"
+   ],
+   "n": 1,
+   "changes": [],
+   "available": true
+  },
+  "pill": 1,
+  "state": {
+   "group": null,
+   "chips": null,
+   "tiles": 1,
+   "ticks": 1,
+   "imgs": {
+    "count": 1,
+    "loaded": 1
+   }
+  }
+ },
+ "nochange-loft": {
+  "api": {
+   "status": 200,
+   "keys": [
+    "file_id",
+    "drive",
+    "timestamps",
+    "changes",
+    "available"
+   ],
+   "n": 178,
+   "changes": [],
+   "available": true
+  },
+  "pill": 1,
+  "state": {
+   "group": null,
+   "chips": null,
+   "tiles": 18,
+   "ticks": 178,
+   "imgs": {
+    "count": 18,
+    "loaded": 18
+   }
+  }
+ },
+ "fileChange": {
+  "how": "router.push",
+  "before": [
+   "すべて 276:false",
+   "カット 113:true"
+  ],
+  "url": "http://video-share-change-points.localhost:3101/drive/%E5%8B%95%E7%94%BB/%E3%82%A2%E3%83%8B%E3%83%A1?file=6ZGQI6Ub5WvW",
+  "after": [
+   "すべて 269:true",
+   "カット 113:false"
+  ],
+  "firstTiles": [
+   "0:06 から再生",
+   "0:09 から再生",
+   "0:12 から再生",
+   "0:15 から再生"
+  ],
+  "ticks": 269
+ }
+}

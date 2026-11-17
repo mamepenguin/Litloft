@@ -22,8 +22,8 @@ function rootFontSize(): number {
 }
 
 /**
- * The room the toggle row takes under the frame. Zero when the row is not in
- * the flow under the player: it is absent, or it sits beside the frame.
+ * The room the toggle row takes under the frame. Zero while the row sits
+ * beside the frame, where the frame's own width already leaves room for it.
  */
 function rowBlockPx(row: HTMLElement | null): number {
   if (!row || row.closest(BESIDE_SELECTOR)) return 0;

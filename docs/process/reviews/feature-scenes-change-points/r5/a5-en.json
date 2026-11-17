@@ -1,0 +1,612 @@
+{
+ "api": {
+  "n": 276,
+  "m": 113,
+  "c": [
+   0,
+   10,
+   20,
+   30,
+   40,
+   50,
+   60,
+   70,
+   80,
+   90,
+   100,
+   110,
+   120,
+   130,
+   140,
+   150,
+   160,
+   170
+  ],
+  "t": [
+   6.456467,
+   9.442767,
+   12.862867,
+   15.5155,
+   18.7771,
+   21.3964,
+   24.649633,
+   28.953933,
+   34.7097,
+   35.802467,
+   37.7127,
+   38.822133,
+   41.207833,
+   42.567533,
+   44.210833,
+   45.537167,
+   47.872833,
+   51.9102
+  ]
+ },
+ "all": {
+  "slider": true,
+  "ruler": {
+   "x": 270,
+   "y": 621,
+   "w": 756,
+   "h": 44,
+   "bottom": 665,
+   "right": 1026
+  },
+  "group": {
+   "x": 270,
+   "y": 699,
+   "w": 137,
+   "h": 26,
+   "bottom": 725,
+   "right": 407
+  },
+  "grid": {
+   "x": 270,
+   "y": 739,
+   "w": 756,
+   "h": 353,
+   "bottom": 1092,
+   "right": 1026
+  },
+  "chips": [
+   {
+    "text": "All 276",
+    "pressed": "true",
+    "cls": "rounded-full border px-2.5 py-1 text-xs border-accent font-semibold text-text-primary",
+    "box": {
+     "w": 63,
+     "h": 26,
+     "x": 270,
+     "y": 699
+    }
+   },
+   {
+    "text": "Cuts 113",
+    "pressed": "false",
+    "cls": "rounded-full border px-2.5 py-1 text-xs border-transparent text-text-muted hover:text-text-primary",
+    "box": {
+     "w": 70,
+     "h": 26,
+     "x": 337,
+     "y": 699
+    }
+   }
+  ],
+  "cols": 6,
+  "tiles": [
+   18,
+   [
+    "Play from 0:06",
+    "Play from 0:09",
+    "Play from 0:12",
+    "Play from 0:15"
+   ],
+   [
+    "Play from 0:47",
+    "Play from 0:51"
+   ]
+  ],
+  "imgs": {
+   "count": 18,
+   "loaded": 18
+  },
+  "emptyTiles": 0,
+  "ticks": 276,
+  "playhead": "0%",
+  "marks": [
+   "8.555%",
+   "25.127%",
+   "41.722%",
+   "58.421%",
+   "74.607%",
+   "91.407%"
+  ],
+  "valuemax": "1125",
+  "valuenow": "0",
+  "card": {
+   "text": "1:36 | 白画面",
+   "box": {
+    "x": 270,
+    "y": 1106,
+    "w": 756,
+    "h": 122,
+    "bottom": 1227,
+    "right": 1026
+   }
+  },
+  "docW": 1440,
+  "winW": 1440,
+  "video": {
+   "t": 0,
+   "d": 1124.973867
+  }
+ },
+ "cuts": {
+  "slider": true,
+  "ruler": {
+   "x": 270,
+   "y": 621,
+   "w": 756,
+   "h": 44,
+   "bottom": 665,
+   "right": 1026
+  },
+  "group": {
+   "x": 270,
+   "y": 699,
+   "w": 137,
+   "h": 26,
+   "bottom": 725,
+   "right": 407
+  },
+  "grid": {
+   "x": 270,
+   "y": 739,
+   "w": 756,
+   "h": 353,
+   "bottom": 1092,
+   "right": 1026
+  },
+  "chips": [
+   {
+    "text": "All 276",
+    "pressed": "false",
+    "cls": "rounded-full border px-2.5 py-1 text-xs border-transparent text-text-muted hover:text-text-primary",
+    "box": {
+     "w": 61,
+     "h": 26,
+     "x": 270,
+     "y": 699
+    }
+   },
+   {
+    "text": "Cuts 113",
+    "pressed": "true",
+    "cls": "rounded-full border px-2.5 py-1 text-xs border-accent font-semibold text-text-primary",
+    "box": {
+     "w": 72,
+     "h": 26,
+     "x": 335,
+     "y": 699
+    }
+   }
+  ],
+  "cols": 6,
+  "tiles": [
+   18,
+   [
+    "Play from 0:00",
+    "Play from 0:10",
+    "Play from 0:20",
+    "Play from 0:30"
+   ],
+   [
+    "Play from 2:40",
+    "Play from 2:50"
+   ]
+  ],
+  "imgs": {
+   "count": 18,
+   "loaded": 18
+  },
+  "emptyTiles": 0,
+  "ticks": 113,
+  "playhead": "0%",
+  "marks": [
+   "8.555%",
+   "25.127%",
+   "41.722%",
+   "58.421%",
+   "74.607%",
+   "91.407%"
+  ],
+  "valuemax": "1125",
+  "valuenow": "0",
+  "card": {
+   "text": "1:36 | 白画面",
+   "box": {
+    "x": 270,
+    "y": 1106,
+    "w": 756,
+    "h": 122,
+    "bottom": 1227,
+    "right": 1026
+   }
+  },
+  "docW": 1440,
+  "winW": 1440,
+  "video": {
+   "t": 0,
+   "d": 1124.973867
+  }
+ },
+ "requestsAfterCuts": [
+  "/api/addons/intelligence/files/A5X93nbNu71C/frame?t=0",
+  "/api/addons/intelligence/files/A5X93nbNu71C/frame?t=10",
+  "/api/addons/intelligence/files/A5X93nbNu71C/frame?t=20",
+  "/api/addons/intelligence/files/A5X93nbNu71C/frame?t=30",
+  "/api/addons/intelligence/files/A5X93nbNu71C/frame?t=40",
+  "/api/addons/intelligence/files/A5X93nbNu71C/frame?t=50",
+  "/api/addons/intelligence/files/A5X93nbNu71C/frame?t=60",
+  "/api/addons/intelligence/files/A5X93nbNu71C/frame?t=70",
+  "/api/addons/intelligence/files/A5X93nbNu71C/frame?t=80",
+  "/api/addons/intelligence/files/A5X93nbNu71C/frame?t=90",
+  "/api/addons/intelligence/files/A5X93nbNu71C/frame?t=100",
+  "/api/addons/intelligence/files/A5X93nbNu71C/frame?t=110",
+  "/api/addons/intelligence/files/A5X93nbNu71C/frame?t=120",
+  "/api/addons/intelligence/files/A5X93nbNu71C/frame?t=130",
+  "/api/addons/intelligence/files/A5X93nbNu71C/frame?t=140",
+  "/api/addons/intelligence/files/A5X93nbNu71C/frame?t=150",
+  "/api/addons/intelligence/files/A5X93nbNu71C/frame?t=160",
+  "/api/addons/intelligence/files/A5X93nbNu71C/frame?t=170"
+ ],
+ "tileLabel": "Play from 0:20",
+ "afterSeek": {
+  "slider": true,
+  "ruler": {
+   "x": 270,
+   "y": 621,
+   "w": 756,
+   "h": 44,
+   "bottom": 665,
+   "right": 1026
+  },
+  "group": {
+   "x": 270,
+   "y": 699,
+   "w": 137,
+   "h": 26,
+   "bottom": 725,
+   "right": 407
+  },
+  "grid": {
+   "x": 270,
+   "y": 739,
+   "w": 756,
+   "h": 353,
+   "bottom": 1092,
+   "right": 1026
+  },
+  "chips": [
+   {
+    "text": "All 276",
+    "pressed": "false",
+    "cls": "rounded-full border px-2.5 py-1 text-xs border-transparent text-text-muted hover:text-text-primary",
+    "box": {
+     "w": 61,
+     "h": 26,
+     "x": 270,
+     "y": 699
+    }
+   },
+   {
+    "text": "Cuts 113",
+    "pressed": "true",
+    "cls": "rounded-full border px-2.5 py-1 text-xs border-accent font-semibold text-text-primary",
+    "box": {
+     "w": 72,
+     "h": 26,
+     "x": 335,
+     "y": 699
+    }
+   }
+  ],
+  "cols": 6,
+  "tiles": [
+   18,
+   [
+    "Play from 0:00",
+    "Play from 0:10",
+    "Play from 0:20",
+    "Play from 0:30"
+   ],
+   [
+    "Play from 2:40",
+    "Play from 2:50"
+   ]
+  ],
+  "imgs": {
+   "count": 18,
+   "loaded": 18
+  },
+  "emptyTiles": 0,
+  "ticks": 113,
+  "playhead": "1.857%",
+  "marks": [
+   "8.555%",
+   "25.127%",
+   "41.722%",
+   "58.421%",
+   "74.607%",
+   "91.407%"
+  ],
+  "valuemax": "1125",
+  "valuenow": "21",
+  "card": {
+   "text": "1:36 | 白画面",
+   "box": {
+    "x": 270,
+    "y": 1106,
+    "w": 756,
+    "h": 122,
+    "bottom": 1227,
+    "right": 1026
+   }
+  },
+  "docW": 1440,
+  "winW": 1440,
+  "video": {
+   "t": 21.130035,
+   "d": 1124.973867
+  }
+ },
+ "hidden": {
+  "slider": false
+ },
+ "reshown": {
+  "slider": true,
+  "ruler": {
+   "x": 270,
+   "y": 621,
+   "w": 756,
+   "h": 44,
+   "bottom": 665,
+   "right": 1026
+  },
+  "group": {
+   "x": 270,
+   "y": 699,
+   "w": 137,
+   "h": 26,
+   "bottom": 725,
+   "right": 407
+  },
+  "grid": {
+   "x": 270,
+   "y": 739,
+   "w": 756,
+   "h": 353,
+   "bottom": 1092,
+   "right": 1026
+  },
+  "chips": [
+   {
+    "text": "All 276",
+    "pressed": "false",
+    "cls": "rounded-full border px-2.5 py-1 text-xs border-transparent text-text-muted hover:text-text-primary",
+    "box": {
+     "w": 61,
+     "h": 26,
+     "x": 270,
+     "y": 699
+    }
+   },
+   {
+    "text": "Cuts 113",
+    "pressed": "true",
+    "cls": "rounded-full border px-2.5 py-1 text-xs border-accent font-semibold text-text-primary",
+    "box": {
+     "w": 72,
+     "h": 26,
+     "x": 335,
+     "y": 699
+    }
+   }
+  ],
+  "cols": 6,
+  "tiles": [
+   18,
+   [
+    "Play from 0:00",
+    "Play from 0:10",
+    "Play from 0:20",
+    "Play from 0:30"
+   ],
+   [
+    "Play from 2:40",
+    "Play from 2:50"
+   ]
+  ],
+  "imgs": {
+   "count": 18,
+   "loaded": 18
+  },
+  "emptyTiles": 0,
+  "ticks": 113,
+  "playhead": "2.879%",
+  "marks": [
+   "8.555%",
+   "25.127%",
+   "41.722%",
+   "58.421%",
+   "74.607%",
+   "91.407%"
+  ],
+  "valuemax": "1125",
+  "valuenow": "32",
+  "card": {
+   "text": "1:36 | 白画面",
+   "box": {
+    "x": 270,
+    "y": 1106,
+    "w": 756,
+    "h": 122,
+    "bottom": 1227,
+    "right": 1026
+   }
+  },
+  "docW": 1440,
+  "winW": 1440,
+  "video": {
+   "t": 32.633588,
+   "d": 1124.973867
+  }
+ },
+ "requestsReshow": [
+  "/api/addons/intelligence/files/A5X93nbNu71C/clip-timestamps",
+  "/api/addons/intelligence/files/A5X93nbNu71C/visual-index"
+ ],
+ "backAll": {
+  "slider": true,
+  "ruler": {
+   "x": 270,
+   "y": 621,
+   "w": 756,
+   "h": 44,
+   "bottom": 665,
+   "right": 1026
+  },
+  "group": {
+   "x": 270,
+   "y": 699,
+   "w": 137,
+   "h": 26,
+   "bottom": 725,
+   "right": 407
+  },
+  "grid": {
+   "x": 270,
+   "y": 739,
+   "w": 756,
+   "h": 353,
+   "bottom": 1092,
+   "right": 1026
+  },
+  "chips": [
+   {
+    "text": "All 276",
+    "pressed": "true",
+    "cls": "rounded-full border px-2.5 py-1 text-xs border-accent font-semibold text-text-primary",
+    "box": {
+     "w": 63,
+     "h": 26,
+     "x": 270,
+     "y": 699
+    }
+   },
+   {
+    "text": "Cuts 113",
+    "pressed": "false",
+    "cls": "rounded-full border px-2.5 py-1 text-xs border-transparent text-text-muted hover:text-text-primary",
+    "box": {
+     "w": 70,
+     "h": 26,
+     "x": 337,
+     "y": 699
+    }
+   }
+  ],
+  "cols": 6,
+  "tiles": [
+   18,
+   [
+    "Play from 0:06",
+    "Play from 0:09",
+    "Play from 0:12",
+    "Play from 0:15"
+   ],
+   [
+    "Play from 0:47",
+    "Play from 0:51"
+   ]
+  ],
+  "imgs": {
+   "count": 18,
+   "loaded": 18
+  },
+  "emptyTiles": 0,
+  "ticks": 276,
+  "playhead": "2.99%",
+  "marks": [
+   "8.555%",
+   "25.127%",
+   "41.722%",
+   "58.421%",
+   "74.607%",
+   "91.407%"
+  ],
+  "valuemax": "1125",
+  "valuenow": "34",
+  "card": {
+   "text": "1:36 | 白画面",
+   "box": {
+    "x": 270,
+    "y": 1106,
+    "w": 756,
+    "h": 122,
+    "bottom": 1227,
+    "right": 1026
+   }
+  },
+  "docW": 1440,
+  "winW": 1440,
+  "video": {
+   "t": 33.743333,
+   "d": 1124.973867
+  }
+ },
+ "failedPictures": [],
+ "allMatches": true,
+ "cutsMatches": true,
+ "cutsTimes": [
+  "0:00",
+  "0:10",
+  "0:20",
+  "0:30",
+  "0:40",
+  "0:50",
+  "1:00",
+  "1:10",
+  "1:20",
+  "1:30",
+  "1:40",
+  "1:50",
+  "2:00",
+  "2:10",
+  "2:20",
+  "2:30",
+  "2:40",
+  "2:50"
+ ],
+ "expected": [
+  "0:00",
+  "0:10",
+  "0:20",
+  "0:30",
+  "0:40",
+  "0:50",
+  "1:00",
+  "1:10",
+  "1:20",
+  "1:30",
+  "1:40",
+  "1:50",
+  "2:00",
+  "2:10",
+  "2:20",
+  "2:30",
+  "2:40",
+  "2:50"
+ ]
+}

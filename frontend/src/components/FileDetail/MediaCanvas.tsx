@@ -23,6 +23,12 @@ interface MediaCanvasProps
   playerFocused: boolean;
   workbench?: ReactNode;
   workbenchActive: boolean;
+  /**
+   * Whether the player and the panels are two columns. The attribute is the
+   * only thing that changes the placement: no box moves.
+   */
+  split?: boolean;
+  splitColumnWidth?: number | null;
   showPreviewActions: boolean;
   /**
    * Detailed summary and the active-summary host, on a file without a
@@ -46,6 +52,8 @@ export function MediaCanvas({
   playerFocused,
   workbench,
   workbenchActive,
+  split = false,
+  splitColumnWidth,
   showPreviewActions,
   heavySummaries,
   addonSlotProps,
@@ -56,8 +64,9 @@ export function MediaCanvas({
     <div
       className={MEDIA_HOST_CLASS}
       data-workbench={workbenchActive ? "on" : undefined}
+      data-workbench-split={split ? "on" : undefined}
       data-player-focus={playerFocused ? "on" : undefined}
-      style={mediaHostStyle(metrics, playerShare)}
+      style={mediaHostStyle(metrics, playerShare, split ? splitColumnWidth : null)}
     >
       <MediaPlayerBlock
         {...playerProps}

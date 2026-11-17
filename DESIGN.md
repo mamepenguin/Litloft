@@ -1310,34 +1310,37 @@ so it has no workbench.
 
 | Token | Value | Meaning |
 |---|---|---|
-| column threshold | `41rem` | At or above it, the panels that are shown sit side by side as equal columns; below it they sit one above the other. |
-| row beside threshold | `13rem` | While a panel is shown under an enlarged frame, the row moves into the space to the player's right once that space is at least this wide; below it the row stays under a centred frame. |
+| column threshold | `41rem` | At or above it, the panels that are shown sit side by side as equal columns; below it they sit one above the other. Not in the split layout. |
+| split threshold | `61rem` | The width at which the column beside the player reaches `24rem`; below it the panels stay under the player and the button is not drawn. |
+| split share | `60%` of the columns | The player's share of the canvas content when the panels sit beside it; the panels take the rest. |
+| row beside threshold | `13rem`, plus `3.25rem` while **Show panels beside the player** is drawn | While a panel is shown under an enlarged frame, the row moves into the space to the player's right once that space is at least this wide; below it the row stays under a centred frame. |
 | panel floor | `18rem` | The panels are at least this tall. If the room is less, they keep it and the page scrolls. |
-| player cap | half, or `30%`, of the scroll container's visible height | While a panel is shown under a framed player on the canonical page. **Enlarge panels** in the row picks the smaller share, floored at a 480px-wide frame (270px tall) so the player keeps its full controls, and never above half. An unframed player (audio) is not capped, and neither are pseudo or system full screen and the mini player. |
+| player cap | half, or `30%`, of the scroll container's visible height | While a panel is shown under a framed player on the canonical page. **Enlarge panels** in the row picks the smaller share, floored at a 480px-wide frame (270px tall) so the player keeps its full controls, and never above half. An unframed player (audio) is not capped, and neither are pseudo or system full screen and the mini player. Not in the split layout. |
 | collection height | `60%` of the scroll container, at least `18rem` | The panels together on the collection surface. Two stacked panels share it equally. The player there is not capped. |
 
 - **The row is the panels' switch**: one toggle per available panel, the
-  **Enlarge panels** button while a panel is shown, and the player's
-  `file-preview-actions` entries at its trailing end. With no toggle and no
-  action the row is not drawn.
+  **Show panels beside the player** button while the canvas holds two columns,
+  the **Enlarge panels** button while a panel is shown outside the split layout,
+  and the player's `file-preview-actions` entries at its trailing end. With no
+  toggle and no action the row is not drawn.
 - **The row follows the frame while Enlarge panels is on.** With `13rem` or more
   beside the frame, the frame sits at the canvas's left edge at the same size
   and the row takes the space to its right, its bottom on the frame's bottom;
   the panels start `0.75rem` under the frame. With less room the frame is
   centred and the row is under it, one `1rem` above the panels.
-- **The threshold fits one line's widest content**: the widest panel toggle
-  and the Enlarge panels button at the coarse size. A `file-preview-actions`
-  entry is not part of the budget.
+- **The threshold fits one line's widest content**: the widest panel toggle,
+  the **Show panels beside the player** button and the Enlarge panels button at
+  the coarse size. A `file-preview-actions` entry is not part of the budget.
 - **At most two panels are shown**, in the panel list's order rather than the
   order they were turned on.
 - **A panel is mounted once per form**: turning it on or off, closing it and
   switching tabs move nothing and replace no player.
-- **Placement belongs to the space, not to a preference**: the wide forms use
-  the workbench, and the stacked inspector and the phone use tabs. The reader
-  chooses which panels are on and whether the player or the panels get the
-  larger share, never where they are. The row follows the frame — beside it
-  when the space allows, under it otherwise — and the panels' placement is not
-  a preference either.
+- **Placement belongs to the space, with one choice.** The wide forms use the
+  workbench, and the stacked inspector and the phone use tabs. The reader
+  chooses which panels are on, whether the player or the panels get the larger
+  share, and — where the canvas holds two columns (61rem) — whether the panels
+  sit under the player or beside it. Nothing else about placement is a
+  preference: the row follows the frame.
 - **Each panel's body scrolls inside itself.**
 - **A panel is an `--bg-elevated` card with no border.** `--bg-card` is the page's
   white in the light theme, so a card drawn with it has no visible edge there.
