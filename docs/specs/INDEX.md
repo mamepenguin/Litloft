@@ -270,3 +270,4 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-130 | draft | docs/specs/notes-app.md | |
 | SPEC-ADDON-131 | draft | docs/specs/notes-app.md | |
 | SPEC-ADDON-132 | draft | docs/specs/notes-app.md | |
+| SPEC-CORE-130 | draft | docs/specs/notes-app.md | |
