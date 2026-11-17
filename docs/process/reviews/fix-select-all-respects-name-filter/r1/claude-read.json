@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [],
+  "specification_compliance": [
+    "This change declares no invariants file and no spec. docs/process/reviews/fix-select-all-respects-name-filter/ holds only decisions.md and r1/ (head.txt, expected.txt, classification.json, fixes.txt), and a grep of docs/ for the branch slug finds nothing outside that directory. There is no touch-point list to compare the diff with, so the review question has an empty answer: no place counts as unplanned against a declared list.",
+    "For reference, the diff reaches: frontend/src/components/FolderBrowser.tsx (the name-filter hook moves up to here; shift-range, SelectionBar totalCount and onSelectAll use visibleFileIds), frontend/src/components/folder/FolderContent.tsx (now takes a required `filter` prop instead of calling useFolderFilter itself), the new test FolderBrowser.selectionFilter.test.tsx, the new test harness folder/__tests__/folderContentHarness.tsx, and four existing FolderContent tests, which only change their import to the harness."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "FolderBrowser.tsx:788 still passes the unfiltered `files.map((f) => f.id)` as `fileIds` to the header component, while selection now uses the filtered list. Whether a header action that uses fileIds should also respect the name filter is not stated anywhere. This is outside the touch-point question and I did not trace it."
+  ],
+  "regression_risks": [
+    "FolderContent's `filter` prop is now required. The only production caller is FolderBrowser.tsx:885, and it passes the prop. Every test caller goes through folderContentHarness, so no other caller is left without it."
+  ],
+  "test_coverage": [
+    "FolderBrowser.selectionFilter.test.tsx covers Select all and a Shift range with the name filter active. If either call site were changed back to `files.map(...)`, the 'a,c' or 'selectable 2' assertions would fail."
+  ],
+  "not_verified": [
+    "I did not run the test suite or the TypeScript compiler.",
+    "I did not trace how the header component uses `fileIds` (FolderBrowser.tsx:788) under the name filter.",
+    "I did not check addon code outside frontend/src for other FolderContent callers."
+  ],
+  "confidence": 85
+}

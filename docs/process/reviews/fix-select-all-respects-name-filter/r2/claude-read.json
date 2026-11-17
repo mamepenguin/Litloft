@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [],
+  "specification_compliance": [
+    "No invariants file exists for this change, so there is no declared touch-point list to compare the diff against; the first-review question has no list to measure, and no place can be reported as outside it. Findings are therefore empty by construction, not because a list was confirmed complete.",
+    "Places the diff reaches (for whoever writes the touch-point list): frontend/src/components/FolderBrowser.tsx (name-filter ownership lifted here; handleShiftSelect at :623-625, SelectionBar totalCount/onSelectAll at :956/:959, FolderContent filter prop at :888); frontend/src/components/folder/FolderContent.tsx (new required `filter` prop, local useFolderFilter removed, :125-137); test harness frontend/src/components/folder/__tests__/folderContentHarness.tsx and four FolderContent test files switched to it; new test FolderBrowser.selectionFilter.test.tsx.",
+    "FolderContent is only rendered by FolderBrowser in production code (grep for FolderContent/useFolderFilter outside __tests__ finds only FolderBrowser.tsx, FolderContent.tsx, useFolderFilter.ts), so the required prop has no other caller to break.",
+    "No remaining test imports `../FolderContent` directly except the harness, so every FolderContent test still gets a working filter. vitest uses the default include pattern (*.test/*.spec), so folderContentHarness.tsx is not collected as an empty suite."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "FolderBrowser.tsx:788 still passes the toolbar `fileIds={files.map(...)}` from the unfiltered list; FolderToolbar.tsx:219 and :585 hand it to the addon slots (including BULK_ACTIONS_MENU_SLOT). With the name filter active, a bulk addon action acts on every loaded file, including the ones the filter hides. This is pre-existing and not touched by the diff. Whether folder-level bulk actions should follow the name filter is not specified.",
+    "handlePlayAll (FolderBrowser.tsx:627-639) and hasPlayableFiles (:609) also still read the unfiltered `files`. Play all can start on a file the name filter hides. This is pre-existing and outside this change."
+  ],
+  "regression_risks": [
+    "Filter state lifetime changed: the useFolderFilter state used to live in FolderContent, which unmounts when `passagesView` is true (FolderBrowser.tsx:884). It now lives in FolderBrowser and survives the passages/files toggle. The FilterField is hidden in search mode (FolderContent.tsx:160), so in practice the text should be empty there. Even so, a filter text set earlier in the same FolderBrowser instance would now persist where it used to be reset by the unmount, and SelectionBar's totalCount/selectAll would be narrowed by a filter the user cannot see. I did not confirm whether that sequence can be reached.",
+    "During the 300 ms debounce, visibleFileIds reflects the debounced (displayed) list, not the typed text. Select all in that window matches the rows on screen, which is consistent, but it differs from the text in the box."
+  ],
+  "test_coverage": [
+    "FolderBrowser.selectionFilter.test.tsx would catch a revert of either onSelectAll/totalCount or handleShiftSelect back to `files`: Select all expects 'a,c' and selectable '2', and the Shift range a→c expects 'a,c' rather than 'a,b,c'.",
+    "The test mocks FolderContent and drives `filter.setText` directly, so it does not prove that the real FolderContent renders `filter.files` from the prop rather than recomputing. The FolderContent tests, which go through the harness, cover rendering of the filtered rows.",
+    "No test covers the filter's lifetime across the passages toggle, or across navigation with the same FolderBrowser instance."
+  ],
+  "not_verified": [
+    "I did not run the test suite or typecheck (read-only tools); I did not confirm that the new tests pass or that the `FolderFilterApi<FileItem>` vs `FolderFilterApi<FileItemWithMatch>` generic typing compiles.",
+    "Whether FolderBrowser is keyed or remounted on folder navigation by its parent pages, which determines whether the filter text resets between folders, was not checked.",
+    "Whether selection mode can be active while passagesView is shown was not checked.",
+    "docs/specs and the review records for this change were not read."
+  ],
+  "confidence": 78
+}

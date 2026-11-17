@@ -10,6 +10,8 @@ export interface FolderFilterApi<T extends FileItem> {
   files: T[];
   folders: Folder[];
   text: string;
+  /** The text the rows are currently filtered by, after the debounce. */
+  appliedText: string;
   setText: (next: string) => void;
   clear: () => void;
   isActive: boolean;
@@ -67,6 +69,7 @@ export function useFolderFilter<T extends FileItem>(
     files: filteredFiles,
     folders: filteredFolders,
     text,
+    appliedText: debouncedText,
     setText,
     clear,
     isActive,

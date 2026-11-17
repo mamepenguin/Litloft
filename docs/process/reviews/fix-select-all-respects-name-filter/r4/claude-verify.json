@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [],
+  "specification_compliance": [
+    "Select all passes only the visible (name-filtered) file ids: FolderBrowser.tsx:968 calls selection.selectAll(visibleFileIds), and visibleFileIds comes from nameFilter.files (FolderBrowser.tsx:188-191).",
+    "Shift range uses visibleFileIds (FolderBrowser.tsx:633), so hidden rows are skipped.",
+    "Pruning is keyed on the debounced filter text (appliedText) through prunedForTextRef, and it is deferred while loading (FolderBrowser.tsx:620-625). A reload under an unchanged filter therefore does not clear the selection."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "Clearing the filter (appliedText becomes empty) updates the ref but does not prune. This is the intended behavior, because every row is visible again.",
+    "If a reload under an unchanged filter text brings back a selected file whose name no longer matches (for example, it was renamed elsewhere), that file stays selected while hidden, because pruning runs only when the text changes. Under the personal-use threat model this edge case is unlikely."
+  ],
+  "regression_risks": [
+    "The prune effect depends on `loading` from useFolderFiles (useFolderFiles.ts:760). For watch-history views `loading` is derived differently. If it can be false while `files` is transiently empty, a text change at that moment would prune against an empty list."
+  ],
+  "test_coverage": [
+    "FolderBrowser.selectionFilter.test.tsx covers Select all under the filter, a Shift range across a hidden file, pruning when the filter hides a selected file, preserving the selection on reload under the filter, deferring the prune during a reload, and resetting the anchor after it is hidden (lines 158-214)."
+  ],
+  "not_verified": [
+    "Did not run the test suite; the tests could not be executed with the tools available.",
+    "Did not inspect the full git diff against origin/develop; reviewed only the current state of FolderBrowser.tsx, useFolderFilter.ts and useSelection.ts.",
+    "Did not check how `loading` is computed for the Recent and Continue (watch-history) views."
+  ],
+  "confidence": 80
+}

@@ -3,7 +3,7 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import type { FileItem, Folder } from "@/types";
-import { FolderContent } from "../FolderContent";
+import { FolderContent } from "./folderContentHarness";
 
 vi.mock("next/link", () => ({
   default: ({ children, ...props }: { children?: React.ReactNode }) => <a {...props}>{children}</a>,
