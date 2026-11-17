@@ -1,0 +1,5 @@
+addons/intelligence/app/document_text.py
+addons/intelligence/app/extractors/pdf.py
+addons/intelligence/app/workers/metadata.py
+addons/intelligence/requirements-test.txt
+addons/intelligence/requirements.txt

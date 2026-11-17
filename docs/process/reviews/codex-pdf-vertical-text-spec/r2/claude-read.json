@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "MEDIUM",
+  "findings": [
+    {
+      "id": "F1-unlisted-text_indexed-readers",
+      "origin": "reviewer",
+      "claim": "The diff leaves indexed_files.text_indexed at 0 after a failed vertical extraction, and four status readers outside the touch-point list read that flag: routers/files.py, routers/admin.py, file_find.py and main.py.",
+      "impact": "A PDF whose vertical extraction fails keeps reporting a pending text state in file listings, admin status and file-search stage output. This is the unindexed state the spec describes, so the reach is unlisted but not a defect.",
+      "evidence": "addons/intelligence/app/workers/metadata.py:400-401 returns False on VerticalTextError without setting text_indexed. Readers: addons/intelligence/app/routers/files.py:83 and :118 (state done if row.text_indexed else pending); addons/intelligence/app/routers/admin.py:1001-1002; addons/intelligence/app/file_find.py:50 and :327; addons/intelligence/app/main.py:617. None of these files is in the diff or in the touch-point list.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "No declared invariant is broken. I5 requires that a failed vertical extraction not mark the text task successful, and these readers only display that unsuccessful state. The gap is in the touch-point list, not in code behaviour."
+      },
+      "severity": "INFO"
+    }
+  ],
+  "specification_compliance": [
+    "I5: a VerticalTextError during indexing returns False before any text_indexed write (metadata.py:400-401); the document-read path re-raises through recover_vertical_texts (pdf.py:138-146) and writes nothing.",
+    "I8: PdfExtractor.extract holds PYMUPDF_LOCK around both the pymupdf4llm path and the fitz fallback, which calls recover_vertical_texts (pdf.py:182-187); document_text._pdf_range takes the same lock (document_text.py:147).",
+    "I6: the existing rules-version check at database.py:1365-1388 is in the touch-point list and the diff does not edit it."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "Whether the spec's 'existing reconciliation path' actually re-queues a failed PDF is unverified: indexer.py:1725-1735 ignores the False return and only logs exceptions, and I did not trace the startup or periodic reconciliation that would re-enqueue text_indexed=0 files.",
+    "The fitz fallback obtains the file name from doc.name (pdf.py:605-606), so an in-memory document without a name silently skips vertical recovery."
+  ],
+  "regression_risks": [
+    "Existing regression tests that call PdfExtractor, read_edge_lines or the document reader (tests/test_pdf_extractor.py, test_extract_unchanged.py, test_document_text_pymupdf_lock.py, test_pdf_edge_lines*.py) are not edited by the diff. They now exercise pdfminer on every PDF and may depend on the old page text."
+  ],
+  "test_coverage": [
+    "tests/test_pdf_vertical_acceptance.py covers vertical and mixed pages, the index cap, a parser failure with index preservation, stored OCR reuse and an empty pdfminer page. It does not cover the status readers or the reconciliation retry."
+  ],
+  "not_verified": [
+    "I did not run the test suite or any extraction; all conclusions come from reading the diff and the repository at its current state.",
+    "I did not trace the reconciliation path that is supposed to re-enqueue failed PDFs, so the spec's retry claim is unverified.",
+    "I did not read tests/document_text_api.py or tests/test_scanned_pdf_text.py, which the new test imports."
+  ],
+  "confidence": 60
+}
