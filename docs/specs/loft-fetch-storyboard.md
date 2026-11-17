@@ -35,21 +35,27 @@ scenes today.
    candidates, runs the storyboard step on that lookup's answer right after the
    lookup and before the disk guard, the download and the stages.
 2. The rows, tile files and `clip_indexed` it writes are those the storyboard leg
-   would write for the same answer.
-3. A scan that then sets its flag runs the Visual Index hook as today; the reference
+   would write for the same answer. The step neither consults nor records the leg's
+   once-per-process retry gate (`_storyboard_failed`, `_storyboard_retry`): a fetch
+   runs it whenever the reference has no candidates.
+3. The storyboard step of a fetch and the storyboard leg never run for the same file
+   at once; the one that starts second waits for the first.
+4. A scan that then sets its flag runs the Visual Index hook as today; the reference
    now has candidates, so it is eligible under SPEC-ADDON-118.
 
 ### 2. Failure cases
 
 - **No storyboard in the answer, or no duration**: as the leg: nothing written,
   `clip_indexed` set (a definite result).
-- **A sheet download or embedding fails**: as the leg's transient failure: nothing
-  written, `clip_indexed` unchanged, the file noted for the leg's own retry rule. The
-  fetch goes on to the download and the stages; no frame flag, no failure count and
+- **A sheet download or embedding fails, or the step raises anything else**: nothing
+  written, `clip_indexed` unchanged. The fetch goes on to the download and the stages; no frame flag, no failure count and
   no YouTube result (SPEC-ADDON-119) is changed by it.
 - **The CLIP image model cannot be loaded**: the fetch already ends before its lookup
   when the scan is wanted (SPEC-ADDON-117 step 3.2); when only OCR is wanted, the
-  storyboard step is skipped.
+  fetch tries to load the model for the step and skips the step if it cannot.
+- **The answer has no storyboard**: `clip_indexed` is set and no candidate is written,
+  so a later fetch of the same reference runs the step again and logs the absence
+  again; no lookup is added for it.
 
 ### 3. States
 
@@ -105,13 +111,15 @@ I1. A fetch whose lookup succeeded, for a YouTube `.loft` with no candidates, wr
 
 I2. A fetch of a reference that already has candidates does no storyboard work.
 
-I3. A failure of the storyboard step in a fetch changes no frame flag, no failure count and no YouTube result, and the fetch's download and stages still run.
+I3. A failure of the storyboard step in a fetch, of any kind, writes no candidate, changes no frame flag, no failure count and no YouTube result, and the fetch's download and stages still run.
+
+I5. The storyboard step of a fetch and the storyboard leg never write the same file's candidates or tiles at the same time.
 
 I4. The storyboard leg run by indexing and by a CLIP regenerate behaves as before.
 
 ## Revises
 
-SPEC-ADDON-117 I3. No download starts while another fetch runs, while the queue is paused, at priority -10 while a native `frame_scan` or `frame_ocr` task is queued or processing, while the drive's `index` feature is off, when no stage is wanted, when the model or engine a wanted stage needs is unavailable, or when the disk guard fails; a fetch that ends before its stages ran changes nothing but the duration (from NULL after a lookup), the loft source, the failure count, the flags closed for source `other`, the wanted stages closed at the cap, and the candidates its storyboard step wrote (SPEC-ADDON-121).
+SPEC-ADDON-117 I3. No download starts while another fetch runs, while the queue is paused, at priority -10 while a native `frame_scan` or `frame_ocr` task is queued or processing, while the drive's `index` feature is off, when no stage is wanted, when the model or engine a wanted stage needs is unavailable, or when the disk guard fails; a fetch that ends before its stages ran changes nothing but the duration (from NULL after a lookup), the loft source, the failure count, the flags closed for source `other`, the wanted stages closed at the cap, and the candidates, tile files and `clip_indexed` its storyboard step wrote (SPEC-ADDON-121).
 
 ## Checked, no action
 
