@@ -14,6 +14,7 @@ import {
   FileHeaderRowPortal,
   useFileHeaderRowHost,
 } from "../FileHeaderRowProvider";
+import { FocusModeButton } from "./FocusModeButton";
 
 interface FileDetailChromeProps {
   drive: string;
@@ -140,10 +141,13 @@ export function FileDetailChrome({
     ) : null;
 
   // The header's right-hand group spaces its items 4px apart, so 8px more
-  // here is the 12px the divider keeps from the profile button.
-  const trailing = inspectorControl ? (
+  // here is the 12px the divider keeps from the profile button; the same 12px
+  // then holds between the divider, the focus button and the toggle.
+  const focusControl = isMobile ? null : <FocusModeButton />;
+  const trailing = focusControl || inspectorControl ? (
     <div className="ml-2 flex shrink-0 items-center gap-3">
       <div className="h-5 w-px bg-bg-border" />
+      {focusControl}
       {inspectorControl}
     </div>
   ) : null;

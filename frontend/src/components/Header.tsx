@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import { User } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -12,8 +12,16 @@ import { AddonSlot } from "./AddonSlot";
 import { useCurrentDrive } from "./CurrentDriveProvider";
 import { useFileHeaderRowHost } from "./FileHeaderRowProvider";
 import { useIsMobile } from "@/hooks/useIsMobile";
+import { readSafeAreaTop } from "@/lib/safeArea";
 
-export function Header() {
+interface HeaderProps {
+  /** The focus layout is on, so the header is either hidden or drawn over the page. */
+  focusLayout?: boolean;
+  /** Hidden: no box, no paint, and out of the tab order. */
+  hidden?: boolean;
+}
+
+export function Header({ focusLayout = false, hidden = false }: HeaderProps = {}) {
   const tp = useTranslations("profile");
   const { nickname } = useProfile();
   const router = useRouter();
@@ -26,15 +34,17 @@ export function Header() {
   // Publish the header's real height so anything that has to stick
   // below it can position itself without knowing its shape. The height
   // is not a constant — the PWA safe-area inset changes it, and the row
-  // could wrap — so it is measured rather than mirrored.
+  // could wrap — so it is measured rather than mirrored. The focus layout
+  // removes the header from the page, so there what everything below has
+  // to clear is only the inset.
   const headerRef = useRef<HTMLElement>(null);
-  useEffect(() => {
+  useLayoutEffect(() => {
     const el = headerRef.current;
     if (!el || typeof ResizeObserver === "undefined") return;
     const publish = () => {
       document.documentElement.style.setProperty(
         "--app-header-h",
-        `${el.getBoundingClientRect().height}px`,
+        `${focusLayout ? readSafeAreaTop() : el.getBoundingClientRect().height}px`,
       );
     };
     publish();
@@ -44,7 +54,7 @@ export function Header() {
       observer.disconnect();
       document.documentElement.style.removeProperty("--app-header-h");
     };
-  }, []);
+  }, [focusLayout]);
 
   // The file page's row starts at whichever is further right: 12px past
   // the fixed menu/tree buttons, or the box the file's content occupies.
@@ -83,7 +93,7 @@ export function Header() {
 
   useLayoutEffect(() => {
     const row = rowRef.current;
-    if (!row || !filePageRow) {
+    if (!row || !filePageRow || hidden) {
       setRowInset(0);
       return;
     }
@@ -115,18 +125,30 @@ export function Header() {
       window.removeEventListener("resize", measure);
       observer?.disconnect();
     };
-  }, [align, chromeButtons, filePageRow]);
+  }, [align, chromeButtons, filePageRow, focusLayout, hidden]);
 
   return (
     <header
       ref={headerRef}
+      // `data-focus-header` carries the focus layout's two forms: the
+      // ordinary header keeps the class list this element has always had.
+      data-focus-header={
+        focusLayout ? (hidden ? "hidden" : "revealed") : undefined
+      }
+      inert={hidden}
       // PWA safe-area: reserve the iOS status-bar inset above and
       // keep a stable 56px content area so the avatar / search /
       // menu button stay visually centred independently of the inset.
-      style={{
-        paddingTop: "env(safe-area-inset-top, 0px)",
-        minHeight: "calc(3.5rem + env(safe-area-inset-top, 0px))",
-      }}
+      // Drawn over the page it starts at the inset instead, so it does
+      // not carry it twice.
+      style={
+        focusLayout && !hidden
+          ? { minHeight: "3.5rem" }
+          : {
+              paddingTop: "env(safe-area-inset-top, 0px)",
+              minHeight: "calc(3.5rem + env(safe-area-inset-top, 0px))",
+            }
+      }
       className="sticky top-0 z-20 flex flex-shrink-0 items-center border-b border-bg-border bg-bg-primary"
     >
       <div

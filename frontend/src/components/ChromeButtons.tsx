@@ -39,7 +39,12 @@ function MenuButton() {
  * resolves to 0. 8px puts the 40px buttons on the 56px header's centre line,
  * which the header's controls and a file page's trail share.
  */
-export function ChromeButtons() {
+export function ChromeButtons({
+  hidden = false,
+}: {
+  /** The focus layout hides the header, so its buttons go with it. */
+  hidden?: boolean;
+} = {}) {
   const rowHost = useFileHeaderRowHost();
   const setChromeButtons = rowHost?.setChromeButtons;
   const attach = useCallback(
@@ -55,6 +60,8 @@ export function ChromeButtons() {
     <div
       ref={attach}
       data-testid="chrome-buttons"
+      data-focus-header={hidden ? "hidden" : undefined}
+      inert={hidden}
       style={{ top: "calc(env(safe-area-inset-top, 0px) + 8px)" }}
       className="fixed left-3 z-50 flex items-center gap-2"
     >

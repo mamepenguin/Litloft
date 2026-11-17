@@ -1,0 +1,70 @@
+"use client";
+
+import { useEffect, useState, useSyncExternalStore } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
+
+import { MOBILE_BREAKPOINT } from "@/hooks/useIsMobile";
+import { focusModeStore } from "@/lib/focusModeStore";
+import { rememberReadingAnchor } from "@/lib/readingAnchor";
+
+/**
+ * `/files/{id}` (any query), or a `/drive/{drive}/…` URL that has a file open
+ * in its right pane. Read from the router, so it is known on the first render
+ * and has no gap while one file host hands over to the next.
+ */
+export function isFilePageUrl(
+  pathname: string | null,
+  fileId: string | null,
+): boolean {
+  if (!pathname) return false;
+  if (/^\/files\/[^/]+\/?$/.test(pathname)) return true;
+  return pathname.startsWith("/drive/") && !!fileId;
+}
+
+export function useIsFilePageUrl(): boolean {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  return isFilePageUrl(pathname, searchParams.get("file"));
+}
+
+/** At `MOBILE_BREAKPOINT` and wider the focus layout has room to apply. */
+export function useIsWideViewport(): boolean {
+  const [wide, setWide] = useState(
+    () =>
+      typeof window !== "undefined" &&
+      window.innerWidth >= MOBILE_BREAKPOINT,
+  );
+  useEffect(() => {
+    const handle = () => setWide(window.innerWidth >= MOBILE_BREAKPOINT);
+    handle();
+    window.addEventListener("resize", handle);
+    return () => window.removeEventListener("resize", handle);
+  }, []);
+  return wide;
+}
+
+export function useFocusState(): boolean {
+  return useSyncExternalStore(
+    focusModeStore.subscribe,
+    focusModeStore.get,
+    () => false,
+  );
+}
+
+/** The state, the URL and the viewport together: only this changes the screen. */
+export function useFocusLayout(): boolean {
+  const state = useFocusState();
+  const filePage = useIsFilePageUrl();
+  const wide = useIsWideViewport();
+  return state && filePage && wide;
+}
+
+/**
+ * Both ways the reader turns it on or off come through here: the chrome is
+ * about to take or give back the space around the content, and the reader's
+ * place in that content has to survive it.
+ */
+export function toggleFocusMode(): void {
+  rememberReadingAnchor();
+  focusModeStore.toggle();
+}

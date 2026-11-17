@@ -680,6 +680,42 @@ div[data-citation-section-path]:not(tr) {
   height: calc(100dvh - 3.5rem - env(safe-area-inset-top, 0px));
 }
 
+/* The focus layout has no header in the flow, so the same box runs from the
+   safe area's top to the bottom of the screen. */
+html[data-focus-layout] .h-below-header {
+  height: calc(100dvh - env(safe-area-inset-top, 0px));
+}
+
+/* The header, with its fixed menu and tree buttons, either takes no box at
+   all or is drawn over the page at the safe area's top. Hidden, it keeps its
+   box one viewport above the top: it is out of the flow and paints nothing,
+   and its controls stay mounted with their state. */
+[data-focus-header="hidden"] {
+  position: fixed;
+  inset-inline: 0;
+  top: 0;
+  transform: translateY(-100%);
+}
+
+[data-focus-header="hidden"][data-testid="chrome-buttons"] {
+  display: none;
+}
+
+header[data-focus-header="revealed"] {
+  position: fixed;
+  inset-inline: 0;
+  top: env(safe-area-inset-top, 0px);
+  box-shadow: var(--shadow-lg);
+}
+
+/* The chrome arrives where the new layout puts it, on the frame the focus
+   layout changes. Adding the transition back is itself a change it would
+   animate, so it is held back for one frame on both sides. */
+html[data-focus-settling],
+html[data-focus-settling] * {
+  transition: none !important;
+}
+
 @utility break-anywhere {
   word-break: normal;
   overflow-wrap: anywhere;

@@ -322,6 +322,7 @@ export function Sidebar({ hiddenKeys = EMPTY_HIDDEN_KEYS }: SidebarProps) {
       )}
 
       <aside
+        data-app-sidebar
         className={`fixed top-0 left-0 z-40 h-dvh w-60 flex-shrink-0 border-r border-bg-border bg-bg-sidebar transition-transform duration-150 ease-out ${
           isOpen ? "translate-x-0" : "-translate-x-full"
         }`}

@@ -17,6 +17,7 @@ import { useFind } from "./FileDetail/find/FindContext";
 import { useInspectorOpen } from "@/hooks/useInspectorOpen";
 import { useInspectorForm } from "@/hooks/useInspectorForm";
 import { useIsMobile } from "@/hooks/useIsMobile";
+import { useFocusLayout } from "@/hooks/useFocusMode";
 import { useShortcuts } from "@/hooks/useShortcuts";
 import { useShortcutsContext } from "./ShortcutsProvider";
 import { canTakeFindShortcut } from "@/lib/findShortcut";
@@ -207,10 +208,14 @@ export function FileDetailShell({
   );
 
   // The layout phase, not an effect: a deferred evaluation would paint one
-  // frame with the pane still at full width.
+  // frame with the pane still at full width. The focus layout is a dependency
+  // of its own: it hides the pane without changing the box the yield is
+  // measured from, and leaving has to have the rule's answer for this file in
+  // the frame it ends in.
+  const focusLayout = useFocusLayout();
   useLayoutEffect(() => {
     evaluateYield();
-  }, [evaluateYield, open, isMobile, isPlayerFile, leftPane]);
+  }, [evaluateYield, open, isMobile, isPlayerFile, leftPane, focusLayout]);
 
   // The form is the shell's to publish; the open state is a separate fact
   // about the same file, so it is written without touching the form.
