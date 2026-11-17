@@ -1,6 +1,6 @@
 # A YouTube fetch also reads the storyboard a reference is missing
 
-SPEC-ID: SPEC-ADDON-120
+SPEC-ID: SPEC-ADDON-121
 
 Approval:
 
@@ -94,7 +94,7 @@ No new storage beyond what the leg already writes; no additional lookup.
   successful lookup when the reference has no candidates.
 - `addons/intelligence/app/workers/clip.py`: let the storyboard step run on a given
   lookup answer (the leg itself unchanged).
-- Tests under `addons/intelligence/tests/` for SPEC-ADDON-120.
+- Tests under `addons/intelligence/tests/` for SPEC-ADDON-121.
 - `docs/addons/intelligence.md`.
 - The core's `addons/intelligence` pointer and `docs/specs/INDEX.md`.
 - No protected path.
@@ -111,7 +111,7 @@ I4. The storyboard leg run by indexing and by a CLIP regenerate behaves as befor
 
 ## Revises
 
-SPEC-ADDON-117 I3. No download starts while another fetch runs, while the queue is paused, at priority -10 while a native `frame_scan` or `frame_ocr` task is queued or processing, while the drive's `index` feature is off, when no stage is wanted, when the model or engine a wanted stage needs is unavailable, or when the disk guard fails; a fetch that ends before its stages ran changes nothing but the duration (from NULL after a lookup), the loft source, the failure count, the flags closed for source `other`, the wanted stages closed at the cap, and the candidates its storyboard step wrote (SPEC-ADDON-120).
+SPEC-ADDON-117 I3. No download starts while another fetch runs, while the queue is paused, at priority -10 while a native `frame_scan` or `frame_ocr` task is queued or processing, while the drive's `index` feature is off, when no stage is wanted, when the model or engine a wanted stage needs is unavailable, or when the disk guard fails; a fetch that ends before its stages ran changes nothing but the duration (from NULL after a lookup), the loft source, the failure count, the flags closed for source `other`, the wanted stages closed at the cap, and the candidates its storyboard step wrote (SPEC-ADDON-121).
 
 ## Checked, no action
 
