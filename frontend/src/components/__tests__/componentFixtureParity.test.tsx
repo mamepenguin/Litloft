@@ -350,6 +350,8 @@ describe("the component fixture's page", () => {
       "header-row-two-pane-long",
       "header-row-inbox-note",
       "header-row-inbox-long",
+      "drive-unavailable",
+      "drive-unavailable-long",
     ]);
   });
 });
