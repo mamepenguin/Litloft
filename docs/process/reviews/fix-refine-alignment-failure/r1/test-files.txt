@@ -1,0 +1,5 @@
+addons/intelligence/tests/refine_align_rig.py
+addons/intelligence/tests/test_refine_speaker_id_clearing.py
+addons/intelligence/tests/test_spec_addon_068_protection_redo.py
+addons/intelligence/tests/test_spec_addon_127_language_codes.py
+addons/intelligence/tests/test_spec_addon_128_refine_alignment_failure.py
