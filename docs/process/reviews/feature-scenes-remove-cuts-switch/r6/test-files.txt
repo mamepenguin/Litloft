@@ -1,0 +1,4 @@
+addons/intelligence/frontend/ScenesSection/__tests__/ScenesSectionChangePoints.test.tsx
+addons/intelligence/frontend/ScenesSection/__tests__/ScenesSectionOneList.test.tsx
+addons/intelligence/tests/test_spec_addon_124_clip_change_list.py
+addons/intelligence/tests/test_spec_addon_129_clip_timestamps.py

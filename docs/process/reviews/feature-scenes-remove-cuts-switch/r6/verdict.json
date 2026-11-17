@@ -1,0 +1,1 @@
+{"verdict":"HUMAN_REVIEW_REQUIRED","reasons":["unspecified_behavior"],"findings":[{"reviewer":"claude-read","id":"CR-1","state":"open"}],"needs_human":[{"kind":"unspecified_behavior","ref":null,"note":"Enter on the ruler of a `.loft` with no candidate rows now seeks to the browse point; neither the touch points nor I4 name this (ScenesSectionContainer.tsx:482-486).","paths":[]}]}

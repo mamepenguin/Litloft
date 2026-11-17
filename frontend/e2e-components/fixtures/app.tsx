@@ -2768,12 +2768,6 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "scenes-long-390": () => (
     <ScenesSectionArrangement hostWidth={390} long />
   ),
-  "scenes-changes-384": () => (
-    <ScenesSectionArrangement hostWidth={384} changes />
-  ),
-  "scenes-changes-390": () => (
-    <ScenesSectionArrangement hostWidth={390} changes />
-  ),
   "inspector-video": InspectorVideoArrangement,
   "inspector-video-sidebar": InspectorVideoSidebarArrangement,
   "inspector-pdf": InspectorPdfArrangement,
