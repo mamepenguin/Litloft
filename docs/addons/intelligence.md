@@ -337,7 +337,7 @@ Modes (`features.retrieval_keywords`):
 
 ### Transcript refine
 
-**Clean up with AI** in the transcript asks the LLM to fix punctuation, homophones and names, chunk by chunk. The words are then re-timed against the audio and the embeddings rebuilt. If re-timing fails (audio missing, language not supported, out of memory), the old word timings stay.
+**Clean up with AI** in the transcript asks the LLM to fix punctuation, homophones and names, chunk by chunk. The words are then re-timed against the audio and the embeddings rebuilt. If re-timing a chunk fails (audio missing, language not supported, out of memory), that chunk is left exactly as it was: its old text and word timings stay and it is not marked as refined. A Refine in which no chunk could be re-timed changes nothing and offers no **元の結果に戻す**. A `.loft` file's subtitles have no word timings and are refined as they are.
 
 Refine writes numbers as digits (`2025年`, `1万5000円`) whichever engine transcribed the file. Keyword search, semantic search, the transcript and subtitles use the refined text. A file refined by an earlier version, before refine updated keyword search, keeps matching its text from before refine in keyword search until it is transcribed again.
 
