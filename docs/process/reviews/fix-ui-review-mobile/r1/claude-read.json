@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [],
+  "specification_compliance": [
+    "No invariants file exists, so there is no declared touch-point list to compare against; the answer to the first-review question is empty.",
+    "The diff touches PageHeader, the admin settings sections, the page-jump alias catalogues, and the e2e fixtures and specs, which are all consistent with the commit's stated purpose of fixing the UI review items."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "PageHeader now wraps the leading control, icon and title in a new group div; other tests or fixtures that assume the row's first child is the leading control could break (the one unit test was already updated).",
+    "The pointer-coarse:min-h-11 variant depends on the Tailwind version supporting the pointer-coarse variant; the e2e test covers this only on the Pixel 5 profile.",
+    "The Edit button in PasswordsSection is not changed, if it exists. The e2e test checks every button, so this is covered."
+  ],
+  "test_coverage": [
+    "admin-settings-touch.spec.ts checks every button's height on the drive and password rows.",
+    "New page-header e2e specs cover title integrity for medium actions and row sharing for a short action.",
+    "pageJump.test.ts verifies that alias messages exist for every FIXED_JUMPS key in every locale; keys are derived from app ids, and the app-video and app-reading entries match."
+  ],
+  "not_verified": [
+    "I did not run any tests or the e2e suite.",
+    "I did not check the Tailwind config for pointer-coarse variant support.",
+    "I did not read the full PageHeader.tsx or other PageHeader consumers for layout regressions.",
+    "I did not check the repository's process documents or conventions in depth."
+  ],
+  "confidence": 72
+}

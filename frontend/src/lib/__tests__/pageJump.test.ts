@@ -1,3 +1,7 @@
+import { readdirSync, readFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+
 import { describe, expect, it } from "vitest";
 
 import {
@@ -170,5 +174,19 @@ describe("matchFolders", () => {
       { kind: "folder", name: "2024", path: "2024" },
     ]);
     expect(matchFolders(withFile, "2024", new Set()).map((f) => f.path)).toEqual(["2024"]);
+  });
+});
+
+describe("FIXED_JUMPS aliases", () => {
+  const catalogueDir = resolve(dirname(fileURLToPath(import.meta.url)), "../../messages-core");
+  const locales = readdirSync(catalogueDir).filter((name) => name.endsWith(".json"));
+
+  it.each(locales)("%s defines an alias message for every fixed jump", (file) => {
+    const catalogue = JSON.parse(readFileSync(resolve(catalogueDir, file), "utf8"));
+    const aliases: Record<string, unknown> = catalogue.pageJump.aliases;
+    const missing = FIXED_JUMPS.map((jump) => jump.key).filter(
+      (key) => typeof aliases[key] !== "string" || (aliases[key] as string).trim() === "",
+    );
+    expect(missing).toEqual([]);
   });
 });

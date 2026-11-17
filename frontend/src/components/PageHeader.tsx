@@ -180,17 +180,24 @@ export function PageHeader({
 
       {hasTitle && !hasTitleField && !withScopeEnd && (
         <div className="flex min-w-0 flex-wrap items-start gap-3 sm:flex-nowrap">
-          {!hasTrailRow && leading}
-          {TitleIcon && (
-            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-bg-elevated text-text-primary">
-              <TitleIcon size={20} aria-hidden="true" />
-            </div>
-          )}
-          <div className="min-w-0 flex-1">
-            {heading}
-            {given(scope) && (
-              <div className="mt-1 text-sm text-text-muted">{scope}</div>
+          {/* Sized by its content rather than `flex-1` below `sm`: with a
+              zero basis the title never pushes the actions onto the next
+              line, so actions that fit beside an empty title cut it to a
+              letter. The leading control and the icon ride in the same group
+              so neither is left on a line of its own. */}
+          <div className="flex min-w-0 flex-auto items-start gap-3 sm:flex-1">
+            {!hasTrailRow && leading}
+            {TitleIcon && (
+              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-bg-elevated text-text-primary">
+                <TitleIcon size={20} aria-hidden="true" />
+              </div>
             )}
+            <div className="min-w-0 flex-1">
+              {heading}
+              {given(scope) && (
+                <div className="mt-1 text-sm text-text-muted">{scope}</div>
+              )}
+            </div>
           </div>
           {given(actions) && (
             <div className="flex max-w-full flex-shrink-0 flex-wrap items-center gap-2 sm:max-w-none">

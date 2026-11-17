@@ -207,7 +207,7 @@ export function DrivesSection(): React.ReactElement {
               <button
                 type="button"
                 onClick={() => openEdit(index)}
-                className="rounded-2xl bg-sand px-3 py-1 text-xs text-text-primary hover:bg-sand-hover"
+                className="rounded-2xl bg-sand px-3 py-1 text-xs text-text-primary hover:bg-sand-hover pointer-coarse:min-h-11"
               >
                 {t("editButton")}
               </button>
@@ -217,7 +217,7 @@ export function DrivesSection(): React.ReactElement {
                   setSaveError(null);
                   setConfirm({ index });
                 }}
-                className="rounded-2xl px-3 py-1 text-xs text-danger hover:bg-danger/10"
+                className="rounded-2xl px-3 py-1 text-xs text-danger hover:bg-danger/10 pointer-coarse:min-h-11"
               >
                 {t("deleteButton")}
               </button>
