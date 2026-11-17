@@ -20,6 +20,20 @@ export const SCENES_TIMESTAMPS = Array.from(
 );
 
 /**
+ * Change frames at seconds no candidate frame has, more than one window's
+ * worth so the grid is full in both modes.
+ */
+export const SCENES_CHANGE_SECONDS = [
+  7, 31, 55, 77, 101, 130, 151, 175, 199, 226, 250, 271, 299, 331, 355, 381,
+  410, 437, 466, 493,
+];
+
+export const SCENES_CHANGES = SCENES_CHANGE_SECONDS.map((start) => ({
+  start,
+  content_preview: `Frame at ${start}s`,
+}));
+
+/**
  * One succeeded scene at the first frame with no `visible_text`, and one at
  * frame 4 whose label fills the card's two lines.
  */

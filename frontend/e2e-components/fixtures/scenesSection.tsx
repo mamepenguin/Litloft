@@ -8,6 +8,7 @@ import enMessages from "@/messages-core/en.json";
 import ScenesSection from "../../src/addons/intelligence/ScenesSection";
 import intelligenceEn from "../../src/addons/intelligence/messages/en.json";
 import {
+  SCENES_CHANGES,
   SCENES_DRIVE,
   SCENES_DURATION,
   SCENES_FILE,
@@ -24,6 +25,7 @@ interface ScenesDataset {
   file: string;
   duration: number;
   timestamps: { start: number; content_preview: string }[];
+  changes?: { start: number; content_preview: string }[];
   visualIndex: unknown;
 }
 
@@ -33,6 +35,8 @@ const SHORT: ScenesDataset = {
   timestamps: SCENES_TIMESTAMPS,
   visualIndex: SCENES_VISUAL_INDEX,
 };
+
+const WITH_CHANGES: ScenesDataset = { ...SHORT, changes: SCENES_CHANGES };
 
 const LONG: ScenesDataset = {
   file: SCENES_LONG_FILE,
@@ -110,6 +114,7 @@ function stubIntelligenceApi(data: ScenesDataset): void {
           file_id: data.file,
           drive: SCENES_DRIVE,
           timestamps: data.timestamps,
+          ...(data.changes ? { changes: data.changes } : {}),
         }),
       );
     }
@@ -124,11 +129,14 @@ function stubIntelligenceApi(data: ScenesDataset): void {
 export function ScenesSectionArrangement({
   hostWidth,
   long = false,
+  changes = false,
 }: {
   hostWidth: number;
   long?: boolean;
+  /** The short file with change frames, so the section draws its switch. */
+  changes?: boolean;
 }): ReactElement {
-  const data = long ? LONG : SHORT;
+  const data = long ? LONG : changes ? WITH_CHANGES : SHORT;
   stubIntelligenceApi(data);
   const mediaController = useMemo(
     () => makeController(data.duration),
