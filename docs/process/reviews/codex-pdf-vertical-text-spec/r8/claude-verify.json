@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "MEDIUM",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1-containment-rule-untested",
+      "status": "confirmed",
+      "note": "pdf.py:126-134 is the only place the mixed-page 'not already present' rule is applied to vertical boxes. In tests/test_pdf_vertical_acceptance.py, the mixed-page assertions check only membership: `word in parts[...]` and `word in units[...]` at lines 43-47 and 366, plus an ordering check `index(MARKDOWNONLY) < index(MIXEDLABEL)` at line 74. That ordering still holds if the label is duplicated. The only exact-equality check on a page text, at line 393, is on a predominantly vertical page, which takes the counts[0] > counts[1] branch and never reaches _is_contained. The count()==1 assertions in test_pdf_edge_lines.py:190-192 use bands_pdf, whose text is horizontal only, and no test fixture puts rotated text on a mixed page whose Markdown already contains it. Grep finds no test that calls recover_vertical_texts directly or uses LTTextBoxVertical. I did this by reading the code; I did not run the mutant."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F2-unreadable-page-diverges-between-index-and-reader",
+      "status": "confirmed",
+      "note": "Indexing path: when get_text('text') raises at pdf.py:316-320, the loop hits `continue` and the page is not added to `scanned`. pdf.py:296 then passes it to recover_vertical_texts, which calls doc[number-1].get_text('dict', ...) at pdf.py:102-104. Any exception there becomes VerticalTextError at pdf.py:135-140, and metadata.py:400-401 returns False for the whole file. Reader path: document_text.py:196-200 sets layer='' and scanned=True when the same call raises, and lines 219-226 pass {number} as scanned_pages. recover_vertical_texts then filters the page out at pdf.py:76 and returns the text unchanged, so recovery is skipped. The divergence follows from the code, but only if get_text('dict') also raises on the page that raised for get_text('text'), which is likely for a damaged page. The fitz fallback path (_fitz_chunks, pdf.py:601-605) leaves such a page out of `texts`, so it does not have this failure. Before this change, _empty_text_pages already skipped such pages, but nothing then read the page again in a way that could fail the whole file, so the whole-file failure is introduced by this commit. One more point: in the reader, if pymupdf4llm also raises, the unguarded get_text('text') at document_text.py:216 makes the read fail rather than return text without recovery."
+    }
+  ],
+  "specification_compliance": [
+    "I2 mixed-page rule: implemented at pdf.py:124-134 (vertical boxes are appended only when their normalized text is not already in the page text), but no test checks it (F1).",
+    "I5: VerticalTextError leads metadata.index_text_content to return False before any write (metadata.py:400-401). Acceptance tests cover a parser failure, an empty extraction, a reopen failure and an orientation failure.",
+    "I10/I11: text_boxes at pdf.py:85-90 recurses into LTFigure in depth-first order. The dominant form-page test checks the exact line order."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "Indexing and reading classify a page differently when PyMuPDF raises get_text('text') on it: indexing treats it as non-scanned and fails the whole file, while reading treats it as scanned and skips recovery (F2)."
+  ],
+  "regression_risks": [
+    "A single PDF page that PyMuPDF cannot read now makes the whole file's text indexing fail, where before the page was skipped.",
+    "A vertical box whose text the Markdown already contains could be duplicated without any test noticing, if the containment check regresses."
+  ],
+  "test_coverage": [
+    "No test has a mixed page where a vertical box's normalized text is already in the Markdown or edge text.",
+    "No test covers a page whose get_text raises in only one of the indexing and reader paths."
+  ],
+  "not_verified": [
+    "I did not run the test suite or the remove-_is_contained mutant; F1 is confirmed by reading the code only.",
+    "I did not check whether pdfminer's detect_vertical grouping produces LTTextBoxVertical for any of the horizontal-only fixtures in test_pdf_edge_lines.py.",
+    "I did not check whether pymupdf4llm's Markdown output contains rotated text such as MIXEDLABEL.",
+    "I did not check whether get_text('dict') really raises on a page where get_text('text') raised."
+  ],
+  "confidence": 80
+}
