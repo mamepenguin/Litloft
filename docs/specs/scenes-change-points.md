@@ -2,7 +2,7 @@
 
 SPEC-ID: SPEC-ADDON-124
 
-Approval:
+Approval: sha256:1f0ca2fff0ccb6027871424809343c17543d8784e8cd26252a107d447fa1642b Yuichi Senga 2026-11-17
 
 <!--
 Leave the Approval line empty. After a human approves this spec, the approval step
