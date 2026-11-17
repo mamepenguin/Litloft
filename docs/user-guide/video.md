@@ -117,3 +117,5 @@ drive cannot be opened at `/drive/<drive>/apps`, in the same way as a root folde
 On a video's own page, the ruler in the **Scenes** panel shows the video's frames along
 its length. Hovering the ruler, or touching it on a phone, shows the frames there without
 moving the video. A click on the ruler, or a tap on a frame, plays from that point.
+Once a video has been scanned, **All** and **Cuts** above the frames switch between every
+frame and only the frames where the picture changes, so a cut is easy to find.
