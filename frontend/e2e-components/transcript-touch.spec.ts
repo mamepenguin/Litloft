@@ -32,13 +32,13 @@ const SIZES = [
 let run = 0;
 
 async function open(browser: Browser, size: { width: number; height: number }) {
-  const context = await browser.newContext({
+  const page = await browser.newPage({
     ...devices["Pixel 5"],
     viewport: { width: size.width, height: size.height },
     hasTouch: true,
     isMobile: true,
   });
-  const page = await context.newPage();
+  const context = page.context();
   await page.goto(`${FIXTURE}?run=${++run}#${ARRANGEMENT}`);
   await expect(page.locator("body")).toHaveAttribute(
     "data-arrangement",
@@ -233,6 +233,30 @@ for (const size of SIZES) {
       await expect(quote).toHaveCount(1);
       await expect(edit).toBeVisible();
       await expect(quote).toBeVisible();
+
+      // Measure after the tap's seek reaches the clock and the list has
+      // stopped moving, so a reveal that later undoes itself is caught.
+      await expect(page.locator('[aria-current="true"]')).toHaveCount(1);
+      await expect
+        .poll(
+          () =>
+            target.evaluate((el) => el.querySelector('[aria-current="true"]') !== null),
+          { timeout: 5000 },
+        )
+        .toBe(true);
+      let last = (await edit.boundingBox())!.y;
+      await expect
+        .poll(
+          async () => {
+            await page.waitForTimeout(300);
+            const now = (await edit.boundingBox())!.y;
+            const settled = Math.abs(now - last) < 0.5;
+            last = now;
+            return settled;
+          },
+          { timeout: 5000 },
+        )
+        .toBe(true);
 
       const box = (await list(page).boundingBox())!;
       for (const [name, control] of [
