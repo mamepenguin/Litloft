@@ -267,3 +267,6 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-122 | implemented | docs/specs/pdf-vertical-text.md | sha256:f7de193bc675151d40788b14f9ed89279334dfb437ccfd3aa6abc45971d1279c |
 | SPEC-ADDON-127 | implemented | docs/specs/refine-alignment-failure.md | sha256:748d0edd82eaaf091f7a36d56307b6d6b6479ad68b68aece75366f24a24df455 |
 | SPEC-ADDON-128 | implemented | docs/specs/refine-alignment-failure.md | sha256:748d0edd82eaaf091f7a36d56307b6d6b6479ad68b68aece75366f24a24df455 |
+| SPEC-ADDON-130 | draft | docs/specs/notes-app.md | |
+| SPEC-ADDON-131 | draft | docs/specs/notes-app.md | |
+| SPEC-ADDON-132 | draft | docs/specs/notes-app.md | |

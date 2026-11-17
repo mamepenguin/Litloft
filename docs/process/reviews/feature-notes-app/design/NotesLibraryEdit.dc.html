@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>ノート ライブラリ 編集中</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#ffffff}
+a{color:#211922;text-decoration:none}a:hover{color:#211922}
+.ic{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+.sm{width:14px;height:14px}
+.side a{display:flex;align-items:center;gap:12px;height:40px;padding:0 12px;border-radius:12px;font-size:15px;color:#211922}
+.side a.on{background:#f6f6f3;font-weight:600}
+.rail a{display:flex;align-items:center;gap:10px;height:34px;padding:0 10px;border-radius:10px;font-size:14px;color:#211922}
+.tb{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border:0;border-radius:8px;background:transparent;color:#62625b;font:inherit;font-size:14px;font-weight:700}
+.src{margin:0;font-size:15px;line-height:1.85;color:#211922}
+.mk{color:#91918c}
+</style>
+</helmet>
+<div style="min-height: 1180px; display: flex; flex-wrap: wrap; font-family: -apple-system, system-ui, 'Hiragino Sans', 'Segoe UI', sans-serif; color: #211922; background: #ffffff">
+
+  <nav class="side" aria-label="サイドバー" style="flex: 1 1 240px; max-width: 240px; box-sizing: border-box; border-right: 1px solid rgba(145,145,140,0.2); padding: 64px 12px 24px; display: flex; flex-direction: column; gap: 2px">
+    <a href="#">ホーム</a>
+    <a href="#">Inbox</a>
+    <a href="#">ライブラリ</a>
+    <a href="#">動画</a>
+    <a href="#">読む</a>
+    <a href="#">Ask</a>
+    <a href="#" class="on">ノート</a>
+    <a href="#">Clips</a>
+    <a href="#">Photo Diary</a>
+  </nav>
+
+  <main style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column">
+    <div style="height: 56px; border-bottom: 1px solid rgba(145,145,140,0.2)"></div>
+
+    <div style="width: 100%; box-sizing: border-box; padding: 28px 40px 0">
+      <header style="display: flex; flex-wrap: wrap; align-items: flex-start; gap: 16px">
+        <div style="display: flex; align-items: center; gap: 12px; flex: 1 1 320px; min-width: 0">
+          <span style="width: 40px; height: 40px; border-radius: 12px; background: #f6f6f3; display: flex; align-items: center; justify-content: center">
+            <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M13.4 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7.4"/><path d="M2 6h4"/><path d="M2 10h4"/><path d="M2 14h4"/><path d="M2 18h4"/><path d="M21.378 5.626a1 1 0 1 0-3.004-3.004l-5.01 5.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z"/></svg>
+          </span>
+          <div style="min-width: 0">
+            <h1 style="margin: 0; font-size: 24px; line-height: 1.3; font-weight: 700">ノート</h1>
+            <div style="margin-top: 2px; font-size: 14px; color: #62625b">main · 152 件</div>
+          </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 12px">
+          <button type="button" style="display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 12px; border: 0; border-radius: 999px; background: transparent; font: inherit; font-size: 14px; color: #62625b">
+            <svg class="ic sm" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="1"/></svg>
+            すべてのノート
+            <svg class="ic sm" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+          </button>
+          <button type="button" style="display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 16px; border: 0; border-radius: 999px; background: #d63031; color: #ffffff; font: inherit; font-size: 14px; font-weight: 600">
+            <svg class="ic sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+            新しいノート
+          </button>
+        </div>
+      </header>
+
+      <nav aria-label="ノートの表示" style="margin-top: 20px; display: flex; gap: 4px; border-bottom: 1px solid rgba(145,145,140,0.2)">
+        <a href="Main.dc.html" style="padding: 10px 16px; font-size: 15px; color: #62625b">ホーム</a>
+        <a href="#" style="padding: 10px 16px; font-size: 15px; font-weight: 600; border-bottom: 2px solid #d63031; margin-bottom: -1px">ライブラリ</a>
+      </nav>
+    </div>
+
+    <div style="flex: 1; display: flex; flex-wrap: wrap; min-height: 0; padding: 0 40px 40px">
+
+      <aside class="rail" aria-label="分類" style="flex: 1 1 220px; max-width: 220px; box-sizing: border-box; padding: 20px 16px 0 0; display: flex; flex-direction: column; gap: 2px">
+        <div style="display: flex; padding: 3px; border-radius: 10px; background: #f6f6f3; margin-bottom: 12px">
+          <button type="button" style="flex: 1; height: 30px; border: 0; border-radius: 8px; background: #ffffff; box-shadow: 0 1px 2px rgba(33,25,34,0.08); font: inherit; font-size: 13px; font-weight: 600; color: #211922">フォルダ</button>
+          <button type="button" style="flex: 1; height: 30px; border: 0; border-radius: 8px; background: transparent; font: inherit; font-size: 13px; color: #62625b">タグ</button>
+        </div>
+        <sc-for list="{{folders}}" as="f" hint-placeholder-count="8">
+          <a href="#" style="{{f.style}}">
+            <svg class="ic sm" viewBox="0 0 24 24" aria-hidden="true" style="color: #91918c"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>
+            <span style="flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{f.name}}</span>
+            <span style="font-size: 12px; color: #62625b; font-variant-numeric: tabular-nums">{{f.count}}</span>
+          </a>
+        </sc-for>
+      </aside>
+
+      <section aria-label="ノートの一覧" style="flex: 1 1 340px; max-width: 380px; min-width: 0; box-sizing: border-box; border-left: 1px solid rgba(145,145,140,0.2); border-right: 1px solid rgba(145,145,140,0.2); padding: 20px 0 0">
+        <div style="display: flex; gap: 8px; padding: 0 12px 12px">
+          <label style="flex: 1; display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 12px; border: 1px solid rgba(145,145,140,0.35); border-radius: 999px; font-size: 14px; color: #62625b">
+            <svg class="ic sm" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            <input type="search" placeholder="メモ/雑多なメモ を検索" style="flex: 1; min-width: 0; border: 0; outline: 0; font: inherit; background: transparent; color: #211922">
+          </label>
+          <button type="button" style="height: 36px; padding: 0 12px; border: 1px solid rgba(145,145,140,0.35); border-radius: 999px; background: #ffffff; font: inherit; font-size: 13px; color: #62625b">更新順</button>
+        </div>
+        <ul style="list-style: none; margin: 0; padding: 0">
+          <sc-for list="{{notes}}" as="n" hint-placeholder-count="7">
+            <li>
+              <a href="#" style="{{n.style}}">
+                <span style="display: flex; align-items: baseline; gap: 8px">
+                  <span style="flex: 1; min-width: 0; font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{n.title}}</span>
+                  <span style="font-size: 12px; color: #62625b; font-variant-numeric: tabular-nums">{{n.time}}</span>
+                </span>
+                <span style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin-top: 4px; font-size: 13px; line-height: 1.55; color: #62625b">{{n.excerpt}}</span>
+              </a>
+            </li>
+          </sc-for>
+        </ul>
+      </section>
+
+      <article aria-label="選んだノートを編集中" style="flex: 999 1 420px; min-width: 0; box-sizing: border-box; padding: 24px 0 0 40px">
+        <div style="display: flex; align-items: center; gap: 8px">
+          <div role="toolbar" aria-label="書式" style="display: flex; align-items: center; gap: 2px; flex: 1; min-width: 0">
+            <button type="button" class="tb" aria-label="見出し">H</button>
+            <button type="button" class="tb" aria-label="太字">B</button>
+            <button type="button" class="tb" aria-label="斜体" style="font-style: italic; font-weight: 400">I</button>
+            <button type="button" class="tb" aria-label="箇条書き"><svg class="ic sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg></button>
+            <button type="button" class="tb" aria-label="リンク"><svg class="ic sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></button>
+            <button type="button" class="tb" aria-label="画像"><svg class="ic sm" viewBox="0 0 24 24" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg></button>
+          </div>
+          <span style="font-size: 12px; color: #62625b">保存済み</span>
+          <button type="button" style="display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 16px; border: 0; border-radius: 999px; background: #211922; color: #ffffff; font: inherit; font-size: 14px; font-weight: 600">
+            <svg class="ic sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+            完了
+          </button>
+          <a href="#" aria-label="ファイル画面で開く" style="display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 999px; color: #62625b">
+            <svg class="ic sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></svg>
+          </a>
+        </div>
+
+        <div style="margin-top: 16px; padding: 8px 0 32px">
+          <p class="src"><span class="mk">---</span></p>
+          <p class="src"><span class="mk">tags: [道具, 買い物]</span></p>
+          <p class="src"><span class="mk">---</span></p>
+          <p class="src" style="margin-top: 12px; font-size: 26px; font-weight: 700; line-height: 1.4"><span class="mk" style="font-weight: 400"># </span>キーボード</p>
+          <p class="src" style="margin-top: 12px">候補を 3 つに絞った。打鍵感は店で確かめてから決める。</p>
+          <p class="src" style="margin-top: 16px; font-size: 18px; font-weight: 700"><span class="mk" style="font-weight: 400">## </span>条件</p>
+          <p class="src"><span class="mk">- </span>配列は US</p>
+          <p class="src"><span class="mk">- </span>テンキーなし</p>
+          <p class="src"><span class="mk">- </span>静音軸、または静音リング<span style="display: inline-block; width: 2px; height: 1.1em; margin-left: 1px; vertical-align: -0.15em; background: #211922"></span></p>
+          <p class="src" style="margin-top: 12px">レビュー動画で気になった点は <span class="mk">[[</span><span style="color: #d63031">打鍵音の比較</span><span class="mk">]]</span> にまとめた。</p>
+        </div>
+      </article>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1180}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const sel = 'background: #f6f6f3; font-weight: 600;';
+    const folders = [
+      ['すべて', 152, 0], ['メモ', 46, 0], ['メモ / 雑多なメモ', 41, 1], ['メモ / 私の思想', 4, 0],
+      ['Knowledge', 105, 0], ['Knowledge / Engineering', 69, 0], ['Knowledge / Tips', 12, 0],
+      ['Knowledge / Web', 12, 0], ['Knowledge / 点呼アプリ', 7, 0], ['Knowledge / Litloft', 4, 0],
+      ['Inbox', 20, 0], ['Captures', 1, 0], ['AI-Drafts', 1, 0]
+    ].map(([name, count, on]) => ({ name, count, style: on ? sel : '' }));
+    const rowBase = 'display: block; padding: 12px 16px; border-bottom: 1px solid rgba(145,145,140,0.2);';
+    const notes = [
+      ['キーボード', '今日', '候補を 3 つに絞った。打鍵感は店で確かめてから決める。条件は US 配列、テンキーなし。', 1],
+      ['一日の振り返り', '11月12日', '一日の終わりに良かったことを 3 つ書く。続けるコツは書く場所を決めておくこと。', 0],
+      ['シリーズの時系列', '11月8日', '発売順と作中の時系列を並べて比べる。外伝はどこに入るか。', 0],
+      ['買い物リスト', '11月5日', 'キーボード、替えのケーブル、モニターアーム。', 0],
+      ['机まわりの整理', '11月1日', '配線をまとめる。使わないものは箱に入れて一か月様子を見る。', 0],
+      ['読みたい本', '10月27日', '積んである順ではなく、今の仕事に近い順に読む。', 0],
+      ['旅行の持ち物', '10月20日', '充電器、変換プラグ、常備薬、折りたたみ傘。', 0]
+    ].map(([title, time, excerpt, on]) => ({ title, time, excerpt, style: rowBase + (on ? 'background: #f6f6f3;' : '') }));
+    return { folders, notes };
+  }
+}
+</script>
+</body>
+</html>
