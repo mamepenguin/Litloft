@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "MEDIUM",
+  "findings": [
+    {
+      "id": "F1-i10-test-covers-mixed-path-only",
+      "origin": "reviewer",
+      "claim": "The new nested-form test never takes the predominantly vertical branch, so recursion into LTFigure is untested for the whole-page replacement that I10 also requires.",
+      "impact": "If recursion into figures broke on the predominantly vertical path (for example a page whose vertical text sits only in a form XObject), no test would fail. Such a page could then hit the empty-page error or lose text.",
+      "evidence": "test_pdf_vertical_acceptance.py test_spec_addon_115_i10_recovers_nested_pdf_form_text: each page holds 18 vertical characters (NESTEDVERTICALWORD) against at least 20 horizontal (NESTEDHORIZONTALWORD, plus 'H' or two further lines), so counts[0] > counts[1] (pdf.py:117) is false on both pages and only the append branch (pdf.py:124-134) runs.",
+      "repro": "not_reproduced: traced by reading. Mutant: make the else-branch ignore figures while the dominant branch keeps text_boxes; the test still passes.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "The code recurses on both branches through the shared text_boxes list. This is a test gap and breaks no declared invariant."
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add a case where the form text is vertical-dominant, for example a form with only the vertical label, and assert the complete page text contains it."
+    }
+  ],
+  "specification_compliance": [
+    "I10 (r5): text_boxes (pdf.py:85-90) recurses through LTFigure at any depth, and boxes feed both the dominant branch (pdf.py:117-123) and the mixed branch (pdf.py:124-134). all_texts=True makes pdfminer lay out text inside figures into boxes.",
+    "I2: counts and the branch test are unchanged by this commit. The (0,-1) exclusion matches the r4 revision.",
+    "I5: the change adds no silent skip. Exceptions still become VerticalTextError.",
+    "I8: the commit adds no PyMuPDF call.",
+    "I3: a page with no figures and no vertical boxes is unaffected by the new recursion."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "all_texts=True applies to every PDF page, and pdfminer 'all_texts' also runs layout analysis on text inside figures. Horizontal figure text on a predominantly vertical page now enters the complete page text. The I10 revision allows this, but the effect on pages with chart or diagram labels was not measured.",
+    "On a predominantly vertical page, box.get_text() of figure text boxes is joined in layout order, so figure text order relative to body text is not specified."
+  ],
+  "regression_risks": [
+    "all_texts=True can change pdfminer box grouping on pages with figures, so the complete text of predominantly vertical pages and the set of vertical boxes may differ from the previous rules version. The rules version is already bumped to 2, so re-extraction covers this.",
+    "Mixed pages that previously gained no boxes may gain vertical boxes found inside figures, changing their chunks. I10 intends this."
+  ],
+  "test_coverage": [
+    "The nested-form test would fail without the LTFigure recursion, since the form text would not be found, and it covers both the indexing path and the reader. It exercises only the mixed branch (F1).",
+    "Nothing covers a bottom-to-top direction (0,-1). It is excluded by the spec.",
+    "Earlier gap carried over and unchecked: no test asserts the containment rule that suppresses an already-present box."
+  ],
+  "not_verified": [
+    "I did not run any test or extraction. The conclusions come from reading pdf.py at the review commit.",
+    "I did not check pdfminer 20260107 source for how LTFigure, all_texts and nesting behave, nor whether PyMuPDF reports form-XObject text in get_text('dict') as the test assumes.",
+    "I did not re-read the r2 status-reader note or the reconciliation path that re-enqueues text_indexed=0 files.",
+    "I did not measure pdfminer cost on long PDFs under PYMUPDF_LOCK."
+  ],
+  "confidence": 72,
+  "trajectory": "The last two fix commits (169a52c1 and e0a716a5, which carries only the approved I10 invariant into the docs) add no new state or failure branch. The code change is one recursive generator, text_boxes, plus the all_texts=True parameter, and it replaces the single list comprehension. Earlier rounds added or removed failure branches: r4's orientation warn-and-continue and nameless-document guard were removed in 9ffc0839 and 271e78b4. This round closes the open question from r5 about LTFigure text by extending extraction. It adds no defensive branch or retry state. The new test does not reach the predominantly vertical branch. So the design is not being patched by accumulating branches. Each round fixes a distinct case that the earlier review found, and the r2 status-reader note is still unaddressed."
+}

@@ -1,0 +1,95 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "MEDIUM",
+  "findings": [],
+  "specification_compliance": [
+    "I12 (r8): in all three places that read a page text layer, a failed read now raises VerticalTextError instead of being skipped. The places are _empty_text_pages (pdf.py:316-326) on the primary indexing path, _fitz_chunks (pdf.py:606-615) on the fallback indexing path, and _pdf_page (document_text.py:196-203) on the reader. metadata._extract_file_content re-raises VerticalTextError (metadata.py:151-152), and index_text_content returns False at metadata.py:400-401 before any write, so the FTS, embedding, pdf_markdown and section rows and the unset text_indexed flag are all preserved. The router turns any exception into a 422 (routers/document_text.py:94).",
+    "r8 F2 (indexing and the reader classified an unreadable page differently): closed. Both paths now raise for the same page instead of indexing treating it as non-scanned while the reader treated it as scanned.",
+    "r8 F1 (containment rule untested): closed by test_pdf_dedupe_122.py. The page is a mixed page with 46 horizontal and 10 vertical characters. The stub puts MIXEDLABEL into the Markdown, and the test asserts it appears exactly once in the indexed Markdown and in the reader text. Removing the `_is_contained` check at pdf.py:130-132 would append the vertical box a second time and fail both count()==1 assertions.",
+    "I5: the new raises go through the same VerticalTextError path as the existing vertical-extraction failures. Nothing new marks the task successful.",
+    "I8: the raises add no PyMuPDF call outside PYMUPDF_LOCK. _empty_text_pages and _fitz_chunks run inside PdfExtractor.extract (pdf.py:184-189), and _pdf_page runs inside _pdf_units (document_text.py:147-152).",
+    "I4: a page that reads an empty layer is still classified as scanned and excluded from recovery (pdf.py:76, 616-618; document_text.py:204, 224, 229). Only a raising read becomes a failure, and the spec's 'empty image-only pages are not treated as failures' still holds.",
+    "I2, I10 and I11: recover_vertical_texts is unchanged since r8. The counts use (0,1) and (1,0) with a 0.01 tolerance, the dominant comparison is strict, and text_boxes recurses through LTFigure depth-first."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "_empty_text_pages still returns an empty scanned set silently when fitz.open itself fails (pdf.py:327-328). On the primary path this is harmless only because the following fitz.open at pdf.py:287-294 raises VerticalTextError. If that second open succeeded, for example on a transient failure, pages whose layer is empty would not be marked scanned and would go through recovery without their stored OCR. Not observed and not traced further."
+  ],
+  "regression_risks": [
+    "Before this change, a PDF in which a single page's text layer raises was indexed from the other pages. Now indexing of the whole file fails on every retry, and a read whose range includes that page returns 422 for the whole range. I12 intends this, but such a file stays at text_indexed=0 permanently and is reconciled again on each pass. Whether the reconciliation loop throttles this was not checked.",
+    "test_pdf_edge_lines_read_document.py:180 and test_pdf_edge_lines_failures.py:116-118 now patch read_edge_lines instead of breaking the whole document walk. A document whose walk fails now gives a 422 or a failed index instead of library text, so the earlier whole-document scenario is no longer tested, and under I12 it now produces a failure."
+  ],
+  "test_coverage": [
+    "test_spec_addon_122_i12_text_layer_failure_preserves_index_and_fails_read is parametrized over the primary and fallback indexing paths. Reverting each of the three raises to the old swallow fails it. Primary path: _empty_text_pages `continue` leaves recovery on the stubbed 'partial content' page succeeding, so index_text_content returns True. Fallback path: _fitz_chunks `continue` gives no chunks, so the no-chunks branch rewrites the sections and returns True. Reader: `layer=\"\"` makes the page scanned, so the read returns 200 instead of 422.",
+    "On the reader side the parametrization does not exercise two separate paths. The layer read raises before the pymupdf4llm and fallback branch in _pdf_page, so both cases test the same reader line. Because of how the code is structured this is not a gap.",
+    "The new test function test_mixed_page_deduplicates_embedded_vertical_label kills the containment mutant. It covers a vertical box that is already in the Markdown, but not one that is already in the recovered edge-band text, which uses the same `_is_contained` check."
+  ],
+  "not_verified": [
+    "I did not run any test or mutant. Every kill or survive claim above comes from tracing the code by reading.",
+    "I did not check that pymupdf4llm 0.0.17 leaves MIXEDLABEL out of its own Markdown for the dedupe fixture. If it included the label, the count()==1 assertion would rely on the stub differently.",
+    "I did not trace whether the indexer's reconciliation re-enqueues a PDF that fails permanently in a tight loop.",
+    "I read test_pdf_extractor.py and test_pdf_indexing_e2e.py only in their diff hunks.",
+    "I did not read the pdfminer 20260107 or PyMuPDF 1.25.5 source."
+  ],
+  "coverage": [
+    {
+      "path": "addons/intelligence/app/document_text.py",
+      "read": "full",
+      "reason": "Read lines 120-249: _checked_path, _pdf_units, _pdf_range and _pdf_page. This includes every changed hunk and the functions that enclose it. I also grepped the router's exception handling."
+    },
+    {
+      "path": "addons/intelligence/app/extractors/pdf.py",
+      "read": "full",
+      "reason": "Read the whole file (643 lines)."
+    },
+    {
+      "path": "addons/intelligence/app/workers/metadata.py",
+      "read": "full",
+      "reason": "Read lines 115-174 (_extract_file_content) and 370-489 (index_text_content), which are both changed hunks with the functions that enclose them. I saw the import change at line 32 in the diff."
+    },
+    {
+      "path": "addons/intelligence/requirements-test.txt",
+      "read": "partial",
+      "reason": "Read only the one-line diff hunk that adds pdfminer.six==20260107."
+    },
+    {
+      "path": "addons/intelligence/requirements.txt",
+      "read": "partial",
+      "reason": "Read only the one-line diff hunk that adds pdfminer.six==20260107."
+    },
+    {
+      "path": "addons/intelligence/tests/test_pdf_dedupe_122.py",
+      "read": "full",
+      "reason": "New 28-line file, read in full from the diff."
+    },
+    {
+      "path": "addons/intelligence/tests/test_pdf_edge_lines_failures.py",
+      "read": "partial",
+      "reason": "Read lines 60-139, which include the changed test."
+    },
+    {
+      "path": "addons/intelligence/tests/test_pdf_edge_lines_read_document.py",
+      "read": "partial",
+      "reason": "Read lines 160-204, which include the changed test."
+    },
+    {
+      "path": "addons/intelligence/tests/test_pdf_extractor.py",
+      "read": "partial",
+      "reason": "Read only the diff hunks (fake_pdf fixture and _install_fitz)."
+    },
+    {
+      "path": "addons/intelligence/tests/test_pdf_indexing_e2e.py",
+      "read": "partial",
+      "reason": "Read only the diff hunks (fake_pdf fixture and _stub_fitz)."
+    },
+    {
+      "path": "addons/intelligence/tests/test_pdf_vertical_acceptance.py",
+      "read": "full",
+      "reason": "New file, read in full from the diff (432 lines)."
+    }
+  ],
+  "confidence": 78,
+  "trajectory": "Read in order. 5b348d9b and b4c88ded only record docs and the R-5 check. ac74bba0 is the only code fix. It changes three handlers that silently skipped an unreadable page text layer into raises of VerticalTextError: the `continue` in _empty_text_pages, the `continue` in _fitz_chunks, and `layer = \"\"` in _pdf_page. It also adds the dedupe test and the I12 test. This removes branches rather than adding any. Still, it is the same kind of fix that 70aa2785, 9ffc0839 and 271e78b4 made in earlier rounds: each turned a silent skip into a raise, one call site at a time, and this round adds a spec revision (I12) to approve the change. So the failure policy was patched one call site per round. As of this round, every new text-layer and vertical read on the indexing and reader paths fails loudly. The silent skips left are the per-page and whole-document edge-line handling in _page_band_lines and _safe_edge_lines, which SPEC-ADDON-060 declares, and the fitz.open failure in _empty_text_pages, which a later open covers. The round adds no new state or prediction. It closes r8 F1 (dedupe test) and r8 F2 (inconsistent classification)."
+}

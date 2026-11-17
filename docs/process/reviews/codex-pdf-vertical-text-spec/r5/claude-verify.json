@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "MEDIUM",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1-bottom-to-top-vertical-not-counted",
+      "status": "rejected_with_evidence",
+      "note": "The code matches the claim's description: addons/intelligence/app/extractors/pdf.py:103 counts a line as vertical only when abs(x) <= 0.01 and abs(y - 1) <= 0.01, and pdf.py:105 counts horizontal only when abs(x - 1) <= 0.01 and abs(y) <= 0.01. A line with direction (0, -1) matches neither branch, so it is counted in neither bucket, and the branch at pdf.py:108 (counts[0] > counts[1]) then ignores it. However, this is the behavior the declared invariant requires, not a defect. The revised I2 (r4) in the invariants file states that a page is predominantly vertical based on lines with direction (0, 1) versus (1, 0), each with tolerance 0.01, and that 'other directions, including (0, -1), are ignored in both counts.' The code implements that rule exactly. The finding's observation is therefore a spec-level design choice, not an implementation defect. If bottom-to-top support is wanted, that is a spec change and should be decided by the user, but it is not a defect against the current invariants."
+    }
+  ],
+  "specification_compliance": [
+    "pdf.py:103-106 implements the r4 revision of I2: only direction (0, 1) counts as vertical and only (1, 0) counts as horizontal, each component with tolerance 0.01, and other directions including (0, -1) are excluded from both counts.",
+    "pdf.py:108 uses the strict comparison counts[0] > counts[1] for predominance, matching I2 ('vertical characters outnumber horizontal characters' goes to the complete pdfminer text; otherwise the horizontal page keeps its Markdown and gains non-duplicate vertical boxes at pdf.py:115-125)."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "Bottom-to-top vertical text (direction (0, -1)) is never counted as vertical, so a page written only in that orientation is not classified as predominantly vertical. The spec ignores that direction explicitly, so this is a product decision rather than an unspecified behavior. Still, the user may want to confirm that bottom-to-top pages are out of scope."
+  ],
+  "regression_risks": [
+    "If the spec is later changed to count (0, -1) as vertical, the counting branches at pdf.py:103-106 and the predominance test at pdf.py:108 would need to change together, and the acceptance tests would need a rotate=90 case."
+  ],
+  "test_coverage": [
+    "Per the finding, test_pdf_vertical_acceptance.py uses rotate=270 only. I did not open the test file to confirm this, so I did not verify test coverage of direction (0, -1)."
+  ],
+  "not_verified": [
+    "I did not open docs/specs/pdf-vertical-text.md or invariants.md directly. I relied on the r4 revision text quoted in the review request.",
+    "I did not run the code or the tests; the verification is by reading pdf.py only.",
+    "I did not read test_pdf_vertical_acceptance.py, so the claim about rotate=270 was not checked.",
+    "I did not confirm that PyMuPDF reports bottom-to-top lines with direction (0, -1) in practice; this only matters for the spec question, not for the code-reading verdict."
+  ],
+  "confidence": 88
+}

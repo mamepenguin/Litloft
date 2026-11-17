@@ -165,7 +165,9 @@ Re-indexing a file replaces its old index.
 
 #### PDF page edges
 
-A PDF page keeps the text inside the page, plus the lines that overlap the top and bottom 50 points of the page. From those two bands, page numbers (a line with no letter) and later copies of a line that repeats on three or more pages — a running header or footer — are left out; the first copy is kept. A line the PDF converter already kept is not added a second time. The kept lines join the page's own text, the top ones before it and the bottom ones after it, so semantic search, exact search, Ask, excerpts and `read_document` find them and report that page.
+On a page where horizontal text is at least as common as vertical text, the extracted text includes lines that overlap the top and bottom 50 points of the page. From those bands, page numbers (a line with no letter) and later copies of a line that repeats on three or more pages — a running header or footer — are left out; the first copy is kept. A line the PDF converter already kept is not added a second time. The kept lines join the page's own text, the top ones before it and the bottom ones after it, so semantic search, exact search, Ask, excerpts and `read_document` find them and report that page.
+
+For a page with more vertical than horizontal text, extraction uses the complete page text instead; page numbers and repeated headers may remain. On other pages, vertical text boxes are added to the existing Markdown, though isolated vertical characters can be missed. Text split between lines or boxes may not match a continuous search phrase.
 
 The first start after the addon is upgraded to these rules re-extracts every PDF once, in the background and at a lower priority than new uploads. Until its turn comes, a PDF keeps the text it already had. A later start with the same rules changes nothing.
 

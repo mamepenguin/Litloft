@@ -1,0 +1,1 @@
+{"verdict":"FAIL","reasons":["artifact of claude-read has confidence 60, below 70"],"findings":[{"reviewer":"claude-read","id":"F1-unlisted-text_indexed-readers","state":"open"}],"needs_human":[]}
