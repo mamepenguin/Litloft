@@ -1,6 +1,7 @@
 import type { ArchiveContents, AuthStatus, BatchRenameRequest, BatchRenameResponse, ChunkResponse, CollectionDetail, CollectionSummary, Comment, CommentsResponse, DashboardResponse, Drive, DriveSummary, DuplicatesResponse, FileExif, FileItem, Folder, FolderCount, FolderTreeNode, Highlight, HighlightInput, HomeShortcut, HomeShortcutKind, Neighbors, PaginatedResponse, PinnedFolder, ListingSortField, SortField, SortOrder, Tag, TrustTier, FileKind, UnlockResult, UploadInitResponse, WatchHistoryItem, WatchProgress } from "@/types";
 import type { SmartFolder, SmartFolderCreate, SmartFolderUpdate } from "@/types/smartFolder";
 import { ApiStatusError } from "@/lib/apiError";
+import { REQUEST_TIMEOUT_MS, type BatchAnswer } from "@/lib/batchChunks";
 import { seedFiles } from "@/lib/fileSeed";
 import {
   appendListingFilters,
@@ -39,6 +40,25 @@ async function fetchJSONStatus<T>(url: string, options?: RequestInit): Promise<T
 
 export interface RequestOptions {
   signal?: AbortSignal;
+}
+
+/**
+ * A whole-list request has no cancel control, so it must end on its own even
+ * when the caller supplies no signal. A caller-provided signal is authoritative.
+ */
+async function fetchJSONWithDefaultTimeout<T>(
+  url: string,
+  init: RequestInit,
+  options?: RequestOptions,
+): Promise<T> {
+  if (options?.signal) return fetchJSON<T>(url, { ...init, signal: options.signal });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  try {
+    return await fetchJSON<T>(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 export async function getDrives(): Promise<Drive[]> {
@@ -731,11 +751,15 @@ export async function batchGetFiles(ids: string[]): Promise<FileItem[]> {
   return files;
 }
 
-export async function batchDelete(ids: string[]): Promise<{ deleted: number; errors: { id: string; error: string }[] }> {
+export async function batchDelete(
+  ids: string[],
+  options?: RequestOptions,
+): Promise<BatchAnswer> {
   return fetchJSON(`${API_BASE}/files/batch/delete`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ ids }),
+    ...(options?.signal ? { signal: options.signal } : {}),
   });
 }
 
@@ -1126,10 +1150,14 @@ export async function purgeFile(id: string): Promise<void> {
   if (!res.ok) throw new Error(`API error: ${res.status}`);
 }
 
-export async function emptyTrash(drive: string): Promise<{ purged: number }> {
-  return fetchJSON<{ purged: number }>(
+export async function emptyTrash(
+  drive: string,
+  options?: RequestOptions,
+): Promise<{ purged: number }> {
+  return fetchJSONWithDefaultTimeout<{ purged: number }>(
     `${API_BASE}/drives/${encodeURIComponent(drive)}/trash/empty`,
-    { method: "POST" }
+    { method: "POST" },
+    options
   );
 }
 
@@ -1148,10 +1176,14 @@ export async function getMissing(
   );
 }
 
-export async function purgeAllMissing(drive: string): Promise<{ purged: number }> {
-  return fetchJSON<{ purged: number }>(
+export async function purgeAllMissing(
+  drive: string,
+  options?: RequestOptions,
+): Promise<{ purged: number }> {
+  return fetchJSONWithDefaultTimeout<{ purged: number }>(
     `${API_BASE}/drives/${encodeURIComponent(drive)}/missing/purge-all`,
-    { method: "POST" }
+    { method: "POST" },
+    options
   );
 }
 
@@ -1169,11 +1201,15 @@ export async function batchRestore(ids: string[]): Promise<{ restored: number; e
   });
 }
 
-export async function batchPurge(ids: string[]): Promise<{ purged: number; errors: { id: string; error: string }[] }> {
+export async function batchPurge(
+  ids: string[],
+  options?: RequestOptions,
+): Promise<BatchAnswer> {
   return fetchJSON(`${API_BASE}/files/batch/purge`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ ids }),
+    ...(options?.signal ? { signal: options.signal } : {}),
   });
 }
 
