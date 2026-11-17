@@ -146,9 +146,9 @@ async function narrowTo(text: string) {
 
 const selected = () => screen.getByLabelText("selected").textContent;
 
-// UNSPEC: with the folder's name filter in use, selecting in selection mode
-// reaches only the files the filter shows; a file it hides is never selected
-// by "Select all" or by a Shift range that spans it.
+// UNSPEC: with the folder's name filter in use, the selection holds only the
+// files the filter shows: "Select all" and a Shift range never reach a hidden
+// file, and a file the filter comes to hide leaves the selection.
 describe("FolderBrowser — selection under the name filter", () => {
   it("selects only the shown files on Select all", async () => {
     render(<FolderBrowser driveName="d" folderPath="" />);
@@ -165,5 +165,23 @@ describe("FolderBrowser — selection under the name filter", () => {
     fireEvent.click(screen.getByRole("button", { name: "meta a" }));
     fireEvent.click(screen.getByRole("button", { name: "shift c" }));
     expect(selected()).toBe("a,c");
+  });
+
+  it("drops a selected file when the filter comes to hide it", async () => {
+    render(<FolderBrowser driveName="d" folderPath="" />);
+    fireEvent.click(screen.getByRole("button", { name: "meta a" }));
+    fireEvent.click(screen.getByRole("button", { name: "meta b" }));
+    expect(selected()).toBe("a,b");
+    await narrowTo(".mp4");
+    await waitFor(() => expect(selected()).toBe("a"));
+  });
+
+  it("selects only the clicked row on Shift after the anchor was hidden", async () => {
+    render(<FolderBrowser driveName="d" folderPath="" />);
+    fireEvent.click(screen.getByRole("button", { name: "meta b" }));
+    await narrowTo(".mp4");
+    await waitFor(() => expect(selected()).toBe(""));
+    fireEvent.click(screen.getByRole("button", { name: "shift c" }));
+    expect(selected()).toBe("c");
   });
 });

@@ -613,7 +613,11 @@ export function FolderBrowser({
   // Depend on the individual callbacks, not on `selection` itself:
   // `useSelection` returns a fresh object literal every render, so
   // `[selection]` would defeat `FileCard`'s memo.
-  const { toggle: toggleSelection, selectRange } = selection;
+  const { toggle: toggleSelection, selectRange, keepOnly } = selection;
+
+  useEffect(() => {
+    if (nameFilter.isActive) keepOnly(visibleFileIds);
+  }, [nameFilter.isActive, visibleFileIds, keepOnly]);
 
   const handleMetaSelect = useCallback((id: string) => {
     setSelectable(true);

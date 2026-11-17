@@ -56,6 +56,17 @@ export function useSelection() {
     setSelectedIds(new Set(ids));
   }, []);
 
+  const keepOnly = useCallback((ids: readonly string[]) => {
+    const kept = new Set(ids);
+    if (lastToggledIdRef.current && !kept.has(lastToggledIdRef.current)) {
+      lastToggledIdRef.current = null;
+    }
+    setSelectedIds((prev) => {
+      const next = new Set([...prev].filter((id) => kept.has(id)));
+      return next.size === prev.size ? prev : next;
+    });
+  }, []);
+
   const clear = useCallback(() => {
     lastToggledIdRef.current = null;
     setSelectedIds(new Set());
@@ -73,6 +84,7 @@ export function useSelection() {
     selectRange,
     selectAll,
     replace,
+    keepOnly,
     clear,
     isSelected,
   };
