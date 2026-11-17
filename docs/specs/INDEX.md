@@ -261,3 +261,5 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-CORE-123 | implemented | docs/specs/phone-polish.md | sha256:60535145f7a1c4c8df045a41a2326ed11996ad70ddf190a5d4e967f1ec441943 |
 | SPEC-CORE-125 | implemented | docs/specs/drive-unavailable.md | sha256:e9f9b0a9e569095f6578e0e75e0cc306a6729290d76598bdda6f7c61b163cc12 |
 | SPEC-ADDON-122 | implemented | docs/specs/pdf-vertical-text.md | sha256:f7de193bc675151d40788b14f9ed89279334dfb437ccfd3aa6abc45971d1279c |
+| SPEC-ADDON-127 | approved | docs/specs/refine-alignment-failure.md | sha256:748d0edd82eaaf091f7a36d56307b6d6b6479ad68b68aece75366f24a24df455 |
+| SPEC-ADDON-128 | approved | docs/specs/refine-alignment-failure.md | sha256:748d0edd82eaaf091f7a36d56307b6d6b6479ad68b68aece75366f24a24df455 |
