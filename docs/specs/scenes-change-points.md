@@ -71,7 +71,7 @@ is labelled.
 | Section collapsed, then expanded | The mode is kept when the new answer still has changes; otherwise 「すべて」 |
 | Host hides and shows the panel | Same as expand: kept while the new answer still has changes, otherwise 「すべて」 |
 | File changed | The mode returns to 「すべて」 |
-| Request in flight | No switch (no answer yet); the loading skeleton as today |
+| Request in flight (the first, or a re-fetch on expand or host show) | No switch; the loading skeleton as today. The kept mode applies again when the answer arrives with changes |
 | Response without changes while 「カット」 is selected | No switch; grid = candidate frames; the selection is reset to 「すべて」 |
 | Available through the Visual Index with `m > 0` and no candidate frames | The switch is drawn; 「すべて」 shows no tiles and 「カット」 shows the cuts |
 
@@ -143,13 +143,16 @@ mismatch). The added field needs no check of its own.
 - Tiles are the selected list, ascending by `start`, in the same grid geometry as today;
   each tile's time and picture use that `start`. The dot keeps marking the tile that
   holds a scene's `section_start` in the shown list.
-- The ruler's small ticks follow the selected list. The track's length `L` stays the
-  candidate list's (or the player's duration) in both modes, so the playhead, the browse
-  line and click-to-time do not move when the mode changes. A change frame later than
-  `L` clamps to the track's right edge like any other marker, and its tile still shows
-  its true time.
+- The ruler's small ticks follow the selected list. The track's length `L` is taken
+  from the candidate list (or the player's duration) in both modes, so the playhead, the
+  browse line and click-to-time do not move when the mode changes. When there are no
+  candidate frames, `L` is taken from the change list by the same rule, again in both
+  modes. A change frame later than `L` clamps to the track's right edge like any other
+  marker, and its tile still shows its true time.
 - `←` and `→` step one row of the shown list (`Home`/`End` its ends), and `Enter` seeks
-  the browse point, as the ruler's contract already says.
+  the browse point, as the ruler's contract already says. `End` on a change list whose
+  last start is past `L` puts the browse point at that start; `aria-valuenow` stays
+  `min(point, L)`.
 - When the section draws its own header, the bare number beside the title is the drawn
   list's length; the Visual Index count beside it stays the scene count. When the host
   draws the label, the section draws no bare number.
@@ -289,7 +292,8 @@ showing (the candidate rows, or the change rows when 「カット」 is selected
 `min(start, L) / L` of its width, where `L` is the player's duration when that is a
 finite positive number at least as large as the candidate list's last start, and
 otherwise that last start plus the median gap between candidate frames (one candidate:
-its start plus 1 s); a tick beyond `L` is drawn at the right edge. The grid shows the
+its start plus 1 s); with no candidate frames the change list stands in for the
+candidate list in this rule, in both modes; a tick beyond `L` is drawn at the right edge. The grid shows the
 window from `s = clamp(c × floor(i / c) − c, 0, max(0, n − R·c))`, or every row when
 there are fewer than `R·c`, with `n` the shown list's length, `i` the last shown row at
 or before the point (row 0 before the first), `R` rows and `c` columns.
