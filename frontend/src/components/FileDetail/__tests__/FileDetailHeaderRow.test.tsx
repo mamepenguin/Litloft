@@ -280,7 +280,7 @@ describe("SPEC-CORE-094 the file page draws its row in the app header", () => {
     expect(within(header).queryByText("holiday.mp4")).toBeNull();
   });
 
-  it("SPEC-CORE-094 I3 (wide): search, quick note, the avatar, the tree button and the inspector toggle are all there beside the file row", async () => {
+  it("SPEC-CORE-094 I3 (wide): search, quick note, the avatar, the tree button, the Focus mode button and the inspector toggle are all there beside the file row", async () => {
     serve(video());
     render(page());
     await waitFor(() =>
@@ -291,6 +291,7 @@ describe("SPEC-CORE-094 the file page draws its row in the app header", () => {
     expect(header.getByRole("button", { name: "Search" })).toBeInTheDocument();
     expect(header.getByRole("button", { name: "Quick note" })).toBeInTheDocument();
     expect(header.getByRole("button", { name: "Profile Setup" })).toBeInTheDocument();
+    expect(header.getByRole("button", { name: /^(Focus mode|Leave focus mode) \(T\)$/ })).toBeInTheDocument();
     expect(inspectorToggle(appHeader())).toHaveLength(1);
     expect(treeButtons()).not.toHaveLength(0);
   });
@@ -308,6 +309,7 @@ describe("SPEC-CORE-094 the file page draws its row in the app header", () => {
     expect(header.getByRole("button", { name: "Search" })).toBeInTheDocument();
     expect(header.getByRole("button", { name: "Quick note" })).toBeInTheDocument();
     expect(header.getByRole("button", { name: "Profile Setup" })).toBeInTheDocument();
+    expect(header.getByRole("button", { name: /^(Focus mode|Leave focus mode) \(T\)$/ })).toBeInTheDocument();
     expect(inspectorToggle(appHeader())).toHaveLength(1);
     expect(header.getByRole("button", { name: "Edit" })).toBeInTheDocument();
     expect(treeButtons()).not.toHaveLength(0);

@@ -924,6 +924,7 @@ test("SPEC-CORE-129 §1–2 / I7 / I9 / D6: the pointer at the top reveals the f
   await revealByPointer(page);
   const h = await box(header(page));
   expect(h).toEqual({ left: 0, top: 0, width: 1440, height: 56 });
+  await expect(header(page).getByRole("navigation")).toBeVisible();
   await expect(chromeButtons(page)).toBeVisible();
   const after = await layout(page);
   for (const key of ["content", "inspector", "video"] as const) {
