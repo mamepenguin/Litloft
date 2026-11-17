@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode, type RefObject } from "react";
+import { useCallback, useLayoutEffect, useState, type ReactNode, type RefObject } from "react";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 
@@ -48,8 +48,10 @@ import {
 } from "./workbench/panels";
 import { Workbench, shownPanelIds } from "./workbench/Workbench";
 import {
+  CANVAS_PADDING_REM,
   WORKBENCH_PLAYER_FOCUS_SHARE,
   WORKBENCH_PLAYER_SHARE,
+  WORKBENCH_SPLIT_SHARE,
 } from "@/lib/layoutSizes";
 import {
   closeWorkbenchPanel,
@@ -60,6 +62,11 @@ import {
   toggleWorkbenchPlayerFocus,
   useWorkbenchPlayerFocus,
 } from "@/lib/workbenchPlayerFocus";
+import {
+  splitFits,
+  toggleWorkbenchSplit,
+  useWorkbenchSplit,
+} from "@/lib/workbenchSplit";
 import { TextScrollFileIdContext } from "@/lib/textScrollProgress";
 import { HighlightFileContext } from "@/lib/highlightStore";
 
@@ -153,6 +160,44 @@ export function ShellLayout({
   const inboxWalk = searchParams.get("nav") === "inbox";
   const find = useFind();
 
+  // A layout effect, not an effect: a deferred measurement paints one frame
+  // with the panels still under the player.
+  const [scrollRoot, setScrollRoot] = useState<HTMLElement | null>(null);
+  const [measurement, setMeasurement] = useState<{
+    width: number;
+    rootFontSize: number;
+  } | null>(null);
+  const attachScrollRoot = useCallback(
+    (node: HTMLElement | null) => {
+      onScrollRootChange(node);
+      setScrollRoot((previous) => (previous === node ? previous : node));
+    },
+    [onScrollRootChange],
+  );
+
+  useLayoutEffect(() => {
+    if (scrollRoot == null) return;
+    const measure = () => {
+      const rootFontSize =
+        Number.parseFloat(getComputedStyle(document.documentElement).fontSize) ||
+        16;
+      const width =
+        scrollRoot.offsetWidth - CANVAS_PADDING_REM * rootFontSize;
+      setMeasurement((previous) =>
+        previous != null &&
+        previous.width === width &&
+        previous.rootFontSize === rootFontSize
+          ? previous
+          : { width, rootFontSize },
+      );
+    };
+    measure();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(scrollRoot);
+    return () => observer.disconnect();
+  }, [scrollRoot]);
+
   /**
    * On a phone the player is stuck to the top of the canvas, so a sheet
    * that took a fixed fraction of the window covered it at some viewport
@@ -214,8 +259,20 @@ export function ShellLayout({
   const shownPanels = shownPanelIds(workbenchItems, storedPanels);
   const hasPreviewActions = hasSlot("file-preview-actions");
   const actionsInRow = workbenchWide;
+  const splitStored = useWorkbenchSplit();
+  const splitEligible =
+    workbenchWide &&
+    playerFramed &&
+    shownPanels.length > 0 &&
+    measurement != null &&
+    splitFits(measurement.width, measurement.rootFontSize);
+  const split = splitEligible && splitStored;
+  const splitColumnWidth =
+    split && measurement != null
+      ? WORKBENCH_SPLIT_SHARE * (measurement.width - measurement.rootFontSize)
+      : null;
   const playerFocusApplies =
-    playerFramed && playerFocus && shownPanels.length > 0;
+    !split && playerFramed && playerFocus && shownPanels.length > 0;
   const playerShare = playerFocusApplies
     ? WORKBENCH_PLAYER_FOCUS_SHARE
     : WORKBENCH_PLAYER_SHARE;
@@ -233,6 +290,12 @@ export function ShellLayout({
       onToggle={(id) => toggleWorkbenchPanel(id, availablePanelIds)}
       onClose={closeWorkbenchPanel}
       actions={hasPreviewActions ? previewActions : null}
+      split={split}
+      splitButton={
+        splitEligible
+          ? { pressed: splitStored, onToggle: toggleWorkbenchSplit }
+          : undefined
+      }
       playerFocus={
         playerFramed
           ? {
@@ -425,7 +488,7 @@ export function ShellLayout({
         title={file.title || file.filename}
         fileId={fileId}
         onBack={onBack}
-        onScrollRootChange={onScrollRootChange}
+        onScrollRootChange={attachScrollRoot}
         findEnabled={findEnabled}
         canvasFloor={viewerTakesCanvasFloor(file.file_type, file.mime_type)}
         isPlayerFile={hasPlayer}
@@ -456,6 +519,8 @@ export function ShellLayout({
           playerFocused={playerFocusApplies}
           workbench={workbench ?? undefined}
           workbenchActive={workbenchWide && shownPanels.length > 0}
+          split={split}
+          splitColumnWidth={splitColumnWidth}
           showPreviewActions={!actionsInRow}
           // On a phone or in the stacked inspector the other surface takes
           // them instead: drawing them in both places mounts
@@ -492,7 +557,7 @@ export function ShellLayout({
       fileId={fileId}
       onRename={isHtmlPreview ? undefined : onRename}
       onBack={onBack}
-      onScrollRootChange={onScrollRootChange}
+      onScrollRootChange={attachScrollRoot}
       inspector={inspector}
       mobileSheet={mobileSheet}
       sheetPeek={sheetPeek}
