@@ -1,30 +1,37 @@
 "use client";
 
 /**
- * The reading position across a layout change the reader did not scroll for:
- * the content at the top of what scrolls stays at the same offset from the
- * top of that scroller. Nothing is remembered while the scroller is at its
- * start, where a change of layout cannot move the reader away from it.
+ * The reading position across a layout change the reader did not scroll for.
+ *
+ * What is remembered is the element at the top of the visible content and how
+ * far into it that top sat, as a share of the element's own height, together
+ * with its ancestors up to whatever scrolls. A viewer that re-fits its content
+ * (a page drawn at a new width, text rewrapped) then keeps the same point of
+ * the same element at the top; content that does not resize comes out as the
+ * same pixel offset. Nothing is remembered while the scroller is at its start,
+ * where a change of layout cannot move the reader away from it.
  */
+
+interface AnchorStep {
+  element: Element;
+  /** How far into the element the top of the visible content sat, of its height. */
+  fraction: number;
+}
 
 interface ReadingAnchor {
   /** The scroller, or `null` when the document is what scrolls. */
   scroller: HTMLElement | null;
-  /** The element at the top of the visible content. */
-  element: Element;
-  /**
-   * The element's ancestor that is the scroller's own child. A viewer that
-   * re-renders the row under the top (a page whose text layer is rebuilt at a
-   * new width) replaces `element`, and the position is then kept at the level
-   * of what still exists.
-   */
-  holder: Element | null;
-  offset: number;
-  holderOffset: number;
+  steps: AnchorStep[];
 }
 
 /** A viewer may re-fit its content for several frames after the box changes. */
 const MAX_FRAMES = 20;
+
+/** The chrome that sits over the content's top edge, which is not the content. */
+const CHROME = "header, [data-testid='chrome-buttons'], [data-testid='focus-reveal-strip']";
+
+/** Offsets to probe below the top edge: the chrome can cover the first pixels. */
+const PROBE_OFFSETS = [2, 12, 24, 40, 60];
 
 let pending: ReadingAnchor | null = null;
 let active: (() => void) | null = null;
@@ -33,65 +40,81 @@ function scrollPosition(scroller: HTMLElement | null): number {
   return scroller ? scroller.scrollTop : window.scrollY;
 }
 
-function offsetIn(scroller: HTMLElement | null, element: Element): number {
-  const top = scroller ? scroller.getBoundingClientRect().top : 0;
-  return element.getBoundingClientRect().top - top;
-}
-
-/** The height of the box above the content, so the probe lands in it. */
-function contentTop(): number {
+/** The top of the visible content: the scroller's box, or the header's height. */
+function visibleTop(scroller: HTMLElement | null): number {
+  if (scroller) return Math.max(scroller.getBoundingClientRect().top, 0);
   const header = Number.parseFloat(
     getComputedStyle(document.documentElement).getPropertyValue("--app-header-h"),
   );
   return Number.isFinite(header) ? header : 0;
 }
 
-function nearestScroller(element: Element): HTMLElement | null {
+function probeAt(x: number, y: number): Element | null {
+  if (y < 0 || y > window.innerHeight) return null;
+  const element = document.elementFromPoint(x, y);
+  return element && !element.closest(CHROME) ? element : null;
+}
+
+function probeBelow(x: number, top: number): Element | null {
+  for (const offset of PROBE_OFFSETS) {
+    const element = probeAt(x, top + offset);
+    if (element) return element;
+  }
+  return null;
+}
+
+function nearestScrolled(element: Element): HTMLElement | null {
   for (let el = element.parentElement; el; el = el.parentElement) {
     const overflow = getComputedStyle(el).overflowY;
-    if (/(auto|scroll)/.test(overflow) && el.scrollHeight > el.clientHeight) {
+    if (
+      /(auto|scroll)/.test(overflow) &&
+      el.scrollHeight > el.clientHeight &&
+      el.scrollTop > 0
+    ) {
       return el;
     }
   }
   return null;
 }
 
-function holderOf(scroller: HTMLElement | null, element: Element): Element | null {
-  if (!scroller) return null;
-  let holder: Element | null = element;
-  while (holder && holder.parentElement !== scroller) {
-    holder = holder.parentElement;
+function findScroller(): HTMLElement | null {
+  for (const y of [
+    window.innerHeight / 2,
+    window.innerHeight - 48,
+    window.innerHeight / 4,
+  ]) {
+    const element = probeAt(window.innerWidth / 2, y);
+    if (!element) continue;
+    const scroller = nearestScrolled(element);
+    if (scroller) return scroller;
   }
-  return holder;
+  return null;
 }
 
 function capture(): ReadingAnchor | null {
   if (typeof document === "undefined") return null;
-  const middle = document.elementFromPoint(
-    window.innerWidth / 2,
-    window.innerHeight / 2,
-  );
-  if (!middle) return null;
-  const scroller = nearestScroller(middle);
-  if (scroller) {
-    if (scroller.scrollTop <= 0) return null;
-  } else if (window.scrollY <= 0) {
-    return null;
-  }
+  const scroller = window.scrollY > 0 ? null : findScroller();
+  if (!scroller && window.scrollY <= 0) return null;
+  const top = visibleTop(scroller);
   const frame = scroller?.getBoundingClientRect();
   const x = frame ? frame.left + frame.width / 2 : window.innerWidth / 2;
-  const top = frame ? Math.max(frame.top, 0) : contentTop();
-  const first = document.elementFromPoint(x, top + 2);
-  const element =
-    first && (!scroller || scroller.contains(first)) ? first : middle;
-  const holder = holderOf(scroller, element);
-  return {
-    scroller,
-    element,
-    holder,
-    offset: offsetIn(scroller, element),
-    holderOffset: holder ? offsetIn(scroller, holder) : 0,
-  };
+  const probed = probeBelow(x, top) ?? scroller?.firstElementChild ?? null;
+  if (!probed) return null;
+  const first = probed === scroller ? scroller.firstElementChild : probed;
+  if (!first) return null;
+
+  const steps: AnchorStep[] = [];
+  for (
+    let node: Element | null = first;
+    node && node !== scroller && node !== document.body;
+    node = node.parentElement
+  ) {
+    const rect = node.getBoundingClientRect();
+    if (rect.height > 0) {
+      steps.push({ element: node, fraction: (top - rect.top) / rect.height });
+    }
+  }
+  return steps.length > 0 ? { scroller, steps } : null;
 }
 
 export function rememberReadingAnchor(): void {
@@ -101,8 +124,9 @@ export function rememberReadingAnchor(): void {
 
 /**
  * Puts the place back now, and again on the frames that follow, until the
- * content stops moving or the reader scrolls. A scroll the reader makes ends
- * the attempts: the place is then theirs, not the layout's.
+ * content stops moving or the reader scrolls. The deepest remembered element
+ * that still exists is the one the position is taken from. A scroll the
+ * reader makes ends the attempts: the place is then theirs, not the layout's.
  */
 export function restoreReadingAnchor(): void {
   active?.();
@@ -132,16 +156,16 @@ export function restoreReadingAnchor(): void {
       return;
     }
     frame += 1;
-    const target = held.element.isConnected
-      ? { element: held.element, offset: held.offset }
-      : held.holder?.isConnected
-        ? { element: held.holder, offset: held.holderOffset }
-        : null;
-    if (!target) {
+    const kept = held.steps.find((entry) => {
+      if (!entry.element.isConnected) return false;
+      return entry.element.getBoundingClientRect().height > 0;
+    });
+    if (!kept) {
       stop();
       return;
     }
-    const delta = offsetIn(held.scroller, target.element) - target.offset;
+    const rect = kept.element.getBoundingClientRect();
+    const delta = rect.top + kept.fraction * rect.height - visibleTop(held.scroller);
     if (Math.abs(delta) >= 1) {
       if (held.scroller) held.scroller.scrollTop += delta;
       else window.scrollBy(0, delta);
