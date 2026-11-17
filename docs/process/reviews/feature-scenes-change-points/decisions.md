@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: ship — the owner answered "ship" (2026-11-17) to review r6 (HUMAN_REVIEW_REQUIRED: the header's accessible-name spacing "Scenes 15", and the unreachable .loft mode reset; finding claude-read:R1 bucket B).
 ran_in_app: yes
 at: ccad64c8d1ffc5a3dbf08ef19dff9143ed1e977f
 by: agent
