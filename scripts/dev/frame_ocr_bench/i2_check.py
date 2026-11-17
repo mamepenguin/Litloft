@@ -36,7 +36,8 @@ def main() -> None:
             break
         image = _ocr_image(Image.frombytes("RGB", (width, height), raw))
         whole = list(getattr(run_engine(engine, image), "txts", None) or ())
-        split = [t for t in recognise_boxes(engine, image, detect_boxes(engine, image)) if t is not None]
+        boxes = detect_boxes(engine, image)
+        split = [t for t in recognise_boxes(engine, image, boxes) if t is not None] if boxes else []
         frames += 1
         if whole != split:
             differing += 1
