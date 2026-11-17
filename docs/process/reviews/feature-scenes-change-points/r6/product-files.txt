@@ -1,0 +1,14 @@
+addons/intelligence/app/routers/files.py
+addons/intelligence/app/schemas.py
+addons/intelligence/frontend/ScenesSection/ScenesSectionContainer.tsx
+addons/intelligence/frontend/ScenesSection/ScenesSectionPresenter.tsx
+addons/intelligence/frontend/ScenesSection/scenesModel.ts
+addons/intelligence/frontend/api.ts
+addons/intelligence/frontend/messages/en.json
+addons/intelligence/frontend/messages/ja.json
+frontend/e2e-components/fixtures/app.tsx
+frontend/e2e-components/fixtures/scenesSection.tsx
+frontend/e2e-components/fixtures/scenesSectionData.ts
+frontend/e2e-components/scenes-section-desktop.spec.ts
+frontend/e2e-components/scenes-section.cases.ts
+frontend/e2e-components/scenes-section.spec.ts

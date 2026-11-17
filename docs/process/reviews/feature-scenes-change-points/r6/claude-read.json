@@ -1,0 +1,133 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "R1",
+      "origin": "reviewer",
+      "claim": "ScenesSectionPresenter.tsx adds `{\" \"}` text nodes around the header's bare-count span. This edit falls outside both the Presenter touch point (\"the switch row, and the track length taken from the candidate list\") and the switch feature itself.",
+      "impact": "The header button's accessible name changes for every video, whether or not it has change frames. Before the change it read e.g. \"Scenes15\"; now it reads \"Scenes 15\". Nothing changes visually, because whitespace-only flex items are not rendered. Existing selectors match `/^Scenes/` or use Playwright's substring match on \"Scenes\", so no current test breaks. Still, a section without the switch also changes, which the spec's claim that the default mode is identical to today does not record.",
+      "evidence": "addons/intelligence/frontend/ScenesSection/ScenesSectionPresenter.tsx:228-231 adds `{\" \"}` after the title span and after the count span. The only reader that depends on it is the new test ScenesSectionChangePoints.test.tsx:237/242-243. That test matches `/\\b15\\b/` against header().textContent, and without the space there is no word boundary between \"Scenes\" and \"15\". The touch-point list in docs/specs/scenes-change-points.md names the Presenter only for the switch row and the track length.",
+      "repro": "Mutation: remove the two `{\" \"}` nodes. Then ScenesSectionChangePoints I5 fails, because textContent \"Scenes15…\" has no \\b before 15. Every other selector found (`/^Scenes/`, Playwright `name: \"Scenes\"` substring) still matches. Not run; the result comes from reading the code.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No declared invariants file exists. This is an unplanned edit to a listed file that changes the accessible name of an unrelated element. It reads as scope creep, not a broken contract.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Name the header's accessible-name spacing in the Presenter touch point. Alternatively, make the I5 test read the count span directly so the header text does not need to change."
+    }
+  ],
+  "specification_compliance": [
+    "Every product and test file in the diff appears in the spec's touch-point list: schemas.py, routers/files.py, api.ts, ScenesSectionContainer/Presenter, scenesModel.ts, both locale files, the __tests__ directory, the tests/ directory, all three e2e fixtures, the cases file, both e2e specs, docs/addons/intelligence.md, docs/user-guide/video.md, INDEX.md and the gitlink.",
+    "The route reads `clip_change` rows with both the type and the `vec_clip_change` filter, ascending by timestamp_start, and leaves the `timestamps` query unchanged (files.py:1347-1384).",
+    "The Presenter touch point says it takes \"the track length from the candidate list\". That logic actually lives in scenesModel.trackLength and in the Container (Container.tsx:202), and the Presenter only receives `length`. This prose mismatch would not lead to a wrong code change.",
+    "Code the change reaches but does not edit and the touch list does not name: hooks/useSceneRows.ts (it absorbs the switch row through lastPart.bottom; spec §7 discusses this), hooks/useWindowPictures.ts (it now receives change times; spec §4 discusses this), and the Ruler component inside the Presenter file (it now draws ticks from `frames`). None of these needed an edit."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "The header's accessible name gains spaces between title, count and scene count on every video (Presenter.tsx:228-231). The spec does not describe this.",
+    "The `.loft` mount path (Container.tsx:242) sets `changes` but never resets `frameMode` when the answer has no changes. Mode is reset on file change, and a `.loft` never re-fetches on expand, so this is not reachable today."
+  ],
+  "regression_risks": [
+    "The default mode passes `frames === candidates`, so the grid, window, dots and keys use the same list as before. While a native request is in flight, `frames` is NO_FRAMES, matching the old `rows ?? []`.",
+    "The ResizeObserver in useSceneRows does not observe the switch row. When the switch appears or disappears, the change in root size still triggers a re-measure because the root is observed."
+  ],
+  "test_coverage": [
+    "Python: I6 covers ordering (rows inserted in reverse), filtering by both type and table with decoys, an empty list, other files, and a file with changes but no candidates.",
+    "Vitest: covers switch visibility for zero, absent and one change; counts; windowing; browse-point retention; no extra requests; the settle delay; L in both modes; dots; keyboard; the collapse/host reopen paths; file change; and the .loft scene-tile route.",
+    "e2e: the 384 mouse and 390 touch cases check placement, chip look, height and aria-valuemax invariance, and ruler tick difference."
+  ],
+  "not_verified": [
+    "I did not run any test suite (vitest, pytest, Playwright). Mutation results come from reading the code only.",
+    "I did not open docs/process/* beyond the file list, nor the design artifact directory.",
+    "I did not inspect the Ruler component's tick drawing (Presenter.tsx:488 onward) or the gitlink's other submodule commits.",
+    "I did not check addons/intelligence/manifest.json for a route/schema declaration that might need the new field."
+  ],
+  "coverage": [
+    {
+      "path": "addons/intelligence/app/routers/files.py",
+      "read": "full",
+      "reason": "Read the whole get_clip_timestamps handler (1335-1384), which contains the changed hunk."
+    },
+    {
+      "path": "addons/intelligence/app/schemas.py",
+      "read": "partial",
+      "reason": "Read only the diff hunk (ClipTimestampsResponse); the one-line additive field is fully visible in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/ScenesSectionContainer.tsx",
+      "read": "full",
+      "reason": "Read the whole file, lines 1-836."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/ScenesSectionPresenter.tsx",
+      "read": "partial",
+      "reason": "Read lines 90-350, covering the chip helper, header and switch row and every changed hunk. The Ruler body at 488 onward is unchanged and was not read."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/scenesModel.ts",
+      "read": "partial",
+      "reason": "Read lines 1-140, which include frameListFor, rulerLength, trackLength, frameIndexAt and dotTileStarts and so every changed hunk."
+    },
+    {
+      "path": "addons/intelligence/frontend/api.ts",
+      "read": "partial",
+      "reason": "Read the diff hunk only (optional `changes` field on ClipTimestampsResponse)."
+    },
+    {
+      "path": "addons/intelligence/frontend/messages/en.json",
+      "read": "partial",
+      "reason": "Read the diff hunk only (three new file-namespace keys)."
+    },
+    {
+      "path": "addons/intelligence/frontend/messages/ja.json",
+      "read": "partial",
+      "reason": "Read the diff hunk only (three new file-namespace keys)."
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/app.tsx",
+      "read": "partial",
+      "reason": "Read the diff hunk only (two arrangement registrations)."
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/scenesSection.tsx",
+      "read": "full",
+      "reason": "Read the whole file."
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/scenesSectionData.ts",
+      "read": "partial",
+      "reason": "Read the diff hunk only (SCENES_CHANGE_SECONDS / SCENES_CHANGES)."
+    },
+    {
+      "path": "frontend/e2e-components/scenes-section-desktop.spec.ts",
+      "read": "partial",
+      "reason": "Read the diff hunk only (import and the one scenesChangesCases call)."
+    },
+    {
+      "path": "frontend/e2e-components/scenes-section.cases.ts",
+      "read": "partial",
+      "reason": "Read lines 1-140 (helpers, open/openArrangement) plus the full new block from the diff (switchReading, selectedLook, press, scenesChangesCases)."
+    },
+    {
+      "path": "frontend/e2e-components/scenes-section.spec.ts",
+      "read": "partial",
+      "reason": "Read the diff hunk only (import and the one scenesChangesCases call)."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/__tests__/ScenesSectionChangePoints.test.tsx",
+      "read": "full",
+      "reason": "New file; read in full from the diff."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_124_clip_change_list.py",
+      "read": "full",
+      "reason": "New file; read in full from the diff."
+    }
+  ],
+  "confidence": 82
+}
