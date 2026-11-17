@@ -263,7 +263,7 @@ describe("SPEC-CORE-108 I10 the sidebar create input while a submit is in flight
 
     await submitCreate("trip");
     await waitFor(() => expect(posts()).toBe(1));
-    await settle();
+    await waitFor(() => expect(toast.error).toHaveBeenCalled());
     expectNoNameInUse(createInput());
 
     api.on("POST", CREATE_PATH, nameInUse);
@@ -353,7 +353,13 @@ describe("SPEC-CORE-108 I9 the rename dialog of a Smart Collection row", () => {
     const [{ row }] = rowsFor(["Lectures"]);
     fireEvent.contextMenu(row);
     fireEvent.click(await screen.findByRole("menuitem", { name: en.smartFolder.rename }));
-    return waitFor(() => dialogInput());
+    // The dialog opens from the menu's animation frame, outside act, and its
+    // open effect resets the name; focus is the last thing that effect does.
+    return waitFor(() => {
+      const input = dialogInput();
+      expect(document.activeElement).toBe(input);
+      return input;
+    });
   }
 
   it("SPEC-CORE-108 I9 keeps the dialog open after a 409, Save enabled, no banner and no toast; Cancel discards", async () => {
@@ -421,7 +427,9 @@ describe("SPEC-CORE-108 I9 the rename dialog of a Smart Collection row", () => {
     fireEvent.change(input, { target: { value: "Elsewhere" } });
     fireEvent.click(submitButton());
     await waitFor(() => expect(api.count("PATCH", PATCH)).toBe(1));
-    await settle();
+    await waitFor(() =>
+      expect(document.body.textContent).toContain(en.smartFolder.renameFailed),
+    );
     expectNoNameInUse();
 
     if (!queryDialogInput()) await openDialog();
