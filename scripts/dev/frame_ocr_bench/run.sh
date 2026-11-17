@@ -10,11 +10,13 @@ here=$(cd "$(dirname "$0")" && pwd)
 mkdir -p "$out"
 run() {
   docker run --rm --entrypoint python -v "$clips":/clips:ro -v "$here":/bench:ro \
-    -v "$out":/out -w /app "$image" "$@" 2>&1 | grep -v -i warn
+    -v "$out":/out -w /app "$image" "$@" 2>>"$out/stderr.log"
 }
 for spec in cooking:600 digimon:600 zoo:600 anime_en:600 timee:400 iosdc:600 java:600; do
   name=${spec%%:*}; limit=${spec##*:}
   [ -f "$out/$name/reference.json" ] || run /bench/reference.py "/clips/$name.mp4" "$limit" "/out/$name"
   run /bench/measure.py "/clips/$name.mp4" "$limit" "/out/$name" | tee -a "$out/measure.jsonl"
-  run /bench/i2_check.py "/clips/$name.mp4" "$limit" 10 | tee -a "$out/i2.txt" || true
+  status=0
+  run /bench/i2_check.py "/clips/$name.mp4" "$limit" 10 | tee -a "$out/i2.txt" || status=$?
+  echo "i2_check $name exit $status" | tee -a "$out/i2.txt"
 done
