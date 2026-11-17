@@ -8,3 +8,5 @@ evidence: Parallel r5_stack (http://video-share-drive-unavailable.localhost:3101
 pending: Locked-drive case with the Unlock link and its redirect back after unlock (needs a protected drive; passwords.json is [] here, config not changed). Transient state while the summary request is in flight. Real-device touch (iOS) not attempted.
 
 page-headings exception: the owner chose on 2026-11-17 to add DriveUnavailable.tsx to NOT_YET_MIGRATED in frontend/src/__tests__/page-headings.test.ts ("検査に例外を1件足す"); its heading is a centred 18px message, which PageHeader does not draw.
+
+design-check D-1 (Unlock link not in R-5 shots): drawn from the e2e-components arrangement `drive-unavailable` at Pixel 5 by the author, /private/tmp/claude-502/-Users-libre-Sources-video-share/99195564-4ef2-40bc-b3aa-eadaf0dff15e/scratchpad/du-shot/unlock-shown.png: Sand "All drives" then a transparent, muted "Unlock", matching DriveMissingA; its values are asserted by the D3 e2e case. The live locked-drive case stays pending.
