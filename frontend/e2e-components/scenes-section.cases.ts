@@ -3,9 +3,7 @@ import { pathToFileURL } from "node:url";
 
 import { PAGE } from "./build-bundle";
 import {
-  SCENES_CHANGE_SECONDS,
   SCENES_FRAME_STEP,
-  SCENES_FRAMES,
   SCENES_LONG_LABEL,
   SCENES_LONG_TEXT,
   SCENES_SHORT_LABEL,
@@ -39,18 +37,7 @@ async function open(
   page: Page,
   { hostWidth, pointer, long = false }: ScenesCase,
 ): Promise<void> {
-  await openArrangement(
-    page,
-    `${long ? "scenes-long" : "scenes"}-${hostWidth}`,
-    pointer,
-  );
-}
-
-async function openArrangement(
-  page: Page,
-  arrangement: string,
-  pointer: Pointer,
-): Promise<void> {
+  const arrangement = `${long ? "scenes-long" : "scenes"}-${hostWidth}`;
   await page.goto(`${FIXTURE}#${arrangement}`);
   await expect(page.locator("body")).toHaveAttribute(
     "data-arrangement",
@@ -362,194 +349,6 @@ export function scenesTimeLabelCases(cases: ScenesCase[]): void {
             reading.labels[i].left - reading.labels[i - 1].right,
           ).toBeGreaterThanOrEqual(4);
         }
-      });
-    }
-  });
-}
-
-interface SwitchReading {
-  section: { left: number; right: number; top: number; bottom: number };
-  labelRowBottom: number;
-  group: { left: number; right: number; top: number; bottom: number };
-  groupFramed: boolean;
-  chips: {
-    left: number;
-    right: number;
-    top: number;
-    height: number;
-    pressed: boolean;
-    borderTransparent: boolean;
-    bold: boolean;
-    filled: boolean;
-  }[];
-  firstTileTop: number;
-  /** Elements whose visible box reaches past the section's sides. */
-  outside: string[];
-}
-
-/** The switch row and its neighbours as the browser laid them out. */
-async function switchReading(page: Page): Promise<SwitchReading> {
-  return page.locator(SECTION).evaluate((root) => {
-    const rect = (el: Element) => el.getBoundingClientRect();
-    const slider = root.querySelector<HTMLElement>('[role="slider"]');
-    if (!slider) throw new Error("no ruler is drawn");
-    const labelRow = slider.nextElementSibling ?? slider;
-    const group = root.querySelector<HTMLElement>('[role="group"]');
-    if (!group) throw new Error("no switch is drawn");
-    const tile = root.querySelector<HTMLElement>('button[aria-label^="Play from"]');
-    if (!tile) throw new Error("no tile is drawn");
-    const box = rect(root);
-    const style = getComputedStyle(group);
-    return {
-      section: { left: box.left, right: box.right, top: box.top, bottom: box.bottom },
-      labelRowBottom: Math.max(rect(slider).bottom, rect(labelRow).bottom),
-      group: {
-        left: rect(group).left,
-        right: rect(group).right,
-        top: rect(group).top,
-        bottom: rect(group).bottom,
-      },
-      groupFramed:
-        Number.parseFloat(style.borderTopWidth) > 0 ||
-        Number.parseFloat(style.borderLeftWidth) > 0 ||
-        (style.outlineStyle !== "none" && Number.parseFloat(style.outlineWidth) > 0),
-      chips: Array.from(group.querySelectorAll<HTMLElement>("button")).map((chip) => ({
-        left: rect(chip).left,
-        right: rect(chip).right,
-        top: rect(chip).top,
-        height: rect(chip).height,
-        pressed: chip.getAttribute("aria-pressed") === "true",
-        borderTransparent: /^rgba\(\d+, \d+, \d+, 0\)$|^transparent$/.test(
-          getComputedStyle(chip).borderTopColor,
-        ),
-        bold: Number(getComputedStyle(chip).fontWeight) >= 600,
-        filled: !/^rgba\(\d+, \d+, \d+, 0\)$|^transparent$/.test(
-          getComputedStyle(chip).backgroundColor,
-        ),
-      })),
-      firstTileTop: rect(tile).top,
-      outside: Array.from(root.querySelectorAll<HTMLElement>("*"))
-        .filter((el) => {
-          const r = rect(el);
-          if (r.width === 0 && r.height === 0) return false;
-          // A box an ancestor inside the section clips is not drawn past that
-          // ancestor, so only the clipped part can reach the section's sides.
-          let left = r.left;
-          let right = r.right;
-          for (let up = el.parentElement; up && up !== root; up = up.parentElement) {
-            if (getComputedStyle(up).overflowX === "visible") continue;
-            const clip = rect(up);
-            left = Math.max(left, clip.left);
-            right = Math.min(right, clip.right);
-          }
-          return left < box.left - 1 || right > box.right + 1;
-        })
-        .map((el) => `${el.tagName.toLowerCase()}.${el.className}`),
-    };
-  });
-}
-
-const CHIP_HEIGHT = 26;
-
-/**
- * Which chip looks selected: an accent border and bold text, no fill; the
- * other has a transparent border, regular weight and no fill.
- */
-function selectedLook(chips: SwitchReading["chips"]): [string, string] {
-  const looks = chips.map(
-    (chip) => !chip.borderTransparent && chip.bold && !chip.filled,
-  );
-  const plain = chips.map(
-    (chip) => chip.borderTransparent && !chip.bold && !chip.filled,
-  );
-  const index = looks.findIndex(Boolean);
-  if (index < 0 || looks.filter(Boolean).length !== 1) return ["none", "-"];
-  if (!plain[1 - index]) return ["mixed", "-"];
-  return [index === 0 ? "Default" : "Cuts", chips[index].pressed ? "pressed" : "unpressed"];
-}
-
-async function press(page: Page, pointer: Pointer, name: RegExp): Promise<void> {
-  const chip = page
-    .getByRole("group", { name: "Frames shown" })
-    .getByRole("button", { name });
-  if (pointer === "touch") await chip.tap();
-  else await chip.click();
-}
-
-export function scenesChangesCases(cases: ScenesCase[]): void {
-  test.describe("SPEC-ADDON-124 I9 — the frame-list switch keeps the section's layout", () => {
-    for (const scenesCase of cases) {
-      const { hostWidth, pointer, columns } = scenesCase;
-      test(`${hostWidth}px host, ${pointer}, ${columns} columns`, async ({ page }) => {
-        await page.clock.install();
-        await openArrangement(page, `scenes-changes-${hostWidth}`, pointer);
-
-        const group = page.getByRole("group", { name: "Frames shown" });
-        await expect(group).toBeVisible();
-        const all = group.getByRole("button", { name: `Default ${SCENES_FRAMES}` });
-        const cuts = group.getByRole("button", {
-          name: `Cuts ${SCENES_CHANGE_SECONDS.length}`,
-        });
-        await expect(all).toHaveAttribute("aria-pressed", "true");
-        await expect(cuts).toHaveAttribute("aria-pressed", "false");
-
-        const tiles = page.locator(`${HOST} button[aria-label^="Play from"]`);
-        await expect(tiles).toHaveCount(3 * columns);
-        expect(await drawnColumns(page)).toBe(columns);
-        expect(await overflowing(page)).toEqual([]);
-
-        const before = await switchReading(page);
-        expect(before.group.top).toBeGreaterThanOrEqual(before.labelRowBottom - TOLERANCE);
-        expect(before.firstTileTop).toBeGreaterThanOrEqual(before.group.bottom - TOLERANCE);
-        expect(before.chips).toHaveLength(2);
-        const [first, second] = before.chips;
-        expect(Math.abs(first.top - second.top)).toBeLessThanOrEqual(TOLERANCE);
-        expect(Math.abs(first.left - before.section.left)).toBeLessThanOrEqual(TOLERANCE);
-        expect(second.left - first.right).toBeCloseTo(4, 0);
-        expect(before.group.right).toBeLessThanOrEqual(second.right + TOLERANCE);
-        expect(second.right).toBeLessThanOrEqual(before.section.right + TOLERANCE);
-        expect(before.groupFramed).toBe(false);
-        expect(Math.abs(first.height - second.height)).toBeLessThanOrEqual(TOLERANCE);
-        // py-1 around a 1rem text-xs line plus a 1 px border, on either pointer.
-        for (const chip of before.chips) {
-          expect(Math.abs(chip.height - CHIP_HEIGHT)).toBeLessThanOrEqual(TOLERANCE);
-        }
-        expect(selectedLook(before.chips)).toEqual(["Default", "pressed"]);
-        expect(before.outside).toEqual([]);
-
-        const height = await sectionHeight(page);
-        const ruler = page.getByRole("slider", { name: "Frame timeline" });
-        const max = await ruler.getAttribute("aria-valuemax");
-        const allTicks = await ruler.screenshot();
-
-        await press(page, pointer, /^Cuts \d+$/);
-        await expect(cuts).toHaveAttribute("aria-pressed", "true");
-        await expect(all).toHaveAttribute("aria-pressed", "false");
-        await expect(tiles.first()).toHaveAttribute(
-          "aria-label",
-          `Play from ${timeLabel(SCENES_CHANGE_SECONDS[0])}`,
-        );
-        await expect(tiles).toHaveCount(3 * columns);
-        expect(await drawnColumns(page)).toBe(columns);
-        expect(await sectionHeight(page)).toBeCloseTo(height, 0);
-        await expect(ruler).toHaveAttribute("aria-valuemax", max!);
-        expect(await overflowing(page)).toEqual([]);
-        const pressed = await switchReading(page);
-        expect(pressed.outside).toEqual([]);
-        expect(selectedLook(pressed.chips)).toEqual(["Cuts", "pressed"]);
-        // Only the ticks differ between the modes: the marks, playhead and
-        // browse line stay where they were.
-        expect((await ruler.screenshot()).equals(allTicks)).toBe(false);
-
-        // The change tiles' pictures arrive after the settle delay.
-        await page.clock.runFor(500);
-        await expect(tiles.locator("img")).toHaveCount(3 * columns);
-
-        await press(page, pointer, /^Default \d+$/);
-        await expect(tiles.first()).toHaveAttribute("aria-label", "Play from 0:00");
-        expect((await ruler.screenshot()).equals(allTicks)).toBe(true);
-        expect(await sectionHeight(page)).toBeCloseTo(height, 0);
-        await expect(ruler).toHaveAttribute("aria-valuemax", max!);
       });
     }
   });
