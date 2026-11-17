@@ -2,7 +2,7 @@
 
 SPEC-ID: SPEC-CORE-125
 
-Approval:
+Approval: sha256:e9f9b0a9e569095f6578e0e75e0cc306a6729290d76598bdda6f7c61b163cc12 Yuichi Senga 2026-11-17
 
 <!--
 Leave the Approval line empty. After a human approves this spec, the approval step
