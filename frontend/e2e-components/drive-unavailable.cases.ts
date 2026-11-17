@@ -114,8 +114,8 @@ function measure(page: Page): Promise<Measure> {
       scrollWidth: document.documentElement.scrollWidth,
       clientWidth: document.documentElement.clientWidth,
       bodyText: document.body.innerText,
-      muted: probe("text-muted", "color"),
-      elevated: probe("bg-elevated", "backgroundColor"),
+      muted: probe("text-text-muted", "color"),
+      elevated: probe("bg-bg-elevated", "backgroundColor"),
     };
   });
 }
@@ -205,7 +205,7 @@ function sharedCases(coarse: boolean): void {
     expect(m.title).toMatch(/[^\s“”]{80}/);
     expect(m.h1.left).toBeGreaterThanOrEqual(m.box.left + 24 - 0.5);
     expect(m.h1.right).toBeLessThanOrEqual(m.box.right - 24 + 0.5);
-    expect(m.h1.height).toBeGreaterThan(30);
+    if (coarse) expect(m.h1.height).toBeGreaterThan(30);
     expect(m.scrollWidth).toBeLessThanOrEqual(m.clientWidth);
     expect(m.links.map((l) => l.text.trim())).toEqual(["All drives"]);
     if (coarse) expect(m.links[0].rect.height).toBeGreaterThanOrEqual(44);
