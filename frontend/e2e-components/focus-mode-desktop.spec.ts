@@ -818,9 +818,12 @@ test("SPEC-CORE-128 §1.3 / I2: the content at the top of the scrolled pane keep
   await ready(page, "pdf");
   await page.waitForTimeout(1000);
 
-  const anchorOffset = () =>
+  // A PDF page is re-rendered at the new fit width, so its text nodes do not
+  // survive the change; the point of the page at the pane's top is followed as
+  // a fraction of that page's height instead.
+  const topOfPane = () =>
     page.evaluate(() => {
-      const w = window as unknown as { __anchor?: Element; __scroller?: Element };
+      const w = window as unknown as { __page?: number; __scroller?: Element };
       if (!w.__scroller) {
         const candidates = [...document.querySelectorAll('[data-testid="page-content"] *')].filter(
           (el) => {
@@ -834,20 +837,33 @@ test("SPEC-CORE-128 §1.3 / I2: the content at the top of the scrolled pane keep
       }
       const r = w.__scroller.getBoundingClientRect();
       const top = Math.max(r.top, 0);
-      if (!w.__anchor) {
-        w.__anchor = document.elementFromPoint(r.left + r.width / 2, top + 2) ?? undefined;
+      const pages = [...document.querySelectorAll("section[data-pdf-page]")];
+      if (w.__page === undefined) {
+        w.__page = pages.findIndex((p) => {
+          const b = p.getBoundingClientRect();
+          return b.top <= top + 2 && b.bottom > top + 2;
+        });
       }
-      return w.__anchor ? w.__anchor.getBoundingClientRect().top - top : null;
+      const p = pages[w.__page];
+      if (!p) return null;
+      const b = p.getBoundingClientRect();
+      return { into: top - b.top, height: b.height };
     });
 
-  const before = await anchorOffset();
+  const before = await topOfPane();
   expect(before).not.toBeNull();
+  expect(before!.into).toBeGreaterThan(50);
+  const fraction = before!.into / before!.height;
+  const drift = async () => {
+    const now = await topOfPane();
+    return now ? Math.abs(now.into - fraction * now.height) : Number.POSITIVE_INFINITY;
+  };
   await pressT(page);
   await expectFocusLayout(page);
-  expect(Math.abs((await anchorOffset())! - before!)).toBeLessThanOrEqual(1);
+  await expect.poll(drift).toBeLessThanOrEqual(1);
   await pressT(page);
   await expectOrdinaryHeader(page);
-  expect(Math.abs((await anchorOffset())! - before!)).toBeLessThanOrEqual(1);
+  await expect.poll(drift).toBeLessThanOrEqual(1);
 });
 
 test("SPEC-CORE-128 I3 / §10: entering, revealing, hiding and leaving keep the video, the header, the tree pane and the inspector mounted, and the playback position and play state", async ({
