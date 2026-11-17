@@ -2510,10 +2510,55 @@ function PageHeaderTitleActions(): ReactElement {
   );
 }
 
+function PageHeaderTitleMediumActions(): ReactElement {
+  return (
+    <PageHeaderActionsArrangement
+      header={
+        <PageHeader
+          title="Dashboard"
+          actions={
+            <>
+              <button type="button" className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm">
+                <FolderTree size={16} />
+                Markdown images
+              </button>
+              <button type="button" className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm">
+                <FolderTree size={16} />
+                Settings
+              </button>
+            </>
+          }
+        />
+      }
+    />
+  );
+}
+
+function PageHeaderTitleShortAction(): ReactElement {
+  return (
+    <PageHeaderActionsArrangement
+      header={
+        <PageHeader
+          titleIcon={FolderTree}
+          title="Reading"
+          scope="12 items"
+          actions={
+            <button type="button" className="rounded-lg px-3 py-1.5 text-sm">
+              Add
+            </button>
+          }
+        />
+      }
+    />
+  );
+}
+
 const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "page-header-trail-actions": PageHeaderTrailActions,
   "page-header-title-field-actions": PageHeaderTitleFieldActions,
   "page-header-title-actions": PageHeaderTitleActions,
+  "page-header-title-medium-actions": PageHeaderTitleMediumActions,
+  "page-header-title-short-action": PageHeaderTitleShortAction,
   "chrome-buttons": ChromeButtonsArrangement,
   "folder-listing-header-deep": FolderListingHeaderArrangement,
   "folder-listing-header-shallow": FolderListingHeaderShallowArrangement,
