@@ -190,8 +190,8 @@ I3. When the summary fails with a status other than 404, or without a response, 
 own content is drawn and no unavailable heading appears.
 I4. The state shows no drive name other than the URL's, no group name and no count.
 I5. The Unlock link is drawn exactly when the auth status reports `has_protected_drives` true
-and `is_admin` false; its `href` is `/unlock?redirect=` + `encodeURIComponent(pathname +
-search)`, and after a successful unlock the browser is on that path and query.
+and `is_admin` false; its `href` is `/unlock?redirect=` + `encodeURIComponent(path)` with `path`
+as defined in 1, step 6, and after a successful unlock the browser is on that path and query.
 I6. An answer (summary or auth) for a drive name that is no longer the URL's changes nothing on
 the page.
 I7. The layout calls `getDriveSummary` once per mount and once per change of drive name, not
@@ -200,10 +200,10 @@ drive name.
 I8. When `getDriveSummary` rejects, the sidebar's summary is `null` after a mount and keeps
 its previous value after a refresh, and the page-jump list has no missing-files entry, as
 before this change.
-I10. While the state is shown, the app header and the sidebar are drawn as on any drive page.
 I9. On a coarse pointer each link drawn has a touch target of at least 44px; an 80-character
 drive name with no spaces stays inside the content box at 393px wide and the page does not
 scroll sideways.
+I10. While the state is shown, the app header and the sidebar are drawn as on any drive page.
 
 ## Checked, no action
 
