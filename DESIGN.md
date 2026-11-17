@@ -761,12 +761,19 @@ this file from the one beside it?*
 - Height `h-14` (56px), `sticky top-0 z-20`.
 - No menu button of its own; see §Sidebar.
 - **The outermost control on each side opens the pane on that side.** The tree
-  button sits at the left end beside the menu button and opens the tree; the
-  inspector toggle sits at the right end past the profile button and opens the
-  inspector.
+  button sits at the left end beside the menu button and opens the tree; where the
+  page has an inspector, its toggle sits at the right end past the profile button
+  and opens the inspector.
 - The trailing end is search, quick note, the `header-actions` slot and the avatar
-  on every screen but a phone's file page; where the page has an inspector, a
-  vertical divider and the inspector toggle follow them.
+  on every screen but a phone's file page. On a wide file page a vertical divider
+  follows the avatar, then the **Focus mode** button, then the inspector toggle
+  where the page has one. A file page with no inspector still draws the divider
+  and the Focus mode button: it is the header's last control there.
+- **The Focus mode button has the inspector toggle's shape and its opposite
+  weight.** It is a 32×32 button with the `Focus` icon, muted on no fill when off
+  and `bg-bg-elevated text-text-primary` when on, like the menu and tree buttons'
+  pressed look. Its `aria-pressed`, name and title follow the mode, so it is one
+  control that says what the next press will do.
 - **A file page draws its row into the header.** The content is portalled, not
   lifted, so it stays part of the page: find, the image arrows, the Inbox actions
   and a note's editor act on the page that drew them. The newest mounted file page
@@ -776,11 +783,11 @@ this file from the one beside it?*
 - **Wide, left to right**: menu button, tree button, the trail (or, where the host
   supplies a back control, that control and the trail beside it), the file kind's
   controls, the Inbox actions, a vertical divider, search, quick note, the
-  `header-actions` slot and the avatar, then a vertical divider and the inspector
-  toggle where the page has an inspector. The trail begins at the edge §Page
-  Header gives it. The first divider marks where the file's own controls end and
-  the controls every screen has begin; the second marks where those controls end
-  and the inspector's toggle begins.
+  `header-actions` slot and the avatar, then a vertical divider, the Focus mode
+  button, and the inspector toggle where the page has an inspector. The trail
+  begins at the edge §Page Header gives it. The first divider marks where the
+  file's own controls end and the controls every screen has begin; the second
+  marks where those controls end and the file's own mode controls begin.
 - **Narrow, left to right**: menu button, a two-line heading, the file kind's
   controls, search. The heading's first line is `‹` and the parent folder's name
   (the drive's name at the root, or the host's back label where it supplied one),
@@ -788,11 +795,11 @@ this file from the one beside it?*
   file's name, 14px semibold, one line, truncated with an ellipsis. With no name
   yet the heading shows the first line alone, centred, at the same row height.
 - **A phone's file page gives up the header's own controls**: no quick note, no
-  avatar, and no tree button or inspector toggle beside the row. Quick note and the
-  avatar are on every other screen, the tree has no width beside a file, and the
-  inspector sheet rests rather than closing, so a toggle would have no closed state
-  to show. The `header-actions` slot stays mounted at the row's end, where nothing
-  draws.
+  avatar, and no tree button, Focus mode button or inspector toggle beside the
+  row. Quick note and the avatar are on every other screen, the tree has no width
+  beside a file, focus mode is suspended below `md`, and the inspector sheet rests
+  rather than closing, so a toggle would have no closed state to show. The
+  `header-actions` slot stays mounted at the row's end, where nothing draws.
 - **Walking the Inbox** on a phone, the row is the menu button, the heading, then
   previous, next and **Done**. The file kind's controls and search are not shown.
 - **A note's view switch** is the segmented group at wide (§Selected-state
@@ -807,6 +814,39 @@ this file from the one beside it?*
   belongs to global search, and two of them in one row would mean two things.
 - **A phone's inspector is raised from its resting strip**, never from the header;
   see §Context Menus / Dropdowns, the Bottom Sheet.
+
+#### Focus mode
+
+On a file page at `md` or wider, the Focus mode button or `T` gives the page the
+header's, sidebar's and tree's room. The mode lasts while the tab stays on file
+pages; it is not remembered across a reload or a screen that is not a file page.
+
+- **The hidden header is out of the page, not gone.** It takes no height, paints
+  nothing and is `inert`, but stays mounted, so search, quick note, the
+  `header-actions` slot and the file row keep their state and their shortcuts keep
+  working. Entering moves keyboard focus inside it to the page.
+- **Measuring the hidden header says nothing about where the page starts.** It
+  keeps its controls in the tree, so anything that positions content against the
+  header must read the focus layout, never the header's height.
+- **The way back is the top edge.** With a fine pointer a transparent strip along
+  the top reveals the header on entry, so it also works over a player's iframe and
+  draws nothing over the file. With a coarse pointer a small handle at the top
+  centre does the same on a tap; it is the only thing the mode draws over the
+  page.
+- **The revealed header overlays the page and moves nothing.** It sits at the safe
+  area's top with a shadow, at its ordinary height, with the menu and tree buttons
+  in their usual place. The content keeps the box it had while the header was
+  hidden, and `--app-header-h` keeps the focus layout's value.
+- **What holds the reveal is what the viewer is using.** The pointer over the
+  header, keyboard focus inside it, an open header menu or the overlay sidebar
+  keeps it; when none remains it hides and focus returns to the page. A note's
+  failed or conflicted save holds it by status, so the save dot is never hidden
+  with the header.
+- **No animation on entering, leaving, revealing or hiding.** The header is
+  reached by aiming at an edge; a slide would put the controls under the pointer
+  only after the motion ended, and the layout must arrive in the frame the press
+  asked for.
+
 
 ### Sidebar
 
@@ -880,7 +920,7 @@ higher than whatever it currently sits under.
 
 | Tier | `z` | What belongs here |
 |---|---|---|
-| In-flow chrome | `z-10` – `z-30` | Sticky bars, the header (`z-20`), an inspector covering the canvas (`z-20`), the raised mobile Bottom Sheet (`z-[25]`), anchored popovers, the sidebar backdrop (`z-30`) |
+| In-flow chrome | `z-10` – `z-30` | Sticky bars, the header (`z-20`), the revealed focus header and its reveal strip and handle (`z-[25]`), an inspector covering the canvas (`z-20`), the raised mobile Bottom Sheet (`z-[25]`), anchored popovers, the sidebar backdrop (`z-30`) |
 | Floating surfaces | `z-40` | Overlay sidebar, mini-player, upload progress, bottom-anchored mobile menus, the Bottom Sheet's resting strip |
 | Modal dialogs | `z-50` | Confirm / Rename / Move and anything that interrupts to ask, including addon dialogs |
 | Immersive viewers | `z-[60]` | Full-screen image gallery and archive viewer, which replace the page; a phone player's frame pinned to fill the screen |
@@ -889,6 +929,13 @@ higher than whatever it currently sits under.
 - **Within a tier, do not build behaviour on the number.** Document order and
   stacking contexts decide ties; nothing that must be *correct* may depend on
   who is on top.
+- **The revealed focus header and the mode's reveal strip and handle sit above
+  the inspector's overlay form and the sticky find bar, and below the overlay
+  sidebar's backdrop.** The header is reached over a page that may carry its own
+  pinned chrome, so it ranks with the chrome but above the page; the sidebar's
+  backdrop dims the page and everything over it alike. The menu and tree buttons
+  keep their own `z-50`, so they are reachable while the header is revealed and
+  hidden with the header when it is not.
 - **A panel that has run out of room is still in-flow chrome.**
 - **An immersive viewer takes the page out of reach, not just out of sight**: the
   rest of the page is `inert` and body scroll is locked until it closes.
