@@ -126,6 +126,8 @@ import {
   notifyNavigationCommit,
 } from "@/lib/viewTransitions";
 
+import { DrivesSection } from "@/app/admin/settings/DrivesSection";
+import { PasswordsSection } from "@/app/admin/settings/PasswordsSection";
 import "../../e2e-layout/fixtures/globals.built.css";
 
 // The fixture has no server: only the image-search availability gate is
@@ -136,6 +138,14 @@ window.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
   const url =
     typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
   const method = (init?.method ?? "GET").toUpperCase();
+  if (url.endsWith("/api/admin/config/drives")) {
+    return Promise.resolve(
+      jsonResponse([{ name: "Household Archive", path: "/mnt/archive", access_group: "family" }]),
+    );
+  }
+  if (url.endsWith("/api/admin/config/passwords")) {
+    return Promise.resolve(jsonResponse([{ password: "secret", groups: ["family"] }]));
+  }
   if (url.includes("/api/drives/fixture/smart-folders")) {
     return Promise.resolve(jsonResponse(FIXTURE_SMART_FOLDERS));
   }
@@ -2510,6 +2520,17 @@ function PageHeaderTitleActions(): ReactElement {
   );
 }
 
+function AdminSettingsRows(): ReactElement {
+  return (
+    <NextIntlClientProvider locale="en" messages={enMessages}>
+      <div className="flex flex-col gap-6 p-4">
+        <DrivesSection />
+        <PasswordsSection />
+      </div>
+    </NextIntlClientProvider>
+  );
+}
+
 function PageHeaderTitleMediumActions(): ReactElement {
   return (
     <PageHeaderActionsArrangement
@@ -2559,6 +2580,7 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "page-header-title-actions": PageHeaderTitleActions,
   "page-header-title-medium-actions": PageHeaderTitleMediumActions,
   "page-header-title-short-action": PageHeaderTitleShortAction,
+  "admin-settings-rows": AdminSettingsRows,
   "chrome-buttons": ChromeButtonsArrangement,
   "folder-listing-header-deep": FolderListingHeaderArrangement,
   "folder-listing-header-shallow": FolderListingHeaderShallowArrangement,
