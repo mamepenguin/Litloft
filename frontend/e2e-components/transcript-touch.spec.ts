@@ -290,6 +290,57 @@ for (const size of SIZES) {
     }
   });
 
+  test(`SPEC-ADDON-125 I11 at ${at}: with following suspended, playback returning to the selected row does not scroll the list`, async ({
+    browser,
+  }) => {
+    const { context, page } = await open(browser, size);
+    try {
+      const target = row(page, SECOND_START);
+      await seek(target).click();
+      await expect(
+        target.getByRole("button", { name: "引用", exact: true }),
+      ).toHaveCount(1);
+
+      await page.evaluate(
+        (start) => window.__transcriptTouch!.seekTo(start),
+        LAST_START,
+      );
+      const active = page.locator('[aria-current="true"]');
+      await expect(active).toContainText(LAST_TEXT, { timeout: 5000 });
+
+      await list(page).dispatchEvent("wheel");
+      const resume = page.getByRole("button", { name: "再生位置に戻る" });
+      await expect(resume).toBeVisible();
+
+      // The follow scroll toward the last row is smooth and may still be
+      // moving; measure from where it stops.
+      let before = (await target.boundingBox())!.y;
+      await expect
+        .poll(
+          async () => {
+            await page.waitForTimeout(150);
+            const now = (await target.boundingBox())!.y;
+            const settled = Math.abs(now - before) < 0.5;
+            before = now;
+            return settled;
+          },
+          { timeout: 5000 },
+        )
+        .toBe(true);
+      await page.evaluate(
+        (start) => window.__transcriptTouch!.seekTo(start),
+        SECOND_START,
+      );
+      await expect(active).toContainText(TEXTS[1], { timeout: 5000 });
+      await page.waitForTimeout(500);
+
+      expect((await target.boundingBox())!.y).toBeCloseTo(before, 0);
+      await expect(resume).toBeVisible();
+    } finally {
+      await context.close();
+    }
+  });
+
   test(`SPEC-ADDON-126 I10 §10 at ${at}: the dialog sits 56px down with 16px sides and its controls reach 44×44`, async ({
     browser,
   }) => {
