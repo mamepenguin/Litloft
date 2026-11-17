@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: ship (the human, 2026-11-18: "ship"; r1 HUMAN_REVIEW_REQUIRED for unspecified_behavior: the pdfminer log level from the already-merged addon PR #177 swept in by the pointer bump, and the new meaning of refined_count)
 ran_in_app: yes
 at: 0f983a7e1a596d96a99b7a05ec977db3478ce469 (core); addons/intelligence f46249385c9c7bfce7b5b2a02c28412b5f8be7c8
 by: agent
