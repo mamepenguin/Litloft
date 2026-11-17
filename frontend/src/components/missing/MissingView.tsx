@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { AlertTriangle, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
@@ -25,8 +25,11 @@ export function MissingView({ driveName }: MissingViewProps) {
   const tc = useTranslations("common");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [purgeAllOpen, setPurgeAllOpen] = useState(false);
+  const [purgeAllBusy, setPurgeAllBusy] = useState(false);
+  const [purgeAllError, setPurgeAllError] = useState<string | null>(null);
   const [purgeConfirmOpen, setPurgeConfirmOpen] = useState(false);
   const [purgeTarget, setPurgeTarget] = useState<string | null>(null);
+  const purgeAllRunningRef = useRef(false);
 
   const fetchPage = useCallback(
     async (page: number, limit: number) => {
@@ -42,6 +45,7 @@ export function MissingView({ driveName }: MissingViewProps) {
     loading,
     loadingMore,
     sentinelRef,
+    reset,
     setItems: setFiles,
   } = useInfiniteScroll<FileItem>({ fetchPage, limit: 30 });
 
@@ -57,13 +61,30 @@ export function MissingView({ driveName }: MissingViewProps) {
   }, [purgeTarget, setFiles]);
 
   const handlePurgeAll = useCallback(async () => {
+    if (purgeAllRunningRef.current) return;
+    purgeAllRunningRef.current = true;
+    setPurgeAllBusy(true);
+    setPurgeAllError(null);
     try {
       await purgeAllMissing(driveName);
-      setFiles([]);
-    } finally {
       setPurgeAllOpen(false);
+      setFiles([]);
+    } catch {
+      // The list is refetched first so it shows what the server holds; a
+      // timeout can hide a request the server finished.
+      reset();
+      setPurgeAllError(tc("wholeListFailed"));
+    } finally {
+      purgeAllRunningRef.current = false;
+      setPurgeAllBusy(false);
     }
-  }, [driveName, setFiles]);
+  }, [driveName, setFiles, reset, tc]);
+
+  const handlePurgeAllCancel = useCallback(() => {
+    if (purgeAllRunningRef.current) return;
+    setPurgeAllOpen(false);
+    setPurgeAllError(null);
+  }, []);
 
   const openPurgeConfirm = useCallback((fileId: string) => {
     setPurgeTarget(fileId);
@@ -129,8 +150,11 @@ export function MissingView({ driveName }: MissingViewProps) {
         title={tm("purgeAll")}
         message={tm("confirmPurgeAll", { count: total })}
         confirmLabel={tm("purgeAll")}
+        busy={purgeAllBusy}
+        progress={purgeAllBusy ? tc("working") : undefined}
+        error={purgeAllError ?? undefined}
         onConfirm={handlePurgeAll}
-        onCancel={() => setPurgeAllOpen(false)}
+        onCancel={handlePurgeAllCancel}
       />
 
       <ConfirmDialog

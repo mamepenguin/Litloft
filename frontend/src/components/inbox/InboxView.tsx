@@ -178,6 +178,10 @@ export function InboxView({ driveName }: { driveName: string }) {
         onSelectAll={() => {
           selection.selectAll(data.visibleItems.map((item) => item.file.id));
         }}
+        onSelectOnly={selection.replace}
+        onProcessed={(ids) => {
+          data.settle(ids, ids.length);
+        }}
         onReload={() => {
           void data.reload();
         }}
