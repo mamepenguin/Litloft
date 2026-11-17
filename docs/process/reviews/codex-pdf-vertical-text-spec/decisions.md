@@ -22,3 +22,7 @@ The user chose: 「許容して進める（推奨）」. Horizontal chart labels
 ## Human approval of the renumbered spec
 
 On 2026-11-17 the user approved SPEC-ADDON-122, the same specification previously approved as SPEC-ADDON-115, after the latter ID was assigned to another merged change. The r4, r5 and r6 decisions and invariant revisions above continue to apply.
+
+## Human direction on r8
+
+The user chose: 「その方針で統一する（推奨）」. On a text-layer read error, document reading returns an error and indexing preserves the existing index for retry.
