@@ -1,0 +1,293 @@
+{
+ "sheetLabels": [
+  "Switch drive (currently 動画)",
+  "Collapse",
+  "Collapse",
+  "Collapse",
+  "Open the sheet",
+  "File actions"
+ ],
+ "all": {
+  "chips": [
+   "All 276:true {\"w\":63,\"h\":26,\"x\":16,\"y\":432}",
+   "Cuts 113:false {\"w\":70,\"h\":26,\"x\":83,\"y\":432}"
+  ],
+  "group": {
+   "x": 16,
+   "y": 432,
+   "w": 137,
+   "h": 26,
+   "bottom": 458,
+   "right": 153
+  },
+  "ruler": {
+   "x": 16,
+   "y": 354,
+   "w": 358,
+   "h": 44,
+   "bottom": 398,
+   "right": 374
+  },
+  "grid": {
+   "x": 16,
+   "y": 472,
+   "w": 358,
+   "h": 340,
+   "bottom": 813,
+   "right": 374
+  },
+  "cols": 3,
+  "tiles": [
+   9,
+   [
+    "Play from 0:06",
+    "Play from 0:09",
+    "Play from 0:12",
+    "Play from 0:15",
+    "Play from 0:18",
+    "Play from 0:21"
+   ]
+  ],
+  "ticks": 276,
+  "ph": "0%",
+  "marks": 6,
+  "card": {
+   "text": "1:36 | 白画面",
+   "box": {
+    "x": 16,
+    "y": 827,
+    "w": 358,
+    "h": 122,
+    "bottom": 948,
+    "right": 374
+   }
+  },
+  "imgs": {
+   "count": 9,
+   "loaded": 9
+  },
+  "empty": 0,
+  "docW": 390,
+  "winW": 390,
+  "video": {
+   "t": 0,
+   "d": 1124.973867
+  }
+ },
+ "cuts": {
+  "chips": [
+   "All 276:false {\"w\":61,\"h\":26,\"x\":16,\"y\":432}",
+   "Cuts 113:true {\"w\":72,\"h\":26,\"x\":81,\"y\":432}"
+  ],
+  "group": {
+   "x": 16,
+   "y": 432,
+   "w": 137,
+   "h": 26,
+   "bottom": 458,
+   "right": 153
+  },
+  "ruler": {
+   "x": 16,
+   "y": 354,
+   "w": 358,
+   "h": 44,
+   "bottom": 398,
+   "right": 374
+  },
+  "grid": {
+   "x": 16,
+   "y": 472,
+   "w": 358,
+   "h": 340,
+   "bottom": 813,
+   "right": 374
+  },
+  "cols": 3,
+  "tiles": [
+   9,
+   [
+    "Play from 0:00",
+    "Play from 0:10",
+    "Play from 0:20",
+    "Play from 0:30",
+    "Play from 0:40",
+    "Play from 0:50"
+   ]
+  ],
+  "ticks": 113,
+  "ph": "0%",
+  "marks": 6,
+  "card": {
+   "text": "1:36 | 白画面",
+   "box": {
+    "x": 16,
+    "y": 827,
+    "w": 358,
+    "h": 122,
+    "bottom": 948,
+    "right": 374
+   }
+  },
+  "imgs": {
+   "count": 9,
+   "loaded": 9
+  },
+  "empty": 0,
+  "docW": 390,
+  "winW": 390,
+  "video": {
+   "t": 0,
+   "d": 1124.973867
+  }
+ },
+ "reqCuts": [],
+ "overflow": [
+  "NAV.scrollbar-hover flex h-full flex-col gap -240--1",
+  "DIV.-mt-1 mb-3 h-10 shrink-0 -228--13",
+  "DIV.mb-1 -228--13",
+  "BUTTON.w-full flex items-center gap-2.5 rounded -228--13",
+  "svg.[object SVGAnimatedString] -216--200",
+  "path.[object SVGAnimatedString] -209--209",
+  "path.[object SVGAnimatedString] -215--201",
+  "path.[object SVGAnimatedString] -215--201",
+  "path.[object SVGAnimatedString] -212--212",
+  "SPAN.min-w-0 flex-1 truncate text-left -190--49"
+ ],
+ "tileLabel": "Play from 0:40",
+ "afterSeek": {
+  "chips": [
+   "All 276:false {\"w\":61,\"h\":26,\"x\":16,\"y\":432}",
+   "Cuts 113:true {\"w\":72,\"h\":26,\"x\":81,\"y\":432}"
+  ],
+  "group": {
+   "x": 16,
+   "y": 432,
+   "w": 137,
+   "h": 26,
+   "bottom": 458,
+   "right": 153
+  },
+  "ruler": {
+   "x": 16,
+   "y": 354,
+   "w": 358,
+   "h": 44,
+   "bottom": 398,
+   "right": 374
+  },
+  "grid": {
+   "x": 16,
+   "y": 472,
+   "w": 358,
+   "h": 340,
+   "bottom": 813,
+   "right": 374
+  },
+  "cols": 3,
+  "tiles": [
+   9,
+   [
+    "Play from 0:00",
+    "Play from 0:10",
+    "Play from 0:20",
+    "Play from 0:30",
+    "Play from 0:40",
+    "Play from 0:50"
+   ]
+  ],
+  "ticks": 113,
+  "ph": "3.645%",
+  "marks": 6,
+  "card": {
+   "text": "1:36 | 白画面",
+   "box": {
+    "x": 16,
+    "y": 827,
+    "w": 358,
+    "h": 122,
+    "bottom": 948,
+    "right": 374
+   }
+  },
+  "imgs": {
+   "count": 9,
+   "loaded": 9
+  },
+  "empty": 0,
+  "docW": 390,
+  "winW": 390,
+  "video": {
+   "t": 41.133161,
+   "d": 1124.973867
+  }
+ },
+ "reshown": {
+  "chips": [
+   "All 276:false {\"w\":61,\"h\":26,\"x\":16,\"y\":432}",
+   "Cuts 113:true {\"w\":72,\"h\":26,\"x\":81,\"y\":432}"
+  ],
+  "group": {
+   "x": 16,
+   "y": 432,
+   "w": 137,
+   "h": 26,
+   "bottom": 458,
+   "right": 153
+  },
+  "ruler": {
+   "x": 16,
+   "y": 354,
+   "w": 358,
+   "h": 44,
+   "bottom": 398,
+   "right": 374
+  },
+  "grid": {
+   "x": 16,
+   "y": 472,
+   "w": 358,
+   "h": 340,
+   "bottom": 813,
+   "right": 374
+  },
+  "cols": 3,
+  "tiles": [
+   9,
+   [
+    "Play from 0:00",
+    "Play from 0:10",
+    "Play from 0:20",
+    "Play from 0:30",
+    "Play from 0:40",
+    "Play from 0:50"
+   ]
+  ],
+  "ticks": 113,
+  "ph": "4.667%",
+  "marks": 6,
+  "card": {
+   "text": "1:36 | 白画面",
+   "box": {
+    "x": 16,
+    "y": 827,
+    "w": 358,
+    "h": 122,
+    "bottom": 948,
+    "right": 374
+   }
+  },
+  "imgs": {
+   "count": 9,
+   "loaded": 9
+  },
+  "empty": 0,
+  "docW": 390,
+  "winW": 390,
+  "video": {
+   "t": 52.529748,
+   "d": 1124.973867
+  }
+ },
+ "failed": []
+}
