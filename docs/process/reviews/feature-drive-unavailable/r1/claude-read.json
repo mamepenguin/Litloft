@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "TP-1",
+      "origin": "reviewer",
+      "claim": "The diff edits the repository-wide heading gate frontend/src/__tests__/page-headings.test.ts, adding DriveUnavailable.tsx to NOT_YET_MIGRATED and raising the frontend/src <h1> count from 6 to 7, and this file is not in the touch-point list.",
+      "impact": "The gate's own comment says a new allowlist entry 'should need an argument'. This change adds a second component that hand-writes a page <h1> outside PageHeader, but the touch points never mention it, so a reader of the plan would not know the heading gate was widened. There is no runtime effect for the user.",
+      "evidence": "frontend/src/__tests__/page-headings.test.ts:57-60 (new NOT_YET_MIGRATED entry for frontend/src/components/DriveUnavailable.tsx) and :145 (expect(...).toBe(7), was 6); lines 37-41 say adding an entry 'should need an argument'. The spec's Touch points list names DriveUnavailable.tsx but not page-headings.test.ts.",
+      "repro": "Compare the diff's file list with the Touch points section of docs/specs/drive-unavailable.md: page-headings.test.ts is in the diff and not in the list.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No declared invariant is broken. The plan leaves out a change to a convention gate, and that exception should be recorded in the touch points.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add page-headings.test.ts (the allowlist entry and the count) to the spec's touch points, or render the heading through PageHeader."
+    },
+    {
+      "id": "TP-2",
+      "origin": "reviewer",
+      "claim": "The new shared e2e module frontend/e2e-components/drive-unavailable.cases.ts holds every measured case for D1, D2, D3 and I9, and it is not in the touch-point list. The list names only the two thin spec files that import it.",
+      "impact": "The I9 and D1 measurements live in an unlisted file. A reader who checks the planned places would find two three-line spec files and no assertions. Behaviour is unchanged.",
+      "evidence": "frontend/e2e-components/drive-unavailable.cases.ts (new, 221 lines, sharedCases/phoneCases/desktopCases); drive-unavailable.spec.ts and drive-unavailable-desktop.spec.ts each only call phoneCases()/desktopCases().",
+      "repro": "Diff file list against Touch points: drive-unavailable.cases.ts is absent from the list.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariant is broken. This is an omission in the plan's list of places.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Name drive-unavailable.cases.ts in the touch points next to the two spec files."
+    },
+    {
+      "id": "TP-3",
+      "origin": "reviewer",
+      "claim": "Four new unit test files are in the diff and not in the touch-point list: frontend/src/app/drive/[name]/__tests__/layout.unavailable.test.tsx, frontend/src/lib/__tests__/api.driveSummary.test.ts, frontend/src/components/sidebar/__tests__/useSidebarData.summaryError.test.ts and frontend/src/__tests__/driveUnavailableMessages.test.ts.",
+      "impact": "These files carry the acceptance tests for I1-I8 and §7. The touch points list only the edits to existing tests (layout.test.tsx, driveHomeTreeClosable.test.tsx), so the plan does not show where the invariants are checked. Behaviour is unchanged.",
+      "evidence": "The diff adds these four files. The Touch points section names layout.test.tsx and driveHomeTreeClosable.test.tsx as test files, and lists useSidebarData.ts and api.ts only as source files.",
+      "repro": "Diff file list against Touch points.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "New test files break no invariant. The list of places is incomplete.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "List the four new test files in the touch points."
+    }
+  ],
+  "specification_compliance": [
+    "Every source file in the diff (layout.tsx, DriveUnavailable.tsx, api.ts, en.json, ja.json, fixtures/app.tsx, projects.ts, spec-viewport.spec.ts, componentFixtureParity.test.tsx, DESIGN.md) is named in the touch points.",
+    "Not in the list: page-headings.test.ts (gate change), e2e-components/drive-unavailable.cases.ts, and four new unit test files.",
+    "docs/specs/drive-unavailable.md and docs/specs/INDEX.md are implicit touch points and are not reported.",
+    "No protected path is edited: process/protected-paths.conf protects only scripts/process-gates/**, and the kit set under process/ is not touched.",
+    "getDriveSummary now uses the existing fetchJSONStatus (api.ts:32-38), which throws ApiStatusError with the message 'API error: <status> <statusText>', as §7 says."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "DriveUnavailable writes its own <h1> outside PageHeader. The heading gate allowlist was widened for it, and the spec does not say so."
+  ],
+  "regression_risks": [
+    "The frontend/src <h1> count in page-headings.test.ts is now 7. A later migration or removal must change this count."
+  ],
+  "test_coverage": [
+    "I1-I7 are covered in layout.unavailable.test.tsx, I8 in useSidebarData.summaryError.test.ts, §7 in api.driveSummary.test.ts, and I9/D1-D3 in drive-unavailable.cases.ts (e2e-components). I only read these; I did not run them."
+  ],
+  "not_verified": [
+    "I did not run any test suite (vitest or Playwright e2e-components).",
+    "I did not check whether useJumpDestinations still catches ApiStatusError (I8, the page-jump half).",
+    "I did not read docs/process/reviews/feature-drive-unavailable/invariants.md for revised touch points.",
+    "I did not check that the commit 1f972c82a alone matches the branch diff that was shown."
+  ],
+  "confidence": 80
+}

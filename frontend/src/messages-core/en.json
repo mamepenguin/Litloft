@@ -1548,5 +1548,10 @@
     "showMore": "Show more",
     "showLess": "Show less",
     "enlargePanels": "Enlarge panels"
+  },
+  "driveUnavailable": {
+    "title": "Can't open the drive “{name}”",
+    "allDrives": "All drives",
+    "unlock": "Unlock"
   }
 }

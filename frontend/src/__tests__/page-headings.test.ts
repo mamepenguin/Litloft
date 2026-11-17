@@ -54,6 +54,10 @@ const NOT_YET_MIGRATED: Record<string, string> = {
   "frontend/src/components/FileDetail/FileMetaBlock.tsx":
     "inspector heading; demoted with the FileDetailChrome migration (PR A2b)",
 
+  // The page it replaces has no page header, and the spec fixes its heading at
+  // 18px, which `PageHeader`'s §3.2 subject may not take.
+  "frontend/src/components/DriveUnavailable.tsx":
+    "unavailable-drive state; its heading is fixed at 18px",
 };
 
 
@@ -138,7 +142,7 @@ describe("page headings", () => {
     }
     // `OWNER` is excluded from the allowlist check above, never from this
     // count.
-    expect(perRoot.get("frontend/src")).toBe(6);
+    expect(perRoot.get("frontend/src")).toBe(7);
 
     const EXPECTED_ADDON_HEADINGS: Record<string, number> = {
       "addons/intelligence": 0,

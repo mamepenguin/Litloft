@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-1",
+      "status": "confirmed",
+      "note": "frontend/src/__tests__/page-headings.test.ts:57-60 adds frontend/src/components/DriveUnavailable.tsx to NOT_YET_MIGRATED with the reason 'unavailable-drive state; its heading is fixed at 18px', and :145 now asserts toBe(7). The comment at :37-41 says that adding an entry 'should need an argument'. The file is in the changed-file list at r1/classification.json:54. A grep for <h1 in non-test .tsx under frontend/src finds 7 real headings: LanguageStep, UnlockStep, WelcomeStep, unlock/page, DriveUnavailable.tsx:29, PageHeader.tsx:75 and FileMetaBlock.tsx:92. The CollectionDetail matches are comments, which the test strips. Without the new component the count is 6, which agrees with 'was 6'. The Touch points section (docs/specs/drive-unavailable.md:148-178) does not name page-headings.test.ts, and invariants.md has no revisions."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-2",
+      "status": "confirmed",
+      "note": "frontend/e2e-components/drive-unavailable.cases.ts exists and is in the changed-file list at r1/classification.json:26. docs/specs/drive-unavailable.md:165-172 names drive-unavailable.spec.ts, drive-unavailable-desktop.spec.ts, fixtures/app.tsx, projects.ts, spec-viewport.spec.ts and componentFixtureParity.test.tsx, but not the .cases.ts module. I did not read the module, so I did not check its line count or what each case covers."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-3",
+      "status": "confirmed",
+      "note": "All four files exist and are in the changed-file list in r1/classification.json: driveUnavailableMessages.test.ts (:50), layout.unavailable.test.tsx (:62), useSidebarData.summaryError.test.ts (:78) and api.driveSummary.test.ts (:82). The Touch points section (docs/specs/drive-unavailable.md:148-178) names only layout.test.tsx, driveHomeTreeClosable.test.tsx and componentFixtureParity.test.tsx as test files. It lists api.ts and useSidebarData.ts as source files only."
+    }
+  ],
+  "specification_compliance": [
+    "All three touch-point findings hold. The changed-file list in r1/classification.json includes page-headings.test.ts, drive-unavailable.cases.ts and four new unit test files, and the spec's Touch points section names none of them. invariants.md contains no revisions that would add them."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "The page-headings allowlist now lets DriveUnavailable.tsx write its own <h1> outside PageHeader. The reason is written in the file, but the spec does not record it as a touch point."
+  ],
+  "test_coverage": [
+    "I did not read the contents of the new test files or of the e2e cases module. I only checked that they exist and that they are in the diff."
+  ],
+  "not_verified": [
+    "The base-commit value of the page-headings count. I could not run git, so 'was 6' rests on counting the current <h1> occurrences and taking DriveUnavailable away.",
+    "I did not open the contents and line count (221) of drive-unavailable.cases.ts or check which invariants it covers.",
+    "Whether the changed-file list in classification.json matches the diff exactly. I did not check this with git diff."
+  ],
+  "confidence": 88
+}

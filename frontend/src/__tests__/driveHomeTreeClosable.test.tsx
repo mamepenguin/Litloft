@@ -25,6 +25,7 @@ vi.mock("@/lib/api", () => ({
   getDriveFiles: vi.fn().mockResolvedValue({ data: [], meta: { total: 0, page: 1, limit: 12 } }),
   getWatchHistory: vi.fn().mockResolvedValue([]),
   getHomeShortcuts: vi.fn().mockResolvedValue([]),
+  getDriveSummary: vi.fn().mockResolvedValue({ name: "media", trash_count: 0, missing_count: 0 }),
 }));
 
 import DriveLayout from "@/app/drive/[name]/layout";

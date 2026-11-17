@@ -1548,5 +1548,10 @@
     "showMore": "もっと見る",
     "showLess": "折りたたむ",
     "enlargePanels": "パネルを広げる"
+  },
+  "driveUnavailable": {
+    "title": "ドライブ「{name}」を開けません",
+    "allDrives": "ドライブ一覧へ",
+    "unlock": "ロックを解除"
   }
 }

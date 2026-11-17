@@ -17,6 +17,7 @@ import { ActionMenuItem } from "@/components/ActionMenuItem";
 import { AddButton } from "@/components/AddButton";
 import { Button } from "@/components/Button";
 import { ChromeButtons } from "@/components/ChromeButtons";
+import { DriveUnavailable } from "@/components/DriveUnavailable";
 import { PageFrame, type PageFrameWidth } from "@/components/PageFrame";
 import { PageHeader } from "@/components/PageHeader";
 import { Breadcrumb } from "@/components/Breadcrumb";
@@ -2574,6 +2575,21 @@ function AdminSettingsRows(): ReactElement {
   );
 }
 
+/** A drive name with no spaces anywhere, 80 characters long. */
+const LONG_DRIVE_NAME =
+  "HouseholdArchiveFromTheOldLaptopBeforeItWasHandedDownToMySisterAndWasResetIn2019";
+
+function DriveUnavailableArrangement(): ReactElement {
+  return (
+    <NextIntlClientProvider locale="en" messages={enMessages}>
+      <DriveUnavailable
+        drive="work"
+        unlockHref="/unlock?redirect=%2Fdrive%2Fwork"
+      />
+    </NextIntlClientProvider>
+  );
+}
+
 function PageHeaderTitleMediumActions(): ReactElement {
   return (
     <PageHeaderActionsArrangement
@@ -2614,6 +2630,14 @@ function PageHeaderTitleShortAction(): ReactElement {
         />
       }
     />
+  );
+}
+
+function DriveUnavailableLongArrangement(): ReactElement {
+  return (
+    <NextIntlClientProvider locale="en" messages={enMessages}>
+      <DriveUnavailable drive={LONG_DRIVE_NAME} />
+    </NextIntlClientProvider>
   );
 }
 
@@ -2766,6 +2790,8 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "header-row-two-pane-long": HeaderRowTwoPaneLongArrangement,
   "header-row-inbox-note": HeaderRowInboxNoteArrangement,
   "header-row-inbox-long": HeaderRowInboxLongArrangement,
+  "drive-unavailable": DriveUnavailableArrangement,
+  "drive-unavailable-long": DriveUnavailableLongArrangement,
   ...READING_ARRANGEMENTS,
   ...NAME_IN_USE_ARRANGEMENTS,
   ...BATCH_PROGRESS_ARRANGEMENTS,

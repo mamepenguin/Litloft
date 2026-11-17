@@ -1188,7 +1188,7 @@ export async function purgeAllMissing(
 }
 
 export async function getDriveSummary(drive: string): Promise<DriveSummary> {
-  return fetchJSON<DriveSummary>(
+  return fetchJSONStatus<DriveSummary>(
     `${API_BASE}/drives/${encodeURIComponent(drive)}/summary`
   );
 }
