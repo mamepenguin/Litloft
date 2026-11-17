@@ -2,7 +2,7 @@
 
 SPEC-ID: SPEC-ADDON-124
 
-Approval: sha256:1f0ca2fff0ccb6027871424809343c17543d8784e8cd26252a107d447fa1642b Yuichi Senga 2026-11-17
+Approval: sha256:753270a39ea2650b77adf4c53c6e4c915a5119b1b9b4884b35f275ad5017fdff Yuichi Senga 2026-11-17
 
 <!--
 Leave the Approval line empty. After a human approves this spec, the approval step
@@ -18,8 +18,11 @@ change, as `clip_change` embeddings. The Scenes section never shows them: its gr
 the CLIP candidate frames (ffmpeg scene detection plus the 30 s interval fill), so a cut
 is mixed in with filler frames and cannot be picked out.
 
-This adds a two-option switch above the grid, 「すべて」 / 「カット」, which swaps the
-grid between the candidate frames and the stored change frames. It needs no model and no
+This adds a two-option switch above the grid, 「標準」 / 「カット」, which swaps the
+grid between the candidate frames and the stored change frames. The two lists are picked by
+different rules (ffmpeg scene score above 0.3 plus a 30 s fill, against a 16-bit hash
+change at least 10 s apart), so neither contains the other, and either can be the
+longer. It needs no model and no
 Visual Index run, so it works as soon as the video has been scanned — before any scene
 is labelled.
 
@@ -33,7 +36,7 @@ is labelled.
    answer now carries both lists: `timestamps` (candidate frames) and `changes` (change
    frames).
 3. When `changes` holds at least one item, the section draws a row of two chips between
-   the ruler and the grid, 「すべて {n}」 and 「カット {m}」, with 「すべて」 selected.
+   the ruler and the grid, 「標準 {n}」 and 「カット {m}」, with 「標準」 selected.
 4. The grid, the ruler's tick marks and the picture window show the selected list. The
    scene marks, the scene card, the track length, the playhead and seeking are
    unchanged.
@@ -41,14 +44,14 @@ is labelled.
    position are kept, so the window re-anchors to the row of the new list at or before
    that point. No `clip-timestamps` or `visual-index` request is sent; the tiles of the
    new window ask for their pictures as any tile does.
-6. The section opens on 「すべて」 for every file. Within one mounted section the choice
+6. The section opens on 「標準」 for every file. Within one mounted section the choice
    survives collapsing and expanding, and a host that hides and shows the panel, as long
    as the re-fetched answer still has change frames.
 
 ### 2. Failure cases
 
 - `changes` is empty or absent: no switch is drawn, the grid shows the candidate frames,
-  and a retained 「カット」 selection falls back to 「すべて」.
+  and a retained 「カット」 selection falls back to 「標準」.
 - The `clip-timestamps` request fails, or `timestamps` is empty: unchanged from today —
   the section reports nothing, is not drawn, and its host button is unavailable. The
   switch never makes the section available on its own, so a file with change frames and
@@ -66,14 +69,14 @@ is labelled.
 | State | What is drawn |
 |---|---|
 | No change frames | No switch; grid, ruler ticks and window = candidate frames |
-| Switch, 「すべて」 selected | Grid, ruler ticks and window = candidate frames; 「カット」 unselected |
-| Switch, 「カット」 selected | Grid, ruler ticks and window = change frames; 「すべて」 unselected |
-| Section collapsed, then expanded | The mode is kept when the new answer still has changes; otherwise 「すべて」 |
-| Host hides and shows the panel | Same as expand: kept while the new answer still has changes, otherwise 「すべて」 |
-| File changed | The mode returns to 「すべて」 |
+| Switch, 「標準」 selected | Grid, ruler ticks and window = candidate frames; 「カット」 unselected |
+| Switch, 「カット」 selected | Grid, ruler ticks and window = change frames; 「標準」 unselected |
+| Section collapsed, then expanded | The mode is kept when the new answer still has changes; otherwise 「標準」 |
+| Host hides and shows the panel | Same as expand: kept while the new answer still has changes, otherwise 「標準」 |
+| File changed | The mode returns to 「標準」 |
 | Request in flight (the first, or a re-fetch on expand or host show) | No switch; the loading skeleton as today. The kept mode applies again when the answer arrives with changes |
-| Response without changes while 「カット」 is selected | No switch; grid = candidate frames; the selection is reset to 「すべて」 |
-| Available through the Visual Index with `m > 0` and no candidate frames | The switch is drawn; 「すべて」 shows no tiles and 「カット」 shows the cuts |
+| Response without changes while 「カット」 is selected | No switch; grid = candidate frames; the selection is reset to 「標準」 |
+| Available through the Visual Index with `m > 0` and no candidate frames | The switch is drawn; 「標準」 shows no tiles and 「カット」 shows the cuts |
 
 Allowed transitions: a chip press, collapse/expand, host hide/show, a file change, and
 a response arriving. Not allowed: a mode without a response, and a switch on a section
@@ -135,7 +138,7 @@ mismatch). The added field needs no check of its own.
   `border-transparent text-text-muted`. Each chip is as wide as its label, 4 px apart,
   with no outline around the pair, and keeps this size on a coarse pointer as the Find
   tab's chips do.
-- Chip labels: 「すべて {n}」 / 「カット {m}」 (ja), "All {n}" / "Cuts {m}" (en). The
+- Chip labels: 「標準 {n}」 / 「カット {m}」 (ja), "Default {n}" / "Cuts {m}" (en). The
   number follows the noun as a count, as on the Find tab's chips, so no plural form is
   needed.
 - `n` and `m` are the lengths of `timestamps` and `changes` in the response.
@@ -235,14 +238,15 @@ sheet. Its checkable decisions:
   grid, scene card.
 - D2. The switch row is left-aligned and only as wide as its two chips; the grid's first
   row follows it directly.
-- D3. Two pill chips, 「すべて 276」 then 「カット 113」, each as wide as its label, with no
+- D3. Two pill chips, 「標準 276」 then 「カット 113」, each as wide as its label, with no
   outline around the pair; the selected chip carries an accent border and no fill, the
   other no border and muted text.
 - D4. The grid is three columns of 16:9 tiles: 112 px in the padded board, and whatever
   the section's own width gives in the e2e arrangement (`ScenesSectionArrangement` draws
   the section at 384/390 with no padding, so its tiles are wider). The column count, not
   the pixel width, is what the case checks.
-- D5. With 「カット」 selected the ruler's ticks thin out and the grid shows cut frames;
+- D5. With 「カット」 selected the ruler's ticks follow the cut list (fewer or more than the
+  candidates, depending on the video) and the grid shows cut frames;
   the card, the ruler's scene marks and the playhead stay where they were.
 - D6. The 390 px board shows the same order with both chips on one line at the same chip
   height as at 384 px; it draws the section's own title row, which the phone sheet's
@@ -255,7 +259,7 @@ I1. The switch is drawn only when the response carries at least one change times
 otherwise the section draws no switch and the grid is the candidate list.
 
 I2. With 「カット」 selected, every drawn tile's time is a change `start` and the drawn
-tiles are a consecutive window of that list in time order; the 「すべて」 window is
+tiles are a consecutive window of that list in time order; the 「標準」 window is
 SPEC-ADDON-089 I1's, unchanged.
 
 I3. A chip press sends no `clip-timestamps` and no `visual-index` request and writes
@@ -275,8 +279,8 @@ I6. `clip-timestamps` returns `changes` as exactly the file's `clip_change` rows
 `vector_table = 'vec_clip_change'`, ascending by `timestamp_start`, and `timestamps`
 exactly as it did before this change.
 
-I7. A new file starts on 「すべて」; a response without changes resets the selection to
-「すべて」 (not a temporary display); collapse/expand and host hide/show keep the mode
+I7. A new file starts on 「標準」; a response without changes resets the selection to
+「標準」 (not a temporary display); collapse/expand and host hide/show keep the mode
 while the re-fetched answer still has changes.
 
 I8. Every new message key exists in both locale files, and no key renders as its path.
@@ -314,7 +318,7 @@ such scene before all of them), with its seek time as its time label, its `visib
 and never its `transcript_excerpt`. Activating the card seeks to that scene's seek time.
 
 SPEC-ADDON-111 I1. Scene search, tag kNN, scene segments, similar files, concept tagging
-and the Scenes grid **in its default 「すべて」 mode** return the same results for a file
+and the Scenes grid **in its default 「標準」 mode** return the same results for a file
 before and after its frame scan; the change frames are additionally listed by the
 Scenes section's 「カット」 selection and remain in the Visual Index's pool, and no
 change-frame vector is ever in `vec_clip`.
@@ -345,7 +349,7 @@ with the gaps they have today. Nothing is placed between the grid and the card.
 - Adding a keyboard shortcut for the switch: Tab reaches both chips, and the ruler's
   key map is the section's documented one.
 - Remembering the choice across files or across mounts: a per-file view, starting at
-  「すべて」 each time the section mounts.
+  「標準」 each time the section mounts.
 - A time present in both lists keeps its picture when the mode changes, because the
   requested set and the failure set are keyed by time; that frame is the same picture in
   both modes, so it is not a wrong tile.
@@ -357,6 +361,9 @@ with the gaps they have today. Nothing is placed between the grid and the card.
 - Extracting the Find tab's chip into a shared core component: the addon draws the same
   classes itself, so the change stays inside the addon. A third caller is the point to
   extract it.
+- 「すべて」 / "All" for the candidate list: the cut list is not a subset of it and is
+  often longer (190 candidates against 500 cuts on one measured file), so "all" would
+  read as false.
 - Labels other than 「カット」 / "Cuts": 「変化点」 and "Changes" do not say what changed;
   「シーン」 / "Scenes" collides with the Visual Index's scenes; 「ショット」 is less
   familiar; 「場面転換」 is long for a chip. The list also holds large camera moves and

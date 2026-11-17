@@ -4,7 +4,7 @@
     "v": 1,
     "at": "2026-11-17T00:00:00Z"
   },
-  "title": "Scenes — すべて / カット",
+  "title": "Scenes — 標準 / カット",
   "launch": {
     "view": "canvas"
   },
@@ -15,7 +15,7 @@
       "y": 0,
       "w": 384,
       "h": 640,
-      "title": "384 px（インスペクタ 24rem）— 「すべて」"
+      "title": "384 px（インスペクタ 24rem）— 「標準」"
     },
     "Section400Changes.dc.html": {
       "x": 424,

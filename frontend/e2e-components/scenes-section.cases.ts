@@ -465,7 +465,7 @@ function selectedLook(chips: SwitchReading["chips"]): [string, string] {
   const index = looks.findIndex(Boolean);
   if (index < 0 || looks.filter(Boolean).length !== 1) return ["none", "-"];
   if (!plain[1 - index]) return ["mixed", "-"];
-  return [index === 0 ? "All" : "Cuts", chips[index].pressed ? "pressed" : "unpressed"];
+  return [index === 0 ? "Default" : "Cuts", chips[index].pressed ? "pressed" : "unpressed"];
 }
 
 async function press(page: Page, pointer: Pointer, name: RegExp): Promise<void> {
@@ -486,7 +486,7 @@ export function scenesChangesCases(cases: ScenesCase[]): void {
 
         const group = page.getByRole("group", { name: "Frames shown" });
         await expect(group).toBeVisible();
-        const all = group.getByRole("button", { name: `All ${SCENES_FRAMES}` });
+        const all = group.getByRole("button", { name: `Default ${SCENES_FRAMES}` });
         const cuts = group.getByRole("button", {
           name: `Cuts ${SCENES_CHANGE_SECONDS.length}`,
         });
@@ -514,7 +514,7 @@ export function scenesChangesCases(cases: ScenesCase[]): void {
         for (const chip of before.chips) {
           expect(Math.abs(chip.height - CHIP_HEIGHT)).toBeLessThanOrEqual(TOLERANCE);
         }
-        expect(selectedLook(before.chips)).toEqual(["All", "pressed"]);
+        expect(selectedLook(before.chips)).toEqual(["Default", "pressed"]);
         expect(before.outside).toEqual([]);
 
         const height = await sectionHeight(page);
@@ -545,7 +545,7 @@ export function scenesChangesCases(cases: ScenesCase[]): void {
         await page.clock.runFor(500);
         await expect(tiles.locator("img")).toHaveCount(3 * columns);
 
-        await press(page, pointer, /^All \d+$/);
+        await press(page, pointer, /^Default \d+$/);
         await expect(tiles.first()).toHaveAttribute("aria-label", "Play from 0:00");
         expect((await ruler.screenshot()).equals(allTicks)).toBe(true);
         expect(await sectionHeight(page)).toBeCloseTo(height, 0);
