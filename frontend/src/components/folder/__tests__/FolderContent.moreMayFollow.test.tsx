@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { createRef } from "react";
 
-import { FolderContent } from "../FolderContent";
+import { FolderContent } from "./folderContentHarness";
 import type { FileItem, Folder } from "@/types";
 
 vi.mock("next/link", () => ({

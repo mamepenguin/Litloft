@@ -9,7 +9,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ShortcutsProvider } from "@/components/ShortcutsProvider";
 import type { Folder } from "@/types";
 
-import { FolderContent } from "../FolderContent";
+import { FolderContent } from "./folderContentHarness";
 
 vi.mock("next/link", () => ({
   default: ({ children, ...props }: any) => <a {...props}>{children}</a>,

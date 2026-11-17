@@ -19,6 +19,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { useFilePicker } from "@/components/useFilePicker";
 import { useClipboard } from "@/components/ClipboardProvider";
 import { useSelection } from "@/hooks/useSelection";
+import { useFolderFilter } from "@/hooks/useFolderFilter";
 import { useDragAndDrop } from "@/hooks/useDragAndDrop";
 import { useFolderSort, useFolderViewMode } from "@/hooks/useFolderViewMode";
 import { useSelectedFile } from "@/hooks/useSelectedFile";
@@ -182,6 +183,12 @@ export function FolderBrowser({
     passagesApplicable, passageGroups, passagesLoading, passagesFailed, retryPassages,
     inNameBlocked, inNamePending, inNameState, retryInName,
   } = useFolderFiles({ driveName, folderPath, view, tagFilter, typeFilter, trustFilter, sort, order, refreshKey, searchQuery, includeSceneClip, initialSnapshot });
+
+  const nameFilter = useFolderFilter(files, folders);
+  const visibleFileIds = useMemo(
+    () => nameFilter.files.map((f) => f.id),
+    [nameFilter.files],
+  );
 
   const isWatchHistory = isRecent || isContinue;
 
@@ -614,8 +621,8 @@ export function FolderBrowser({
   }, [toggleSelection]);
 
   const handleShiftSelect = useCallback((id: string) => {
-    selectRange(files.map((f) => f.id), id);
-  }, [selectRange, files]);
+    selectRange(visibleFileIds, id);
+  }, [selectRange, visibleFileIds]);
 
   const handlePlayAll = useCallback(() => {
     const firstPlayable = files.find(
@@ -878,6 +885,7 @@ export function FolderBrowser({
       <FolderContent
         files={files}
         folders={folders}
+        filter={nameFilter}
         driveName={driveName}
         widenTagScope={widenTagScope}
         onAddFiles={isWriteDestination ? filePicker.open : undefined}
@@ -948,7 +956,7 @@ export function FolderBrowser({
           totalCount={files.length}
           drive={driveName}
           currentPath={folderPath}
-          onSelectAll={() => selection.selectAll(files.map((f) => f.id))}
+          onSelectAll={() => selection.selectAll(visibleFileIds)}
           onClear={() => {
             clearedSelectionRef.current = [...selection.selectedIds];
             selection.clear();
