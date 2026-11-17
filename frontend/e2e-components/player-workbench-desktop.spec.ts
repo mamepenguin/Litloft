@@ -4,13 +4,14 @@
  */
 
 import { test, expect, type Page } from "@playwright/test";
-import { pathToFileURL } from "node:url";
 
-import { PAGE } from "./build-bundle";
+import { FIXTURE_URL, serveFixture } from "./fixtureOrigin";
 import { COMPACT_MAX_WIDTH } from "../src/components/player/MediaControls/layout";
 import { CANVAS_PADDING_REM } from "../src/lib/layoutSizes";
 
-const FIXTURE = pathToFileURL(PAGE).href;
+const FIXTURE = FIXTURE_URL;
+
+test.beforeEach(({ context }) => serveFixture(context));
 const CANONICAL = "#inspector-video";
 const COLLECTION = "#inspector-video-collection";
 const REM = 16;

@@ -273,8 +273,9 @@ test.describe("SPEC-CORE-002 held cells take no input", () => {
 
     // The same gesture on a painted cell does act, so the silence above is
     // the hold and not a harness that records nothing.
-    const v = await centre(shownKey);
-    await page.mouse.click(v.x, v.y);
+    // A locator click rather than the centre measured here: focusing the
+    // held cell scrolls the page, and the scroll is still moving the cells.
+    await page.locator(`[data-flip-key="${shownKey}"] [role="button"]`).click();
     expect(await page.evaluate(() => window.__jg.log.slice())).toContain(`select:${shownKey}`);
   });
 

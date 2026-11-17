@@ -117,9 +117,18 @@ const evaluationWord = (c: WireCall) => {
 };
 const isEvaluation = (c: WireCall) => isListing(c) && evaluationWord(c) !== null;
 const evaluations = () => wire.calls.filter(isEvaluation);
+/**
+ * Asked once per drive for the module's lifetime, so only the first case of
+ * the file to open the window sends it; it is not a request of the query.
+ */
+const IMAGE_AVAILABILITY = "/api/addons/intelligence/search/by-image/available";
 const windowRequests = () =>
   wire.calls.filter(
-    (c) => (isListing(c) && !isEvaluation(c)) || isFilesQuery(c) || c.url.pathname.startsWith("/api/addons/intelligence"),
+    (c) =>
+      (isListing(c) && !isEvaluation(c)) ||
+      isFilesQuery(c) ||
+      (c.url.pathname.startsWith("/api/addons/intelligence") &&
+        c.url.pathname !== IMAGE_AVAILABILITY),
   );
 
 beforeEach(() => {
