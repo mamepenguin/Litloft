@@ -95,9 +95,13 @@ No new request, no new storage, no new dependency. Widths below 320px are out of
 
 ## Design decisions to check
 
-- D1 (122): against `FoldersCount.dc.html`, a folder card's second line is the count alone; the
-  name line and the card's size are as today. The single-kind 「9件 · 動画」 drawn there is
-  superseded (count alone).
+- D1 (122): against `FoldersCount.dc.html`, a folder card's second line is the count alone and
+  spans the card under the icon-and-name row; the name line, the card's size and the grid's
+  columns are as today (this change does not touch the grid). The single-kind 「9件 · 動画」
+  drawn there is superseded (count alone).
+- The design check covers `FoldersCount.dc.html` only. `Main.dc.html` and `FoldersNow.dc.html`
+  draw today's screens, `FoldersTwoLine.dc.html` is the rejected option, and
+  `VideoHalf.dc.html` is the parked sheet item; none is a target.
 - 123 has no artboard; it is checked by its invariants, not by the design check.
 
 ## Touch points
@@ -106,8 +110,12 @@ No new request, no new storage, no new dependency. Widths below 320px are out of
   branch.
 - `frontend/src/lib/folderKindBreakdown.ts`, `frontend/src/lib/__tests__/folderKindBreakdown.test.ts`
   — removed (no other reader).
-- `frontend/src/components/__tests__/FolderCard.test.tsx` — its expected second lines become
-  the count alone (updated to the new text, not loosened).
+- `frontend/src/components/__tests__/FolderCard.test.tsx`, case by case:
+  "says what the count is made of" and "names a single kind without repeating its count" are
+  rewritten to assert the count alone for a several-kind and a single-kind folder (I1);
+  "names the two largest kinds and stops" is removed, because the two-kind cap no longer
+  exists; "gives the breakdown the card's full width, not the strip beside the glyph" is kept,
+  renamed to the count line, and still asserts the line spans the card under the glyph row.
 - `frontend/src/components/AddButton.tsx` — no-wrap on the three core rows (through a prop or
   class on `ActionMenuItem`, without changing its default).
 - `frontend/src/components/ActionMenuItem.tsx` — only if it needs to accept that prop or class.
@@ -119,9 +127,13 @@ No new request, no new storage, no new dependency. Widths below 320px are out of
   `FolderToolbar.bundledRows.test.tsx`, `frontend/src/__tests__/DriveHome.test.tsx`,
   `frontend/e2e-components/add-menu.cases.ts` (with an exact-name match, since Playwright's
   default name match is a case-insensitive substring and would pass on the old label).
-- `frontend/e2e-components/add-menu.spec.ts` (phone project, Pixel 5, 393px) — a case for I4
-  at the project's width and at 320px, in both locales and both alignments. No new spec file
-  or registration.
+- `frontend/e2e-components/fixtures/app.tsx` — the `AddMenu` arrangement gains a ja variant
+  and a right-edge variant (trigger at the window's right edge, `align="right"`, as on
+  DriveHome's header; the existing one is the left-edge trigger, as in FolderToolbar), both
+  registered in `frontend/src/components/__tests__/componentFixtureParity.test.tsx`.
+- `frontend/e2e-components/add-menu.spec.ts` (phone project, Pixel 5, 393px) — a case for I4 at
+  393px and 320px, for en and ja, with the trigger at the left edge and at the right edge.
+  The spec file already exists and is registered.
 - `DESIGN.md` — one line for the folder card: count only.
 - `docs/user-guide/upload-and-fileops.md` (menu names), `docs/user-guide/file-browsing.md`
   (the card shows the count).
@@ -138,9 +150,19 @@ I2. In both locales the `+ Add` menu's core rows read 「ファイルをアッ�
 rows as today.
 I3. The first core row opens the file picker, the second the folder picker, and the third
 calls `onCreateFolder` once and closes the menu.
-I4. At a window width of 320px and wider, in both locales and whichever side the menu opens
-from, each core row of the `+ Add` menu is one line high and the whole menu lies inside the
-window.
+I4. At a window width of 320px and wider, in both locales, with the trigger at the window's
+left edge and at its right edge, each core row of the `+ Add` menu is one line high, shows its
+whole label (no ellipsis; the label's box lies inside the row and the menu), and the whole menu
+lies inside the window.
+I5. An `ActionMenuItem` rendered without the new no-wrap option, in any other menu and in the
+Add menu's addon rows, wraps a long label as before this change.
+
+## Revises
+
+SPEC-CORE-059 I5. A request of any other kind, and the folder roll-up's `kind_counts` for
+every file, return what they returned before `epub` was added. (reading-app I5 named "the
+folder card's kind label", which this change removes from the card; the classification it
+protected is unchanged.)
 
 ## Checked, no action
 
@@ -149,6 +171,11 @@ window.
 - **The API's `kind_counts`.** Kept: removing a response field is outside this change and
   other readers may exist.
 - **Windows narrower than 320px.** Out of scope (owner).
+- **Addon repositories.** Checked the knowledge, media_import and intelligence frontends: none
+  reads `upload.files`, `upload.folder` or `folder.newFolder`, and their "Folder" strings are
+  their own keys.
+- **`filter.type.*` messages.** They lose one reader (the card) but stay: the filter UI uses
+  them.
 - **No-wrap for every `ActionMenuItem`.** Not done: nine other menus share it, and long addon
   labels there would widen them.
 - **Raising the phone file sheet on open.** Parked by the owner after three spec-design
