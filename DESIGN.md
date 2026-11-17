@@ -1439,6 +1439,16 @@ Archive and PDF viewers are at least **70% of the canvas height** (never less th
 320px), so a short archive does not draw a thin band over an empty canvas. A
 floor, not a ceiling. Not on a phone, where the canvas is the screen.
 
+### A drive that cannot be opened
+
+- **Its pages say so instead of showing an empty folder**: a 48px `rounded-2xl`
+  `bg-bg-elevated` tile with `HardDrive` in `text-text-muted`, the heading
+  「ドライブ「<name>」を開けません」 as the page's only `<h1>` at 18px bold, then
+  「ドライブ一覧へ」 as a Secondary (Sand) link and, when the viewer could unlock a
+  protected drive, 「ロックを解除」 as a Ghost link in `text-text-muted`; 16px
+  between the three, centred, 24px side padding and 120px below, and no `+ Add`
+  button and no drop zone.
+
 ### Sticking below the header
 
 The header's height is published as `--app-header-h` because it varies (safe-area
