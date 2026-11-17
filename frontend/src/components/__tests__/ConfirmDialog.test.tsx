@@ -67,7 +67,31 @@ describe("SPEC-CORE-120 I13: ConfirmDialog without busy, progress or error", () 
   });
 });
 
+function backdrop(): HTMLElement {
+  const el = document.querySelector<HTMLElement>(".bg-black\\/60");
+  if (!el) throw new Error("backdrop not rendered");
+  return el;
+}
+
+describe("SPEC-CORE-120 I13: backdrop click without busy", () => {
+  it("I13 [SPEC-CORE-120] the backdrop calls onCancel", () => {
+    const { onCancel } = renderDialog();
+
+    fireEvent.click(backdrop());
+
+    expect(onCancel).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("SPEC-CORE-120 I17: busy dialog ignores every dismissal path", () => {
+  it("I17 [SPEC-CORE-120] while busy, a backdrop click does not call onCancel", () => {
+    const { onCancel } = renderDialog({ busy: true, progress: "Processing 1 of 3" });
+
+    fireEvent.click(backdrop());
+
+    expect(onCancel).not.toHaveBeenCalled();
+  });
+
   it("I17 [SPEC-CORE-120] while busy, Cancel, X and Escape do not call onCancel", () => {
     const { onCancel } = renderDialog({ busy: true, progress: "Processing 1 of 3" });
 
