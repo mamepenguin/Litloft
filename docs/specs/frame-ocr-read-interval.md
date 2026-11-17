@@ -312,11 +312,10 @@ in the UI beyond the pending counts of item 1, step 9.
   detection, crop, classification and recognition steps, called separately. The
   whole-image `run_engine` keeps its behaviour for `index_ocr`,
   `app/workers/page_ocr.py` and `app/image_query.py` (read only).
-- `addons/intelligence/app/workers/loft_media.py` / the `.loft` download gate in
-  `indexer.py`: the native-task condition of SPEC-ADDON-117 I3 excludes re-reads.
-- `scripts/dev/frame_ocr_bench/` (core): the measuring harness of item 10.
-- `addons/intelligence/app/workers/loft_media.py`: read only (the `.loft` caller of
-  `index_frame_ocr`); a `.loft` read writes `frame_ocr_rule` 2 through the store step.
+- `addons/intelligence/app/workers/loft_media.py` and the `.loft` download gate in
+  `indexer.py`: the native-task condition of SPEC-ADDON-117 I3 excludes re-reads; a
+  `.loft` read (`loft_media` calls `index_frame_ocr`) writes `frame_ocr_rule` 2 through
+  the store step.
 - `addons/intelligence/app/indexer.py`: `_collect_incomplete` (outdated rows),
   `_resume_incomplete` (queueing them at -10), `get_status` / `IndexStatus`
   (`pending_frame_ocr`, `frame_ocr_indexed` count), `prioritize`, and raising a queued
@@ -342,6 +341,7 @@ in the UI beyond the pending counts of item 1, step 9.
 
 - `docs/addons/intelligence.md`: the video frame OCR paragraphs.
 - `docs/specs/INDEX.md`: the two rows.
+- `scripts/dev/frame_ocr_bench/`: the measuring harness of item 10.
 - The `addons/intelligence` submodule pointer, bumped after the addon PR merges.
 
 **Rules passed through:**
