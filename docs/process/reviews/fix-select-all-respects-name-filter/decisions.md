@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: ship (human, 2026-11-17, "出荷する (Recommended)", after r4 HUMAN_REVIEW_REQUIRED for unspecified_behavior on the UNSPEC bug fix; the UNSPEC sentence narrowed to filter-text changes, the toolbar fileIds and Play all items left for a separate change)
 ran_in_app: yes
 at: c2d9019975ccea4cf986ca2ff909d7b29317a1d8
 by: agent

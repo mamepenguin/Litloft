@@ -151,9 +151,9 @@ async function narrowTo(text: string) {
 
 const selected = () => screen.getByLabelText("selected").textContent;
 
-// UNSPEC: with the folder's name filter in use, the selection holds only the
-// files the filter shows: "Select all" and a Shift range never reach a hidden
-// file, and a file the filter comes to hide leaves the selection.
+// UNSPEC: with the folder's name filter in use, "Select all" and a Shift range
+// never reach a file the filter hides, and changing the filter text drops the
+// selected files it hides.
 describe("FolderBrowser — selection under the name filter", () => {
   it("selects only the shown files on Select all", async () => {
     render(<FolderBrowser driveName="d" folderPath="" />);
