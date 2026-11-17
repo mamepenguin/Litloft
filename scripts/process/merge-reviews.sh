@@ -4,9 +4,10 @@
 # 2 HUMAN_REVIEW_REQUIRED, 64 usage error.
 #
 # Inputs in <run-dir>: expected.txt (one reviewer id per line), classification.json,
-# fingerprint.json ({"start","end"}), and <id>.json for each id. Nothing else is read: not
-# Markdown, not a reviewer's own `overall`, not an artifact outside expected.txt.
-# The verdict follows the Verdict table of the design document; no severity is written.
+# fingerprint.json ({"start","end"}), and <id>.json for each id, plus product-files.txt when
+# review.sh wrote one. Nothing else is read: not Markdown, not a reviewer's own `overall`,
+# not an artifact outside expected.txt. The verdict follows the Verdict table of the design
+# document; no severity is written.
 
 set -u
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -37,6 +38,14 @@ done
 [ -d "$run" ] || die_usage "no such directory: $run"
 
 [ -f "$run/expected.txt" ] || die_usage "$run/expected.txt is missing"
+
+# review.sh writes the product files it took from the diff; a run without the list (an
+# older run, or a direct call) is not checked for coverage.
+products='[]'
+if [ -f "$run/product-files.txt" ]; then
+  products="$(jq -R -s 'split("\n") | map(select(length > 0))' "$run/product-files.txt")" \
+    || die_usage "cannot read $run/product-files.txt"
+fi
 
 tmp="$(mktemp -d)" || die_usage "cannot create a temporary directory"
 trap 'rm -rf "$tmp"' EXIT
@@ -98,6 +107,12 @@ $cls as $c
 | [ $all[] | select(.why | length > 0) | .why[] ] as $bad
 | (if [ $all[] | select(.a.role == "read" or .a.role == "mutate") ] | length == 0 then ["no read or mutate reviewer in the expected set"] else [] end) as $noreader
 | [ $all[] | select(.why | length == 0) ] as $valid
+| [ $valid[] | select(.a.role == "read") ] as $readers
+| [ $products[] | . as $p
+    | ([ $readers[] | .a.coverage[]? | select(.path == $p) ]) as $entries
+    | if ($entries | length) == 0 then {path: $p, status: "missing"}
+      elif any($entries[]; .read == "not_read") then {path: $p, status: "not_read"}
+      else empty end ] as $incomplete
 | [ $valid[] | select(.a.role == "verify") ] as $verifiers
 | [ $all[] | (.why | length == 0) as $ok | .id as $rid | .a.role as $role | .a.findings[]
     | . as $f
@@ -119,19 +134,26 @@ $cls as $c
       | {kind: "rejected_high_consequence", ref: {reviewer: .reviewer, finding_id: .id}, note: .f.claim, paths: []} ]
   + (if ($zones | length) > 0 then [{kind: "human_zone", ref: null, note: "the change touches a human zone", paths: $zones}] else [] end)
   + (if ($prot | length) > 0 then [{kind: "protected_path", ref: null, note: "the change touches a protected path", paths: $prot}] else [] end)
+  + (if ($incomplete | length) > 0 then
+       [{kind: "incomplete_read", ref: null,
+         note: ([$incomplete[] | "\(.path) (\(.status))"] | join(", ")),
+         paths: [$incomplete[].path]}]
+     else [] end)
   ) as $human
 | ($pre + $bad + $noreader + $openfail) as $failreasons
 | (if ($failreasons | length) > 0 then "FAIL" elif ($human | length) > 0 then "HUMAN_REVIEW_REQUIRED" else "PASS" end) as $v
 | { verdict: $v,
     reasons: (if $v == "FAIL" then $failreasons
-              elif $v == "HUMAN_REVIEW_REQUIRED" then [$human[] | "\(.kind)" + (if .ref then " \(.ref.reviewer):\(.ref.finding_id)" else "" end)]
+              elif $v == "HUMAN_REVIEW_REQUIRED" then
+                [$human[] | if .kind == "incomplete_read" then "incomplete_read: \(.note)"
+                            else "\(.kind)" + (if .ref then " \(.ref.reviewer):\(.ref.finding_id)" else "" end) end]
               else [] end),
     findings: [ $fs[] | {reviewer, id, state} ],
     needs_human: $human }
 '
 
 jq -n -c --slurpfile arts "$tmp/arts" --argjson cls "$cls" \
-  --argjson pre "$(jq -R . "$tmp/pre" | jq -s .)" "$PROGRAM" >"$tmp/verdict.json" \
+  --argjson pre "$(jq -R . "$tmp/pre" | jq -s .)" --argjson products "$products" "$PROGRAM" >"$tmp/verdict.json" \
   || { echo "merge-reviews: internal error" >&2; exit 1; }
 
 mv "$tmp/verdict.json" "$run/verdict.json" || die_usage "cannot write $run/verdict.json"
