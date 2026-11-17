@@ -5,11 +5,12 @@
  */
 
 import { test, expect, type Page } from "@playwright/test";
-import { pathToFileURL } from "node:url";
 
-import { PAGE } from "./build-bundle";
+import { FIXTURE_URL, serveFixture } from "./fixtureOrigin";
 
-const FIXTURE = pathToFileURL(PAGE).href;
+const FIXTURE = FIXTURE_URL;
+
+test.beforeEach(({ context }) => serveFixture(context));
 const CANONICAL = "#inspector-video";
 const SIDEBAR = "#inspector-video-sidebar";
 const COLLECTION = "#inspector-video-collection";
