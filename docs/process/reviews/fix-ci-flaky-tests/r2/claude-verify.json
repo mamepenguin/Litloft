@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "MEDIUM",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1",
+      "status": "confirmed",
+      "note": "Reproduced by reading the code. frontend/e2e-components/fixture-origin.spec.ts:13 defines ACROSS_DOCUMENTS = /\\.reload\\(|\\.go(Back|Forward)\\(|\\bcontext(\\(\\))?\\.newPage\\(/. It has no alternative that matches a repeated page.goto, so a spec that writes localStorage and then calls open() or page.goto again on file:// would not be picked up by the filter at line 22, and the guard would pass. Line 20 filters only names ending in .spec.ts, so *.cases.ts helpers are never scanned. scenes-section-rows.cases.ts:43-47 writes localStorage through addInitScript, which confirms that helpers outside the scan do touch storage. Both migrated specs navigate through page.goto inside open() (player-workbench-desktop.spec.ts:63, workbench-split-desktop.spec.ts:62; workbench-split-desktop.spec.ts:1193 has another goto). I found no current file:// spec that crosses documents through a repeated goto, so the gap is latent, as the finding says."
+    }
+  ],
+  "specification_compliance": [
+    "The guard's doc comment at fixture-origin.spec.ts:12 lists reload, history navigation and a second page. A repeated goto is not in that list, so the guard covers less than its stated purpose at line 2 ('reads localStorage across documents')."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "Whether a repeated page.goto on file:// actually loses or shares localStorage under the browsers in use was not determined. That decides whether the gap can ever make a test flaky."
+  ],
+  "regression_risks": [
+    "A future spec that stays on file:// and crosses documents through a second goto, or through a .cases.ts helper, would pass the guard while still exposed to the original flakiness."
+  ],
+  "test_coverage": [
+    "fixture-origin.spec.ts is a static source scan. It covers only the four patterns in ACROSS_DOCUMENTS and only *.spec.ts files."
+  ],
+  "not_verified": [
+    "I did not run the Playwright suite or the guard test.",
+    "I did not check every file:// spec test by test for multiple goto calls after a storage write; I only grepped for goto, storage and navigation sites.",
+    "I did not check whether .cases.ts helpers are imported by file:// specs in a way that crosses documents."
+  ],
+  "confidence": 88
+}
