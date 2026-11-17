@@ -9,8 +9,8 @@ import { join } from "node:path";
 
 const DIR = __dirname;
 
-/** A reload, or a second page in the same context. */
-const ACROSS_DOCUMENTS = /\.reload\(|\.context\(\)\.newPage\(/;
+/** A reload, history navigation, or a second page in the same context. */
+const ACROSS_DOCUMENTS = /\.reload\(|\.go(Back|Forward)\(|\bcontext(\(\))?\.newPage\(/;
 
 const FILE_URL = /pathToFileURL\(/;
 const SERVED = /serveFixture\(/;

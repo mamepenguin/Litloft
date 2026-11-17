@@ -41,13 +41,14 @@ export async function serveFixture(context: BrowserContext): Promise<void> {
   await context.route(`${ORIGIN}/**`, async (route) => {
     const path = decodeURIComponent(new URL(route.request().url()).pathname);
     const file = join(ROOT, path);
-    // A path the bundle asks for but the build does not write (the fixture's
-    // subtitle track) is a 404, as the same missing file is under `file://`.
+    // Aborted rather than a 404: under `file://` a fetch nothing stubs, or a
+    // file the build does not write, fails as a network error, and the
+    // fixtures' stubs leave unanswered endpoints to fail that way.
     const body = file.startsWith(ROOT + sep)
       ? await readFile(file).catch(() => null)
       : null;
     if (body === null) {
-      await route.fulfill({ status: 404 });
+      await route.abort();
       return;
     }
     await route.fulfill({
