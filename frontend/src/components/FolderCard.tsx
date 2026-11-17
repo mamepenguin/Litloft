@@ -3,7 +3,6 @@ import { Folder } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { RENAME_FOCUS_ATTR } from "@/hooks/useInlineRename";
 import type { Folder as FolderType } from "@/types";
-import { folderKindBreakdown } from "@/lib/folderKindBreakdown";
 import { InlineNameEditor } from "./InlineNameEditor";
 import { useFolderLink } from "@/hooks/useFolderLink";
 
@@ -48,7 +47,6 @@ export function FolderCard({
   onCardBlur,
 }: FolderCardProps) {
   const t = useTranslations("folder");
-  const tFilter = useTranslations("filter");
   // While the name is being edited the card stops being a drag source: a
   // text selection inside a `draggable` ancestor is swallowed by the drag
   // system, so the field would be impossible to select in.
@@ -61,13 +59,7 @@ export function FolderCard({
     </div>
   );
 
-  const breakdown = folderKindBreakdown(folder.kind_counts);
-  const meta = [
-    t("items", { count: folder.file_count }),
-    ...(breakdown.length === 1
-      ? [tFilter(`type.${breakdown[0].kind}`)]
-      : breakdown.map((s) => `${tFilter(`type.${s.kind}`)} ${s.count}`)),
-  ].join(" · ");
+  const meta = t("items", { count: folder.file_count });
 
   const folderLink = useFolderLink();
   const folderHref = `/drive/${encodeURIComponent(driveName)}/${folder.path.split("/").map(encodeURIComponent).join("/")}`;

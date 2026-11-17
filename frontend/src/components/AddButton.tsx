@@ -147,6 +147,7 @@ export function AddButton({
       <ActionMenuItem
         icon={FileIcon}
         label={tu("files")}
+        noWrap
         onClick={() => {
           closeMenu();
           filePicker.open();
@@ -155,6 +156,7 @@ export function AddButton({
       <ActionMenuItem
         icon={Folder}
         label={tu("folder")}
+        noWrap
         onClick={() => {
           closeMenu();
           folderInputRef.current?.click();
@@ -164,6 +166,7 @@ export function AddButton({
         <ActionMenuItem
           icon={FolderPlus}
           label={tf("newFolder")}
+          noWrap
           onClick={() => {
             closeMenu();
             onCreateFolder();
