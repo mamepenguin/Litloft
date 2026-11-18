@@ -561,12 +561,15 @@ export function PdfPreview({
     <div
       ref={rootRef}
       data-viewer-frame
-      className={`w-full overflow-hidden rounded-xl bg-bg-card ${
+      className={`@container w-full overflow-hidden rounded-xl bg-bg-card ${
         fillCanvas ? "flex min-h-0 flex-col" : ""
       }`}
       style={fillCanvas ? { height: fillHeight ?? 0 } : undefined}
     >
-      <div className="sticky top-0 z-10 flex flex-wrap items-center justify-center gap-2 border-b border-bg-border bg-bg-card px-3 py-2">
+      <div
+        data-testid="pdf-toolbar"
+        className="sticky top-0 z-10 flex flex-wrap items-center justify-center gap-2 border-b border-bg-border bg-bg-card px-3 py-2"
+      >
         <button
           type="button"
           onClick={() => movePage(-1)}
@@ -602,6 +605,10 @@ export function PdfPreview({
           icon={Maximize2}
           align="start"
           portalOnPhone
+          // Collapsed in place rather than `sr-only`: the value's line box
+          // is what makes this the bar's tallest control, so the bar keeps its
+          // height across the threshold. The name stays in the aria-label.
+          valueClassName="whitespace-nowrap @max-[38rem]:-ml-1.5 @max-[38rem]:w-0 @max-[38rem]:overflow-hidden"
         >
           {(close) => (
             <MenuRadioGroup
