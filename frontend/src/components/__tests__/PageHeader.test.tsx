@@ -198,6 +198,17 @@ describe("PageHeader", () => {
     });
   });
 
+  describe("the primary action", () => {
+    it("is drawn once beside a scopeEnd, and not without one", () => {
+      const { rerender } = render(
+        <PageHeader title="Notes" scopeEnd={<button>Target</button>} primaryAction={<button>New</button>} />,
+      );
+      expect(screen.getAllByRole("button", { name: "New" })).toHaveLength(1);
+      rerender(<PageHeader title="Notes" primaryAction={<button>New</button>} />);
+      expect(screen.queryByRole("button", { name: "New" })).toBeNull();
+    });
+  });
+
   describe("the title icon", () => {
     it("renders the icon it is given", () => {
       const { container } = render(<PageHeader titleIcon={Trash2} title="Trash" />);
