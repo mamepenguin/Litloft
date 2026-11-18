@@ -818,6 +818,7 @@ export function GlobalSearch() {
           />
           <div
             className="relative z-10 w-full max-w-3xl rounded-2xl border border-bg-border bg-bg-primary shadow-lg animate-fade-in-scale"
+            aria-modal="true"
             onDragEnter={imageEnabled ? handleDragEnter : undefined}
             onDragOver={imageEnabled ? handleDragOver : undefined}
             onDragLeave={imageEnabled ? handleDragLeave : undefined}

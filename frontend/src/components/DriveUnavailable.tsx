@@ -1,8 +1,11 @@
 "use client";
 
+import { useLayoutEffect } from "react";
 import { HardDrive } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+
+import { driveUnavailableStore } from "@/lib/driveUnavailableStore";
 
 /** A link wearing §Buttons' look: the label sizes it, the floor is only on touch. */
 const LINK =
@@ -20,6 +23,14 @@ export interface DriveUnavailableProps {
  */
 export function DriveUnavailable({ drive, unlockHref }: DriveUnavailableProps) {
   const t = useTranslations("driveUnavailable");
+
+  // Not a file page whatever the URL still names, for as long as this screen
+  // is what stands there; a layout effect so no frame draws the focus layout
+  // over it.
+  useLayoutEffect(() => {
+    driveUnavailableStore.enter();
+    return () => driveUnavailableStore.leave();
+  }, []);
 
   return (
     <div className="flex h-below-header w-full flex-col items-center justify-center overflow-hidden px-6 pb-[120px]">

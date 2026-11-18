@@ -77,7 +77,7 @@ test("SPEC-CORE-094 D1 / D5 (narrow): the menu button sits on the header's centr
   expect(Math.abs(heading - centre(menu))).toBeLessThanOrEqual(2);
 });
 
-test("SPEC-CORE-094 D4 / I3 (narrow): no quick note, no avatar, no tree button and no inspector toggle; search stays", async ({
+test("SPEC-CORE-094 D4 / I3 as revised by SPEC-CORE-098 (narrow): no quick note, no avatar, no tree button, no Focus mode button and no inspector toggle; search stays", async ({
   page,
 }) => {
   await open(page, "header-row-video");
@@ -88,6 +88,7 @@ test("SPEC-CORE-094 D4 / I3 (narrow): no quick note, no avatar, no tree button a
   await expect(header.getByRole("button", { name: "Quick note" })).toBeHidden();
   await expect(header.getByRole("button", { name: "Profile Setup" })).toBeHidden();
   await expect(page.getByRole("button", { name: /tree/i })).toBeHidden();
+  await expect(header.getByRole("button", { name: /^(Focus mode|Leave focus mode) \(T\)$/ })).toHaveCount(0);
   for (const name of [EXPAND, COLLAPSE, /inspector/i]) {
     await expect(page.locator("header").getByRole("button", { name })).toBeHidden();
   }

@@ -1,13 +1,31 @@
-"""GET /api/drives/{drive}/folder-counts and the kind filter on GET /api/drives/{drive}/tags."""
+"""`/api/drives/{drive}/folder-counts` and the kind filter on `GET .../tags`."""
 from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from app.models import File, Tag
+import pytest
+
+from app.models import Collection, CollectionItem, File, Tag
 from tests.conftest import TEST_DRIVE
 
 
-def _file(db, path: str, *, mime: str, file_type: str = "document", deleted: bool = False, missing: bool = False, tags=()):
+def _file(
+    db,
+    path: str,
+    *,
+    mime: str,
+    file_type: str = "document",
+    deleted: bool = False,
+    missing: bool = False,
+    tags=(),
+    size: int = 1,
+    duration: float | None = None,
+    favorite: bool = False,
+    liked: bool = False,
+    trust: str = "verified",
+    reviewed: bool = True,
+    origin: str | None = None,
+):
     *folders, filename = path.split("/")
     row = File(
         filename=filename,
@@ -15,9 +33,17 @@ def _file(db, path: str, *, mime: str, file_type: str = "document", deleted: boo
         drive=TEST_DRIVE,
         folder_path="/".join(folders),
         file_path=path,
-        file_size=1,
+        file_size=size,
         file_type=file_type,
         mime_type=mime,
+        duration=duration,
+        is_favorite=favorite,
+        liked_at=datetime.now(UTC).replace(tzinfo=None) if liked else None,
+        trust_tier=trust,
+        trust_reviewed_at=(
+            datetime.now(UTC).replace(tzinfo=None) if reviewed else None
+        ),
+        md_origin=origin,
         deleted_at=datetime.now(UTC).replace(tzinfo=None) if deleted else None,
         missing_since=datetime.now(UTC).replace(tzinfo=None) if missing else None,
     )
@@ -27,6 +53,84 @@ def _file(db, path: str, *, mime: str, file_type: str = "document", deleted: boo
     db.add(row)
     db.commit()
     return row
+
+
+def _seed_notes(db) -> dict[str, File]:
+    rows = {
+        "a": _file(
+            db, "Notes/a.md", mime="text/markdown", size=10, tags=["AI"], favorite=True
+        ),
+        "b": _file(
+            db, "Notes/b.md", mime="text/markdown", size=5000,
+            tags=["AI", "Reading"], liked=True, trust="unverified", origin="clip",
+        ),
+        "c": _file(
+            db, "Notes/Deep/c.md", mime="text/markdown", size=200,
+            reviewed=False, origin="clip",
+        ),
+        "v": _file(
+            db, "Notes/v.mp4", mime="video/mp4", file_type="video", size=9000,
+            duration=120.0, tags=["Video"],
+        ),
+        "r": _file(
+            db, "root.md", mime="text/markdown", size=50, favorite=True, origin="clip"
+        ),
+        "x": _file(db, "Other/x.md", mime="text/markdown", size=30),
+    }
+    collection = Collection(drive=TEST_DRIVE, name="Picks")
+    db.add(collection)
+    db.commit()
+    for position, key in enumerate(("a", "b", "v")):
+        db.add(
+            CollectionItem(
+                collection_id=collection.id, file_id=rows[key].id, position=position
+            )
+        )
+    db.commit()
+    return rows
+
+
+def _count_map(res) -> dict[str, int]:
+    assert res.status_code == 200, res.text
+    return {entry["path"]: entry["count"] for entry in res.json()}
+
+
+GET_CASES = [
+    pytest.param([], {"": 1, "Notes": 3, "Notes/Deep": 1, "Other": 1}, id="none"),
+    pytest.param(
+        [("type", "text")], {"": 1, "Notes": 2, "Notes/Deep": 1, "Other": 1}, id="type"
+    ),
+    pytest.param(
+        [("type", "markdown")],
+        {"": 1, "Notes": 2, "Notes/Deep": 1, "Other": 1},
+        id="type-markdown",
+    ),
+    pytest.param(
+        [("type", "text"), ("type", "video")],
+        {"": 1, "Notes": 3, "Notes/Deep": 1, "Other": 1},
+        id="type-list",
+    ),
+    pytest.param(
+        [("origin", "clip")], {"": 1, "Notes": 1, "Notes/Deep": 1}, id="origin"
+    ),
+    pytest.param(
+        [("exclude_origin", "clip")], {"Notes": 2, "Other": 1}, id="exclude-origin"
+    ),
+    pytest.param([("search", "Deep")], {"Notes/Deep": 1}, id="search"),
+    pytest.param([("favorite", "true")], {"": 1, "Notes": 1}, id="favorite"),
+    pytest.param([("liked", "true")], {"Notes": 1}, id="liked"),
+    pytest.param([("tag", "AI")], {"Notes": 2}, id="tag"),
+    pytest.param([("folder", "Notes")], {"Notes": 3, "Notes/Deep": 1}, id="folder"),
+    pytest.param([("collection", "Picks")], {"Notes": 3}, id="collection"),
+    pytest.param([("size", "gt:100")], {"Notes": 2, "Notes/Deep": 1}, id="size"),
+    pytest.param([("duration", "gte:60")], {"Notes": 1}, id="duration"),
+    pytest.param(
+        [("trust", "verified")],
+        {"": 1, "Notes": 2, "Notes/Deep": 1, "Other": 1},
+        id="trust",
+    ),
+    pytest.param([("trust", "unreviewed")], {"Notes/Deep": 1}, id="trust-unreviewed"),
+]
 
 
 class TestFolderCounts:
@@ -67,10 +171,125 @@ class TestFolderCounts:
             {"path": "n", "count": 1}
         ]
 
+    @pytest.mark.parametrize(("params", "expected"), GET_CASES)
+    def test_spec_core_130_counts_what_the_listing_returns_per_path(
+        self, client, params, expected
+    ):
+        """SPEC-CORE-130 I14: every filter selects the listing's set, per folder."""
+        api, db, *_ = client
+        _seed_notes(db)
+
+        counts = _count_map(
+            api.get(f"/api/drives/{TEST_DRIVE}/folder-counts", params=params)
+        )
+
+        assert counts == expected
+        for path, count in counts.items():
+            res = api.get(
+                f"/api/drives/{TEST_DRIVE}/files",
+                params=[("limit", "1"), ("path", path), *params],
+            )
+            assert res.status_code == 200, res.text
+            assert res.json()["meta"]["total"] == count, path
+        total = api.get(
+            f"/api/drives/{TEST_DRIVE}/files", params=[("limit", "1"), *params]
+        )
+        assert total.status_code == 200, total.text
+        assert sum(counts.values()) == total.json()["meta"]["total"]
+
+    @pytest.mark.parametrize(
+        ("params", "status"),
+        [
+            pytest.param([("type", "bogus")], 422, id="type"),
+            pytest.param([("search", "x" * 201)], 422, id="search"),
+            pytest.param([("folder", "../etc")], 400, id="folder"),
+            pytest.param([("collection", "c" * 101)], 400, id="collection"),
+            pytest.param([("size", "gt:not-a-number")], 400, id="size"),
+            pytest.param([("duration", "gt:1.000")], 400, id="duration"),
+        ],
+    )
+    def test_spec_core_130_invalid_parameters_answer_what_files_answers(
+        self, client, params, status
+    ):
+        """SPEC-CORE-130: both forms refuse what the listing refuses."""
+        api, db, *_ = client
+        _seed_notes(db)
+
+        assert (
+            api.get(f"/api/drives/{TEST_DRIVE}/files", params=params).status_code
+            == status
+        )
+        assert (
+            api.get(
+                f"/api/drives/{TEST_DRIVE}/folder-counts", params=params
+            ).status_code
+            == status
+        )
+        assert (
+            api.post(
+                f"/api/drives/{TEST_DRIVE}/folder-counts/query",
+                params=params,
+                json={"file_ids": []},
+            ).status_code
+            == status
+        )
+
     def test_unknown_drive_is_404_and_unknown_kind_is_422(self, client):
         api, _, _, _ = client
         assert api.get("/api/drives/nope/folder-counts").status_code == 404
         assert api.get(f"/api/drives/{TEST_DRIVE}/folder-counts?type=bogus").status_code == 422
+
+
+POST_CASES = [
+    pytest.param([], ["a", "b", "v"], {"Notes": 3}, id="ids"),
+    pytest.param([("tag", "AI")], ["a", "b", "v"], {"Notes": 2}, id="ids-and-filter"),
+    pytest.param([("collection", "Picks")], [], {"Notes": 3}, id="collection"),
+    pytest.param(
+        [("collection", "Picks")],
+        ["c"],
+        {"Notes": 3, "Notes/Deep": 1},
+        id="collection-or-ids",
+    ),
+    pytest.param([], [], {}, id="empty-ids"),
+]
+
+
+class TestFolderCountsQuery:
+    """POST /api/drives/{drive}/folder-counts/query under SPEC-CORE-130."""
+
+    @pytest.mark.parametrize(("params", "names", "expected"), POST_CASES)
+    def test_spec_core_130_post_counts_what_files_query_returns_per_path(
+        self, client, params, names, expected
+    ):
+        """SPEC-CORE-130 I14: the POST form answers `files/query`'s set, per folder."""
+        api, db, *_ = client
+        rows = _seed_notes(db)
+        body = {"file_ids": [rows[name].id for name in names]}
+
+        counts = _count_map(
+            api.post(
+                f"/api/drives/{TEST_DRIVE}/folder-counts/query",
+                params=params,
+                json=body,
+            )
+        )
+
+        assert counts == expected
+        for path, count in counts.items():
+            res = api.post(
+                f"/api/drives/{TEST_DRIVE}/files/query",
+                params=[("limit", "1"), ("path", path), *params],
+                json=body,
+            )
+            assert res.status_code == 200, res.text
+            assert res.json()["meta"]["total"] == count, path
+        total = api.post(
+            f"/api/drives/{TEST_DRIVE}/files/query",
+            params=[("limit", "1"), *params],
+            json=body,
+        )
+        assert total.status_code == 200, total.text
+        assert sum(counts.values()) == total.json()["meta"]["total"]
 
 
 class TestTagCountsByKind:
@@ -137,6 +356,7 @@ def _file_in(db, drive: str, path: str, tags=()):
         row.tags.append(tag)
     db.add(row)
     db.commit()
+    return row
 
 
 class TestDriveBoundary:
@@ -146,6 +366,52 @@ class TestDriveBoundary:
 
         assert api.get(f"/api/drives/{LOCKED_DRIVE}/folder-counts?type=text").status_code == 404
         assert api.get(f"/api/drives/{LOCKED_DRIVE}/tags?type=text").status_code == 404
+
+    def test_spec_core_130_a_locked_drive_answers_404_on_both_folder_count_forms(self, two_drives):
+        """SPEC-CORE-130 I15."""
+        api, db, _, _ = two_drives
+        _file_in(db, LOCKED_DRIVE, "Secret/a.md")
+
+        get_res = api.get(f"/api/drives/{LOCKED_DRIVE}/folder-counts?type=text")
+        post_res = api.post(
+            f"/api/drives/{LOCKED_DRIVE}/folder-counts/query?type=text",
+            json={"file_ids": []},
+        )
+
+        assert get_res.status_code == 404
+        assert post_res.status_code == 404
+        assert post_res.json()["detail"] == f"Drive not found: {LOCKED_DRIVE}"
+
+    def test_spec_core_130_another_drives_ids_and_collections_count_nothing(self, two_drives):
+        """SPEC-CORE-130 I15."""
+        api, db, _, _ = two_drives
+        own = _file_in(db, OPEN_DRIVE, "Notes/a.md")
+        hidden = _file_in(db, LOCKED_DRIVE, "Notes/b.md")
+        collection = Collection(drive=LOCKED_DRIVE, name="Hidden")
+        db.add(collection)
+        db.commit()
+        db.add(
+            CollectionItem(
+                collection_id=collection.id, file_id=hidden.id, position=0
+            )
+        )
+        db.commit()
+
+        assert _count_map(
+            api.post(
+                f"/api/drives/{OPEN_DRIVE}/folder-counts/query",
+                json={"file_ids": [own.id, hidden.id]},
+            )
+        ) == {"Notes": 1}
+        assert _count_map(
+            api.post(
+                f"/api/drives/{OPEN_DRIVE}/folder-counts/query",
+                json={"file_ids": [hidden.id]},
+            )
+        ) == {}
+        assert _count_map(
+            api.get(f"/api/drives/{OPEN_DRIVE}/folder-counts?collection=Hidden")
+        ) == {}
 
     def test_another_drives_files_are_never_counted(self, two_drives):
         api, db, _, _ = two_drives

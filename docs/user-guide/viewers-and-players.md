@@ -10,6 +10,8 @@ Controls for the kind of file sit to its right (a Markdown note puts its save in
 
 During collection playback the row also keeps a way back to the collection you were playing.
 
+On a file page at 768 px or wider, the **Focus mode** button at the right end of the header (or `T`) hides the header, the sidebar and the folder tree so the file and its panes get the room. The header comes back when you move the pointer to the top edge of the window; on a touch screen, tap the handle at the top centre. Press the button in the revealed header, or `T`, to leave focus mode. It also ends when you leave the file for a folder or another screen.
+
 ## The inspector
 
 The tab strip is the top of the inspector. The first tab, **Info**, starts with the file's title, one fact about the file (see [the table in *Browsing files*](file-browsing.md#file-grid-and-list-modes)), the like, favourite, **AI** and `⋮` buttons, and the tags; all of it scrolls away with the rest of Info.
@@ -26,7 +28,7 @@ On a player file in a narrow window or on a phone, the [panels under the player]
 
 A tab appears only when it has something in it, so a video that was never transcribed has no Transcript tab.
 
-**Correcting a transcript.** In the **Transcript** panel (or tab, in a narrow window), the **分割テキスト** (Text chunks) view offers **修正** (Edit) on each line. Enter or **保存** saves, Escape or **キャンセル** cancels, and an emptied line disappears. A corrected line is marked **修正済み** (Edited). **元の結果に戻す** (Restore original) in the same header puts the whole transcript back to what the machine produced before the first correction. A corrected file is not transcribed again by automatic indexing; only **Index details** → **再生成** replaces it, after a confirmation. The player's subtitles show a correction the next time the file's page is opened.
+**Correcting a transcript.** In the **Transcript** panel (or tab, in a narrow window), the **分割テキスト** (Text chunks) view offers **修正** (Edit) on each line. Enter or **保存** saves, Escape or **キャンセル** cancels, and an emptied line disappears. On a touch screen, tap a line to show **修正** and **引用** (Quote) under it, and **修正** opens a dialog that saves only with **保存**. A corrected line is marked **修正済み** (Edited). **元の結果に戻す** (Restore original) in the same header puts the whole transcript back to what the machine produced before the first correction. A corrected file is not transcribed again by automatic indexing; only **Index details** → **再生成** replaces it, after a confirmation. The player's subtitles show a correction the next time the file's page is opened.
 
 AI sections (intelligence addon) appear once they have been generated. To generate one, use the **AI** menu in the inspector.
 

@@ -25,9 +25,14 @@ export function SaveDot({ state }: { state: MarkdownSaveState }) {
   const a11yProps = isIdle
     ? ({ "aria-hidden": true } as const)
     : ({ role: "status" as const, "aria-live": "polite" as const, "aria-label": t(labelKey) });
+  const needsAttention = state.status === "error" || state.status === "conflict";
   return (
     <span
       {...a11yProps}
+      // The focus layout reveals the hidden header while a save needs the
+      // reader, and reads that from the header it is drawn in rather than
+      // from the note behind it.
+      data-needs-attention={needsAttention ? "" : undefined}
       title={state.status === "error" && state.message ? state.message : t(labelKey)}
       data-testid="save-dot"
       data-state={state.status}

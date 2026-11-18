@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [],
+  "specification_compliance": [
+    "I1: TranscriptSection.tsx:1283 draws the strip only when isSelected, and isSelected requires coarse (1171-1175). The per-row edit and quote buttons are gated by !coarse (1307, 1328), so an unselected row on a coarse pointer has neither control in any source.",
+    "I2: There is one `selected` state (264). selectCue (829-832) replaces it. The reload effect (495-501) clears it only when no cue has the same index and start. The activeIndex effects (557-560, 605-608) scroll but never change `selected`.",
+    "I3: The row onClick (1252-1256) calls seekTo(cue.start) unconditionally (after the pre-existing editingIndex guard) and then selectCue only when coarse.",
+    "I4: The strip's 修正 is gated by source === 'chunks' and disabled={busy} (1285-1290). The strip's 引用 has no disabled prop and calls the same captureCue(cue) as the fine-pointer quote button (1299 vs 1331), and captureCue does not touch `selected`.",
+    "I5: The strip's 修正 calls openEditDialog (834-841), which sets editTarget from cue.text/start/index. The dialog sends correctTranscriptUtterance(fileId, target.index, value, target.text, target.start, drive) (TranscriptEditDialog.tsx:96-103), the same argument order as the inline saveEdit (TranscriptSection.tsx:969-976).",
+    "I6: In TranscriptEditDialog.tsx:175-183 the Enter key is prevented and stopped outside IME and returns early on IME keystrokes. onChange strips \\r and \\n (170-171). Only the 保存 Button calls save.",
+    "I7: TranscriptEditDialog.tsx: `close` and `save` return early while saving (69-72, 92). The close button, キャンセル and 保存 are disabled while saving, and the field is readOnly while saving. A non-`changed` error calls setError inside the dialog and leaves the field value alone. `changed` calls onChanged, which closes, refreshes and sets the panel's actionError (TranscriptSection.tsx:1357-1361).",
+    "I8: The backdrop has no click handler (TranscriptEditDialog.tsx:136). The draft lives in the uncontrolled textarea and is reset only when target.text changes. editTarget is cleared only on fileId change (339), source change (490) and close/save/changed. Pointer-mode change clears only `selected` (505-507).",
+    "I9: On a fine pointer, isSelected is false and the inline editor path (1183-1240) is unchanged: Enter saves and Escape cancels. The fine 修正 calls beginEdit, not openEditDialog.",
+    "I10: STRIP_BUTTON (104-105) is h-7 with a before:-inset-2 pseudo, giving a 44px hit height. The strip container's py-2 contains the 8px pseudo extension, so the pseudo reaches but does not cross the row button above it or the next row. The dialog's close button is h-11 w-11. Button component sizes were not checked.",
+    "I11: revealCue (569-589) is called after selection (591-595) and again when the playback highlight lands on the selected row (605-608). The scroll-place logic was not traced in full."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "If the file changes while a dialog save is in flight, the dialog unmounts (339) but the pending promise still calls onSaved/onChanged. Those call refreshAfterWrite for the new file and, on `changed`, set actionError on the new file's panel (TranscriptSection.tsx:1353-1361). The inline saveEdit already behaves the same way, so this is pre-existing in kind.",
+    "On success, TranscriptEditDialog's finally block (116-118) calls setSaving(false) after the parent has already unmounted the dialog. This is harmless in React 18 and later."
+  ],
+  "regression_risks": [
+    "The follow effect (557-560) and the reveal effect (605-608) both scroll on an activeIndex change while a selection exists. Their order decides whether the strip stays in view. The commit history says this was exercised in a real browser, but I did not check that here."
+  ],
+  "test_coverage": [
+    "TranscriptSectionTouch.test.tsx exists beside TranscriptSection.test.tsx and TranscriptSectionCorrections.test.tsx. I did not read its contents."
+  ],
+  "not_verified": [
+    "I did not read the test files (TranscriptSectionTouch.test.tsx, TranscriptSection.test.tsx, TranscriptSectionCorrections.test.tsx) or the e2e-components scene and spec.",
+    "I did not check the useShortcuts handler refresh semantics, or whether Escape during IME composition is filtered before the provider (frontend/src/hooks/useShortcuts.ts).",
+    "I did not check the Button component's minimum hit size for the dialog's キャンセル and 保存 (frontend/src/components/Button.tsx).",
+    "I did not trace I11's saved-scroll-place restoration (readPlace/putBack) with a strip present.",
+    "I did not check the ja.json/en.json transcriptQuote strings or the docs updates.",
+    "I ran nothing; every observation comes from reading the code statically."
+  ],
+  "confidence": 75
+}

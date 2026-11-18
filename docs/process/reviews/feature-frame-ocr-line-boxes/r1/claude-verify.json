@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1",
+      "status": "confirmed",
+      "note": "addons/intelligence/app/workers/frame_ocr.py:166-177 defines module-level `_normalised_quad(quad, width, height)`. It returns None for non-positive dimensions, for a quad that is not 8 points, or for a non-finite quad. Otherwise it divides x by width and y by height, clamps to [0,1] and rounds to 4 places. Its only call site is frame_ocr.py:454-456 inside `_read_video`. `_read_video` also now binds `ocr_image = _ocr_image(image)` (line 426) and passes it to `_read_boxes` (line 427), so `ocr_image.size` (line 447) can serve as the normalisation base. `_read_boxes` (line 262) is not touched at that call site. The touch-point list in docs/specs/frame-ocr-line-boxes.md:236-246 does not name `_normalised_quad`. The helper only serves `_read_video`'s recording of quads, so this is a scope note and not a behavioural defect. I could not view the diff itself because I have no git access. That the helper is new is inferred from its absence in the spec and in the touch points."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F2",
+      "status": "confirmed",
+      "note": "In tests/test_spec_addon_133_frame_ocr_reread_text.py, line 1 (module docstring: 'a stored read writes the current rule'), line 104 (section comment), line 108 (`test_spec_addon_133_i6_a_first_read_is_stored_under_the_current_rule`) and line 260 (`..._keeps_its_frames_under_the_current_rule`) use 'current rule' wording. In tests/test_spec_addon_133_loft_read_rule.py, lines 1-2 (docstring) and line 28 (`test_spec_addon_133_section_3_a_loft_read_is_stored_under_the_current_rule`) do the same. Earlier names used 'rule two': docs/process/reviews/feature-frame-ocr-read-interval/mutation-review.md:27 cites `test_..._i6_a_first_read_is_stored_under_rule_two`. docs/specs/frame-ocr-line-boxes.md:253-258 allows 'rule two' → 'current rule' renames only for the three named files (outdated, reread, worker_reread). For other files, the only allowed change is the 2→3 expectation. So renaming in these two files goes beyond the listed touch points. The renames are cosmetic and keep the assertions' meaning. I could not diff against base to confirm every changed line."
+    }
+  ],
+  "specification_compliance": [
+    "F1: `_normalised_quad` is an unlisted helper in frame_ocr.py and is used only by `_read_video`. Its behaviour (divide by the size of `_ocr_image`, clamp, round to 4 places, None for non-8-point quads) matches I2 and I4's 'unusable' quads.",
+    "F2: 'current rule' renames in two test files outside the three files where the touch points allow renaming."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "`_normalised_quad` also returns None for non-finite quads. Per the clarification, NaN/inf boxes are expected to stay failed frames before the store step, so this branch may be unreachable or may hide a NaN quad as 'unusable' instead of failing the frame. I did not trace whether `_read_boxes` filters NaN first."
+  ],
+  "regression_risks": [
+    "Renamed test functions may break external references (mutation-review tables, CI selectors) to the old 'rule_two' names."
+  ],
+  "test_coverage": [
+    "Did not check whether tests exercise `_normalised_quad` directly or only through `_read_video`."
+  ],
+  "not_verified": [
+    "The actual diff against origin/develop (no git access), so 'newly added' and 'renamed' rest on the current file contents and prior review docs",
+    "Whether `_read_boxes` filters non-finite quads before `_normalised_quad` sees them",
+    "The rest of the invariants I1-I7 beyond the two findings"
+  ],
+  "confidence": 85
+}

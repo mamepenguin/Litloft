@@ -265,8 +265,15 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-CORE-126 | implemented | docs/specs/workbench-split.md | sha256:5e4a96c6cf2598ae8a2d8ed22d6364a51d219e3326173c9fece6adae2590bdc1 |
 | SPEC-CORE-127 | implemented | docs/specs/workbench-split.md | sha256:5e4a96c6cf2598ae8a2d8ed22d6364a51d219e3326173c9fece6adae2590bdc1 |
 | SPEC-ADDON-122 | implemented | docs/specs/pdf-vertical-text.md | sha256:f7de193bc675151d40788b14f9ed89279334dfb437ccfd3aa6abc45971d1279c |
+| SPEC-CORE-128 | implemented | docs/specs/focus-mode.md | sha256:f0acbb73f68d5af93860666e9ddaedc9330d1b16a847745bbd9f83af185f0800 |
+| SPEC-CORE-129 | implemented | docs/specs/focus-mode.md | sha256:f0acbb73f68d5af93860666e9ddaedc9330d1b16a847745bbd9f83af185f0800 |
+| SPEC-ADDON-125 | implemented | docs/specs/transcript-touch-actions.md | sha256:a5e89c57569e23df19e2e0a550c010f29423b78a1a32cd2c4d492a8d92705130 |
+| SPEC-ADDON-126 | implemented | docs/specs/transcript-touch-actions.md | sha256:a5e89c57569e23df19e2e0a550c010f29423b78a1a32cd2c4d492a8d92705130 |
 | SPEC-ADDON-127 | implemented | docs/specs/refine-alignment-failure.md | sha256:748d0edd82eaaf091f7a36d56307b6d6b6479ad68b68aece75366f24a24df455 |
 | SPEC-ADDON-128 | implemented | docs/specs/refine-alignment-failure.md | sha256:748d0edd82eaaf091f7a36d56307b6d6b6479ad68b68aece75366f24a24df455 |
+| SPEC-ADDON-133 | implemented | docs/specs/frame-ocr-read-interval.md | sha256:ce242fcb7edbe2b2146caa6d16027c09c341688228aea67ccc1a754b3d849426 |
+| SPEC-ADDON-123 | implemented | docs/specs/frame-ocr-read-interval.md | sha256:ce242fcb7edbe2b2146caa6d16027c09c341688228aea67ccc1a754b3d849426 |
+| SPEC-ADDON-134 | implemented | docs/specs/frame-ocr-line-boxes.md | sha256:11dbb51d14a823b1f5ca9edd236aa2484a6538b7a8cc493c309e79f4e33501b5 |
 | SPEC-ADDON-130 | implemented | docs/specs/notes-app.md | sha256:72a80db466c1c03fd7f70c990d2c1b6655e186508b184f617c0fdae825a0cce7 |
 | SPEC-ADDON-131 | implemented | docs/specs/notes-app.md | sha256:72a80db466c1c03fd7f70c990d2c1b6655e186508b184f617c0fdae825a0cce7 |
 | SPEC-ADDON-132 | implemented | docs/specs/notes-app.md | sha256:72a80db466c1c03fd7f70c990d2c1b6655e186508b184f617c0fdae825a0cce7 |

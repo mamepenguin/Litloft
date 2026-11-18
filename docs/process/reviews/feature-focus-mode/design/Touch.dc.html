@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>iPad 横画面の集中モード</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:#e85d5e}a:hover{color:#f07070}
+</style>
+</helmet>
+<div style="width: 1180px; height: 820px">
+<dc-import name="Main" vw="{{ 1180 }}" vh="{{ 820 }}" focus="{{ true }}" inspector="{{ true }}" exit="reveal" coarse="{{ true }}" hint-size="1180px,820px"></dc-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1180,"height":820}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

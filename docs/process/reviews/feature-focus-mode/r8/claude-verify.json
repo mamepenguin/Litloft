@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1",
+      "status": "confirmed",
+      "note": "Confirmed by reading the code. focus-mode-touch-desktop.spec.ts:121 and :133 compare window.scrollY before and after the swipe. On the focus-drive fixture (fixtures/focusMode.tsx:153-166) the page is AppShell's min-h-dvh column, which has only paddingTop: safe-area in the focus layout (AppShell.tsx:381-384). Inside it, the hidden header is position:fixed and out of the flow (globals.css:693-698), and main holds one h-below-header box whose height is calc(100dvh - safe-area) in the focus layout (globals.css:685-687). TwoPaneLayout.tsx:153 adds overflow-clip, and only its right pane scrolls (overflow-y-auto, :193). The document's height therefore equals the viewport, so window.scrollY stays 0 whatever the gesture does. The handle is position:fixed, so its scroll chain goes to the viewport, which cannot scroll here. That makes the scroll assertion vacuous. If touch-none (AppShell.tsx:105) were removed, the scroll assertion would still pass; only the reveal assertion might catch a pointercancel. decisions.md:18 also records that in the live app the document height equals the viewport on the files used."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F2",
+      "status": "confirmed",
+      "note": "Confirmed. In docs/specs/focus-mode.md, §4 step 4 (lines 165-167) says 'a visible 56×22px pill with a down chevron inside an 88×44px hit area', D7 (line 378) says 'a handle pill with a down chevron', and D11 (line 386) says 'a 56×22px pill inside an 88×44px hit area'. None of them mentions a pull or swipe reveal. invariants.md has no revision of these lines (a grep for pill, chevron, bar, swipe and pull finds nothing). The code draws a 36×5 rounded bar with no svg (AppShell.tsx:107) and reveals on a downward pull of 12px or more (AppShell.tsx:66-67, 88-97). The human's decision appears only in decisions.md:37-41. DESIGN.md:836 reflects the change in part, but the spec does not."
+    }
+  ],
+  "specification_compliance": [
+    "SPEC-CORE-129 §4 step 4, D7 and D11 in docs/specs/focus-mode.md still describe a 56×22 pill with a chevron and no swipe reveal. The code draws a 36×5 bar and reveals on a downward pull (the spec and code disagree, as F2 says).",
+    "The 88×44 hit area at the safe area's top centre matches D11 (AppShell.tsx:104-105)."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "The downward pull reveal (AppShell.tsx:88-97, threshold 12px) is not in the spec text. Only decisions.md records it."
+  ],
+  "regression_risks": [
+    "The swipe test's no-scroll assertion would not catch losing touch-none on the handle, because the fixture's document cannot scroll."
+  ],
+  "test_coverage": [
+    "focus-mode-touch-desktop.spec.ts covers the handle's geometry at insets 0 and 24, tap reveal and dismiss, the swipe reveal, the overlay sidebar hold, focus moving to body, the cover, and crossing 768px. The swipe test's scroll check is vacuous on this fixture."
+  ],
+  "not_verified": [
+    "Did not run the Playwright tests, so the claims rest only on reading the code and CSS.",
+    "Did not check whether other fixture content mounted in the body (outside AppShell) could make the document scrollable; this rests on the fixture code and on decisions.md:17-18.",
+    "Did not check real iPad Safari behaviour of touch-none and setPointerCapture during the pull."
+  ],
+  "confidence": 88
+}

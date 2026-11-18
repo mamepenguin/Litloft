@@ -205,6 +205,7 @@ While zoomed, swipes and edge taps do not turn the page. In right-to-left mode t
 | Key | Action |
 |---|---|
 | `Cmd/Ctrl+\` | Show / hide the inspector |
+| `T` | Enter or leave focus mode on a file page |
 
 Works on every file page, even while you are editing a note. On a phone there is no toggle in the row; press the sheet's resting strip instead.
 

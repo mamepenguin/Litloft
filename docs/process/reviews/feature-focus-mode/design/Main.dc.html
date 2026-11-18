@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>集中モード</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:#e85d5e}a:hover{color:#f07070}
+</style>
+</helmet>
+<div style="{{rootStyle}}">
+
+  <sc-if value="{{showSidebar}}" hint-placeholder-val="{{ true }}">
+    <aside aria-label="サイドバー" style="width: 240px; flex-shrink: 0; height: 100%; box-sizing: border-box; border-right: 1px solid rgba(255,255,255,0.08); display: flex; flex-direction: column; gap: 4px; padding: 8px 12px">
+      <div style="display: flex; gap: 8px; height: 40px; align-items: center; margin-bottom: 8px">
+        <button aria-label="メニュー" aria-pressed="true" style="width: 40px; height: 40px; border: 0; border-radius: 16px; background: #262626; color: #ededed; display: flex; align-items: center; justify-content: center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"></path></svg></button>
+        <button aria-label="ツリーを表示" aria-pressed="false" style="width: 40px; height: 40px; border: 0; border-radius: 16px; background: transparent; color: #a3a3a3; display: flex; align-items: center; justify-content: center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"></rect><path d="M9 4v16"></path></svg></button>
+      </div>
+      <div style="height: 36px; border-radius: 18px; background: #262626; color: #ededed; display: flex; align-items: center; padding: 0 14px; font-size: 13px; font-weight: 600; margin-bottom: 8px">テスト画像</div>
+      <sc-for list="{{nav}}" as="n" hint-placeholder-count="8">
+        <div style="{{n.style}}">{{n.label}}</div>
+      </sc-for>
+    </aside>
+  </sc-if>
+
+  <div style="flex: 1; min-width: 0; height: 100%; display: flex; flex-direction: column; position: relative">
+
+    <sc-if value="{{showHeader}}" hint-placeholder-val="{{ true }}">
+      <header onMouseLeave="{{hideHeader}}" style="{{headerStyle}}">
+        <div style="display: flex; align-items: center; gap: 8px; min-width: 0">
+          <sc-if value="{{headerChrome}}" hint-placeholder-val="{{ false }}">
+            <div style="display: flex; gap: 8px; margin-right: 8px">
+              <button aria-label="メニュー" aria-pressed="false" style="width: 40px; height: 40px; border: 0; border-radius: 16px; background: transparent; color: #a3a3a3; display: flex; align-items: center; justify-content: center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"></path></svg></button>
+              <sc-if value="{{isDrive}}" hint-placeholder-val="{{ true }}">
+                <button aria-label="ツリーを表示" aria-pressed="false" style="width: 40px; height: 40px; border: 0; border-radius: 16px; background: transparent; color: #a3a3a3; display: flex; align-items: center; justify-content: center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"></rect><path d="M9 4v16"></path></svg></button>
+              </sc-if>
+            </div>
+          </sc-if>
+          <sc-if value="{{isCollection}}" hint-placeholder-val="{{ false }}">
+            <span style="color: #a3a3a3; font-size: 14px; margin-right: 8px">‹ 戻る</span>
+          </sc-if>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a3a3a3" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7v9h-6v-6H9v6H3z"></path></svg>
+          <span style="color: #a3a3a3; font-size: 14px">›</span>
+          <span style="color: #a3a3a3; font-size: 14px">テスト画像</span>
+          <span style="color: #a3a3a3; font-size: 14px">›</span>
+          <span style="color: #a3a3a3; font-size: 14px">test_videos</span>
+          <span style="color: #a3a3a3; font-size: 14px">›</span>
+          <span style="color: #ededed; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{fileTitle}}</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 4px; color: #a3a3a3">
+          <button aria-label="検索" style="width: 40px; height: 40px; border: 0; border-radius: 16px; background: transparent; color: #a3a3a3; display: flex; align-items: center; justify-content: center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg></button>
+          <button aria-label="クイックノート" style="width: 40px; height: 40px; border: 0; border-radius: 16px; background: transparent; color: #a3a3a3; display: flex; align-items: center; justify-content: center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"></path></svg></button>
+          <button aria-label="プロフィール" style="width: 40px; height: 40px; border: 0; border-radius: 16px; background: transparent; color: #a3a3a3; display: flex; align-items: center; justify-content: center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 20c1.5-4 14.5-4 16 0"></path></svg></button>
+          <span style="width: 1px; height: 24px; background: rgba(255,255,255,0.12); margin: 0 6px"></span>
+          <button onClick="{{toggleFocus}}" aria-pressed="{{focusPressed}}" aria-label="集中モード (T)" title="集中モード (T)" style="{{focusBtnStyle}}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M3 8V5a2 2 0 0 1 2-2h3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M8 21H5a2 2 0 0 1-2-2v-3"></path></svg></button>
+          <sc-if value="{{isDrive}}" hint-placeholder-val="{{ true }}">
+            <button onClick="{{toggleInspector}}" aria-pressed="{{inspectorPressed}}" aria-label="インスペクタ" title="インスペクタ" style="{{inspectorBtnStyle}}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"></rect><path d="M15 4v16"></path></svg></button>
+          </sc-if>
+        </div>
+      </header>
+    </sc-if>
+
+    <sc-if value="{{showHotZone}}" hint-placeholder-val="{{ false }}">
+      <div onMouseEnter="{{showHeaderNow}}" aria-hidden="true" style="position: absolute; left: 0; right: 0; top: 0; height: 8px; z-index: 9"></div>
+    </sc-if>
+
+    <sc-if value="{{showHandle}}" hint-placeholder-val="{{ false }}">
+      <button onClick="{{showHeaderNow}}" aria-label="ヘッダーを表示" style="{{handleStyle}}"><span style="width: 56px; height: 22px; border-radius: 11px; background: rgba(38,38,38,0.86); border: 1px solid rgba(255,255,255,0.14); display: flex; align-items: center; justify-content: center; color: #ededed"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></span></button>
+    </sc-if>
+
+    <div style="flex: 1; min-height: 0; display: flex">
+      <main style="flex: 1; min-width: 0; position: relative; overflow: hidden">
+
+        <sc-if value="{{isVideo}}" hint-placeholder-val="{{ true }}">
+          <div style="padding: 16px; display: flex; flex-direction: column; gap: 16px">
+            <div style="{{frameStyle}}">
+              <div style="position: absolute; left: 16px; right: 16px; bottom: 46px; height: 4px; border-radius: 2px; background: rgba(160,160,160,0.6)"><div style="width: 3%; height: 4px; border-radius: 2px; background: #ededed"></div></div>
+              <div style="position: absolute; left: 20px; right: 20px; bottom: 12px; height: 28px; display: flex; align-items: center; gap: 18px; color: #fff; font-size: 13px">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M7 4l13 8-13 8z"></path></svg>
+                <span>0:00 / 1:34:32</span>
+                <span style="flex: 1"></span>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"></path></svg>
+              </div>
+              <span style="color: rgba(255,255,255,0.5); font-size: 14px">{{frameLabel}}</span>
+            </div>
+            <div style="display: flex; gap: 8px">
+              <button aria-pressed="false" style="height: 32px; padding: 0 14px; border-radius: 16px; font-size: 13px; background: transparent; border: 1px solid rgba(255,255,255,0.14); color: #ededed">Transcript</button>
+              <button aria-pressed="false" style="height: 32px; padding: 0 14px; border-radius: 16px; font-size: 13px; background: transparent; border: 1px solid rgba(255,255,255,0.14); color: #ededed">Scenes</button>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{isPdf}}" hint-placeholder-val="{{ false }}">
+          <div style="display: flex; flex-direction: column; align-items: center">
+            <div style="height: 40px; margin: 12px 0 15px; display: flex; align-items: center; gap: 16px; color: #a3a3a3; font-size: 13px">
+              <span>‹</span><span>1 / 212</span><span>›</span><span style="width: 1px; height: 18px; background: rgba(255,255,255,0.12)"></span><span>−</span><span>100%</span><span>＋</span>
+            </div>
+            <div style="{{pageStyle}}">
+              <div style="height: 22px; width: 62%; background: #d4d4d4; border-radius: 3px; margin-bottom: 28px"></div>
+              <sc-for list="{{pageLines}}" as="l" hint-placeholder-count="14">
+                <div style="{{l.style}}"></div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{isCollection}}" hint-placeholder-val="{{ false }}">
+          <div style="{{collStyle}}">
+            <div style="{{collFrameStyle}}">
+              <div style="position: absolute; left: 16px; right: 16px; bottom: 46px; height: 4px; border-radius: 2px; background: rgba(160,160,160,0.6)"><div style="width: 3%; height: 4px; border-radius: 2px; background: #ededed"></div></div>
+              <div style="position: absolute; left: 20px; right: 20px; bottom: 12px; height: 28px; display: flex; align-items: center; gap: 18px; color: #fff; font-size: 13px">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M7 4l13 8-13 8z"></path></svg>
+                <span>0:00 / 0:19</span>
+              </div>
+              <span style="color: rgba(255,255,255,0.5); font-size: 14px">{{frameLabel}}</span>
+            </div>
+            <div style="font-size: 13px; color: #ededed">Apple Developer · 20260512</div>
+            <div style="font-size: 13px; color: #a3a3a3; line-height: 1.5">Meet some of the inspiring people who are making a difference in the Apple developer community.</div>
+            <div style="font-size: 20px; font-weight: 700; color: #ededed; margin-top: 24px">To those who build community Apple Developer</div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{showFloat}}" hint-placeholder-val="{{ false }}">
+          <div style="position: absolute; top: 12px; right: 12px; display: flex; gap: 6px; padding: 4px; border-radius: 22px; background: rgba(22,22,22,0.78); border: 1px solid rgba(255,255,255,0.12)">
+            <sc-if value="{{isDrive}}" hint-placeholder-val="{{ true }}">
+              <button onClick="{{toggleInspector}}" aria-pressed="{{inspectorPressed}}" aria-label="インスペクタ" title="インスペクタ" style="{{inspectorBtnStyle}}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"></rect><path d="M15 4v16"></path></svg></button>
+            </sc-if>
+            <button onClick="{{toggleFocus}}" aria-pressed="true" aria-label="集中モードを終える (T)" title="集中モードを終える (T)" style="{{focusBtnStyle}}"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M3 8V5a2 2 0 0 1 2-2h3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M8 21H5a2 2 0 0 1-2-2v-3"></path></svg></button>
+          </div>
+        </sc-if>
+      </main>
+
+      <sc-if value="{{showInspector}}" hint-placeholder-val="{{ true }}">
+        <aside aria-label="インスペクタ" style="width: 384px; flex-shrink: 0; height: 100%; box-sizing: border-box; border-left: 1px solid rgba(255,255,255,0.08); display: flex; flex-direction: column">
+          <div role="tablist" style="height: 34px; display: flex; gap: 4px; padding: 0 8px; border-bottom: 1px solid rgba(255,255,255,0.08); align-items: flex-end">
+            <button role="tab" aria-selected="true" style="height: 34px; padding: 0 12px; border: 0; background: transparent; color: #ededed; font-size: 13px; border-bottom: 2px solid #e85d5e">Info</button>
+            <button role="tab" aria-selected="false" style="height: 34px; padding: 0 12px; border: 0; background: transparent; color: #a3a3a3; font-size: 13px">Related</button>
+            <button role="tab" aria-selected="false" style="height: 34px; padding: 0 12px; border: 0; background: transparent; color: #a3a3a3; font-size: 13px">Ask</button>
+          </div>
+          <div style="padding: 20px 16px; display: flex; flex-direction: column; gap: 10px">
+            <div style="font-size: 20px; font-weight: 700; color: #ededed">LAST EVOLUTION</div>
+            <div style="font-size: 12px; color: #a3a3a3">1:34:32</div>
+            <div style="display: flex; gap: 20px; font-size: 14px; color: #a3a3a3; margin-top: 6px"><span>Like</span><span>Favorites</span><span style="color: #ededed">Verified</span></div>
+            <div style="font-size: 14px; color: #ededed">AI</div>
+            <div style="font-size: 12px; color: #a3a3a3">+ Add tag</div>
+            <div style="height: 1px; background: rgba(255,255,255,0.08); margin: 8px 0"></div>
+            <div style="font-size: 14px; color: #ededed">› Comments</div>
+          </div>
+        </aside>
+      </sc-if>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"vw":{"editor":"int","default":1440},"vh":{"editor":"int","default":900},"surface":{"editor":"enum","options":["drive","collection"],"default":"drive"},"kind":{"editor":"enum","options":["video","pdf"],"default":"video"},"focus":{"editor":"boolean","default":false},"inspector":{"editor":"boolean","default":true},"exit":{"editor":"enum","options":["reveal","float"],"default":"reveal"},"revealed":{"editor":"boolean","default":false},"coarse":{"editor":"boolean","default":false},"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = {
+      focus: props.focus ?? false,
+      inspector: props.inspector ?? true,
+      revealed: props.revealed ?? false,
+    };
+  }
+  renderVals() {
+    const vw = Number(this.props.vw ?? 1440);
+    const vh = Number(this.props.vh ?? 900);
+    const surface = this.props.surface ?? 'drive';
+    const kind = this.props.kind ?? 'video';
+    const exit = this.props.exit ?? 'reveal';
+    const coarse = this.props.coarse ?? false;
+    const { focus, revealed } = this.state;
+    const isDrive = surface === 'drive';
+    const isCollection = !isDrive;
+    const inspector = isDrive && this.state.inspector;
+
+    const showSidebar = isDrive && !focus;
+    const overlay = focus && exit === 'reveal' && revealed;
+    const showHeader = !focus || overlay;
+    const headerH = focus ? 0 : 56;
+    const sideW = showSidebar ? 240 : 0;
+    const inspW = inspector ? 384 : 0;
+    const canvasW = vw - sideW - inspW;
+    const canvasH = vh - headerH;
+
+    const W = canvasW - 32;
+    const availH = canvasH - 16 - 16 - 32 - 16;
+    const frameW = Math.min(W, Math.floor(availH * 16 / 9));
+    const frameH = Math.round(frameW * 9 / 16);
+    const frameStyle = 'position: relative; width: ' + frameW + 'px; height: ' + frameH + 'px; border-radius: 6px; background: #2b2531; display: flex; align-items: center; justify-content: center';
+    const frameLabel = frameW + ' × ' + frameH;
+
+    const pageW = Math.min(900, canvasW - 62);
+    const pageStyle = 'width: ' + pageW + 'px; height: 1300px; box-sizing: border-box; background: #fafafa; border-radius: 2px; padding: 72px 64px; display: flex; flex-direction: column; gap: 14px';
+    const pageLines = Array.from({ length: 18 }, (_, i) => ({ style: 'height: 10px; border-radius: 3px; background: #dcdcdc; width: ' + (i % 6 === 5 ? 54 : 92 + (i % 3) * 3) + '%' }));
+
+    const collW = Math.min(1088, vw - 64);
+    const collStyle = 'width: ' + collW + 'px; margin: 40px auto 0; display: flex; flex-direction: column; gap: 10px';
+    const collFrameH = Math.round(collW * 9 / 16);
+    const collFrameStyle = 'position: relative; width: ' + collW + 'px; height: ' + collFrameH + 'px; border-radius: 6px; background: #3b2a5e; display: flex; align-items: center; justify-content: center; margin-bottom: 12px';
+
+    const headerChrome = overlay || isCollection;
+    const headerStyle = (overlay
+      ? 'position: absolute; top: 0; left: 0; right: 0; z-index: 10; box-shadow: 0 6px 20px rgba(0,0,0,0.5); '
+      : 'position: relative; flex-shrink: 0; ')
+      + 'height: 56px; box-sizing: border-box; display: flex; align-items: center; justify-content: space-between; padding: 0 16px 0 ' + (headerChrome ? 12 : 16) + 'px; background: #161616; border-bottom: 1px solid rgba(255,255,255,0.08)';
+
+    const iconBtn = (on) => 'width: 40px; height: 40px; border: 0; border-radius: 16px; display: flex; align-items: center; justify-content: center; background: ' + (on ? '#262626' : 'transparent') + '; color: ' + (on ? '#ededed' : '#a3a3a3');
+
+    const navLabels = ['Home', 'Inbox', 'Library', 'Video', 'Reading', 'Ask', 'Notes', 'Clips', 'Favorites', 'Liked', 'Continue', 'Recently Viewed'];
+    const nav = navLabels.map((label) => ({ label, style: 'height: 36px; display: flex; align-items: center; padding: 0 14px; border-radius: 12px; font-size: 14px; color: #ededed; ' + (label === 'Library' ? 'background: #262626' : '') }));
+
+    const handleStyle = 'position: absolute; top: 0; left: 50%; transform: translateX(-50%); z-index: 9; width: 88px; height: 44px; border: 0; background: transparent; display: flex; align-items: flex-start; justify-content: center; padding-top: 6px';
+
+    return {
+      rootStyle: 'width: ' + vw + 'px; height: ' + vh + 'px; display: flex; overflow: hidden; background: #161616; color: #ededed; font-family: Inter, "Hiragino Sans", system-ui, sans-serif',
+      showSidebar,
+      nav,
+      showHeader,
+      headerStyle,
+      headerChrome,
+      isDrive,
+      isCollection,
+      isVideo: isDrive && kind === 'video',
+      isPdf: isDrive && kind === 'pdf',
+      fileTitle: isDrive ? (kind === 'pdf' ? 'サッカーの神様をさがして' : 'LAST EVOLUTION') : 'To those who build community Apple Developer',
+      frameStyle,
+      frameLabel: isCollection ? collW + ' × ' + collFrameH : frameLabel,
+      pageStyle,
+      pageLines,
+      collStyle,
+      collFrameStyle,
+      showInspector: inspector,
+      inspectorPressed: inspector ? 'true' : 'false',
+      inspectorBtnStyle: iconBtn(inspector),
+      focusPressed: focus ? 'true' : 'false',
+      focusBtnStyle: iconBtn(focus),
+      showHotZone: focus && exit === 'reveal' && !coarse && !revealed,
+      showHandle: focus && exit === 'reveal' && coarse && !revealed,
+      handleStyle,
+      showFloat: focus && exit === 'float',
+      toggleFocus: () => this.setState({ focus: !this.state.focus, revealed: false }),
+      toggleInspector: () => this.setState({ inspector: !this.state.inspector }),
+      showHeaderNow: () => this.setState({ revealed: true }),
+      hideHeader: () => { if (!coarse) this.setState({ revealed: false }); },
+    };
+  }
+}
+</script>
+</body>
+</html>

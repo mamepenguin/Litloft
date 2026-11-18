@@ -26,8 +26,8 @@ import intelligenceEn from "../../src/addons/intelligence/messages/en.json";
 import { scenesFrames, scenesVisualIndex } from "./scenesSectionData";
 
 const DRIVE = "fixture";
-const VIDEO_ID = "video0000001";
-const PDF_ID = "pdf000000001";
+export const VIDEO_ID = "video0000001";
+export const PDF_ID = "pdf000000001";
 
 /**
  * A 3-second 16×16 VP8 clip: a `<video>` reports no metadata for anything
@@ -184,7 +184,7 @@ function json(value: unknown, status = 200): Response {
 
 let fetchInstalled = false;
 
-function installFetch(): void {
+export function installFetch(): void {
   if (fetchInstalled) return;
   fetchInstalled = true;
   // The real route draws the file from its list's copy on the first frame
@@ -376,7 +376,7 @@ function buildPdf(pages: readonly string[]): Uint8Array {
  * pdf.js reads a document through `XMLHttpRequest`, which the same origin rule
  * blocks just as firmly.
  */
-function installMedia(): void {
+export function installMedia(): void {
   if (mediaInstalled) return;
   mediaInstalled = true;
   const bytes = Uint8Array.from(atob(WEBM_BASE64), (c) => c.charCodeAt(0));
