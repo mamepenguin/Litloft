@@ -94,3 +94,14 @@ pending: |
     path: not producible by ordinary use here.
   - Browser-controls mode (`playerUi === "browser"`) for the native player: not exercised.
   - iOS native full screen and Picture in Picture (agent_cannot_verify).
+
+## Design check (accepted by the human, 2026-11-19)
+
+- D-1 accepted: the other matched lines of the segment are drawn in the mark style, as spec step 17 says; the same as find on a picture.
+- D-2 accepted: the find list row layout is the existing one, not changed by this work.
+- D-3 accepted: the current mark in the find list is the existing style, not changed by this work.
+- D-4 accepted: find list excerpts are the existing length, not changed by this work.
+- D-5 accepted: the outline reuses `.find-box` / `.find-box-current` unchanged; the pale fill is the slide's light background.
+- D-6 accepted: not shot in R-5 (phone first row under the toolbar); left for the human's check.
+- D-7 accepted: no vertical YouTube video or advertisement in the data; left for the human's check.
+- D-8 accepted: the mixed list was shot in two screenshots (r5/10, r5/20), not one; left for the human's check.
