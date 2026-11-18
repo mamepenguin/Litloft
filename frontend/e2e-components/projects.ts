@@ -5,6 +5,7 @@
  */
 
 export const DESKTOP_ONLY = [
+  "**/frame-crop-desktop.spec.ts",
   "**/add-menu-desktop.spec.ts",
   "**/condition-menu-desktop.spec.ts",
   "**/anchored-direction-desktop.spec.ts",

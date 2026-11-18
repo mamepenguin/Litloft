@@ -112,6 +112,7 @@ import { ClipsPageArrangement } from "./clipsPage";
 import { ClipsRowArrangement } from "./clipsRow";
 import { NotesAllClipsToggleArrangement } from "./notesAllClipsToggle";
 import { READING_ARRANGEMENTS } from "./readingTextSize";
+import { FRAME_CROP_ARRANGEMENTS } from "./frameCrop";
 import { NAME_IN_USE_ARRANGEMENTS } from "./nameInUse";
 import { BATCH_PROGRESS_ARRANGEMENTS } from "./batchProgress";
 import { FOCUS_MODE_ARRANGEMENTS } from "./focusMode";
@@ -2871,6 +2872,7 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "drive-unavailable": DriveUnavailableArrangement,
   "drive-unavailable-long": DriveUnavailableLongArrangement,
   ...READING_ARRANGEMENTS,
+  ...FRAME_CROP_ARRANGEMENTS,
   ...NAME_IN_USE_ARRANGEMENTS,
   ...BATCH_PROGRESS_ARRANGEMENTS,
   ...FOCUS_MODE_ARRANGEMENTS,
