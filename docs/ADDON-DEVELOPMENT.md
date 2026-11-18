@@ -61,7 +61,8 @@ directory. Both trees are gitignored.
 
 The Docker builds do not use the symlinks. The backend image copies each
 addon's `backend/` to `/app/addons/{name}/`, copies its `manifest.json` next
-to it, installs `requirements.txt` and runs `install.sh`. The frontend image
+to it, installs `requirements.txt` and runs `install.sh`; a failure in either
+step fails the backend image build. The frontend image
 copies each addon's `frontend/` to `src/addons/{name}/` and merges the addon
 translation files into the core catalogue.
 
