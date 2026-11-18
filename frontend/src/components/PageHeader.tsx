@@ -169,7 +169,11 @@ export function PageHeader({
             </div>
           )}
           {withPrimary && (
-            <div className="col-span-3 row-start-5 flex min-w-0 justify-end gap-2 max-sm:[&>*]:flex-1 sm:col-span-1 sm:col-start-5 sm:row-start-1">
+            <div
+              className={`col-span-3 ${
+                given(actions) ? "row-start-5" : "row-start-4"
+              } flex min-w-0 justify-end gap-2 max-sm:mt-2 max-sm:[&>*]:flex-1 sm:col-span-1 sm:col-start-5 sm:row-start-1`}
+            >
               {primaryAction}
             </div>
           )}
