@@ -113,3 +113,55 @@ for (const width of NARROW) {
     expect(rows.button.bottom).toBeGreaterThan(rows.h1.top);
   });
 }
+
+interface Box {
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
+}
+
+async function scopeEndBoxes(page: import("@playwright/test").Page) {
+  return page.evaluate(() => {
+    const box = (selector: string) => {
+      const r = document.querySelector(selector)!.getBoundingClientRect();
+      return { left: r.left, right: r.right, top: r.top, bottom: r.bottom };
+    };
+    return {
+      title: box("header h1"),
+      scopeEnd: box("#scope-end"),
+      action: box("#header-action"),
+      tabs: box("#tabs"),
+      scrollWidth: document.documentElement.scrollWidth,
+    };
+  });
+}
+
+const onRow = (a: Box, b: Box) => Math.min(a.bottom, b.bottom) > Math.max(a.top, b.top);
+
+test("page-header-scope-end-actions at 1440px: title, Target, then the action, rightmost, on one row", async ({
+  page,
+}) => {
+  await open(page, "page-header-scope-end-actions", 1440);
+  const m = await scopeEndBoxes(page);
+
+  expect(onRow(m.title, m.scopeEnd)).toBe(true);
+  expect(onRow(m.title, m.action)).toBe(true);
+  expect(m.title.right).toBeLessThanOrEqual(m.scopeEnd.left + 1);
+  expect(m.scopeEnd.right).toBeLessThanOrEqual(m.action.left + 1);
+  expect(Math.abs(m.action.right - (1440 - 16))).toBeLessThanOrEqual(1);
+  expect(m.tabs.top).toBeGreaterThanOrEqual(m.action.bottom - 1);
+  expect(m.scrollWidth).toBeLessThanOrEqual(1440);
+});
+
+test("page-header-scope-end-actions at 390px: the action is a full-width row after the tabs", async ({
+  page,
+}) => {
+  await open(page, "page-header-scope-end-actions", 390);
+  const m = await scopeEndBoxes(page);
+
+  expect(m.action.top).toBeGreaterThanOrEqual(m.tabs.bottom - 1);
+  expect(Math.abs(m.action.left - 16)).toBeLessThanOrEqual(1);
+  expect(Math.abs(m.action.right - (390 - 16))).toBeLessThanOrEqual(1);
+  expect(m.scrollWidth).toBeLessThanOrEqual(390);
+});

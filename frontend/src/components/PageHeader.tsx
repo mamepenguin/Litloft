@@ -63,6 +63,9 @@ export function PageHeader({
     (given(leading) && !hasTitle);
 
   const withScopeEnd = hasTitle && !hasTitleField && given(scopeEnd);
+  // Actions beside a scopeEnd take the last column, so the scopeEnd moves one
+  // column in; without actions the columns are as they were.
+  const actionsAfterScopeEnd = withScopeEnd && given(actions);
 
   const rows = {
     title: "row-start-1",
@@ -105,7 +108,13 @@ export function PageHeader({
       )}
 
       {withScopeEnd && (
-        <div className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-x-3 gap-y-1 sm:grid-cols-[auto_minmax(120px,1fr)_auto_fit-content(40%)]">
+        <div
+          className={`grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-x-3 gap-y-1 ${
+            actionsAfterScopeEnd
+              ? "sm:grid-cols-[auto_minmax(120px,1fr)_fit-content(40%)_auto]"
+              : "sm:grid-cols-[auto_minmax(120px,1fr)_auto_fit-content(40%)]"
+          }`}
+        >
           <div className={`col-start-1 ${rows.title} row-span-2 flex items-start gap-2`}>
             {!hasTrailRow && leading}
             {TitleIcon && (
@@ -133,7 +142,11 @@ export function PageHeader({
               // column's 120px is the narrowest a title stays readable. Below
               // `sm` the quiet control's padding hangs into the gutter, so its
               // chevron rather than its box meets the content edge.
-              <div className={`min-w-0 max-sm:-mr-2 sm:col-start-4 ${rows.title}`}>
+              <div
+                className={`min-w-0 max-sm:-mr-2 ${
+                  actionsAfterScopeEnd ? "sm:col-start-3" : "sm:col-start-4"
+                } ${rows.title}`}
+              >
                 {scopeEnd}
               </div>
             )}
@@ -143,7 +156,11 @@ export function PageHeader({
           )}
           {given(actions) && (
             <div
-              className={`col-span-3 ${rows.actions} flex min-w-0 justify-end gap-2 max-sm:-mr-2 sm:col-span-1 sm:col-start-3`}
+              className={`col-span-3 ${rows.actions} flex min-w-0 justify-end gap-2 sm:col-span-1 ${
+                actionsAfterScopeEnd
+                  ? "max-sm:[&>*]:flex-1 sm:col-start-4"
+                  : "max-sm:-mr-2 sm:col-start-3"
+              }`}
             >
               {actions}
             </div>

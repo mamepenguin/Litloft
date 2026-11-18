@@ -2566,6 +2566,41 @@ function PageHeaderTitleActions(): ReactElement {
   );
 }
 
+function PageHeaderScopeEndActions(): ReactElement {
+  const quiet = "whitespace-nowrap rounded-lg px-2 py-1.5 text-sm";
+  return (
+    <PageHeaderActionsArrangement
+      header={
+        <PageHeader
+          titleIcon={FolderTree}
+          title="Notes"
+          scope="12 notes"
+          scopeEnd={
+            <button type="button" id="scope-end" className={quiet}>
+              Target All notes
+            </button>
+          }
+          tabs={
+            <nav id="tabs" className="flex gap-4 text-sm">
+              <a href="#home">Home</a>
+              <a href="#library">Library</a>
+            </nav>
+          }
+          actions={
+            <button
+              type="button"
+              id="header-action"
+              className="whitespace-nowrap rounded-lg border border-border-default px-3 py-1.5 text-sm"
+            >
+              New note
+            </button>
+          }
+        />
+      }
+    />
+  );
+}
+
 function AdminSettingsRows(): ReactElement {
   return (
     <NextIntlClientProvider locale="en" messages={enMessages}>
@@ -2649,6 +2684,7 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "page-header-title-actions": PageHeaderTitleActions,
   "page-header-title-medium-actions": PageHeaderTitleMediumActions,
   "page-header-title-short-action": PageHeaderTitleShortAction,
+  "page-header-scope-end-actions": PageHeaderScopeEndActions,
   "admin-settings-rows": AdminSettingsRows,
   "chrome-buttons": ChromeButtonsArrangement,
   "folder-listing-header-deep": FolderListingHeaderArrangement,
