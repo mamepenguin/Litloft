@@ -63,7 +63,11 @@ SPEC-CORE-137, the column:
    the create-file endpoint when it revives a missing row.
 3a. Writes Litloft makes on its own, without a request to change that file — the `.md` id
    stamp (`_ensure_md_id_for_new_file`) and the `[[link]]` rewrite on rename
-   (`markdown_relations`) — **[human decision Q2]**.
+   (`markdown_relations`) — are not modifications (user choice, 2026-11-18). Each reads
+   the file's `st_atime` / `st_mtime` before it writes and puts them back with
+   `os.utime` after, so the file on disk keeps the time of its last edit and the scan
+   leaves `modified_at` as it was. When the times cannot be put back, the write stands
+   and the next scan records the new mtime.
 4. Each scan stats every row it walks that has a file on disk — active, trashed, a
    missing row that reappears, and a row matched as a move — including those it skips for
    hashing today, and sets `modified_at` when the stat's whole seconds differ from the
@@ -136,13 +140,19 @@ SPEC-CORE-138, sending:
    counted once, at most 4 distinct.
 4. Evaluation zone. On a page it is the browser's zone. The frontend server's Smart
    Collection evaluation (`GET /app-api/smart-collection-members`) accepts an optional
-   `tz` parameter naming an IANA zone and uses it; an unknown zone is 400. Without `tz`
-   **[human decision Q3]**. The MCP server sends its host's zone as `tz` on every call to
+   `tz` parameter naming an IANA zone and uses it; an unknown zone is 400. Without `tz`,
+   a Smart Collection whose query holds an absolute `modified:` amount answers 400
+   ("tz is required for an absolute modified: date"), so no answer is silently read in
+   the server's zone; one with only relative amounts, or none, answers as today (user
+   choice, 2026-11-18). The MCP server sends its host's zone as `tz` on every call to
    that route (`tools/collections.ts` and `tools/ask.ts`), so a Smart Collection listed
    through MCP on the machine where the viewer reads it holds the same files as on the
    page.
 5. App targets (`appTarget.ts`, `videoAppTarget.ts`), which build listing and shelf
-   parameters from a Smart Collection's query, **[human decision Q1]**.
+   parameters from a Smart Collection's query, treat a `modified:` token as an
+   `unsupported_part`, as `appTarget` treats `duration:` today: the Smart Collection is
+   shown as unusable as an app target rather than listed without the condition (user
+   choice, 2026-11-18).
 6. Deployment: the addon PR merges first and the core PR carries the pointer bump, as for
    SPEC-ADDON-065, so no commit of `develop` pairs a core that sends `modified` with an
    addon that rejects it.
@@ -175,7 +185,8 @@ SPEC-ADDON-143:
 - A file's mtime set in the future or in the distant past (a camera with a wrong clock, an
   archive extracted with its original times): the operator answers on that mtime, which
   is what the filesystem says.
-- An unknown `tz` on the Smart Collection route: 400, as for a bad `offset`. No `tz`: Q3.
+- An unknown `tz` on the Smart Collection route: 400, as for a bad `offset`. No `tz` with
+  an absolute `modified:`: 400 (sending step 4); MCP shows the error text.
 - A malformed `modified` on the listing: 400; in `filter` or `/files/matching`: 422. The
   frontend never sends either.
 
@@ -267,10 +278,12 @@ Core:
   `frontend/src/components/search/useFileSearch.ts`.
 - `backend/app/routers/shelves.py` (`ShelfQuery`) and the folder-counts routes, through
   `FileFiltersQuery`.
-- `frontend/src/lib/appTarget.ts`, `frontend/src/lib/videoAppTarget.ts` (Q1).
+- `frontend/src/lib/appTarget.ts`, `frontend/src/lib/videoAppTarget.ts`:
+  `unsupported_part`.
 - `frontend/src/lib/searchMerge.ts`, `frontend/src/components/folder/FolderTreePane.tsx`:
   `FileItem` literals gain `modified_at`.
-- `backend/app/services/markdown_relations.py` and the scanner's id stamp (Q2).
+- `backend/app/services/markdown_relations.py` and the scanner's id stamp: keep the
+  file's times.
 - `frontend/src/components/search/ConditionMenu.tsx`, `SearchFilterChips.tsx`.
 - `frontend/src/lib/smartCollectionEval.ts`,
   `frontend/src/app/app-api/smart-collection-members/route.ts`: the evaluation zone and
@@ -301,6 +314,9 @@ I10. A query with no `modified:` token sends the same listing parameters and the
 I11. A saved Smart Collection with `modified:<1y`, evaluated with `now` a day later, keeps a file that crossed the one-year boundary in between and did not keep it before; every page of one search run sends the same wire form.
 I12. Removing a 「更新日」 chip removes exactly the tokens with its identity and leaves every other token's raw string unchanged; the menu never offers a preset whose identity is already in the query or that would make the range impossible.
 I13. The list view's row date shows `modified_at`, and `updated_at` only when `modified_at` is NULL.
+I14. Importing a `.md` without an id and renaming a file that other notes link to leave every rewritten file's `st_mtime` and `modified_at` as they were before the write.
+I15. `/app-api/smart-collection-members` without `tz` answers 400 for a Smart Collection holding an absolute `modified:` amount, and answers as before for one holding none; both MCP callers send `tz`.
+I16. An app target built from a Smart Collection holding `modified:` reports `unsupported_part` and requests no listing without the condition.
 
 ## Checked, no action
 
