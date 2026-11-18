@@ -79,11 +79,13 @@ export function NotesLibraryArrangement(): ReactElement {
   return (
     <NextIntlClientProvider locale="ja" messages={{ ...jaMessages, ...knowledgeJa }}>
       <PageFrame width="wide" header={<PageHeader title="ノート" />}>
-        <NotesLibrary
-          drive="fixture"
-          target={{ status: "ready", key: "default", params: null, fileIds: null }}
-          total={NOTE_COUNT}
-        />
+        <div id="notes-app-panel" className="px-4 pb-10 pt-6">
+          <NotesLibrary
+            drive="fixture"
+            target={{ status: "ready", key: "default", params: null, fileIds: null }}
+            total={NOTE_COUNT}
+          />
+        </div>
       </PageFrame>
     </NextIntlClientProvider>
   );

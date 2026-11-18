@@ -35,6 +35,7 @@ interface Measured {
   menu: Box | null;
   list: Box;
   pane: Box | null;
+  firstRow: Box | null;
   pageScrollWidth: number;
   innerWidth: number;
 }
@@ -55,6 +56,7 @@ function measure(page: Page): Promise<Measured> {
       menu: box(menu),
       list: box(body.children[0])!,
       pane: box(body.children[1] ?? null),
+      firstRow: box(body.children[0].querySelector("li")),
       pageScrollWidth: document.documentElement.scrollWidth,
       innerWidth: window.innerWidth,
     };
@@ -102,6 +104,9 @@ for (const { width, layout } of CASES) {
       expect(m.pane, "the pane is not drawn").toBeNull();
       expect(m.list.left, "the list starts on the page").toBeGreaterThanOrEqual(-0.5);
       expect(m.list.right, "the list ends on the page").toBeLessThanOrEqual(m.innerWidth + 0.5);
+      expect(m.firstRow, "a row is drawn").not.toBeNull();
+      expect(Math.abs(m.firstRow!.left), "rows start at the page edge").toBeLessThanOrEqual(1);
+      expect(Math.abs(m.firstRow!.right - m.innerWidth), "rows end at the page edge").toBeLessThanOrEqual(1);
     }
   });
 }
