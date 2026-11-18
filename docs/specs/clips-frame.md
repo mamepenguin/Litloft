@@ -18,9 +18,9 @@ by their picture and read once.
 - **SPEC-ADDON-138, the frame and Home.** The core `AppHeader` with the Clips icon and
   title, the scope line "<drive> · N clips", the shared Target menu, "Clip a web page" as
   the header's primary action, and the tabs **Home** and **Library**. Home keeps its
-  shelves (Unread, Recently opened, Unverified; New clips without a profile), now drawn as
-  cover cards, each with "See all ›" to a shelf page. Cards on the Unverified shelf have a
-  "Mark as verified" button.
+  shelves (Unread, Recently opened, Unverified; New clips without a profile). Unread,
+  Recently opened and New clips are drawn as cover cards; Unverified is a list of rows,
+  each with a "Mark as verified" button. Every shelf has "See all ›" to a shelf page.
 - **SPEC-ADDON-139, Library and shelf pages.** Two menus above the Library: grouping
   (**By tag**: one shelf of cover cards per tag, the most used first, "Untagged" last; or
   **No grouping**: every clip as a grid) and sort (**Newest clipped**, **Oldest
@@ -45,14 +45,14 @@ Visible decisions, as checkable lines:
   ("All clips"), then the red "Clip a web page" button (below the tabs on a phone, full
   width); the tabs "Home" and "Library".
 - Home, top to bottom: "Unread" with its count beside the heading and "See all ›" at the
-  right; "Recently opened" with "See all ›"; "Unverified" with "See all ›". Each shelf is
-  one row of cover cards in a grid of columns at least 200px wide, gaps 24px between rows
-  and 20px between columns.
+  right; "Recently opened" with "See all ›"; "Unverified" with "See all ›". Unread and
+  Recently opened are cover cards in columns at least 200px wide with a 20px gap.
+- An Unverified row: a 72×54 thumbnail (the cover, or the tint), the title on one line,
+  "site · age" under it, and the "Mark as verified" button at the right.
 - A cover card: a 4:3 cover (the clip's first image, cropped to fill; without one, a
   flat tint with no text), a red dot at the cover's top left when unread, the title in up
   to two lines, then in muted text "site · N min · age" on Home and shelf pages and
-  "site · N min" in the Library. An Unverified card shows "site · age" and a "Mark as
-  verified" button under it.
+  "site · N min" in the Library.
 - Library: two menu buttons, grouping ("By tag ⌄") and sort ("Newest clipped ⌄"), and
   nothing else above the shelves; each shelf headed by the tag, its count and "See all ›";
   one row of cover cards.
@@ -61,6 +61,11 @@ Declared differences between the design and this spec, accepted with it:
 
 - **The cover tint is one token, not eight tints.** The design's varied tints are
   placeholders for pictures; a clip without a cover gets the elevated surface colour.
+- **Shelves follow DESIGN.md, not one fixed row.** A shelf is the cards that fit its
+  rows as `ShelfBlock` lays them out (columns from the container's width at a 200px
+  minimum and 20px gap; one row at three columns or more, two rows at two; a sideways
+  strip only on a coarse pointer), where the design draws one row, five fixed columns in
+  the Library, and a 24px row gap on Home (owner's choice, 2026-11-18).
 - **States without an artboard** (phone, No grouping, shelf pages, empty, loading and
   error) are built from the components named in item 9.
 
@@ -96,20 +101,24 @@ Declared differences between the design and this spec, accepted with it:
 5. "Clip a web page" opens and closes the existing clip form (`ClipSection`) in a region
    under the header; `?prefill=` opens it with the URL and title filled, as today.
    **Refresh** happens on `knowledge.clip.ready` and on `ClipSection`'s `onClipAdded`
-   (which also covers pasted clips and "create anyway"): the scope count and every shown
-   shelf or grid re-ask their first page (Home shelves; the Library's first 12 tag
-   shelves or first 60 cards; a shelf page's first 60) and merge it in: clips not drawn
-   yet are put first, drawn cards stay, later pages already drawn stay (SPEC-ADDON-100
-   I25). Covers and unread dots are then asked for the cards not asked about yet and for
-   the clip the event names. A Target change and a remount are not refreshes; they start
-   over.
+   (which also covers pasted clips and "create anyway"). The scope count re-asks, and so
+   does the drive-wide count when it was 0. Every shown card shelf or grid re-asks its
+   first page (Home shelves; a No grouping grid's or a shelf page's first 60) and merges
+   it in its sort order: a clip not drawn yet takes its place, a drawn card is updated
+   with the answer's data (title, size, dates), and later pages already drawn stay. By
+   tag re-asks its first 12 tag shelves and replaces that set, its order and counts; the
+   shelves drawn after them are dropped and asked again from `offset=12` as the viewer
+   scrolls. Covers and unread dots are then asked for the cards not asked about yet, for
+   the cards whose last ask failed, and for the clip the event names. A Target change, a
+   nickname change and a remount are not refreshes; they start over.
 6. Home, with a profile: **Unread** (`shelves` `by=all` `key=all`, `opened=false`, newest
    clipped first, 12 cards), with its count beside the heading; **Recently opened**
    (`watch-history` `filter=all`, `type=text`, `origin=webclip`, limit 12, newest opened
    first; it does not follow the Target, like Notes' Continue writing); **Unverified**
-   (`shelves` `by=all` `key=all`, `trust=unverified`, newest clipped first, 12). Without a
-   profile: **New clips** (`shelves` `by=all` `key=all`, newest first, 12) and
-   **Unverified**. A shelf with no cards is not drawn. "See all ›" goes to that shelf's
+   (`shelves` `by=all` `key=all`, `trust=unverified`, newest clipped first, 5 rows, no
+   count beside the heading). Without a profile: **New clips** (`shelves` `by=all`
+   `key=all`, newest first, 12) and **Unverified**. Card shelves draw as many of their 12
+   as `ShelfBlock` fits. A shelf with no cards is not drawn. "See all ›" goes to that shelf's
    page (step 10). "With a profile" means a nickname is set and no request has answered
    400 `viewer_required` for that nickname; the Unread request (it carries `opened`) is
    the one that can answer it, and after it no request needing a viewer (Unread, the
@@ -120,16 +129,17 @@ Declared differences between the design and this spec, accepted with it:
    about yet, and draws the dot on the cards it returns. Every Unread card has the dot; no
    Recently opened card has it. Without a profile no card has it. Until the answer
    arrives, and if it fails, those cards have no dot.
-8. "Mark as verified" is drawn on cards of the Unverified shelf and its shelf page only.
-   It sends `PUT /api/files/{id}/trust-tier` `{tier: "verified"}`. While it is in flight
-   the button is disabled; on success the card leaves the shelf without reloading it and
-   the shelf's count drops by one; Home's 12 are not refilled until the next refresh, and
-   a shelf left with no card is not drawn. On failure the button returns with "Couldn't
+8. "Mark as verified" is drawn on the rows of the Unverified shelf and its shelf page
+   (which is a list of the same rows) only. It sends `PUT /api/files/{id}/trust-tier` `{tier: "verified"}`. While it is in flight
+   the button is disabled; on success the row leaves the shelf without reloading it and
+   the shelf page's count drops by one; Home's 5 are not refilled until the next
+   refresh, and a Home shelf left with no row is not drawn. On failure the button returns with "Couldn't
    save" beside it, the card stays, and it can be pressed again. A refresh that arrives
    while saving neither removes nor re-adds that card; the save's result decides it. On
    the Unverified shelf page, the next page after any removal is page
-   `floor(shown / 60) + 1`, where `shown` is the number of cards still drawn, and cards
-   already drawn are skipped.
+   `floor(shown / 60) + 1`, where `shown` is the number of rows still drawn, and rows
+   already drawn are skipped. A shelf page asks no further page once `shown` reaches its
+   count or a page adds nothing new.
 9. Choosing a card opens the clip's file page (`canonicalFileUrl`). The file page records
    the view as it does today; the Clips page records nothing itself. The card's title is
    the file's `title`, or its filename without the extension when `title` is empty.
@@ -139,7 +149,8 @@ Declared differences between the design and this spec, accepted with it:
 10. Library (`?view=all`) has two `ToolbarMenu` buttons: grouping ("By tag" `group=tags`,
     the default, or "No grouping" `group=none`) and sort ("Newest clipped" `sort=newest`,
     the default; "Oldest clipped" `sort=oldest`; "Title" `sort=title`), both kept in the
-    URL. The sort applies to the cards inside each tag shelf and to the grid (shelves
+    URL; an unknown value is read as the default and replaced in the URL. The Library tab
+    links to `?view=all` with no menus (the defaults). The sort applies to the cards inside each tag shelf and to the grid (shelves
     `sort=created_at` `order=desc|asc`, or `sort=title` `order=asc`).
     - **By tag**: `shelves` `by=tag` with the target, `per_shelf=12`, `shelf_limit=12`,
       shelves ordered by count, then more shelves as the viewer scrolls (`useNearEnd`,
@@ -147,18 +158,21 @@ Declared differences between the design and this spec, accepted with it:
       "Untagged". Each shelf: tag, count, "See all ›", one row of cards.
     - **No grouping**: `shelves` `by=all` `key=all` pages of 60 (`page`), appended on
       scrolling to the end, as a grid.
-11. A shelf page is `?view=shelf&shelf=<id>` (plus the Library's `sort` for tag shelves)
-    with `<id>` one of `unread`, `recent`, `new`, `unverified`, `tag:<name>`,
-    `untagged`. Its back link ("‹ Home" or "‹ Library") goes to Library for `tag:` and
-    `untagged`, else to Home. It shows the shelf's title, its count (none for `recent`),
+11. A shelf page is `?view=shelf&shelf=<id>` (plus the Library's `sort` for `tag:` and
+    `untagged`) with `<id>` one of `unread`, `recent`, `new`, `unverified`, `tag:<name>`,
+    `untagged`. Its back link ("‹ Home" or "‹ Library") goes to
+    `?view=all&group=tags&sort=<sort>` for `tag:` and `untagged`, else to Home. An unknown
+    `view` value is Home. It shows the shelf's title, its count (none for `recent`),
     and its clips as a grid, 60 per page, appended on scrolling. The requests are the
     shelf's own (step 6, step 10) with `per_shelf=60` and `page`; `recent` asks
     `watch-history` with `limit=50` (the route's maximum) and offers no further page.
     Without a profile, `unread` and `recent` go to Home (replace); `new` is shown with or
-    without a profile. A shelf page with no clips under the Target shows "No clips here".
-12. Card grids follow the design's grid: columns at least 200px wide, 24px row gap, 20px
-    column gap; one row on Home and Library shelves (a horizontal scroller on a phone),
-    wrapping on No grouping and shelf pages.
+    without a profile; if the profile goes while such a page is shown, it goes to Home
+    (replace). A shelf page whose first page answers no clip shows "No clips here"; when
+    the drive has no clip, "No clips yet" (State "Empty") is drawn instead.
+12. Card shelves on Home and in By tag use `ShelfBlock` with a clip grid (`lib/cardGrid`
+    metrics: 200px minimum, 20px gap). No grouping and card shelf pages are grids of the
+    same metrics that wrap.
 
 **SPEC-ADDON-140, covers and sites**
 
@@ -173,10 +187,13 @@ Declared differences between the design and this spec, accepted with it:
     file through `InternalClient.get_file_opening` (the core's `/api/files/{id}/stream`
     with a Range, under the caller's credential), and answers
     `{covers: {<id>: {image_id: str|null, image_url: str|null, site: str|null}}}` with one
-    entry per kept id; dropped ids are absent.
+    entry per kept id; dropped ids are absent. The `loft://` ids found are checked with
+    one more `/files/bulk`; if that call fails, every `image_id` is null and the rest of
+    the answer stands.
     - The cover is the first Markdown image `![alt](target)` or `![alt](target "title")`
       after the frontmatter. When its target is `loft://<id>` and `/files/bulk` answers
-      that id as an active image of the same drive, `image_id` is that id. When its
+      that id as an active file of the same drive with `file_type` `image`, `image_id` is
+      that id. When its
       target is an absolute `http(s)` URL, `image_url` is that URL. Otherwise both are
       null. HTML `<img>` is not read.
     - `site`: the host of the frontmatter `url` when it is an `http(s)` URL; else the host
@@ -207,9 +224,9 @@ Declared differences between the design and this spec, accepted with it:
   under them, which re-asks that page.
 - The Unread request answers 400 `viewer_required`: step 6.
 - The unread-dot request fails or answers 400: those cards have no dot until the next
-  refresh; a 400 also ends "with a profile" (step 6).
-- `clip-covers` fails or times out: cards keep the tint and no site; those ids are asked
-  again only on the next refresh.
+  refresh asks for them again; a 400 also ends "with a profile" (step 6).
+- `clip-covers` fails or times out: cards keep the tint and no site until the next
+  refresh asks for those ids again.
 - The trust-tier write fails: step 8.
 - A `?view=shelf` with an unknown `shelf` id goes to Home (replace).
 
@@ -229,8 +246,11 @@ Declared differences between the design and this spec, accepted with it:
     this Target" (`EmptyState`, no body) and Recently opened under it when it has cards
     (it ignores the Target); Library shows "No clips in this Target".
   - Either count fails: no empty state is drawn; shelves that answer are drawn.
+- Profile: with ↔ without (nickname set, cleared or changed; a 400 `viewer_required`).
+  A change rebuilds Home's shelves, clears every dot and asks again (with a profile), and
+  sends a shown `unread` or `recent` shelf page to Home when it ends without a profile.
 - Card: tint (no answer yet, no cover, or the image failed) → cover; dot | no dot (step 7).
-- Unverified card: idle → saving → gone (success) | failed (failure); failed → saving
+- Unverified row: idle → saving → gone (success) | failed (failure); failed → saving
   (pressed again). No other transition.
 
 ### 4. Data read and written
@@ -273,7 +293,9 @@ drawn through the core thumbnail route, which applies its own access check.
 - SPEC-ADDON-100's design lines D2 (icon-only phone button), D3 (no See all, no count),
   D4 (rows) and D5 (date-grouped All with Load more) are replaced by this spec's design;
   `frontend/e2e-components/clips-primary-action.spec.ts` and `fixtures/clipsPage.tsx`,
-  which measure D2, are rewritten to measure I9 (not deleted).
+  which measure D2, are rewritten to measure I9, and `clips-row.spec.ts` with
+  `fixtures/clipsRow.tsx`, which measure D4, are rewritten to measure the card (neither
+  is deleted; owner's choice, 2026-11-18).
 
 ### 8. Error behavior
 
@@ -328,7 +350,10 @@ the drive.
   `reachability`, `componentFixtureParity`, `scripts/check-coverage-denominator.mjs` for
   type-only modules, as they apply.
 - e2e-components: `clips-primary-action.spec.ts` and `fixtures/clipsPage.tsx` rewritten to
-  measure I9 (and `spec-viewport.spec.ts`, `projects.ts` registrations).
+  measure I9; `clips-row.spec.ts` and `fixtures/clipsRow.tsx` (which measure
+  SPEC-ADDON-100 D4) rewritten to measure the card (4:3 cover, two-line title, I8); and
+  their `spec-viewport.spec.ts`, `projects.ts` registrations.
+- Core: `lib/cardGrid.ts` gains the clip grid metrics if `ShelfBlock` needs them there.
 - Docs: the Clips section of `docs/user-guide/notes.md`, `docs/addons/knowledge.md` (the
   route), `docs/ADDON-DEVELOPMENT.md` (`defaultTargetOrigin`).
 - PRs: core (`TargetMenu`) → Knowledge → core pointer bump with the inventory tests, e2e
@@ -342,14 +367,16 @@ I3. Every clip in the Target is reachable from the Library: No grouping reaches 
 I4. Once the unread-dot answer for a card has arrived, with a profile the card shows the dot exactly when the viewer has no watch-history row for it; without a profile, and after a 400 `viewer_required`, no card shows the dot.
 I5. "Mark as verified" changes only that file's trust tier (to `verified`, with `trust_reviewed_at` set), and only when the viewer pressed it; apart from it and the clip form's existing writes, no request from the Clips page writes to the core or the drive.
 I6. `clip-covers` never answers an entry for a file outside the request's drive, not readable by the caller, or not an active text file, and a non-null `image_id` is always an active image file of the same drive.
-I7. A card's site is the host of the frontmatter `url` when it is an `http(s)` URL, else the host of the first `http(s)` URL in the start of the body that is not an image's target; it is never text that is not such a host.
+I7. A card's cover is the first Markdown image after the frontmatter (a `loft://` image of the same drive or an absolute `http(s)` URL, else none), and its site is the host of the frontmatter `url` when it is an `http(s)` URL, else the host of the first `http(s)` URL in the start of the body that is not an image's target; it is never text that is not such a host.
 I8. Drawing covers never moves a card: a card has its final size before its cover answer arrives.
 I9. At 1440, 1280, 1024 and 390px the Clips Home and Library do not scroll horizontally, and the header draws "Clip a web page" after the Target (full width below the tabs on a phone).
 I10. The Notes pages and their saved target, `note-openings`, and the `TargetMenu` count of every caller that does not pass `defaultTargetOrigin` behave exactly as before.
+I11. Once opened, the clip form is not unmounted by moving between Home, Library and shelf pages; after a 400 `viewer_required`, no request that needs a viewer is sent until the nickname changes (SPEC-ADDON-100 I24, I27 held here).
 
 ## Revises
 
 SPEC-ADDON-100 I28. When the drive has no clip, the empty state replaces the tabs and the shelves on both tabs, and the header with its primary action is drawn; when the drive has clips but the Target has none, the tabs stay and "No clips in this Target" replaces the shelves (Recently opened excepted on Home).
+SPEC-ADDON-100 I25. A clip added through the Clips page's form (by URL, paste or "create anyway") raises the counts at once and appears without a reload wherever the current Target, grouping and sort place it within what is already loaded; placed beyond that, it appears when the viewer reaches its place. A refresh never blanks shelves or cards already drawn.
 SPEC-ADDON-100 I29. Clips `?view=all` is the Library: grouped by tag or ungrouped, sorted newest clipped first by default, 60 cards per page when ungrouped, as cover cards without age groups.
 
 ## Checked, no action
