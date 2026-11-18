@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "CR-1",
+      "status": "confirmed",
+      "note": "frontend/src/components/FileDetail/__tests__/harness.tsx:50 reads `export const usePolicyMock = vi.fn(() => ({ enabled: true, isLoading: false }));`. The file appears in docs/process/reviews/feature-frame-ocr-hit-place/r7/test-files.txt:7, which is the changed-file list for head 5a57b46f6 (r7/head.txt). The touch-point list does not name it. Grep shows about 22 importers across FileDetail/__tests__ and folder/__tests__/TreeYield*.test.tsx. FindInFile.test.tsx:2804 and :2892 call vi.restoreAllMocks(). Caveats: without git I could not see the earlier value, so the 'previously undefined' part is not checked. Also, every importer I looked at sets usePolicyMock.mockReturnValue(...) in its own beforeEach (for example FindInFile.test.tsx:611). Vitest is ^3.2.4, where restoreAllMocks restores only vi.spyOn spies. So the practical effect on other suites looks small."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "CR-2",
+      "status": "confirmed",
+      "note": "addons/intelligence/tests/test_spec_addon_134_frame_lines_schema.py:104-117 asserts the exact column set, including `frame_width` and `frame_height` with affinity INTEGER and notnull 0. It is the SPEC-ADDON-134 §4 migration test. SPEC-ADDON-134 is named in the touch points only for frame_ocr.py's store step (I1, I6), and it is not under Revises. The amendment follows from the database.py migration, because the test asserts set equality. The re-run check at :131-133 still selects only the original five columns, so the test does not check that the new columns keep their values across a second migration run (I3)."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "CR-3",
+      "status": "confirmed",
+      "note": "addons/intelligence/app/search.py:2371-2396: `_frame_segment` always runs the second `SELECT text AS chunk_text ... ORDER BY chunk_index` after it finds the row. _finish_passage at :2606-2615 calls it for every screen_text passage that has a chunk_index. `chunks` is used only at :2655 inside the `kind == 'screen_text' and keyword_matches and not LOFT` branch (:2648-2654). So vector-only and .loft screen_text passages run an extra read-only query whose result is thrown away. The read uses get_search_db_read and writes nothing, and the returned fields are unchanged, so I found no effect on correctness. The cost is one extra query per passage."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "CR-4",
+      "status": "confirmed",
+      "note": "frontend/src/components/VideoPlayer.tsx:264 mounts `<FindOutlineLayer video={videoElement} controller={mc} />` unconditionally, including in the playerUi === 'browser' mode. frontend/src/components/loft/LoftPlayer.tsx:37-45 adds controller state and :87 passes `pictureOverlay={<FindOutlineLayer controller={controller} />}` unconditionally. FindOutlineLayer.tsx:151-170 attaches 10 video listeners and 3 document listeners, and calls setSnapshot on every timeupdate. Only the embed clock is gated by `active` (:233-236). The native path is not gated. FindProvider is mounted only in FileDetailContainer.tsx:327. On every other surface, useFindMarks returns EMPTY_MARKS (FindContext.tsx:37-41, term null), so `show` is false (:297-306) and nothing is drawn. The reach is real: the collection full screen, the shelf apps and the mini player all mount the layer and its listeners. The visible output there stays empty. The layer re-renders on each timeupdate but does not re-render the player."
+    }
+  ],
+  "specification_compliance": [
+    "I1 (search.py:2645-2674): line_box/line_match/line_frame_url are set only for keyword screen_text, non-.loft passages whose stored lines are usable and whose first folded occurrence hits a non-empty line. Other passages get null.",
+    "I7 (FindOutlineLayer.tsx:297-306): the show gate covers term, boxes on the current row, the segment window [start-0.5, end), ended/duration, interruption, the mini box, PiP and the painted rect.",
+    "I8: the layer root is aria-hidden with pointer-events-none (FindOutlineLayer.tsx:309-314), and VideoPlayer renders it before LitloftVideoControls (VideoPlayer.tsx:264-277)."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "FindOutlineLayer also hides on native element fullscreen (inElementFullscreen, FindOutlineLayer.tsx:283-287). I7 does not list this condition, but a browser-owned fullscreen video would not show the overlay anyway."
+  ],
+  "regression_risks": [
+    "The native outline layer listens to timeupdate and re-renders itself on every video surface, not only FileDetail. This is a small, ongoing cost.",
+    "_frame_segment adds one read query per screen_text passage, including vector-only passages."
+  ],
+  "test_coverage": [
+    "test_spec_addon_134_frame_lines_schema.py checks that the new columns exist and are nullable. Its re-run check does not cover frame_width/frame_height values (I3, 'leaves existing rows' values unchanged')."
+  ],
+  "not_verified": [
+    "The value of usePolicyMock's default before the change: git history is not readable with the available tools.",
+    "Whether any suite importing harness.tsx relies on the default implementation after a mock reset.",
+    "The tests were not run.",
+    "The YouTubeEmbed.tsx rendering of pictureOverlay and the mini-player state hook were not read."
+  ],
+  "confidence": 80
+}
