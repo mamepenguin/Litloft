@@ -13,6 +13,7 @@ import { AppShell } from "@/components/AppShell";
 import { ClipboardProvider } from "@/components/ClipboardProvider";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { CurrentDriveProvider } from "@/components/CurrentDriveProvider";
+import { DriveUnavailable } from "@/components/DriveUnavailable";
 import { FileDetailFullScreen } from "@/components/FileDetailFullScreen";
 import { ProfileProvider } from "@/components/ProfileProvider";
 import { RenameDialog } from "@/components/RenameDialog";
@@ -164,6 +165,19 @@ function DriveRoute(): ReactElement {
   );
 }
 
+/**
+ * A `/drive/{drive}/…` route whose drive is unavailable, on a URL that still
+ * names a file: the screen replaces the file page under it.
+ */
+function UnavailableRoute(): ReactElement {
+  install();
+  return (
+    <Shell>
+      <DriveUnavailable drive={DRIVE} />
+    </Shell>
+  );
+}
+
 /** `/files/{id}`: the id is read from the stub router's pathname. */
 function FilesRoute(): ReactElement {
   install();
@@ -186,4 +200,5 @@ function FilesRoute(): ReactElement {
 export const FOCUS_MODE_ARRANGEMENTS: Record<string, () => ReactElement> = {
   "focus-drive": DriveRoute,
   "focus-files": FilesRoute,
+  "focus-unavailable": UnavailableRoute,
 };

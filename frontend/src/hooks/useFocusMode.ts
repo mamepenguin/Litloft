@@ -4,6 +4,7 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 
 import { MOBILE_BREAKPOINT } from "@/hooks/useIsMobile";
+import { driveUnavailableStore } from "@/lib/driveUnavailableStore";
 import { focusModeStore } from "@/lib/focusModeStore";
 import { rememberReadingAnchor } from "@/lib/readingAnchor";
 
@@ -21,10 +22,19 @@ export function isFilePageUrl(
   return pathname.startsWith("/drive/") && !!fileId;
 }
 
+/**
+ * The URL alone cannot tell that the drive's page stood in for the file page,
+ * so the screen that replaces it is asked as well.
+ */
 export function useIsFilePageUrl(): boolean {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  return isFilePageUrl(pathname, searchParams.get("file"));
+  const unavailable = useSyncExternalStore(
+    driveUnavailableStore.subscribe,
+    driveUnavailableStore.get,
+    () => false,
+  );
+  return !unavailable && isFilePageUrl(pathname, searchParams.get("file"));
 }
 
 /**

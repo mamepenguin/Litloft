@@ -5,7 +5,7 @@ import { HardDrive } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 
-import { focusModeStore } from "@/lib/focusModeStore";
+import { driveUnavailableStore } from "@/lib/driveUnavailableStore";
 
 /** A link wearing §Buttons' look: the label sizes it, the floor is only on touch. */
 const LINK =
@@ -24,10 +24,12 @@ export interface DriveUnavailableProps {
 export function DriveUnavailable({ drive, unlockHref }: DriveUnavailableProps) {
   const t = useTranslations("driveUnavailable");
 
-  // This screen is not a file page whatever the URL still names, so focus
-  // mode ends here rather than over it.
+  // Not a file page whatever the URL still names, for as long as this screen
+  // is what stands there; a layout effect so no frame draws the focus layout
+  // over it.
   useLayoutEffect(() => {
-    focusModeStore.set(false);
+    driveUnavailableStore.enter();
+    return () => driveUnavailableStore.leave();
   }, []);
 
   return (

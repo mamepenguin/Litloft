@@ -28,7 +28,7 @@ const PROTECTED_KEYS = [
 type Box = { left: number; top: number; width: number; height: number };
 
 interface OpenOptions {
-  arrangement?: "focus-drive" | "focus-files";
+  arrangement?: "focus-drive" | "focus-files" | "focus-unavailable";
   path?: string;
   query?: string;
   width?: number;
@@ -339,6 +339,23 @@ test("SPEC-CORE-098 I3 as revised / §3: a page that is not a file page has no F
   await expectOrdinaryHeader(page);
   await pressT(page);
   await expectFocusLayout(page);
+});
+
+test("SPEC-CORE-128 Terms / §3 (drive unavailable): a ?file= URL whose drive draws DriveUnavailable is not a file page URL, so T does nothing and the cheat sheet does not offer it", async ({
+  page,
+}) => {
+  await open(page, { arrangement: "focus-unavailable", query: `file=${VIDEO}` });
+  await expect(page.getByRole("heading", { name: /^Can't open the drive/ })).toBeVisible();
+  const writtenBefore = (await writes(page)).length;
+  await pressT(page);
+  await page.waitForTimeout(200);
+  expect((await chrome(page)).headerInert).toBe(false);
+  expect(await page.evaluate(() => document.documentElement.hasAttribute("data-focus-layout"))).toBe(false);
+  await blur(page);
+  await page.keyboard.press("?");
+  await expect(page.getByRole("dialog", { name: "Keyboard Shortcuts" }).first()).toBeVisible();
+  await expect(page.getByText("Toggle focus mode")).toHaveCount(0);
+  expect((await writes(page)).slice(writtenBefore)).toEqual([]);
 });
 
 // ---------------------------------------------------------------------------
