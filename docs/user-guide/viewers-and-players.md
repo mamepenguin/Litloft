@@ -26,7 +26,7 @@ On a player file in a narrow window or on a phone, the [panels under the player]
 
 A tab appears only when it has something in it, so a video that was never transcribed has no Transcript tab.
 
-**Correcting a transcript.** In the **Transcript** panel (or tab, in a narrow window), the **分割テキスト** (Text chunks) view offers **修正** (Edit) on each line. Enter or **保存** saves, Escape or **キャンセル** cancels, and an emptied line disappears. A corrected line is marked **修正済み** (Edited). **元の結果に戻す** (Restore original) in the same header puts the whole transcript back to what the machine produced before the first correction. A corrected file is not transcribed again by automatic indexing; only **Index details** → **再生成** replaces it, after a confirmation. The player's subtitles show a correction the next time the file's page is opened.
+**Correcting a transcript.** In the **Transcript** panel (or tab, in a narrow window), the **分割テキスト** (Text chunks) view offers **修正** (Edit) on each line. Enter or **保存** saves, Escape or **キャンセル** cancels, and an emptied line disappears. On a touch screen, tap a line to show **修正** and **引用** (Quote) under it, and **修正** opens a dialog that saves only with **保存**. A corrected line is marked **修正済み** (Edited). **元の結果に戻す** (Restore original) in the same header puts the whole transcript back to what the machine produced before the first correction. A corrected file is not transcribed again by automatic indexing; only **Index details** → **再生成** replaces it, after a confirmation. The player's subtitles show a correction the next time the file's page is opened.
 
 AI sections (intelligence addon) appear once they have been generated. To generate one, use the **AI** menu in the inspector.
 

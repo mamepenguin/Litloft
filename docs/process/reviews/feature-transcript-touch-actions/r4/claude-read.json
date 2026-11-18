@@ -1,0 +1,133 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "R4-1",
+      "origin": "reviewer",
+      "claim": "The dialog's onSaved/onChanged callbacks capture the panel's state setters, not the dialog they belong to. A save still in flight when the file changes therefore, on return, closes whatever dialog is open at that moment, and onChanged also writes the old file's `changed` message into the new file's error line.",
+      "impact": "On a phone the panel is reused across files. Suppose a save is slow, the owner moves to another video, taps a row, presses 修正 and starts typing. When the old response arrives, setEditTarget(null) closes the new dialog and its typed draft is lost. On `changed`, the new file's panel also shows 「内容が更新されました…」, which is about the previous file. None of the routes I8 allows for losing a draft covers this.",
+      "evidence": "addons/intelligence/frontend/TranscriptSection.tsx:1351-1366: onSaved/onChanged call closeEditDialog(editTarget), and closeEditDialog (857-863) calls setEditTarget(null), which clears whatever editTarget is current. The fileId effect (332-343) clears editTarget, so the old dialog unmounts. TranscriptEditDialog.tsx `save` has no cancelled/unmounted guard: after the await it calls onSaved()/onChanged() unconditionally. Neither closure checks that the target or file is still the current one.",
+      "repro": "not_reproduced. By reading the code: open the dialog on file A and press 保存 with a deferred PUT. Rerender with fileId B, tap a row, open the dialog and change the text. Then resolve A's PUT. setEditTarget(null) runs, and B's dialog closes with its draft discarded. With a 409 `changed` body, B's panel also shows CHANGED_MESSAGE.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "A",
+        "reason": "A typed draft is lost by an event that I8 does not list (a stale save completion from another file). The race is narrow but reachable in normal use.",
+        "invariant_ref": "I8"
+      },
+      "severity": "LOW",
+      "proposed_fix": "Have the dialog ignore its result after unmount (a mounted/cancelled ref in `save`), or have the panel's callbacks compare the target against the current editTarget/fileId before closing it or setting actionError."
+    }
+  ],
+  "specification_compliance": [
+    "I1: TranscriptSection.tsx:1288 draws the strip only for isSelected, and isSelected requires `coarse` (1176-1180). The fine-path 修正 and quote buttons are gated on `!coarse` (1312, 1333), so no unselected coarse row draws either control in any source.",
+    "I2: there is one `selected` state, set only by selectCue (834-837). The reload effect (495-501) clears it only when no cue has the same index and start. A source change (488-491), a file change (338) and a pointer becoming fine (505-507) also clear it. Changes of the playback highlight only scroll and never write `selected`.",
+    "I3: the row onClick (1257-1261) keeps the pre-existing editingIndex guard and calls seekTo(cue.start) unconditionally, then selectCue only when the pointer is coarse.",
+    "I4: the strip's 修正 is drawn only when source==='chunks' and is disabled when busy (1290-1296). 引用 has no disabled prop and calls the same captureCue (1304, compare 1336). captureCue does not touch the selection.",
+    "I5/I7: the dialog sends correctTranscriptUtterance(fileId, target.index, value, target.text, target.start, drive), with the expected values captured when it opens. `saving` blocks save and close, including Escape through `close`. The field is readOnly and the buttons are disabled while saving. A non-`changed` error stays inside the dialog, and the panel error is hidden while editTarget is set (1115). `changed` closes the dialog, reloads and sets the panel error (1362-1366).",
+    "I6: the dialog's Enter handler returns early on IME keystrokes, then calls preventDefault and stopPropagation on Enter. onChange strips \\r\\n. Only 保存 calls save.",
+    "I8: the backdrop has no handler. The field is uncontrolled and is seeded only when target.text changes, so a reload or pointer change keeps the draft. The one exception is R4-1.",
+    "I9: the fine path is unchanged except for dropping the `pointer-coarse:` classes, which never matched a fine pointer. The inline editor branch (1188-1245) is untouched.",
+    "I10: STRIP_BUTTON is h-7 with before:-inset-2, which gives a 44px tall hit area. The strip's py-2 contains that 8px extension, so it touches but does not cross the seek button above or the next row. With gap-3 (12px) the two pseudo-elements overlap each other by 4px; I10 does not forbid that, and each button keeps more than 44px of width.",
+    "I11: revealCue (569-594) now limits an upward reveal to `scrollerRect.bottom - rect.bottom`, so a block taller than the list never scrolls its strip out. The reveal on the activeIndex change is gated on `following` (611)."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "Neither the spec nor the code says what happens to a dialog save that completes after a file change (R4-1)."
+  ],
+  "regression_risks": [
+    "The tall-row reveal relies on revealCue's instant scrollTop write (activeIndex reveal effect, 610-613) cancelling the follow effect's smooth scrollTo started earlier in the same commit (557-560). If a browser lets the smooth scroll finish anyway, the tall row ends up centred with its strip out of view. The e2e covers this in Chromium only.",
+    "The dialog field uses `field-sizing-content` to grow from 4 to 5 lines. A browser without field-sizing support stays at the 118px minimum (4 lines) and scrolls inside the field. That still keeps 保存 high, but it does not grow as B4 describes. I did not check iOS Safari.",
+    "The pre-existing mismatch between cue.index and the position-based activeIndex (named in the spec's Checked list) now also drives the strip block's background and activeRef. The new selectedPosition comparison is position-based and correct, so after a gap left by an empty save the follow scroll and the reveal can aim at different rows."
+  ],
+  "test_coverage": [
+    "TranscriptSectionTouch.test.tsx covers I1-I9 in jsdom. That includes every save failure code, the in-flight lockout, the reload keep/drop cases, a pointer change with the dialog open, the source and file changes, and the preventDefault on Return.",
+    "transcript-touch.spec.ts covers I10 hit areas and overlaps, the strip of the tall row once the list settles, following and suspended-following scrolls, the saved scroll place, dialog placement and 保存 ending above y=367, at 390x844 and 375x667. The settle loop in the tall-row test would catch removal of the new Math.min clamp in revealCue, because a later reveal would then scroll the strip back out.",
+    "No test covers a save that resolves after a file change while a new dialog is open (R4-1).",
+    "No test asserts where focus goes when the dialog closes (B10)."
+  ],
+  "not_verified": [
+    "I did not run any unit or e2e test; every conclusion comes from reading the code.",
+    "I did not confirm in a real browser, or in iOS Safari, that an instant scrollTop write cancels an in-flight smooth scrollTo.",
+    "I did not check whether iOS Safari supports `field-sizing: content`.",
+    "I did not read TranscriptSection.tsx lines 1-224 or 905-1099, apart from what the diff shows.",
+    "I did not see the addon-level diff of 884a57bb3 on its own. I inferred that the round added the revealCue clamp by comparing line ranges with r3's record.",
+    "I did not read the full bodies of ime-enter-guard.test.ts and row-action-reveal.test.ts this round."
+  ],
+  "coverage": [
+    {
+      "path": "addons/intelligence/frontend/DetailedSummaryPanel.test.tsx",
+      "read": "partial",
+      "reason": "Read only the one changed hunk (@@ -145) in the diff, which holds most of its it() block."
+    },
+    {
+      "path": "addons/intelligence/frontend/ExtractionEditsReview.test.tsx",
+      "read": "partial",
+      "reason": "Read only the changed hunk (@@ -424) in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/TranscriptEditDialog.tsx",
+      "read": "full",
+      "reason": "New file; read all 207 lines in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/TranscriptSection.test.tsx",
+      "read": "partial",
+      "reason": "Read the two changed hunks and their enclosing it() blocks in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/TranscriptSection.tsx",
+      "read": "partial",
+      "reason": "Read lines 225-904 and 1100-1372 from the file, which cover every changed hunk and the state, effects and callbacks they use. Also grepped the index assignments. Lines 1-224 and 905-1099 were read only as far as the diff shows them."
+    },
+    {
+      "path": "addons/intelligence/frontend/TranscriptSectionTouch.test.tsx",
+      "read": "full",
+      "reason": "New file; read all of it in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/messages/en.json",
+      "read": "full",
+      "reason": "Read the one-line hunk."
+    },
+    {
+      "path": "addons/intelligence/frontend/messages/ja.json",
+      "read": "full",
+      "reason": "Read the one-line hunk."
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/app.tsx",
+      "read": "full",
+      "reason": "Read both changed hunks (the import and the arrangement spread)."
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/transcriptTouch.tsx",
+      "read": "full",
+      "reason": "New file; read all of it in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/spec-viewport.spec.ts",
+      "read": "full",
+      "reason": "Read the one-line hunk."
+    },
+    {
+      "path": "frontend/e2e-components/transcript-touch.spec.ts",
+      "read": "full",
+      "reason": "New file; read all of it in the diff, including the tall-row settle poll."
+    },
+    {
+      "path": "frontend/src/__tests__/ime-enter-guard.test.ts",
+      "read": "partial",
+      "reason": "Read only the diff hunks."
+    },
+    {
+      "path": "frontend/src/__tests__/row-action-reveal.test.ts",
+      "read": "partial",
+      "reason": "Read only the diff hunks."
+    }
+  ],
+  "confidence": 78,
+  "trajectory": "Since r3, the only product change on this branch is 884a57bb3, an addon bump. The rest of the listed commits come from develop (the workbench split, the Scenes cuts switch, the refine realignment fix), arriving through the b8d54da84 merge, plus documentation (93aee8906, a6b9548b2). 884a57bb3 adds a prediction to revealCue's upward branch: it limits the upward scroll to `scrollerRect.bottom - rect.bottom` so a block taller than the list never scrolls its strip out. It also adds a settle poll to the tall-row e2e test. The round before (r3's 3da286167) added the `!following` condition to the same strip-reveal scrolling. So two consecutive rounds have each added a condition to the reveal scroll logic. The reveal is being patched incrementally, though each patch covers a different case (suspended following, then a tall block). No round removed a branch or a state. r1 TP-1 (the pdfminer log level in main.py) is no longer in the product file list, apparently because the base moved rather than because a fix removed it."
+}

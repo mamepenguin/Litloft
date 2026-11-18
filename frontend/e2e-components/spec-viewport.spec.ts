@@ -84,6 +84,7 @@ const AT_THE_PHONE_WIDTH = [
   "target-menu-rows.spec.ts",
   "batch-progress.spec.ts",
   "drive-unavailable.spec.ts",
+  "transcript-touch.spec.ts",
 ] as const;
 
 const AT_THE_DESKTOP_WIDTH = [
