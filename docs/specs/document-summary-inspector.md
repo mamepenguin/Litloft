@@ -84,9 +84,11 @@ is the AI summary, which is already there.
    and the add-on navigates as today. Only `document-side` entries get `openInViewer`, so
    the collection route (where the detailed summary is a `file-detail-sections` entry
    under the viewer) keeps navigating.
-7. The reader starts a detailed summary from the AI button on a file without a player:
-   the entry calls the slot prop `select()` once generation has started, the tab is
-   selected and, in `beside`, the pane widens and shows the generating state.
+7. The reader starts a detailed summary from the AI button on a file without a player.
+   The entry marks itself generating, reports available, then calls the slot prop
+   `select()`; core selects a listed tab and ignores `select()` from an unlisted entry.
+   In `beside` the pane widens and shows the generating state. On a phone `select()` also
+   raises the sheet to its half snap.
 
 ### 2. Failure cases
 
@@ -94,8 +96,10 @@ is the AI summary, which is already there.
   Retry, as the player file's tab does.
 - The add-on is missing or off for the drive, or reports unavailable: no tab, and nothing
   widens the pane.
-- An entry that has not reported yet is not listed, so the strip never shows an empty tab
-  and the pane never widens for one.
+- An entry that has not reported yet is not listed, and the pane never widens for one.
+- intelligence reports `detailed-summary` unavailable whenever it would draw nothing (a
+  summary note is active and no detailed summary was ever generated), so the strip never
+  shows an empty 「詳細要約」 tab.
 - `goTo` with a page beyond the document or before the viewer is ready: whatever the
   viewer does today for the Ask tab's citations (which already call `goTo`).
 - A narrow `beside` row: it is at least 968px (`INSPECTOR_BESIDE_MIN_REM`), so a wide pane
@@ -112,11 +116,13 @@ from an effect), so each event below gives its width in the commit it lands in:
 |---|---|
 | select the wide tab / another tab | wide / 384 |
 | the entry calls `select()` | that tab, wide |
-| find opens (find selects its own tab) | 384 |
+| find opens (find selects its own tab, opening the inspector if closed) | 384 |
+| find closes and restores the tab it replaced (SPEC-CORE-028 I8), the wide tab | wide |
 | close the inspector / open it again | pane gone / Info, 384 (as today) |
 | resize `beside` → `overlay` | 384, the tab stays selected |
 | resize `overlay` → `beside` with the wide tab selected | wide |
 | resize to a phone / back | sheet; on return, Info, 384 (the sheet is another shell) |
+| a jump in place from the wide tab | the tab stays selected, wide |
 | enter / leave focus mode | stays wide, recomputed for the new row |
 | the wide tab disappears while selected | selection moves as `InspectorShell` does, 384 |
 | move to another file | Info (`resetKey`), 384 |
@@ -155,6 +161,9 @@ Unchanged. A jump within the open file reaches nothing the viewer could not scro
 - Closing the desktop inspector unmounts its contents, so for a file without a player the
   detailed summary stops polling while closed, an unsaved edit of it is lost on close,
   and opening refetches (owner accepted; the AI button is in the inspector too).
+- The summary note on a file without a player is hidden while the desktop inspector is
+  closed and drawn at the pane's width when it is open (owner accepted; it was under the
+  viewer at the canvas width).
 - `DocumentController.goTo` gains a second caller beside the Ask tab's citations.
 - The canvas floor (`viewerTakesCanvasFloor`, `useCanvasFloor`, `data-canvas-floor`, its
   CSS rule) is replaced by the fill and removed.
@@ -199,15 +208,20 @@ Props core passes to an entry, in addition to the common file props:
 | `select(): void` | selects this tab |
 | `openInViewer(target: { fileId: string; page?: number; section?: number }): boolean` | §1.6 |
 
-Ids: tab, DOM and availability ids are keyed by slot as `inspector-tabs`' are, so
-`detailed-summary` in `player-side`, `file-detail-sections` and `document-side` never
-share a key. An entry whose id is a core tab id is ignored, as in `inspector-tabs`. `wide`
-is read on `document-side` entries only.
+Ids: tab, DOM and availability ids are prefixed with the slot (`document-side:<id>`) as
+`inspector-tabs`' are, so `detailed-summary` in `player-side`, `file-detail-sections` and
+`document-side` never share a key, and an entry whose id equals a core tab id keeps its
+own prefixed tab without taking the core tab's button. `wide` is read on `document-side`
+entries only; on any other slot it is ignored. `select()` from an entry that is not
+listed does nothing. An add-on built before this slot keeps working: an entry that is
+never given `select`, `openInViewer` or `active` behaves as it does in its other slots.
 
 ## Touch points
 
 - `frontend/src/components/epub/useFillHeight.ts` → `frontend/src/hooks/useFillHeight.ts`
-  (three callers), unchanged; `EpubPreview.tsx` import path.
+  (three callers); it also re-measures when a child is added to or removed from the
+  canvas (the find bar opening after the viewer mounted), and observes the new child;
+  `EpubPreview.tsx` import path.
 - `frontend/src/components/PdfPreview.tsx`, `frontend/src/components/ArchivePreview.tsx`:
   a `fillCanvas` prop; with it the height is `useFillHeight`'s, without it today's
   (`h-[80vh]`; the archive's own). `FilePreview.tsx`, `MediaPlayerBlock.tsx`,
@@ -254,12 +268,21 @@ is read on `document-side` entries only.
     assertions re-pinned to the fill (I1).
   - `ViewerShell.test.tsx`: the `main[data-canvas-floor]` assertions removed (I1).
   - `frontend/src/__tests__/i18n-keys.test.ts`: `document-side` added to `TAB_SLOTS`.
-  - `addons/intelligence/tests/test_manifest_navigation.py`,
-    `addons/intelligence/frontend/ScenesSection/__tests__/WorkbenchManifest.test.ts`: the
-    new slot list.
-  - New: `frontend/e2e-components/document-summary-inspector-desktop.spec.ts`; existing
-    specs that find the summaries in the canvas for a file without a player re-pinned to
-    the inspector (I2).
+  - `addons/intelligence/frontend/ScenesSection/__tests__/WorkbenchManifest.test.ts`: the
+    manifest's slot lists, now with `document-side`.
+  - `frontend/src/components/FileDetail/__tests__/FileDetailContent.test.tsx` (~625-646):
+    the detailed summary for a Markdown file shown without the editor (a file without a
+    player) is a `document-side` tab, not `addon-slot-include:detailed-summary` (I2, I3).
+  - `frontend/src/components/FileDetail/__tests__/ViewerShell.test.tsx` (~247-261): the
+    `addon-slot-exclude:detailed-summary` expectation becomes the `document-side` ids (I3).
+  - e2e registry and stubs: `frontend/e2e-components/projects.ts`, `fixtures/app.tsx`,
+    `stubs/addons.ts` (a `document-side` entry).
+  - New: `frontend/e2e-components/document-summary-inspector-desktop.spec.ts` and
+    `document-summary-inspector.spec.ts` (phone, 390×844); existing specs that find the
+    summaries in the canvas for a file without a player re-pinned to the inspector (I2).
+- Rules passed through: `.claude/rules/design-decisions.md` (no core-to-add-on
+  dependencies: core adds no add-on id), `.claude/rules/frontend-conventions.md`
+  (DESIGN.md values, `messages-core` only), DESIGN.md. No protected path is edited.
 
 ## Invariants
 
@@ -267,8 +290,11 @@ I1. On a file page, for a PDF, an EPUB and an archive, at 1440×900 and 1280×80
 `beside` and `overlay` forms, in focus mode and with the find bar open, the filled
 viewer's bottom edge is within 1px of the canvas's content bottom (its inner bottom less
 its padding and, for the archive, the host's 16px), and the canvas's `scrollHeight`
-equals its `clientHeight`; on the collection route the PDF page area, the EPUB reader and
-the archive viewer keep today's heights.
+equals its `clientHeight`, also when the find bar opens after the viewer has mounted; at
+390×844 (phone) the same holds with the bottom reference above the sheet's peek; on the
+collection route the PDF page area is still `80vh` tall, the EPUB reader still takes
+`useFillHeight`'s height (or `60dvh` before it measures), and the archive viewer its
+natural height.
 I2. On the file page of a file without a player, no element of the summary note or of any
 `document-side` entry is inside `main`, in any form; the summary note, when present, is
 the last block of `#inspector-panel-info` before the comments; nothing in Info links to
@@ -282,21 +308,34 @@ the pane equals the row, the width is right in the first frame after the selecti
 changes, and the pane's computed `transition` includes no width.
 I5. In `overlay`, on a phone, for a player file and on a `MarkdownDocumentLayout` page the
 pane's width does not change with the selected tab.
-I6. Each event in §3's table gives the width its row states, in the first frame after it.
+I6. The §3 rows for find opening and closing, the inspector closing and opening, the
+`overlay`→`beside` resize, focus mode, the tab disappearing, a file change and a jump in
+place each give the width and selection the row states, in the first frame after it.
 I7. A tab change, a width change and a jump in place leave the same filled-viewer element
 mounted (the same PDF page-area element, the same EPUB iframe).
 I8. On a file page, a citation's jump in the detailed summary tab to a page or section of
 the open file calls `goTo` with that location and leaves `location.pathname` and
-`location.search` unchanged; on a phone it also lowers the sheet; to another file, or
-with no controller, and on the collection route, it navigates to `/files/{id}?page=` /
+`location.search` unchanged; on a phone it also lowers the sheet; after it, on desktop, the
+detailed summary tab is still selected and the pane still wide; to another file, or with
+no controller, and on the collection route, it navigates to `/files/{id}?page=` /
 `?section=` as today.
-I9. `MarkdownDocumentLayout` files keep today's placement of every summary in every form
-and get no `document-side` tab; player files keep theirs.
+I9. `MarkdownDocumentLayout` files keep today's placement (the summary note and the
+detailed summary in the canvas footer under the text on desktop, at the end of Info in
+the phone sheet) and get no `document-side` tab; player files keep theirs, and Info on a
+player file never draws `detailed-summary`.
 I10. A `document-side` entry receives `active: true` only while its tab is selected; the
 detailed summary does not act on `v` while another tab is selected.
-I11. Starting a detailed summary from the AI button on a file without a player selects its
-tab.
+I11. Starting a detailed summary from the AI button on a file without a player, when the
+tab was not listed before the click, ends with the tab listed and selected; in `beside`
+the pane is wide; on a phone the sheet is at its half snap.
+I13. On a file that has an active summary note and no detailed summary ever generated,
+no 「詳細要約」 tab is listed.
 I12. Nothing in this change writes `localStorage` or `sessionStorage`.
+
+## Revises
+
+SPEC-CORE-128 I1. In the focus layout with the header hidden, at any wide viewport: no pixel of the app header, `ChromeButtons`, the sidebar or the folder tree is painted, the header and `ChromeButtons` are `inert` and still mounted, and focus mode itself draws nothing visible over the page except, where `(any-pointer: coarse)` matches, the handle (the strip of 129 step 1 is transparent); on a folder, view or search file page the `h-below-header` box runs from the safe area's top to the viewport's bottom, and on `/files/{id}` the content column's top is its normal gap below the safe area's top and the player's frame is no taller than `--player-avail` measured from there (within 1px); at 1440×900 and 1280×800 with the inspector open the canvas is the viewport's width less the inspector pane's width (384px, or the wide width of SPEC-CORE-133 while a wide `document-side` tab is selected), and with no workbench panel shown a video's frame is 1024×576 and 864×486 (within 1px).
+SPEC-CORE-085 I9. On a player file on either surface, an id that is both a `player-side` entry and a `file-detail-sections` entry is drawn only as a panel, and `ActiveSummaryHost` is drawn only as the `active-summary` panel. On the file page of a file without a player, `ActiveSummaryHost` is the last block of Info before the comments and an id that is a `document-side` entry is drawn only as that slot's inspector tab (SPEC-CORE-132); on the collection route and in `MarkdownDocumentLayout` both are drawn where they were before SPEC-CORE-132. A `player-side` entry whose id equals a core panel or core tab id is not mounted.
 
 ## Checked, no action
 
@@ -326,6 +365,10 @@ I12. Nothing in this change writes `localStorage` or `sessionStorage`.
 - A heading or model line inside the tab beyond what a player file's tab shows (owner).
 - A stale `?page=` after a jump (owner): accepted.
 - The stacked form: `useInspectorFit` gives it to player files only.
+- SPEC-CORE-085 I6 (the stacked and phone tab order) is about player files; a
+  `document-side` tab appears only on a file without a player, so it is not revised.
+- Holding a `select()` from an unlisted entry until it is listed: the entry reports
+  first instead, which keeps core free of pending requests.
 - The dormant detailed summary (a summary note is active): the add-on reports
   availability as it does on a player file today; core shows what it reports.
 - A preview-actions row (`file-preview-actions`) is empty today; when an add-on fills it
