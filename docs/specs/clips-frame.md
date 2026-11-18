@@ -315,7 +315,8 @@ the drive.
   "N 分"; "No clips here" / "ここにはクリップがありません"; "No clips in this Target" /
   "この対象にはクリップがありません"; "‹ Home" / "‹ ホーム", "‹ Library" / "‹ ライブラリ";
   "Couldn't load" / "Try again" as Notes; "No clips yet" and its body as today.
-- The age on a card is the clip's `created_at`, in the Notes date style.
+- The age on a card and an Unverified row is the clip's `created_at` as a relative age
+  (`formatRelativeAge` from `lib/format`, as the Reading app: "today", "2 days ago").
 - Loading: skeleton cards at final size in each shelf and grid.
 - Phone (below 640px): shelves scroll sideways with cards 150px wide; grids are two
   columns; the Library's two menus sit on one row.
