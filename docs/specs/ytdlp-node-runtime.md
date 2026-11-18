@@ -87,7 +87,10 @@ At run time:
 
 - **Node is missing or will not start** (the image was built without it, or a test image
   lacks it): yt-dlp warns that no JS runtime was found and goes on without one, as it
-  does today. MEASURE_ABSENT The warning on its own is not a failure: a lookup that
+  does today. Measured on 2026-11-18 in the intelligence image without Node:
+  `yt-dlp -J --no-js-runtimes --js-runtimes=node` exits 0 with the full JSON, and
+  `YoutubeDL({"js_runtimes": {"node": {}}})` extracts formats up to 1080p without
+  raising. The warning on its own is not a failure: a lookup that
   exits 0 with a JSON object is a success (I5), and a media_import call raises nothing
   because of the missing runtime (I6). What yt-dlp returns without a runtime is handled
   as today: if that leaves no usable format, or yt-dlp exits non-zero, the `.loft` fetch
@@ -214,6 +217,20 @@ None in the UI. An operator can see the change in two places:
   and the `.loft` fetch are not approached. A `.loft` fetch runs two extractions, so it
   sends about 4 more requests than today, against the 30-second spacing between backlog
   fetches.
+- Memory: in the same measurement, the largest child process of a lookup with Node
+  (yt-dlp or the Node it starts) peaked at about 350 MB, for about a second. A bare Node
+  process is about 50 MB. Lookups that run at once (frame reads, the storyboard index,
+  the `.loft` fetch, media_import imports) each start their own. No limit is added:
+  frame lookups are cached for 5 minutes per file, the `.loft` fetch runs one at a time,
+  and media_import imports are started by hand. Production has 16 GB shared with a local
+  LLM.
+- Shared libraries in the intelligence image: installing `yt-dlp[default]` and
+  `nodejs-wheel` on the current image changed none of `certifi`, `httpx`, `requests`,
+  `urllib3`, `uvicorn` or `websockets` (measured before and after).
+- Network: on 2026-11-18 around 23:00 JST, the home line's IPv4 path (v6プラス) gave
+  100-170 KB/s to PyPI, Debian and GitHub while IPv6 gave 12-32 MB/s. Containers use IPv4,
+  so an image build at that time may time out and fail (item 2). YouTube's video servers
+  were not affected: 25-40 MB/s from a container at the same time.
 - Privacy: no cookie or credential is added. Node runs only yt-dlp's bundled challenge
   scripts.
 - Node 24 is an LTS line supported upstream until April 2028. The pin `>=24,<25` keeps
