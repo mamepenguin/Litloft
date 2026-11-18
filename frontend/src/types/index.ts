@@ -62,6 +62,8 @@ export interface FileItem {
   trust_unknown?: true;
   created_at: string;
   updated_at: string;
+  /** The file's filesystem modification time; `null` before the first scan. */
+  modified_at: string | null;
   /**
    * Set only on the backend search path. Indicates whether the query matched
    * the title, folder_path, or both. `null` on non-search paths.

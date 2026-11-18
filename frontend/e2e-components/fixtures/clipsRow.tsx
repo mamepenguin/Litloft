@@ -50,6 +50,7 @@ function clip(id: string, title: string, folder: string): FileItem {
     trust_reviewed_at: null,
     created_at: "2026-03-04T10:30:00",
     updated_at: "2026-03-04T10:30:00",
+    modified_at: null,
   } as FileItem;
 }
 

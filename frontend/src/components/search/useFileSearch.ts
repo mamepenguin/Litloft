@@ -23,6 +23,7 @@ import {
   hasImpossibleRange,
   parseSearchQuery,
   resolveKinds,
+  resolveModified,
   type ParsedQuery,
   type SearchFilter,
 } from "@/lib/searchQuery";
@@ -35,6 +36,7 @@ function listingParams(
   parsed: ParsedQuery,
   kinds: FileKind[],
   collections: readonly string[] = parsed.collections,
+  modified: readonly string[] = [],
 ) {
   return {
     search: parsed.text,
@@ -51,6 +53,7 @@ function listingParams(
     ...(parsed.durations.length > 0
       ? { duration: parsed.durations.map(comparisonWireForm) }
       : {}),
+    ...(modified.length > 0 ? { modified } : {}),
   };
 }
 
@@ -101,8 +104,12 @@ export function useFileSearch({ open, drive, query, scopeType, browsing }: FileS
 
     const trimmed = query.trim();
     const parsed = parseSearchQuery(trimmed);
+    // One `now` per search run: this effect starts a new run for each query,
+    // so every stage and page below sees the same resolved wire forms.
+    const now = Date.now();
+    const modified = resolveModified(parsed, now);
     const kinds = resolveKinds(scopeType, parsed.types);
-    if (kinds.impossible || hasImpossibleRange(parsed)) {
+    if (kinds.impossible || hasImpossibleRange(parsed, modified.comparisons)) {
       setMerged([]);
       setTotal(0);
       setLoading(false);
@@ -195,7 +202,7 @@ export function useFileSearch({ open, drive, query, scopeType, browsing }: FileS
             };
             let outcome;
             try {
-              outcome = await resolveInNames(drive, parsed, ctrl.signal, io);
+              outcome = await resolveInNames(drive, parsed, ctrl.signal, io, now);
             } catch {
               if (ctrl.signal.aborted) return;
               outcome = { status: "failed" as const };
@@ -225,13 +232,13 @@ export function useFileSearch({ open, drive, query, scopeType, browsing }: FileS
         const filenameP = (fileIds !== null
           ? getDriveFilesWithFileIds(
               drive,
-              listingParams(parsed, kinds.kinds, collections),
+              listingParams(parsed, kinds.kinds, collections, modified.wireForms),
               fileIds,
               { signal: ctrl.signal },
             )
           : getDriveFiles(
               drive,
-              listingParams(parsed, kinds.kinds, collections),
+              listingParams(parsed, kinds.kinds, collections, modified.wireForms),
               { signal: ctrl.signal },
             ))
           .then((res) => {
@@ -246,7 +253,10 @@ export function useFileSearch({ open, drive, query, scopeType, browsing }: FileS
         // A scope's own page does not read operators, so a scoped search keeps
         // its name-only behaviour here.
         const filter: SearchFilter | null = parsed.hasOperators
-          ? { ...filterFromParsed(parsed, scopeType), collections: [...collections] }
+          ? {
+              ...filterFromParsed(parsed, scopeType, modified.wireForms),
+              collections: [...collections],
+            }
           : null;
         const semanticEligible = !scopeType && parsed.text !== "";
         let semanticOk = true;

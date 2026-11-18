@@ -86,6 +86,7 @@ const item1: WatchHistoryItem = {
   trust_reviewed_at: null,
   created_at: "2026-03-20T10:00:00",
   updated_at: "2026-03-20T10:00:00",
+  modified_at: null,
   watch_progress: { position: 30, duration: 120 },
 };
 

@@ -30,9 +30,10 @@ import {
   kindHolds,
   parseSearchQuery,
   resolveKinds,
+  resolveModified,
   suggestValues,
 } from "@/lib/searchQuery";
-import type { Comparison } from "@/lib/searchQuery";
+import type { Comparison, ModifiedToken } from "@/lib/searchQuery";
 import type {
   CollectionSummary,
   FileKind,
@@ -48,6 +49,7 @@ export type ConditionEntry =
   | "collectionWithSmart"
   | "size"
   | "duration"
+  | "modified"
   | "favorite";
 
 interface ConditionMenuProps {
@@ -75,9 +77,21 @@ interface Preset {
     | "filterSize1GBOrMore"
     | "filterDurationUnder5Min"
     | "filterDuration30MinOrMore"
-    | "filterDuration1HourOrMore";
+    | "filterDuration1HourOrMore"
+    | "filterModifiedLast30Days"
+    | "filterModifiedOverAYear"
+    | "filterModifiedOver3Years";
   value: string;
   comparison: Comparison;
+}
+
+/** A preset whose `modified:` token is resolved against the menu's `now`. */
+interface ModifiedPreset {
+  label:
+    | "filterModifiedLast30Days"
+    | "filterModifiedOverAYear"
+    | "filterModifiedOver3Years";
+  token: ModifiedToken;
 }
 
 const SIZE_PRESETS: readonly Preset[] = [
@@ -114,6 +128,20 @@ const LENGTH_PRESETS: readonly Preset[] = [
     value: ">=1h",
     comparison: { operator: "gte", value: 3600 },
   },
+];
+
+function modifiedPreset(
+  label: ModifiedPreset["label"],
+  value: string,
+): ModifiedPreset {
+  // Every preset is an operator with an amount, so the parser reads it back.
+  return { label, token: parseSearchQuery(`modified:${value}`).modified![0] };
+}
+
+const MODIFIED_PRESETS: readonly ModifiedPreset[] = [
+  modifiedPreset("filterModifiedLast30Days", ">=30d"),
+  modifiedPreset("filterModifiedOverAYear", "<1y"),
+  modifiedPreset("filterModifiedOver3Years", "<3y"),
 ];
 
 function includesComparison(
@@ -162,6 +190,7 @@ export function ConditionMenu({
   const tFilter = useTranslations("filter");
   const locale = useLocale();
   const [level, setLevel] = useState<Level>("closed");
+  const [modifiedNow, setModifiedNow] = useState<number | null>(null);
   const [tagFilterText, setTagFilterText] = useState("");
   const [tags, setTags] = useState<TagState>({ status: "loading", items: [] });
   const [folderFilterText, setFolderFilterText] = useState("");
@@ -401,6 +430,21 @@ export function ConditionMenu({
     [parsed.durations],
   );
 
+  const modifiedPresets = useMemo(() => {
+    const held = parsed.modified ?? [];
+    return MODIFIED_PRESETS.filter((preset) => {
+      if (held.some((token) => token.identity === preset.token.identity)) {
+        return false;
+      }
+      if (modifiedNow === null) return true;
+      const comparisons = resolveModified(
+        { ...parsed, modified: [...held, preset.token] },
+        modifiedNow,
+      ).comparisons;
+      return !comparisonsImpossible(comparisons, "modified");
+    });
+  }, [parsed, modifiedNow]);
+
   function handleMenuKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
     if (level === "closed") return;
     if (e.key === "Escape") {
@@ -443,13 +487,16 @@ export function ConditionMenu({
 
   const hasPlus = label.startsWith("＋") || label.startsWith("+");
 
-  const presetLabel = (key: Preset["label"]): string => {
+  const presetLabel = (key: Preset["label"] | ModifiedPreset["label"]): string => {
     if (key === "filterSizeUnder10MB") return t("filterSizeUnder10MB");
     if (key === "filterSize100MBOrMore") return t("filterSize100MBOrMore");
     if (key === "filterSize1GBOrMore") return t("filterSize1GBOrMore");
     if (key === "filterDurationUnder5Min") return t("filterDurationUnder5Min");
     if (key === "filterDuration30MinOrMore") return t("filterDuration30MinOrMore");
     if (key === "filterDuration1HourOrMore") return t("filterDuration1HourOrMore");
+    if (key === "filterModifiedLast30Days") return t("filterModifiedLast30Days");
+    if (key === "filterModifiedOverAYear") return t("filterModifiedOverAYear");
+    if (key === "filterModifiedOver3Years") return t("filterModifiedOver3Years");
     return "";
   };
 
@@ -477,6 +524,35 @@ export function ConditionMenu({
             role="menuitem"
             className={rootItemClass}
             onClick={() => choose(operator, preset.value)}
+          >
+            {presetLabel(preset.label)}
+          </button>
+        ))
+      )}
+    </>
+  );
+
+  const modifiedPresetList = (presets: readonly ModifiedPreset[]) => (
+    <>
+      <button
+        type="button"
+        role="menuitem"
+        aria-label={t("filterBack")}
+        onClick={openRoot}
+        className={backItemClass}
+      >
+        ← {t("filterBack")}
+      </button>
+      {presets.length === 0 ? (
+        <div className={stateRowClass}>{t("filterNoPreset")}</div>
+      ) : (
+        presets.map((preset) => (
+          <button
+            key={preset.token.identity}
+            type="button"
+            role="menuitem"
+            className={rootItemClass}
+            onClick={() => choose("modified", preset.token.value)}
           >
             {presetLabel(preset.label)}
           </button>
@@ -621,6 +697,25 @@ export function ConditionMenu({
                           onClick={() => setLevel("duration")}
                         >
                           {t("filterLength")}
+                        </button>
+                      );
+                    }
+                    if (entry === "modified") {
+                      return (
+                        <button
+                          key={entry}
+                          type="button"
+                          role="menuitem"
+                          className={rootItemClass}
+                          disabled={(parsed.modified?.length ?? 0) >= 4}
+                          onClick={() => {
+                            // The presets' offer check resolves against one
+                            // instant, taken when the list opens.
+                            setModifiedNow(Date.now());
+                            setLevel("modified");
+                          }}
+                        >
+                          {t("filterModified")}
                         </button>
                       );
                     }
@@ -860,6 +955,8 @@ export function ConditionMenu({
               {level === "size" && presetList(sizePresets, "size")}
 
               {level === "duration" && presetList(lengthPresets, "duration")}
+
+              {level === "modified" && modifiedPresetList(modifiedPresets)}
 
               {level === "kind" &&
                 kindOptions.map((kind) => (

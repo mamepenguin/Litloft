@@ -123,6 +123,7 @@ function file(id: string, overrides: Partial<FileItem> = {}): FileItem {
     trust_reviewed_at: null,
     created_at: "2026-01-01T00:00:00Z",
     updated_at: "2026-01-01T00:00:00Z",
+    modified_at: null,
     ...overrides,
   };
 }
@@ -395,6 +396,7 @@ describe("SPEC-CORE-109 step 6 / I5 no queue found: one evaluation of the saved 
       sort_order: "asc",
       created_at: "2026-01-01T00:00:00Z",
       updated_at: null,
+      modified_at: null,
       ...overrides,
     };
   }
