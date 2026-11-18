@@ -346,6 +346,7 @@ export function FileDetailContainer({
         addonSlotProps={addonSlotProps}
         mediaController={mediaController}
         onMediaController={handleMediaController}
+        documentController={documentController}
         onDocumentCaptureController={setDocumentCaptureController}
         onDocumentController={setDocumentController}
         videoRef={videoRef}

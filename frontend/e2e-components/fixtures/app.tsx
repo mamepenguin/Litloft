@@ -117,7 +117,9 @@ import { BATCH_PROGRESS_ARRANGEMENTS } from "./batchProgress";
 import { FOCUS_MODE_ARRANGEMENTS } from "./focusMode";
 import { TRANSCRIPT_TOUCH_ARRANGEMENTS } from "./transcriptTouch";
 import {
+  InspectorArchiveArrangement,
   InspectorPdfArrangement,
+  InspectorPdfCollectionArrangement,
   InspectorVideoArrangement,
   InspectorVideoSidebarArrangement,
   InspectorVideoTwoPaneArrangement,
@@ -2850,6 +2852,8 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "inspector-video": InspectorVideoArrangement,
   "inspector-video-sidebar": InspectorVideoSidebarArrangement,
   "inspector-pdf": InspectorPdfArrangement,
+  "inspector-pdf-collection": InspectorPdfCollectionArrangement,
+  "inspector-archive": InspectorArchiveArrangement,
   "inspector-video-two-pane": InspectorVideoTwoPaneArrangement,
   "inspector-video-collection": InspectorVideoCollectionArrangement,
   "header-row-ordinary": HeaderRowOrdinaryArrangement,

@@ -18,13 +18,14 @@ The tab strip is the top of the inspector. The first tab, **Info**, starts with 
 
 The tabs are the inspector's first row, shown only when there is more than one:
 
-- **Info**: the description, cut to three lines until **Show more**; EXIF where the file has it; comments; and addon sections such as AI summaries.
+- **Info**: the description, cut to three lines until **Show more**; EXIF where the file has it; comments; and addon sections such as AI summaries. On a file without a player (a PDF, an EPUB, an archive, an image, a text preview or a file Litloft cannot show), the file's summary note, when it has one, is the last block before the comments.
 - **Related**: the file's relations, and similar files with the intelligence addon.
 - **Chapters**: on media with chapters.
 - **Pages**: the contents and page thumbnails of a PDF, or an index of an archive.
+- **Detailed summary**: on a file without a player, once intelligence has generated one. While it is selected beside the page the inspector widens, so the summary reads at a comfortable line length; it narrows again when you pick another tab. Its citations move the PDF or EPUB to the cited page or chapter without leaving the page.
 - **検索**: the places found by [finding in this file](#finding-in-this-file), while the find bar is open.
 
-On a player file in a narrow window or on a phone, the [panels under the player](#panels-under-the-player) — Transcript, Scenes, Detailed summary and Note — are tabs here instead, after Chapters.
+On a player file in a narrow window or on a phone, the [panels under the player](#panels-under-the-player) — Transcript, Scenes, Detailed summary and Note — are tabs here instead, after Chapters. A file without a player draws its addon tabs after **Pages**.
 
 A tab appears only when it has something in it, so a video that was never transcribed has no Transcript tab.
 

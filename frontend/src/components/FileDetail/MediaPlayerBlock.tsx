@@ -56,6 +56,8 @@ export interface MediaPlayerBlockProps {
    * Info tab, so the entry is mounted once.
    */
   showMetadataAside?: boolean;
+  /** The viewer takes the file page's canvas height. */
+  fillCanvas?: boolean;
 }
 
 export function MediaPlayerBlock({
@@ -81,6 +83,7 @@ export function MediaPlayerBlock({
   bleed = false,
   showPreviewActions = true,
   showMetadataAside = true,
+  fillCanvas = false,
 }: MediaPlayerBlockProps) {
   const { hasSlot } = useAddonSlots();
   const aside =
@@ -114,6 +117,7 @@ export function MediaPlayerBlock({
           miniPlayerRoot={miniPlayerRoot}
           onEnded={onEnded}
           autoPlay={autoPlay}
+          fillCanvas={fillCanvas}
         />
 
         {/* Directly below the player rather than inside its control bar:

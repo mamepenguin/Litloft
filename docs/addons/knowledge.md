@@ -196,7 +196,7 @@ To keep a clip URL from reaching inside your network, Litloft refuses:
 
 **Create note** in any file's `...` menu creates a note whose frontmatter already cites that file, and opens it.
 
-A file's summary note is the **Note** panel under the player on a video, audio or `.loft` file, and a **Summary note** section on other files. Both show the note chosen as the summary of that file, with **Edit in Knowledge**. With the [intelligence addon](intelligence.md), **Save as file** on an AI detailed summary saves it as a note and makes it that file's summary note.
+A file's summary note is the **Note** panel under the player on a video, audio or `.loft` file, the last block of **Info** before the comments on a file without a player (in the sheet's **Info** on a phone), and a **Summary note** section under the text on a Markdown note or a plain-text document. Every form shows the note chosen as the summary of that file, with **Edit in Knowledge**. With the [intelligence addon](intelligence.md), **Save as file** on an AI detailed summary saves it as a note and makes it that file's summary note.
 
 ## Connections graph
 

@@ -241,7 +241,7 @@ function tabEntries(dir = ADDONS_DIR): { addon: string; entry: string; key?: str
 }
 
 /** The slots whose entries become tab buttons, and so need a label key. */
-const TAB_SLOTS = ["player-side", "inspector-tabs"] as const;
+const TAB_SLOTS = ["player-side", "inspector-tabs", "document-side"] as const;
 
 /** A manifest tree to run {@link tabEntries} against, outside the repo. */
 function fixtureAddons(manifest: unknown): string {
@@ -275,7 +275,11 @@ describe("addon slot labels", () => {
     // The list, not the addons checked out today: none of them declares an
     // `inspector-tabs` entry yet, so a scan limited to `player-side` would
     // pass while missing the tabs the slot exists for.
-    expect([...TAB_SLOTS]).toEqual(["player-side", "inspector-tabs"]);
+    expect([...TAB_SLOTS]).toEqual([
+      "player-side",
+      "inspector-tabs",
+      "document-side",
+    ]);
   });
 
   it.each([...TAB_SLOTS])(
