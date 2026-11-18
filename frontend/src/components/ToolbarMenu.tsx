@@ -145,6 +145,8 @@ interface ToolbarMenuProps {
   quiet?: boolean;
   /** Lets a long value shorten with an ellipsis where the bar is tight. */
   truncateValue?: boolean;
+  /** Added to the visible value, for example to hide it where the bar is narrow. */
+  valueClassName?: string;
   children: (close: () => void) => ReactNode;
 }
 
@@ -164,6 +166,7 @@ export function ToolbarMenu({
   filled = false,
   quiet = false,
   truncateValue = false,
+  valueClassName,
   children,
 }: ToolbarMenuProps) {
   const [open, setOpen] = useState(false);
@@ -237,11 +240,16 @@ export function ToolbarMenu({
             {showLabel && <span>{label}</span>}
             <span
               className={
-                showLabel
-                  ? "max-w-[12rem] truncate text-text-primary"
-                  : truncateValue
-                    ? "truncate"
-                    : undefined
+                [
+                  showLabel
+                    ? "max-w-[12rem] truncate text-text-primary"
+                    : truncateValue
+                      ? "truncate"
+                      : undefined,
+                  valueClassName,
+                ]
+                  .filter(Boolean)
+                  .join(" ") || undefined
               }
             >
               {value}
