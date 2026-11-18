@@ -78,6 +78,12 @@ describe("SPEC-CORE-063 the Target menu lists the shown set", () => {
   it.each([
     { name: "with the prop", extra: { defaultTargetExcludeOrigin: "webclip" }, expected: { exclude_origin: "webclip" } },
     { name: "without the prop", extra: {}, expected: {} },
+    { name: "with defaultTargetOrigin (SPEC-CORE-136)", extra: { defaultTargetOrigin: "webclip" }, expected: { origin: "webclip" } },
+    {
+      name: "with both origin props (SPEC-CORE-136)",
+      extra: { defaultTargetOrigin: "webclip", defaultTargetExcludeOrigin: "markdown" },
+      expected: { origin: "webclip", exclude_origin: "markdown" },
+    },
   ])("counts the default target's files $name", async ({ extra, expected }) => {
     render(menu({ selectedId: "sf-a", ...extra }));
     openMenu();
