@@ -46,24 +46,36 @@ absolute dates are read (sending step 4).
 
 SPEC-CORE-137, the column:
 
-1. `files` gains `modified_at DATETIME NULL` (UTC, naive as the other `files` timestamps).
-   The migration only adds the column; no backfill runs in the migration.
-2. Every path that inserts a `files` row for a file on disk sets `modified_at` from the
-   file's `st_mtime` read after the file is in place: the scanner's two insert paths,
-   `register_single_file`, the upload finaliser, the create-file endpoint, and the copy
-   in `fileops` (`shutil.copy2` keeps the source's mtime, so the copy keeps the source's
-   time).
-3. Every path that rewrites a file's bytes and the row's `file_size` in the same step sets
+1. `files` gains `modified_at DATETIME NULL` (UTC, naive as the other `files` timestamps),
+   always holding whole seconds: every write stores `st_mtime` truncated toward zero to
+   the second, and every comparison of a stored value with a stat compares those whole
+   seconds. The migration only adds the column; no backfill runs in the migration.
+2. These paths insert a `files` row for a file on disk and set `modified_at` from the
+   file's `st_mtime` read after the file is in place: the scanner's two insert paths
+   (after the `.md` id stamp, see 3a), `register_single_file`, the upload finaliser, the
+   create-file endpoint, and the copy in `fileops` (`shutil.copy2` keeps the source's
+   mtime, so the copy keeps the source's time). When that stat fails the row is inserted
+   with `modified_at` NULL, as `register_single_file` already inserts with a fallback
+   size; the next scan fills it.
+3. These paths rewrite a file's bytes on a user's or client's request and set
    `modified_at` from the new `st_mtime`: `write_text_content` (content PUT, MCP edits,
-   tag edits on `.md`, Markdown image import) and the upload that revives a missing row.
-4. Each scan stats every active file it walks, including those it skips for hashing today,
-   and sets `modified_at` to the stat's `st_mtime` when it differs from the stored value
-   (or is NULL). A failed stat leaves the stored value. So after an upgrade the startup
-   scan fills the column, and a file edited outside Litloft is reflected at the next scan
+   tag edits on `.md`, Markdown image import), the upload that revives a missing row, and
+   the create-file endpoint when it revives a missing row.
+3a. Writes Litloft makes on its own, without a request to change that file — the `.md` id
+   stamp (`_ensure_md_id_for_new_file`) and the `[[link]]` rewrite on rename
+   (`markdown_relations`) — **[human decision Q2]**.
+4. Each scan stats every row it walks that has a file on disk — active, trashed, a
+   missing row that reappears, and a row matched as a move — including those it skips for
+   hashing today, and sets `modified_at` when the stat's whole seconds differ from the
+   stored value or the stored value is NULL. A failed stat leaves the stored value. So
+   after an upgrade the startup scan fills the column (a trashed file restored later
+   already has it), and a file edited outside Litloft is reflected at the next scan
    (startup or the manual rescan).
-5. A write of `modified_at` alone does not change `updated_at`. A write that also changes
-   another column changes `updated_at` as it does today.
-6. Rename and move inside Litloft keep `modified_at` (the filesystem keeps the mtime).
+5. A write of `modified_at` alone does not change `updated_at`, does not count in the
+   scan result's `updated`, and logs nothing. A write that also changes another column
+   behaves as it does today.
+6. Rename, move, trash, restore, missing and recover leave `modified_at` as it is (the
+   filesystem keeps the mtime; the scan corrects it if not).
 
 SPEC-CORE-138, parsing (`searchQuery.ts`):
 
@@ -83,39 +95,57 @@ SPEC-CORE-138, parsing (`searchQuery.ts`):
    `>=30d` is `gte:<now − 30 d>`, "changed within the last 30 days". Units are fixed
    lengths, not calendar months, so the result does not depend on the zone.
 4. `ParsedQuery` gains `modified`, a list of the parsed tokens (operator plus amount, not
-   yet resolved to seconds), in order of first appearance, deduplicated by the typed
-   amount after normalisation and the operator; at most 4 distinct, the fifth and later
-   are text. A `modified:` token sets `hasOperators`.
-5. Resolution to epoch seconds happens when a request is built (sending step 1), not when
-   the text is parsed, so a relative value follows the clock. The impossible-range check
-   of SPEC-CORE-047 applies to the resolved comparisons (`modified:>2024 modified:<2023`
-   requests nothing).
+   yet resolved to seconds), in order of first appearance. A token's identity is its
+   canonical form: the operator, then the amount with `/` written `-` and the unit in
+   lower case (`<2024/01` and `<2024-01` are one token, `>=30D` and `>=30d` are one).
+   Tokens are deduplicated by identity; at most 4 distinct, the fifth and later are text.
+   `<2024` and `<=2023` stay two tokens; they resolve to the same wire form, which is
+   sent once. A `modified:` token sets `hasOperators`.
+5. Resolution to epoch seconds takes an instant `now` and a zone, and is clamped to the
+   wire range (0 to 253402300799): `modified:>=1970` in Asia/Tokyo sends `gte:0`,
+   `modified:<=9999` sends `lt:253402300799`, and `modified:<100y` sends `lt:0` (which
+   keeps nothing). One `now` is taken per search run: when the query text or type is
+   submitted, or the page is loaded with it. Every listing page, the meaning filter and
+   the continuation of that run use it. An open results page does not re-resolve until
+   a new search run. The impossible-range check of SPEC-CORE-047 applies to the resolved
+   comparisons of the run (`modified:>2024 modified:<2023` requests nothing). A Smart
+   Collection evaluation (`smartCollectionEval`) takes one `now` per evaluation.
 
-SPEC-CORE-138, chips: one chip per distinct parsed token, 「更新日 <value>」 / "Modified
-<value>", the value as typed after normalisation; ✕ removes every `modified:` token equal
-to it, keeping every other token's raw string (SPEC-CORE-047 chips, rule 2).
+SPEC-CORE-138, chips: one chip per distinct token identity, 「更新日 <value>」 / "Modified
+<value>", the value as first written after NFKC and whitespace removal; ✕ removes every
+`modified:` token with that identity, keeping every other token's raw string
+(SPEC-CORE-047 chips, rule 2).
 
 SPEC-CORE-138, sending:
 
-1. `SearchFilter` gains `modified: string[]`, the wire forms (`lt:1704034800`) resolved at
-   the moment the filter is built. `filterQueryParam` writes it last and only when
-   non-empty. Everything SPEC-CORE-047 sending says about `sizes` applies, including
-   "Show more by similarity" and the continuation.
+1. `SearchFilter` gains `modified: string[]`, the wire forms (`lt:1704034800`) of the
+   run's resolved comparisons. `filterQueryParam` writes it last and only when non-empty.
+   Everything SPEC-CORE-047 sending says about `sizes` applies, including "Show more by
+   similarity" and the continuation.
 2. The results page and the modal send each wire form as a repeated `modified` parameter
-   of `getDriveFiles`.
-3. `GET /api/drives/{name}/files` accepts `modified: list[str]`; `POST
-   /api/internal/files/matching` gains `modified: [str]`, default `[]`. Both go through
+   on the listing, through `listingRequest.ts`, on both the GET path and the
+   `getDriveFilesWithFileIds` POST path.
+3. `FileFiltersQuery` gains `modified: list[str]`, so every route that takes it accepts
+   it: `GET /files`, `POST /files/query`, `GET /folder-counts`, `POST
+   /folder-counts/query`, and `ShelfQuery` (`/shelves`, `/shelves/query`). `POST
+   /api/internal/files/matching` gains `modified: [str]`, default `[]`. All go through
    `apply_file_filters`: every comparison must hold (AND) against `files.modified_at`;
-   a row whose `modified_at` is NULL never passes. Validation is the same on the listing
+   a row whose `modified_at` is NULL never passes. Validation is the same on those routes
    (400), `/files/matching` (422) and the addon (422): the wire form, one of the four
    operators, a whole number from 0 to 253402300799 (9999-12-31T23:59:59Z), duplicates
    counted once, at most 4 distinct.
 4. Evaluation zone. On a page it is the browser's zone. The frontend server's Smart
    Collection evaluation (`GET /app-api/smart-collection-members`) accepts an optional
-   `tz` parameter naming an IANA zone and uses it; without `tz` it uses the frontend
-   server's own zone; an unknown zone is 400. The MCP server sends its host's zone as `tz`
-   on every call to that route, so a Smart Collection listed through MCP on the machine
-   where the viewer reads it holds the same files as on the page.
+   `tz` parameter naming an IANA zone and uses it; an unknown zone is 400. Without `tz`
+   **[human decision Q3]**. The MCP server sends its host's zone as `tz` on every call to
+   that route (`tools/collections.ts` and `tools/ask.ts`), so a Smart Collection listed
+   through MCP on the machine where the viewer reads it holds the same files as on the
+   page.
+5. App targets (`appTarget.ts`, `videoAppTarget.ts`), which build listing and shelf
+   parameters from a Smart Collection's query, **[human decision Q1]**.
+6. Deployment: the addon PR merges first and the core PR carries the pointer bump, as for
+   SPEC-ADDON-065, so no commit of `develop` pairs a core that sends `modified` with an
+   addon that rejects it.
 
 SPEC-CORE-138, 「＋ 条件」 menu: 「更新日」 / "Modified" sits between 「長さ」 and 「お気に入り」.
 It opens three fixed presets: 「30 日以内」 / "Last 30 days" (`modified:>=30d`), 「1 年以上前」
@@ -145,8 +175,7 @@ SPEC-ADDON-143:
 - A file's mtime set in the future or in the distant past (a camera with a wrong clock, an
   archive extracted with its original times): the operator answers on that mtime, which
   is what the filesystem says.
-- An unknown `tz` on the Smart Collection route: 400, as for a bad `offset`. A host whose
-  zone cannot be read leaves `tz` out and the server zone applies.
+- An unknown `tz` on the Smart Collection route: 400, as for a bad `offset`. No `tz`: Q3.
 - A malformed `modified` on the listing: 400; in `filter` or `/files/matching`: 422. The
   frontend never sends either.
 
@@ -233,17 +262,25 @@ Core:
   and matching parity, NULL, caps.
 - `frontend/src/lib/searchQuery.ts`: parsing, resolution, `ParsedQuery`, `SearchFilter`,
   chips, impossible range.
-- `frontend/src/lib/api.ts`, `frontend/src/components/folder/useFolderFiles.ts`,
+- `frontend/src/lib/api.ts`, `frontend/src/lib/listingRequest.ts`,
+  `frontend/src/components/folder/useFolderFiles.ts`,
   `frontend/src/components/search/useFileSearch.ts`.
+- `backend/app/routers/shelves.py` (`ShelfQuery`) and the folder-counts routes, through
+  `FileFiltersQuery`.
+- `frontend/src/lib/appTarget.ts`, `frontend/src/lib/videoAppTarget.ts` (Q1).
+- `frontend/src/lib/searchMerge.ts`, `frontend/src/components/folder/FolderTreePane.tsx`:
+  `FileItem` literals gain `modified_at`.
+- `backend/app/services/markdown_relations.py` and the scanner's id stamp (Q2).
 - `frontend/src/components/search/ConditionMenu.tsx`, `SearchFilterChips.tsx`.
 - `frontend/src/lib/smartCollectionEval.ts`,
   `frontend/src/app/app-api/smart-collection-members/route.ts`: the evaluation zone and
   `tz`.
 - `frontend/src/components/FileListRow.tsx`, `frontend/src/types/index.ts`.
 - `frontend/src/messages-core/ja.json`, `en.json`; `core-search-vocabulary.test.ts`.
-- `mcp-server/src/tools/collections.ts` (or its client): sends `tz`.
-- Docs: `docs/user-guide/search.md`, `docs/reference/api.md`, `docs/ADDON-DEVELOPMENT.md`,
-  `docs/addons/intelligence.md`.
+- `mcp-server/src/tools/collections.ts`, `mcp-server/src/tools/ask.ts`: send `tz`.
+- Docs: `docs/user-guide/search.md`, `docs/reference/api.md` (the listing's `modified`,
+  `FileResponse.modified_at`, the Smart Collection route's `tz`),
+  `docs/ADDON-DEVELOPMENT.md`, `docs/addons/intelligence.md`.
 
 Addon (`addons/intelligence`, its own PR, then the pointer bump):
 - `app/file_matching.py`: `SearchFilter.modified`.
@@ -251,16 +288,19 @@ Addon (`addons/intelligence`, its own PR, then the pointer bump):
 
 ## Invariants
 
-I1. After a scan, every active file the scan could stat has `modified_at` equal to its `st_mtime` (to the second), including a file whose bytes changed outside Litloft while its size stayed the same.
-I2. Every path that inserts a `files` row or rewrites a file's bytes through Litloft leaves `modified_at` equal to the file's `st_mtime` after the write, never NULL.
-I3. Writing only `modified_at` leaves `updated_at` unchanged.
+I1. After a scan, every row the scan walked whose file it could stat (active, trashed, recovered or matched as a move) has `modified_at` equal to the whole seconds of its `st_mtime`, including a file whose bytes changed outside Litloft while its size stayed the same.
+I2. Each path listed in SPEC-CORE-137 steps 2 and 3, when its stat succeeds, leaves `modified_at` equal to the whole seconds of the file's `st_mtime` after the write; a copy keeps the source's value; rename and move leave it unchanged.
+I3. Writing only `modified_at` leaves `updated_at` and the scan's `updated` count unchanged.
 I4. A file whose `modified_at` is NULL is never kept by a query with any `modified:` comparison, on the listing and on `/files/matching`.
-I5. For any combination of the existing conditions with `modified`, `POST /files/matching` returns exactly the ids `GET /api/drives/{name}/files` returns for the same conditions with no `search`, `path` or `trust`.
+I5. For any combination of the existing conditions with `modified`, `POST /files/matching` returns exactly the ids that `GET /files` and `POST /files/query` return for the same conditions with no `search`, `path` or `trust`.
 I6. In zone Asia/Tokyo, `modified:<2024`, `modified:<=2023` and `modified:<2024-01-01` all send `lt:1704034800`, and `modified:>2023-12-31` sends `gte:1704034800`.
 I7. `modified:<1y` keeps a file changed 366 days before now and not one changed 364 days before now; `modified:>=30d` keeps one changed 29 days before now and not 31.
 I8. The same Smart Collection with an absolute `modified:` evaluates to the same files on the page and through `/app-api/smart-collection-members` called with the page's zone as `tz`.
 I9. The parser turns into text every value the core or the addon would reject, and the listing (400), `/files/matching` (422) and the addon's `SearchFilter` (422) accept and reject the same wire forms.
 I10. A query with no `modified:` token sends the same listing parameters and the same `filter` as before this change.
+I11. A saved Smart Collection with `modified:<1y`, evaluated with `now` a day later, keeps a file that crossed the one-year boundary in between and did not keep it before; every page of one search run sends the same wire form.
+I12. Removing a 「更新日」 chip removes exactly the tokens with its identity and leaves every other token's raw string unchanged; the menu never offers a preset whose identity is already in the query or that would make the range impossible.
+I13. The list view's row date shows `modified_at`, and `updated_at` only when `modified_at` is NULL.
 
 ## Checked, no action
 
@@ -278,7 +318,10 @@ I10. A query with no `modified:` token sends the same listing parameters and the
 - Calendar months and years for relative values: fixed lengths keep the result
   independent of the zone and of the day of the month.
 - Times of day (`modified:<2024-01-01T12:00`) and `=`: not added, as `=` for `size:`.
-- Updating `modified_at` immediately for writes other than those in SPEC-CORE-137 step 3
-  (Markdown link rewrites on rename, the `.md` id stamp): the next scan picks them up.
+- Pagination through MCP: each call to the Smart Collection route is its own evaluation
+  with its own `now`, so a relative boundary can move by the seconds between two pages.
+  Accepted; the drift is seconds against a boundary of days.
+- Text for out-of-range resolved values: clamping keeps the token an operator whose
+  meaning holds for every file (no stored mtime is outside the wire range).
 - MCP `semantic_search` / Ask: they send no `filter`, as in SPEC-CORE-047.
 - A design artifact: no new screen; one menu entry and a chip in the existing pattern.
