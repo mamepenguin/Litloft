@@ -47,6 +47,7 @@ const AT_THE_PHONE_WIDTH = [
   "immersive-viewer-layer.spec.ts",
   "chrome-buttons.spec.ts",
   "fixture-origin.spec.ts",
+  "frame-crop.spec.ts",
   "page-frame.spec.ts",
   "page-header-actions.spec.ts",
   "player-captions.spec.ts",
@@ -88,6 +89,7 @@ const AT_THE_PHONE_WIDTH = [
 ] as const;
 
 const AT_THE_DESKTOP_WIDTH = [
+  "frame-crop-desktop.spec.ts",
   "add-menu-desktop.spec.ts",
   "condition-menu-desktop.spec.ts",
   "anchored-direction-desktop.spec.ts",
