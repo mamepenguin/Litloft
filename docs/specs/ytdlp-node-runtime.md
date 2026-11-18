@@ -61,8 +61,11 @@ At run time:
 3. intelligence starts yt-dlp as a subprocess in two functions: the lookup `run_lookup`
    (`yt-dlp -J`) and the whole-video download. `run_lookup` has three callers: the frame
    read (15 s budget), the storyboard index in `clip.py` (60 s) and the `.loft` fetch
-   (60 s). Both argument lists carry `--no-js-runtimes --js-runtimes node`, so Node is
-   the only runtime yt-dlp may use. A `.loft` fetch runs two extractions, the lookup and
+   (60 s). Both argument lists gain two arguments, `--no-js-runtimes` and
+   `--js-runtimes=node` (one argument, with `=`), placed before the URL, which stays the
+   last argument. Node is then the only runtime yt-dlp may use. Every argument except
+   the URL still starts with `-`, as the SPEC-ADDON-076 and SPEC-ADDON-117 argument
+   tests require. A `.loft` fetch runs two extractions, the lookup and
    the download, and each may solve a challenge.
 4. media_import constructs `yt_dlp.YoutubeDL` in seven places. Each options dict gets
    exactly one new key, `js_runtimes: {"node": {}}`, which replaces yt-dlp's default
@@ -72,8 +75,8 @@ At run time:
    |---|---|
    | `service.py` title extraction | `quiet: True`, `no_warnings: True` |
    | `service.py` metadata | `quiet: True`, `no_warnings: True` |
-   | `service.py` captions | `quiet`, `no_warnings`, `skip_download`, `writeautomaticsub`, `writesubtitles` (all `True`), `subtitlesformat: "vtt"`, `subtitleslangs: [lang]`, `outtmpl` |
-   | `service.py` audio download for speech-to-text | `quiet: True`, `no_warnings: True`, `format: "bestaudio/best"`, `outtmpl`, `keepvideo: False`, `postprocessors: [FFmpegExtractAudio to m4a]` |
+   | `service.py` captions | `quiet`, `no_warnings`, `skip_download`, `writeautomaticsub`, `writesubtitles` (all `True`), `subtitlesformat: "vtt"`, `subtitleslangs: [lang]`, `outtmpl`: a path string ending in `captions.%(ext)s` |
+   | `service.py` audio download for speech-to-text | `quiet: True`, `no_warnings: True`, `format: "bestaudio/best"`, `outtmpl`: a path string ending in `.stt_temp.%(ext)s.part`, `keepvideo: False`, `postprocessors: [{"key": "FFmpegExtractAudio", "preferredcodec": "m4a"}]` |
    | `providers/youtube.py` channel and playlist listing | `quiet`, `no_warnings`, `extract_flat`, `skip_download` (all `True`), and `playlistend: limit` when a limit is given |
    | `providers/youtube.py` source envelope | `quiet`, `no_warnings`, `extract_flat`, `skip_download` (all `True`), `playlistend: 1` |
    | `manager.py` channel id lookup | `quiet`, `no_warnings`, `extract_flat`, `skip_download` (all `True`), `playlistend: 1` |
@@ -84,9 +87,11 @@ At run time:
 
 - **Node is missing or will not start** (the image was built without it, or a test image
   lacks it): yt-dlp warns that no JS runtime was found and goes on without one, as it
-  does today. The outcome is what yt-dlp returns without a runtime. Litloft does not
-  treat the missing runtime as an error: no failure is counted, no back-off starts, and
-  no import fails because of it.
+  does today. MEASURE_ABSENT The warning on its own is not a failure: a lookup that
+  exits 0 with a JSON object is a success (I5), and a media_import call raises nothing
+  because of the missing runtime (I6). What yt-dlp returns without a runtime is handled
+  as today: if that leaves no usable format, or yt-dlp exits non-zero, the `.loft` fetch
+  counts a failure exactly as it would now.
 - **The EJS package does not match yt-dlp's pinned version**: yt-dlp rejects it and
   behaves as if there were no runtime. `yt-dlp[default]` installs the matching version,
   so this happens only if something installs `yt-dlp-ejs` separately. Nothing in this
@@ -99,12 +104,19 @@ At run time:
 - **pip cannot install `nodejs-wheel`** (no wheel for the platform, or PyPI is
   unreachable during the build):
   - intelligence: the image build fails, and the running version is kept.
-  - backend: the build fails (SPEC-CORE-139), and the running version is kept. The
-    operator sees pip's error in the build output and runs the build again.
+  - backend: the build fails (SPEC-CORE-139), and the running version is kept.
   - `nodejs-wheel` publishes manylinux wheels for aarch64 and x86_64. The install was
     measured on linux/arm64 (`python:3.12-slim`, Debian 13), the production platform.
     The download is about 60 MB, so a slow link to PyPI makes the build slower or makes
     it time out, as it did once on 2026-11-18.
+
+- **Any addon install step fails during the backend build** (SPEC-CORE-139): a pip
+  install of any addon's `requirements.txt` (media_import, cloud-sync), or any addon's
+  `install.sh` (cloud-sync's runs `apt-get update && apt-get install -y rclone`, which
+  reaches the Debian mirrors), exits non-zero. The step stops at the first failure,
+  later addons are not tried, and `docker build` fails. `docker compose up -d --build`
+  keeps the running containers. The build log shows the failing command's own output
+  (pip's or apt's error) as the last output of that step.
 
 ### 3. States
 
@@ -164,7 +176,10 @@ None. No endpoint or access check changes.
 
 ### 8. Error behavior
 
-Nothing new to see or log. yt-dlp's existing warnings stay where they go today:
+For the backend build, see the last failure case in item 2: the operator sees the
+failing pip or `install.sh` output in the build log, and the running version stays.
+
+At run time, nothing new to see or log. yt-dlp's existing warnings stay where they go today:
 intelligence captures the lookup's stderr only to report a failure, and discards the
 download's. media_import runs yt-dlp with `quiet` and `no_warnings`. The warning
 `No supported JavaScript runtime could be found` is therefore not shown anywhere, with or
@@ -224,6 +239,12 @@ None in the UI. An operator can see the change in two places:
 - `docs/addons/intelligence.md`: the install sentence and the yt-dlp floor.
 - `docs/addons/media-import.md`: the install sentence and the rebuild advice in the
   troubleshooting table.
+- `docs/ADDON-DEVELOPMENT.md`: where it says `requirements.txt` is pip-installed and
+  `install.sh` is run at image build, add that a failure of either fails the backend
+  image build.
+- `tests/test_backend_dockerfile.py`: the existing harness that pulls a `RUN` step out of
+  `backend/Dockerfile` and runs it with `sh -c` on the host. I8's tests extend it to the
+  install steps.
 - Submodule pointers `addons/intelligence` and `addons/media_import` in the core
   repository.
 - Rule passed through: `.claude/rules/design-decisions.md`, "No core-to-addon
@@ -238,23 +259,26 @@ in R-5 against the running stack (SPEC-ADDON-141 for intelligence, SPEC-ADDON-14
 backend).
 I2. Every yt-dlp process the intelligence addon starts, from any of the lookup's three
 callers and from the download, has `--no-js-runtimes` followed later by
-`--js-runtimes node`, no other `--js-runtimes`, and no `--remote-components`.
+`--js-runtimes=node`, no other argument starting with `--js-runtimes`, and no
+`--remote-components`. The URL is its last argument, and every other argument starts
+with `-`.
 I3. Every `yt_dlp.YoutubeDL` that media_import constructs gets options whose
 `js_runtimes` equals `{"node": {}}` and that have no `remote_components` key.
-I4. Each of media_import's seven options dicts, with `js_runtimes` removed, equals the row
-for its place in the table in item 4.
+I4. Each of media_import's seven options dicts, with `js_runtimes` removed, has exactly
+the keys in the row for its place in the table in item 4, with the values given there.
 I5. A `.loft` lookup whose yt-dlp exits 0, prints a JSON object on stdout and prints the
 missing-runtime warning on stderr is a successful lookup: it adds no failure to
 `loft_fetch_failures` and does not start or extend the back-off.
 I6. With no `node` on `PATH`, constructing `yt_dlp.YoutubeDL` with any of media_import's
-seven options dicts raises nothing.
-I7. This change adds no addon name and no JS runtime name to `backend/app/`,
-`backend/Dockerfile` or `backend/requirements.txt`.
-I9. Building `backend/Dockerfile` fails when any checked-out addon's `requirements.txt`
-fails to install or any addon's `install.sh` exits non-zero, and succeeds when no addon
-has either file (SPEC-CORE-139).
-I8. `addons/intelligence/Dockerfile` and `addons/intelligence/Dockerfile.test` install
-yt-dlp and `nodejs-wheel` with the same version specifiers.
+seven options dicts raises nothing. (The test removes `node` from `PATH`, because the
+test image has it.)
+I7. `backend/Dockerfile` and `backend/requirements.txt` name no specific addon and no JS
+runtime (`node`, `nodejs`, `deno`, `bun`, `quickjs`).
+I8. The install steps of `backend/Dockerfile` exit non-zero when any addon's
+`requirements.txt` install or `install.sh` exits non-zero, including when an addon after
+it succeeds. They exit 0 when every one succeeds, when no addon has either file, and when
+an addon has a `backend/` directory but neither file (SPEC-CORE-139, checked through the
+`sh -c` harness in `tests/test_backend_dockerfile.py`).
 
 ## Checked, no action
 
@@ -293,8 +317,16 @@ yt-dlp and `nodejs-wheel` with the same version specifiers.
   `CLAUDE.md` and `check-traceability` (a citation counts only at the pinned commit)
   already cover it.
 - **Test-image parity for media_import**: `addons/media_import/Dockerfile.test` installs
-  the addon's own `requirements.txt`, so it matches by construction. Only intelligence
-  writes the install line twice (I8).
+  the addon's own `requirements.txt`, so it matches by construction. intelligence writes
+  the install line twice, in `Dockerfile` and `Dockerfile.test`. No automatic check is
+  possible: neither the intelligence test image nor core's `tests` job (no submodules)
+  can read both files. The two lines are kept the same in review.
+- **CI failures from network flakes**: core CI's `images` and `addon-backends` jobs and
+  media_import's CI now fail when PyPI or a Debian mirror times out during an addon
+  install, where before the `images` job hid it. That is accepted and handled like any
+  flaky job: look at the failure, re-run up to three times.
+- **`docs/addons/cloud-sync.md`**: it says `install.sh` installs rclone, which stays
+  true. The build-failure rule is stated once, in `docs/ADDON-DEVELOPMENT.md`.
 - **The 30-second spacing or back-off for the extra requests**: about 4 more requests
   per `.loft` fetch (item 10) next to a 30-second gap between backlog fetches. The
   refusal back-off already handles the case where YouTube starts refusing.
