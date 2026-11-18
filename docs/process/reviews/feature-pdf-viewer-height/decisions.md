@@ -17,3 +17,15 @@ evidence: Playwright chromium against the R-5 stack (http://video-share-pdf-heig
   Other observation: on a phone viewport every file page tried (PDF, video, Markdown, EPUB, archive) logs a React hydration error #418 in the console; the home page does not. It is not specific to the document viewers; not compared with the base commit.
   Data left on the cloned stack: a detailed summary on the PDF, an active summary note on the EPUB, a started detailed summary on gCAyXit7PP9D.
 pending: the design check against the agreed artboards; a document-side tab on an EPUB or an archive (no detailed summary was generated for them); the overlay form and a wide pane without the sidebar were not run; iOS devices.
+
+## Design differences accepted by the human (design-check.md)
+
+Accepted by Yuichi Senga on 2026-11-18, each by its id.
+
+- D-1 accepted: the AI summary block in Info is the existing add-on section, unchanged; the PDF shot had no AI summary.
+- D-2 accepted: the AI / quote / menu row is the existing action row; the artboard omitted it.
+- D-3 accepted: the 出典確認 toggle is the detailed summary's existing control, as on a player file's tab.
+- D-4 accepted: citation chips and the excerpt card are not in the shots; R-5 exercised them.
+- D-5 accepted: headings and 編集 links are the detailed summary's existing rendering; the artboard simplified it.
+- D-6 accepted: at 1280 the PDF toolbar wraps at a 528px canvas, as it already does at narrow widths; the viewer still fills; a compact toolbar is a separate change.
+- D-7 accepted: the page frame is centred; the shot's first page is a left-aligned cover in the PDF itself.
