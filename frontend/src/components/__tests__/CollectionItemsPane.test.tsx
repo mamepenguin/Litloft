@@ -45,6 +45,7 @@ function makeFile(id: string): FileItem {
     trust_reviewed_at: null,
     created_at: "",
     updated_at: "",
+    modified_at: null,
   };
 }
 

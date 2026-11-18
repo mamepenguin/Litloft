@@ -3,6 +3,7 @@ import type { LitloftClient } from "../client.js";
 import {
   SMART_COLLECTION_ENDPOINT_MISSING,
   SMART_COLLECTION_MEMBERS_PATH,
+  hostTimeZone,
   isMissingSmartCollectionEndpoint,
   type SmartFolder,
 } from "./collections.js";
@@ -86,7 +87,7 @@ async function prepareScope(
     let members: SmartCollectionMembers;
     try {
       members = await client.request<SmartCollectionMembers>("GET", SMART_COLLECTION_MEMBERS_PATH, {
-        query: { drive, id: folder.id, ids: 1 },
+        query: { drive, id: folder.id, ids: 1, tz: hostTimeZone() },
         timeoutMs: ASK_TIMEOUT_MS,
       });
     } catch (err) {

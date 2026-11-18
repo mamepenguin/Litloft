@@ -1,0 +1,11 @@
+addons/intelligence/tests/test_search_passages.py
+addons/intelligence/tests/test_spec_addon_134_frame_lines_schema.py
+addons/intelligence/tests/test_spec_addon_136_frame_hit_lines.py
+addons/intelligence/tests/test_spec_addon_136_frame_size.py
+addons/media_import/frontend/players/__tests__/YouTubeEmbed.pictureOverlay.test.tsx
+frontend/src/components/FileDetail/__tests__/FindInFile.test.tsx
+frontend/src/components/FileDetail/__tests__/harness.tsx
+frontend/src/components/loft/__tests__/LoftPlayer.pictureOverlay.test.tsx
+frontend/src/components/player/__tests__/FindOutlineLayer.test.tsx
+frontend/src/components/search/__tests__/PassageList.frameCrop.test.tsx
+frontend/src/lib/__tests__/searchPassages.frameHitLink.test.ts

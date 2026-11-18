@@ -47,7 +47,7 @@ export const slotPropsByNode = new WeakMap<Element, Record<string, unknown>>();
 
 export const editableTagChipsCalls: Array<Record<string, unknown>> = [];
 
-export const usePolicyMock = vi.fn();
+export const usePolicyMock = vi.fn(() => ({ enabled: true, isLoading: false }));
 
 export const overlaySidebarSpy = vi.fn();
 

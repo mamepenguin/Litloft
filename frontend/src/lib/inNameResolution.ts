@@ -112,6 +112,7 @@ export async function resolveInNames(
   parsed: Pick<ParsedQuery, "collections">,
   signal: AbortSignal | undefined,
   io: InNameIo,
+  now?: number,
 ): Promise<InNameResolution> {
   if (parsed.collections.length === 0) {
     return { status: "resolved", collections: [], fileIds: null };
@@ -139,6 +140,7 @@ export async function resolveInNames(
           sort: "relevance",
           order: "desc",
           includeSceneClip: false,
+          now,
         },
         io,
       );

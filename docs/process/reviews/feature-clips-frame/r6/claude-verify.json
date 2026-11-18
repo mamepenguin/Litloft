@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R1",
+      "status": "confirmed",
+      "note": "addons/knowledge/frontend/api.ts:759-777 defines `ClipCover` and `fetchClipCovers` (POST /clip-covers, empty input short-circuits to {}). clipsapp/clipMeta.ts:3 imports it. The touch-point list (docs/specs/clips-frame.md:337-338) names only `clipsapp/` requests, not the shared api.ts."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R2",
+      "status": "confirmed",
+      "note": "frontend/e2e-components/fixtures/app.tsx:111-112 imports clipsPageResponse/clipsRowResponse, and lines 148-149 route through them before the other stubs. The guards are at fixtures/clipsPage.tsx:27 (hash HASH) and clipsRow.tsx:26 (hash 'clips-row'), so other fixtures are unaffected. app.tsx is not in the touch-point list."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R3",
+      "status": "confirmed",
+      "note": "projects.ts:47 and spec-viewport.spec.ts:129 register clips-primary-action-desktop.spec.ts. fixtures/clipsPage.tsx:21 and clipsRow.tsx:19 import from ./clipsData (armCoverGate, clipCoversResponse, clipFiles). Neither file is named in docs/specs/clips-frame.md touch points. I could not run git to prove the two files are new, but neither appears in the spec's list."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R4",
+      "status": "confirmed",
+      "note": "addons/knowledge/tests/test_clip_covers_acceptance.py exists beside test_clip_covers.py. notesRoutesManifest.test.ts:30-41 holds the SPEC-ADDON-140 /clip-covers manifest case. The touch points name only tests/test_clip_covers.py. I did not check with git whether these were added or changed in this diff."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R5",
+      "status": "confirmed",
+      "note": "The clipsapp/ glob returns clipsApp.ts, ShelfPage.tsx, useVerify.ts, clipsUrl.ts, clipMeta.ts, Home.tsx, requests.ts, Library.tsx, useTagShelves.ts, useShelfData.ts, usePagedClips.ts, ClipShelfBlock.tsx, CoverShelf.tsx, ClipCard.tsx and ClipRow.tsx. It returns no useClipCovers or useUnreadDots. clipMeta.ts:20,129,137 export ClipMeta, ClipMetaContext and useClipMeta(ids, {dots}), which cover both covers and dots."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R6",
+      "status": "confirmed",
+      "note": "Grepping defaultTargetOrigin outside docs matches only TargetMenu.tsx:45,97,110,129,132,188,233 and the Knowledge caller pages/clips.tsx:249. No core test matches. TargetMenu.test.tsx:77-86 parametrizes only defaultTargetExcludeOrigin (with/without), so spec item 16 (docs/specs/clips-frame.md:211-213: origin passed, and combined with exclude origin) has no core unit test. The only SPEC-CORE-136 citation is Knowledge's clipsFrame.test.tsx:185, which checks origin=webclip on the menu count through the Clips page. I could not confirm from git that TargetMenu.tsx itself changed in this diff range: r1-clips-frontend.md:5 names core commit f39607b0d for the prop."
+    }
+  ],
+  "specification_compliance": [
+    "The touch-point list in docs/specs/clips-frame.md:335-362 does not match the files present: api.ts, e2e fixtures/app.tsx, clipsData.ts, the desktop primary-action spec, the acceptance tests and the clipsapp module split are all outside it (R1-R5).",
+    "SPEC-CORE-136 item 16 has no core TargetMenu unit test. Only the Knowledge page-level test covers it (R6)."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "No core TargetMenu test asserts that defaultTargetOrigin is passed as origin or that it combines with defaultTargetExcludeOrigin. A later core change could break the Clips 'All clips' count (I1), and only the Knowledge test would catch it."
+  ],
+  "test_coverage": [
+    "clipsFrame.test.tsx:185 covers origin=webclip on the Target menu count through the Clips page.",
+    "TargetMenu.test.tsx:77-86 covers only defaultTargetExcludeOrigin."
+  ],
+  "not_verified": [
+    "I did not run git diff against origin/develop, so whether each file is new or changed in this exact range is inferred from the files present and the readers' evidence.",
+    "I did not run any test.",
+    "I did not check whether clipsFrame.test.tsx renders the real core TargetMenu or a mock."
+  ],
+  "confidence": 85
+}

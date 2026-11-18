@@ -54,6 +54,20 @@ Choosing another note, folder, tag, sort, tab or Target, or opening the file pag
 
 While a note is open, `Cmd/Ctrl+K` opens search limited to this drive's notes. Type part of a title or folder and press Enter on a result. To search the whole drive instead, press × on **Notes** or `Backspace` in the empty field. See [narrowed to one kind](search.md#narrowed-to-one-kind). `Enter` with no result chosen opens the Library with your query in its search field.
 
+## Clips
+
+**Clips** in the sidebar is the page for web pages you saved. It has the same header as Notes: a **Target** menu, **Clip a web page** at the top right, and the tabs **Home** and **Library**. The count beside the drive name is the number of clips in the current target. The Target menu works as on Notes, and its default, **All clips**, counts clips only.
+
+- **Home** has the shelves **Unread**, **Recently opened** and **Unverified**. Without a [profile](profile-preferences.md), **Unread** becomes **New clips** and **Recently opened** is not drawn. **Recently opened** does not follow the Target. A shelf with nothing in it is not drawn. **See all** beside a shelf opens that shelf as a page of its own, with a link back to Home or the Library.
+- **Unverified** lists clips that are not yet a trusted source, one row each. **Mark as verified** on a row marks that clip as a trusted source, the same as **Trust as a source** on its file page, and the row leaves the shelf. If it cannot be saved, **Couldn't save** appears beside the button and you can press it again.
+- **Library** has two menus: **By tag** (one shelf per tag, the most used first, **Untagged** last) or **No grouping** (every clip in one grid), and the order, **Newest clipped**, **Oldest clipped** or **Title**. More shelves or cards load as you scroll to the end.
+- A clip is a card: its first picture, the title, then the site it came from and a reading time. Home and shelf pages add how long ago it was clipped. A red dot marks a clip you have not opened. Choosing a card opens the clip's file page.
+- A clip with no picture shows a plain grey block, and so does one whose picture does not load. The site is the host of the clip's `url`, or failing that of the first link in the start of the page.
+
+A clip's first picture is either a file in the drive or an image on the source site. In the second case your browser loads it from that site when the card is drawn, without telling the site which page it came from. A site that is slow or refuses leaves the grey block; the clip itself is not affected.
+
+A drive with no clips shows **No clips yet** and nothing else. A Target with no clips shows **No clips in this Target**.
+
 ## Web clips and connections
 
 Save a web page from the **Clips** page, from **Clip web page** in the **Add** menu, or with the bookmarklet. Clips stay out of Notes, including its count, until you delete `origin: webclip` from their frontmatter. The connections graph of the whole drive is not linked from Notes; open it from **See this note in the graph**, or from the **Related** tab of a Markdown or text file.

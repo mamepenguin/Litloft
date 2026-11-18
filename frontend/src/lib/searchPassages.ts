@@ -73,12 +73,53 @@ export function passageLocator(passage: SearchPassage): PassageLocator {
   }
 }
 
+/** The ASCII-only fold `file_find.py` applies. Every length is kept. */
+function asciiFold(text: string): string {
+  return text.replace(/[A-Z]/g, (c) =>
+    String.fromCharCode(c.charCodeAt(0) + 32),
+  );
+}
+
+/**
+ * The term of the first occurrence of the passage's highlight terms in its
+ * excerpt, unfolded. When two start at the same place the longer wins, then
+ * the one written earlier.
+ */
+function linkTerm(passage: SearchPassage): string | null {
+  const haystack = asciiFold(passage.text);
+  let best: { term: string; start: number; length: number } | null = null;
+  for (const term of passage.highlight_terms) {
+    if (term === "") continue;
+    const needle = asciiFold(term);
+    const start = haystack.indexOf(needle);
+    if (start === -1) continue;
+    if (
+      best === null ||
+      start < best.start ||
+      (start === best.start && needle.length > best.length)
+    ) {
+      best = { term, start, length: needle.length };
+    }
+  }
+  return best?.term ?? null;
+}
+
+/** A start written with exactly three decimals, as the find link writes it. */
+function startText(start: number): string {
+  return start.toFixed(3);
+}
+
 export function passageHref(fileId: string, passage: SearchPassage): string {
   const base = `/files/${fileId}`;
   switch (passage.kind) {
+    case "screen_text": {
+      const term = passage.keyword ? linkTerm(passage) : null;
+      return term === null
+        ? `${base}?t=${Math.floor(passage.start ?? 0)}`
+        : `${base}?t=${startText(passage.start ?? 0)}&find=${encodeURIComponent(term)}`;
+    }
     case "utterance":
     case "scene":
-    case "screen_text":
       return `${base}?t=${Math.floor(passage.start ?? 0)}`;
     case "page":
       return `${base}?page=${passage.page}`;

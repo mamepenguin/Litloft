@@ -26,6 +26,8 @@ export interface ListingFilters {
   size?: string | readonly string[];
   /** Duration comparisons in the wire form (`gte:1800`). */
   duration?: string | readonly string[];
+  /** Modification-time comparisons in the wire form (`lt:1704034800`). */
+  modified?: string | readonly string[];
   /**
    * `verified` / `unverified` select a tier; `unreviewed` is not a tier but
    * the review queue — files nobody has ruled on, which spans both.
@@ -73,6 +75,9 @@ export function appendListingFilters(
   }
   for (const duration of [params.duration ?? []].flat()) {
     if (duration) searchParams.append("duration", duration);
+  }
+  for (const modified of [params.modified ?? []].flat()) {
+    if (modified) searchParams.append("modified", modified);
   }
   if (params.trust) searchParams.set("trust", params.trust);
   if (params.origin) searchParams.set("origin", params.origin);

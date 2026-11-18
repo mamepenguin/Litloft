@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "MEDIUM",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R1-SCOPE-1",
+      "status": "confirmed",
+      "note": "Glob of docs/process/reviews/fix-hydration-418-narrow/** returns only decisions.md and r1/* (head.txt, expected.txt, classification.json, fixes.txt, product-files.txt, test-files.txt). There is no invariants.md and no spec. r1/product-files.txt lists frontend/src/hooks/useFocusMode.ts and frontend/src/hooks/useIsMobile.ts. The test file frontend/src/hooks/__tests__/viewportHydration.test.tsx exists at HEAD. The changed regions match the claim: useIsMobile.ts:3-22 (now useSyncExternalStore) and useFocusMode.ts:6 (import) and :65-71 (isWideNow/serverIsWide/useIsWideViewport)."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R1-SCOPE-2",
+      "status": "confirmed",
+      "note": "Old code, read from the main checkout at /Users/libre/Sources/video_share, which I take to be the pre-change state: useIsMobile used useState(getIsMobile) at :18, and useIsWideViewport used a useState initializer that read window.innerWidth >= MOBILE_BREAKPOINT at useFocusMode.ts:67-71. On the client, the first commit therefore always held complementary real values, because w<768 and w>=768 are exact complements. New code: useIsMobile.ts:13 serverIsMobile=()=>false and useFocusMode.ts:66 serverIsWide=()=>false, both passed to useSyncExternalStore (:21, :70). React's hydration render uses getServerSnapshot. The snapshot-changed check that forces a sync re-render runs from a passive effect, so the hydration commit's layout effects and ref callbacks see isMobile=false together with wide=false, which is a desktop-but-narrow combination the old hooks could not produce on the client. Consumers confirmed by grep: FileDetailShell.tsx:123 and :218, ShellLayout.tsx:202 (useLayoutEffect) and :399-411, useInspectorFit.ts:97-120, useFindInFile.ts:80-81, MarkdownDocumentLayout.tsx:64 and :100, AppShell.tsx:121, TwoPaneLayout.tsx:111, TreeToggle.tsx:26, Header.tsx:68, ChromeButtons.tsx:56, InboxView.tsx:49, FileDetailChrome.tsx:54 and FileDetailSkeleton.tsx:63. FileDetailContainer.tsx:78 is a further consumer that the finding does not list. None of these files is in r1/product-files.txt. I did not run the app to observe a user-visible effect of the transient state."
+    }
+  ],
+  "specification_compliance": [
+    "No spec or invariants file exists for this change; decisions.md records an in-app run at 429966bbb showing no React #418 at 390/700/1440 px."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "During the hydration commit, every consumer receives isMobile=false and wide=false at the same time; the code does not specify whether layout effects in the consumers (ShellLayout useLayoutEffect, useInspectorFit, MarkdownDocumentLayout split→preview effect) behave correctly in that state."
+  ],
+  "regression_risks": [
+    "Layout effects or ref callbacks in consumers may act once on the transient desktop-narrow state before the forced sync re-render, for example measuring the inspector in the desktop form on a phone."
+  ],
+  "test_coverage": [
+    "viewportHydration.test.tsx checks for no recoverable errors and the final text at 390/700/1440 px; it does not check intermediate commits or consumer layout effects."
+  ],
+  "not_verified": [
+    "Did not run tests or the app; could not observe the transient commit or any visible flicker or mis-layout from it.",
+    "Old code was read from the main checkout, not from the origin/develop object directly; I assumed it matches the base.",
+    "Did not inspect each consumer's layout effect for actual misbehaviour under false/false."
+  ],
+  "confidence": 82
+}

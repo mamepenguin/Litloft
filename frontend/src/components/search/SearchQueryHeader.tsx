@@ -276,6 +276,7 @@ export function SearchQueryHeader({
               collectionsWithSmart ? "collectionWithSmart" : "collection",
               "size",
               "duration",
+              "modified",
               "favorite",
             ]}
             label={t("addFilterWord")}

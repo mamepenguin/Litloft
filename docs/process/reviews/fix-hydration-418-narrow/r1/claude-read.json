@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "MEDIUM",
+  "findings": [
+    {
+      "id": "R1-SCOPE-1",
+      "origin": "reviewer",
+      "claim": "The diff reaches three paths that are not in any touch-point list, because this change has no spec and no invariants file: frontend/src/hooks/useIsMobile.ts, frontend/src/hooks/useFocusMode.ts and frontend/src/hooks/__tests__/viewportHydration.test.tsx.",
+      "impact": "No user-facing effect by itself. No planned scope exists that the reach of the change could be checked against, so the consumer-facing change in R1-SCOPE-2 has no list that could have caught it.",
+      "evidence": "docs/process/reviews/fix-hydration-418-narrow/ holds only decisions.md and r1/; it has no invariants.md. The brief says no invariants file exists. The diff changes useIsMobile.ts:3-22, useFocusMode.ts:6 and :65-71, and adds the test file.",
+      "repro": "not_reproduced. I compared the file listing with the absence of an invariants file; no touch-point list exists to compare against.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariant is declared, so A is not available. The missing list is a process gap, not a code defect. This matches precedent in codex-process-kit-codex-support r1 and chore-risk-tuning r1.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Have a person accept the change without a spec in decisions.md, or add an invariants.md that lists the two hooks, and their consumers, as touch points."
+    },
+    {
+      "id": "R1-SCOPE-2",
+      "origin": "reviewer",
+      "claim": "The change alters what every consumer of useIsMobile, useIsWideViewport and useFocusLayout sees in the first commit of a server-rendered page. That commit now reports isMobile=false and wide=false together, a 'desktop but narrow' state that the old hooks never reported after hydration. Layout effects and ref callbacks in the consumers run once with these values before the forced re-render.",
+      "impact": "About 11 consumers are reached without being named in the diff. FileDetailShell's useLayoutEffect(evaluateYield) and the attach/measureFirst ref callback in useInspectorFit run once with isMobile=false at phone widths. Effects in MarkdownDocumentLayout, ShellLayout and useFindInFile likewise see the desktop value first. I found no persisted wrong result. The yield in FileDetailShell needs leftPane.shownBySetting, which TwoPaneLayout ties to besideViewport. useInspectorFit re-runs `run('publish')` once isMobile changes. In normal use this is a transient re-layout that the hook's docstring already describes.",
+      "evidence": "useIsMobile.ts:21 and useFocusMode.ts:70 use useSyncExternalStore with server snapshots that return false. During hydration React renders with the server snapshot and corrects it in a later synchronous render. The old code read window in its useState initializer, so a client re-render after a mismatch saw the real width in its first commit. Consumers: FileDetailShell.tsx:123, 187, 198-204 and 219-221; useInspectorFit.ts:97-131 and 152-165; ShellLayout.tsx:399-411; MarkdownDocumentLayout.tsx:100; useFindInFile.ts:80-81; AppShell.tsx:121; TwoPaneLayout.tsx:111; TreeToggle.tsx:26; Header.tsx:68; ChromeButtons.tsx:56; InboxView.tsx:49; FileDetailChrome.tsx:54; FileDetailSkeleton.tsx:63. None of these is in the diff or in a touch-point list.",
+      "repro": "not_reproduced. This comes from reading the code and React's useSyncExternalStore hydration semantics. I did not run it. The author's decisions.md records a Playwright run at 390, 700 and 1440 with no page error, but that run does not observe what consumer effects do in the first commit.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariant is declared and I found no persisted wrong result. The reach of the change is wider than the two hook files suggest, and an invariants list should name the consumers.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "List the consumers above as touch points. Optionally add a hydration test that mounts FileDetailShell at 390px and asserts that treeYieldStore and inspectorFormStore hold no desktop-derived values after hydration settles."
+    }
+  ],
+  "specification_compliance": [
+    "No spec or invariants file exists for this change, so code could not be checked against declared touch points or invariants.",
+    "The diff's stated goal holds by reading: no hydration mismatch at any width, because both server snapshots return a constant false that is used by renderToString and by hydration. After that, the real width takes over through the subscribe consistency check."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "On a server-rendered page, the first committed frame reports isMobile=false and useIsWideViewport=false together, which is inconsistent: 'desktop' yet 'narrow'. Consumer layout effects run once with this pair.",
+    "On a client-side navigation (a non-hydrating mount), useSyncExternalStore uses getSnapshot right away, so the first render has the real width. This matches the old useState initializer.",
+    "useFocusLayout is always false in the server render and the hydration commit, so focus mode never appears in the first paint even when stored state and width allow it."
+  ],
+  "regression_risks": [
+    "Consumer effects keyed on isMobile now fire twice on hydration (false, then the real value) where the old recovered client render fired once with the real value. Examples: FileDetailShell's find override effect, the MarkdownDocumentLayout split-to-preview effect and useInspectorFit's measureFirst.",
+    "subscribeToResize is now shared by both hooks and exported from useIsMobile.ts. It assumes window exists. That is safe only because React never calls subscribe on the server."
+  ],
+  "test_coverage": [
+    "viewportHydration.test.tsx kills a revert to the old useState/useEffect hooks: the jsdom server render at 1024 produces 'desktop wide', which mismatches at 390 and 700. It also kills a getServerSnapshot that reads window.innerWidth.",
+    "A mutant `serverIsWide = () => true` (or `serverIsMobile = () => true`) would survive. The server render and hydration both use the server snapshot, so no mismatch arises, and the final text is the real width. The server default is not pinned.",
+    "The test never fires resize after hydration, so a no-op subscribeToResize could survive this file. Before such a mutant counts as covered, check whether other tests change innerWidth after mount; FileDetailChrome.test.tsx sets it before render.",
+    "No test covers what consumers (FileDetailShell, useInspectorFit, ShellLayout) do in the first hydration commit at a phone width."
+  ],
+  "not_verified": [
+    "I did not run the test file or any mutant; the mutant outcomes are reasoned from the code.",
+    "I did not confirm whether React flushes the useSyncExternalStore consistency re-render before or after the rAF that useInspectorFit schedules in measureFirst.",
+    "I did not read TwoPaneLayout's besideViewport derivation to confirm that leftPane.shownBySetting is false at phone widths during hydration.",
+    "I did not read every consumer's full effects; I grepped isMobile uses and read FileDetailShell.tsx:115-314 and useInspectorFit.ts in full.",
+    "I did not check whether any other test fires resize after mount for useIsWideViewport."
+  ],
+  "coverage": [
+    {
+      "path": "frontend/src/hooks/useFocusMode.ts",
+      "read": "full",
+      "reason": "Read the whole file (lines 1-98)."
+    },
+    {
+      "path": "frontend/src/hooks/useIsMobile.ts",
+      "read": "full",
+      "reason": "Read the whole file (lines 1-23)."
+    },
+    {
+      "path": "frontend/src/hooks/__tests__/viewportHydration.test.tsx",
+      "read": "full",
+      "reason": "Read the whole file (lines 1-49)."
+    }
+  ],
+  "confidence": 78,
+  "trajectory": "The diff reaches the two hook files and the new test. None is in a touch-point list, because no invariants file exists. Through the hooks' changed first-commit semantics it also reaches about 11 consumer components, none of them named."
+}
