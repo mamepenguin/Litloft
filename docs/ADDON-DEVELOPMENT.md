@@ -1248,6 +1248,17 @@ provider's URLs:
 
 `addons/media_import` registers YouTube and Vimeo this way.
 
+`LoftEmbedProps` carries one optional capability for drawing over the picture.
+`pictureOverlay` is a node the core passes to every embed, without knowing the
+provider. An embed that supports it renders the node inside its own full-screen
+frame, filling the box its picture is drawn in (for YouTube, the iframe's box,
+which becomes the full-screen box), above the iframe. In the Litloft-UI mode the
+node sits under the embed's own controls, gesture overlay and poster; when the
+provider draws its controls inside the picture (the YouTube-UI mode) the node
+sits over the iframe and so over those controls. The embed adds no wrapper that
+takes pointer events, and it does not re-create the iframe when the node
+changes. An embed that ignores the prop renders exactly as before.
+
 ### Opening Quick Note
 
 An addon that offers "write a note" can open the core Quick Note panel, the
