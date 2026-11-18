@@ -442,6 +442,27 @@ class TestModifiedOnlyWrite:
         assert after.updated_at == updated_before
         assert result.get("updated", 0) == 0
 
+    def test_spec_core_137_i3_a_scan_retrying_a_failed_thumbnail_moves_no_updated_at(
+        self, client
+    ):
+        _c, db, drive_dir, _ = client
+        path = drive_dir / "broken.epub"
+        path.write_bytes(b"not a zip")
+        _touch(path, OLD)
+        _scan_and_register(db, TEST_DRIVE)
+        db.commit()
+        row = _row_at(db, "broken.epub")
+        assert row.thumbnail_path is None
+        _set_modified(db, row.id, None)
+        updated_before = _row(db, row.id).updated_at
+
+        _scan_and_register(db, TEST_DRIVE)
+        db.commit()
+
+        after = _row(db, row.id)
+        assert _epoch(after.modified_at) == OLD
+        assert after.updated_at == updated_before
+
 
 class TestLifecycleKeepsTheValue:
     """SPEC-CORE-137 step 6, I2: rename, move, trash and restore leave modified_at."""

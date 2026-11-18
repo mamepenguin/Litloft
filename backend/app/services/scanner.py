@@ -583,11 +583,12 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
                     db.merge(FileExif(file_id=file_record.id, **exif))
 
             modified_at = read_modified_at(item)
+            # Not through the ORM even when ``needs_update`` is set: that flag
+            # is also raised by assignments that change nothing (a failed
+            # thumbnail retry writes NULL over NULL), and an ORM write of this
+            # column would then be the row's only change and move updated_at.
             if modified_at is not None and modified_at != file_record.modified_at:
-                if needs_update:
-                    file_record.modified_at = modified_at
-                else:
-                    _write_modified_at_only(db, file_record, modified_at)
+                _write_modified_at_only(db, file_record, modified_at)
 
             if needs_update:
                 updated += 1
