@@ -326,9 +326,6 @@ I10. A failing or slow band read, and band updates, leave progress saves, the re
   Non-functional are small for a personal tool; Python keeps the rule in one readable helper.
 - **Partial segments on cards.** A segment with any played seconds counts as watched whole, so a
   card can overstate by up to 5 seconds at each end of a run; invisible at card width.
-- **The tick rule against the artboard.** `Cards.dc.html` draws the tick from a fraction of the
-  length; the rule here (`5 < position < duration − 5`, the resume threshold) replaces it, as
-  the user chose. The artboard's sample cards agree with the rule.
 - **Tick colour.** The tick is white with an outline rather than the theme accent, because on
   `FileCard` the accent is already the fill colour and on `VideoCard` the fill is white; the
   outline and its height keep it apart from the fill.
