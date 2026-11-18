@@ -1,0 +1,102 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "MEDIUM",
+  "findings": [
+    {
+      "id": "F1",
+      "origin": "reviewer",
+      "claim": "The guard in fixture-origin.spec.ts only recognises a document crossing written literally as `.reload(` or `.context().newPage(`, so a spec that crosses documents in another way can stay on `file://` while the guard passes.",
+      "impact": "Test-only. A later spec could hit the same flaky null-after-reload or missing-storage-event failure in CI while this guard reports it as covered. Ways it slips through: a second `page.goto`/`open()` on the same page after a storage write, `other.goto(...)` on a page obtained as `context.newPage()` from the `{ context }` fixture, `page.goBack()`/`goForward()`, or `browser.newContext()`. No user of the product can observe this.",
+      "evidence": "frontend/e2e-components/fixture-origin.spec.ts:13 `ACROSS_DOCUMENTS = /\\.reload\\(|\\.context\\(\\)\\.newPage\\(/`. The only crossings that exist today all use those two literal forms (player-workbench-desktop.spec.ts:561,573,1343; workbench-split-desktop.spec.ts:768,893,952,1014). inspector-responsive-layout-desktop.spec.ts reads localStorage but stays within one document per test (lines 24-43, 539-555), so no current spec escapes the guard.",
+      "repro": "not_reproduced. Mutation in my head: in any spec, replace `page.context().newPage()` with `context.newPage()`, taking `context` from the test fixture. ACROSS_DOCUMENTS no longer matches that file, the file drops out of `crossing`, the `toEqual([...])` at line 24 fails for the wrong reason, and once the expected list is updated the `file://` check never runs on that file.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "No declared invariant exists. The guard works for every spec today and is only weak against future spellings, which makes this a 'reads stronger than it is' issue rather than a broken invariant."
+      },
+      "severity": "LOW",
+      "proposed_fix": "Widen the pattern to also match `context.newPage(`, `.goBack(`/`.goForward(` and `newContext(`. Alternatively, require every spec that uses `localStorage` (not only those that cross documents) to use serveFixture, which avoids pattern matching on call shapes."
+    },
+    {
+      "id": "F2",
+      "origin": "reviewer",
+      "claim": "Serving the fixture from http://localhost:47391 turns every unstubbed relative fetch in the two migrated specs from a rejected promise (file:// network error) into a resolved 404 Response, so those specs now run the page under different API-failure conditions than every other component spec.",
+      "impact": "Test-only. The fixture's fetch stub falls back to the native fetch for any endpoint it does not answer. Before this change that fallback rejected with a network error. Now the route answers it with `{status: 404}`. Product code that treats a rejected fetch differently from a `!ok` response (for example an error banner versus a silent retry, or a parsing error from `res.json()` on an empty body) now renders a different state in workbench-split-desktop and player-workbench-desktop only. Those specs could therefore assert a layout the page never reaches under the other specs, or the reverse. The comment at fixtureOrigin.ts:44-45 says a missing path is a 404 'as the same missing file is under file://'. That holds for element loads such as <track>, but not for fetch.",
+      "evidence": "frontend/e2e-components/fixtureOrigin.ts:41-52 answers every `${ORIGIN}/**` request, including `/api/...`, with a 404 when no file exists under ROOT. frontend/e2e-components/fixtures/inspectorResponsive.tsx:254 `return nativeFetch(input, init)` handles unmatched endpoints. frontend/e2e-components/fixtures/app.tsx:136-139 says unanswered fetches 'keep [their] offline failure'. Under file:// that is a TypeError; under the new origin it is a resolved 404.",
+      "repro": "not_reproduced. I could not run Playwright. Reasoning check: on the `#inspector-video` arrangement, a component fetch to an endpoint not listed in inspectorResponsive.tsx:205-253 now resolves with status 404 instead of rejecting.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "No declared invariant exists. The migrated specs presumably still pass, but the conditions they test changed without notice, and the prose in fixtureOrigin.ts and app.tsx describes this inaccurately."
+      },
+      "severity": "LOW",
+      "proposed_fix": "In serveFixture, call `route.abort()` (a network failure) for paths that do not resolve to a file, at least for paths outside the bundle's own asset tree such as `/api/`. That keeps the 'offline failure' the fixture stubs assume. Alternatively, delete the 'as the same missing file is under file://' clause."
+    }
+  ],
+  "specification_compliance": [
+    "No invariants file and no touch-point list exist for this change, so the first-review question (places outside the touch-point list) cannot be answered by comparison. Instead, here is what the diff reaches, as observed.",
+    "(1) A new test-only helper, frontend/e2e-components/fixtureOrigin.ts. It registers a context-wide route for http://localhost:47391/** and answers it from disk under dirname(PAGE).",
+    "(2) A module-level test.beforeEach in player-workbench-desktop.spec.ts and workbench-split-desktop.spec.ts. It applies the route to every test in both files, not only to the tests that reload or open a second page.",
+    "(3) Through fixture-origin.spec.ts, every *.spec.ts in the directory: it scans all of them, and its hard-coded two-name list must change whenever any spec adds a reload or a second page.",
+    "(4) The spec-viewport.spec.ts project registry, which gains fixture-origin.spec.ts in the phone project. That matches the convention that every spec is assigned to exactly one project; DESKTOP_ONLY in projects.ts does not need to change.",
+    "(5) The fixture runtime of the two migrated specs, which now runs under an http origin: fetch failure semantics change (F2) and the page has a fixed port in its origin.",
+    "None of the changed files is imported by frontend/src or shipped in the runtime image, per decisions.md. I did not independently verify the Dockerfile."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "Unstubbed fetches in the two migrated specs now resolve with a 404 instead of rejecting (F2). It is unknown whether any rendered state differs as a result."
+  ],
+  "regression_risks": [
+    "workbench-split-desktop.spec.ts:815-831 collects console errors and warnings but asserts only errors.slice(before), taken after load. Under http, unstubbed /api fetches during the clicked interactions would log 'Failed to load resource: 404' instead of a file:// error. That is benign only if the clicks trigger no unstubbed fetch.",
+    "The route answers media and other files with a full 200 body and no Range support. The workbench video is a blob URL (inspectorResponsive.tsx:379-405), so seeking is unaffected today. A future fixture that serves real media from ROOT through this helper could fail to seek.",
+    "Files whose extensions are missing from TYPES (.mjs, .json, .wasm, .woff, .wav) are served as application/octet-stream. A module script or worker served that way would be refused by Chromium under http, where file:// was lenient. I could not inspect .build to confirm the bundle emits only mapped types.",
+    "Every test in both migrated files now runs on the http origin, including tests that never crossed documents, so the behaviour change applies to the whole file and not only to the flaky cases.",
+    "The guard's hard-coded list (fixture-origin.spec.ts:24-27) fails whenever a new spec adds a reload, even one that does not touch storage. That is intended friction, but it couples every spec to this file."
+  ],
+  "test_coverage": [
+    "fixture-origin.spec.ts statically checks that the two crossing specs import serveFixture and do not use pathToFileURL. It does not check that serveFixture is actually awaited in beforeEach, or that FIXTURE is derived from FIXTURE_URL.",
+    "No test checks that serveFixture returns 404 for a path outside ROOT, or the content types it sends.",
+    "The fix for the flakiness itself (storage persisting across a reload and the storage event reaching a second page) is covered only by the existing migrated tests at player-workbench-desktop.spec.ts:555-584 and 1328-1364, and workbench-split-desktop.spec.ts:764-783, 855-901, 945-963 and 1004-1064."
+  ],
+  "not_verified": [
+    "No Playwright run was possible: I did not observe that the migrated specs pass, or that they are no longer flaky.",
+    "Chromium's claimed unreliability of localStorage between file:// documents is not tested here; I took the motivation as given.",
+    "I did not check whether Playwright's context.route glob `http://localhost:47391/**` matches URLs with query strings and hashes as the specs use them (`?run=...&panels=...#inspector-video`).",
+    "The frontend/e2e-components/.build directory does not exist in this worktree, so I could not inspect the emitted asset types and paths.",
+    "I did not read every test in player-workbench-desktop.spec.ts and workbench-split-desktop.spec.ts. Unread tests could depend on file:// behaviour, such as fetch rejection or location.protocol.",
+    "The touch-point comparison could not be made because no invariants file exists for this change.",
+    "I did not independently verify the claim in decisions.md that no changed file ships in the runtime image."
+  ],
+  "coverage": [
+    {
+      "path": "frontend/e2e-components/fixture-origin.spec.ts",
+      "read": "full",
+      "reason": "Read the whole file (32 lines)."
+    },
+    {
+      "path": "frontend/e2e-components/fixtureOrigin.ts",
+      "read": "full",
+      "reason": "Read the whole file (58 lines)."
+    },
+    {
+      "path": "frontend/e2e-components/player-workbench-desktop.spec.ts",
+      "read": "partial",
+      "reason": "Read lines 1-70 (the changed hunk and open()), 540-600 (the reload and second-page tests) and 1325-1364 (the storage-event crossing). Grepped the whole file for reload/newPage/console."
+    },
+    {
+      "path": "frontend/e2e-components/spec-viewport.spec.ts",
+      "read": "full",
+      "reason": "Read the whole file (217 lines)."
+    },
+    {
+      "path": "frontend/e2e-components/workbench-split-desktop.spec.ts",
+      "read": "partial",
+      "reason": "Read lines 1-70 (the changed hunk and open()) and 755-1064 (every reload, second-page and storage test). Grepped the whole file for FIXTURE, addInitScript, localStorage and console listeners."
+    }
+  ],
+  "confidence": 78
+}

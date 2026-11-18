@@ -1,0 +1,2 @@
+frontend/e2e-components/justified-hold-desktop.spec.ts
+frontend/e2e-epub/typography.spec.ts

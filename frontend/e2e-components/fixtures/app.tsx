@@ -115,6 +115,7 @@ import { READING_ARRANGEMENTS } from "./readingTextSize";
 import { NAME_IN_USE_ARRANGEMENTS } from "./nameInUse";
 import { BATCH_PROGRESS_ARRANGEMENTS } from "./batchProgress";
 import { FOCUS_MODE_ARRANGEMENTS } from "./focusMode";
+import { TRANSCRIPT_TOUCH_ARRANGEMENTS } from "./transcriptTouch";
 import {
   InspectorPdfArrangement,
   InspectorVideoArrangement,
@@ -2768,12 +2769,6 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "scenes-long-390": () => (
     <ScenesSectionArrangement hostWidth={390} long />
   ),
-  "scenes-changes-384": () => (
-    <ScenesSectionArrangement hostWidth={384} changes />
-  ),
-  "scenes-changes-390": () => (
-    <ScenesSectionArrangement hostWidth={390} changes />
-  ),
   "inspector-video": InspectorVideoArrangement,
   "inspector-video-sidebar": InspectorVideoSidebarArrangement,
   "inspector-pdf": InspectorPdfArrangement,
@@ -2803,6 +2798,7 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   ...NAME_IN_USE_ARRANGEMENTS,
   ...BATCH_PROGRESS_ARRANGEMENTS,
   ...FOCUS_MODE_ARRANGEMENTS,
+  ...TRANSCRIPT_TOUCH_ARRANGEMENTS,
 };
 
 function App(): ReactElement {

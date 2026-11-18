@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "MEDIUM",
+  "findings": [],
+  "specification_compliance": [
+    "No invariants file is declared for this change, so there is no touch-point list to compare against. The diff touches only two test files (frontend/src/__tests__/DriveHome.test.tsx, frontend/src/components/__tests__/CollectionDetail.nameInUse.test.tsx) and no product code, so no product place is reached outside a declared list. The answer to the first-review question is empty.",
+    "DriveHome.test.tsx: the component issues exactly two getDriveFiles calls in one Promise.allSettled (frontend/src/components/DriveHome.tsx:144-146: recent-added and favorites). The old test queued three answers (one resolve, two rejects), which left one rejection unread. The new test queues two, which matches the component. Adding mockGetDriveFiles.mockReset() in beforeEach (DriveHome.test.tsx:332) stops a leftover …Once answer from leaking into the next case. Every case in that describe block sets its own answers (mockResolvedValue at :344 and :379, two Once answers at :361-363), so no case depends on a default implementation, and the mock is a bare vi.fn() (:89).",
+    "CollectionDetail.nameInUse.test.tsx: on a non-409 failure, handleSaveName calls setEditingName(false), then toast.error, then load() (CollectionDetail.tsx:126-128). Waiting for toast.error (test :163) means the field has closed. queryByDisplayValue('Elsewhere') then returns null, and the new waitFor for the title button (test :171-173) covers the reload window in which load() sets loading. The GET stub still returns NAME because accepted() is never called, so the NAME branch resolves. The assertions on the 500 path (expectNoNameInUse) and the later 409 path are unchanged."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "DriveHome.test.tsx 'drops a row whose fetch failed': after mockReset, a third getDriveFiles call (for example, if DriveHome later adds a row) would get undefined rather than a queued answer. allSettled would still settle, so the case would not catch a new row. This is a test-maintenance risk, not a current defect.",
+    "CollectionDetail.nameInUse.test.tsx :167: if a future change keeps the field open after a non-409 failure, the `if (!again)` branch is skipped and the test reuses the input that is still open. The test would still pass, which fits the test's intent of not pinning that detail."
+  ],
+  "test_coverage": [
+    "The second DriveHome case still checks per-row totals and that a failed row is dropped: one 'See all (619)' link pointing to view=recent-added, and no 'Favorites' heading. If applyFileSections used one shared total, or rendered a rejected row, the case would fail.",
+    "The CollectionDetail I10 case still checks that a 500 shows a toast and no name-in-use line, and that a later 409 shows the line on the reopened field."
+  ],
+  "not_verified": [
+    "Did not run the test suites. Flakiness removal and green status are not empirically confirmed.",
+    "Did not read the commit cfe7519d4 itself (described as a docs-only R-5 record). Reviewed the provided diff of the two test files.",
+    "Did not read the createApiStub/nameInUse helpers or the Vitest version to confirm mockReset semantics beyond the bare vi.fn() declaration.",
+    "Did not read the rest of DriveHome.tsx (lines 140-200 only via grep) to rule out other getDriveFiles callers that are triggered during render, such as live-update subscriptions."
+  ],
+  "coverage": [
+    {
+      "path": "frontend/src/__tests__/DriveHome.test.tsx",
+      "read": "partial",
+      "reason": "Read lines 280-440, which cover the whole changed describe block 'the drive home's content rows' (300-397) and its beforeEach. Also grepped the mockGetDriveFiles declaration at line 89."
+    },
+    {
+      "path": "frontend/src/components/__tests__/CollectionDetail.nameInUse.test.tsx",
+      "read": "full",
+      "reason": "Read the whole file (1-183)."
+    }
+  ],
+  "confidence": 85
+}

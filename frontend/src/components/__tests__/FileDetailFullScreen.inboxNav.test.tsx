@@ -159,6 +159,11 @@ async function renderAt(search: string) {
   await waitFor(() =>
     expect(screen.getByTestId("file-detail-content")).toBeInTheDocument(),
   );
+  // The content is drawn before the file arrives; the file's drive is what
+  // the navigation and the Done button build their URLs from.
+  await waitFor(() =>
+    expect(useFileNavMock.mock.calls.at(-1)?.[0]).toMatchObject({ drive: "main" }),
+  );
 }
 
 describe("SPEC-CORE-032 I15 the detail's Done button", () => {

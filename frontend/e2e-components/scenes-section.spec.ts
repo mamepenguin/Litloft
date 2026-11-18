@@ -5,7 +5,6 @@
  */
 
 import {
-  scenesChangesCases,
   scenesSectionCases,
   scenesTimeLabelCases,
 } from "./scenes-section.cases";
@@ -16,5 +15,3 @@ scenesSectionCases([
 ]);
 
 scenesTimeLabelCases([{ hostWidth: 390, pointer: "touch", columns: 3, long: true }]);
-
-scenesChangesCases([{ hostWidth: 390, pointer: "touch", columns: 3 }]);

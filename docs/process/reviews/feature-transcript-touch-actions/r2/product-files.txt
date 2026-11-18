@@ -1,0 +1,12 @@
+addons/intelligence/app/main.py
+addons/intelligence/frontend/ExtractionEditsReview.test.tsx
+addons/intelligence/frontend/TranscriptEditDialog.tsx
+addons/intelligence/frontend/TranscriptSection.test.tsx
+addons/intelligence/frontend/TranscriptSection.tsx
+addons/intelligence/frontend/TranscriptSectionTouch.test.tsx
+addons/intelligence/frontend/messages/en.json
+addons/intelligence/frontend/messages/ja.json
+frontend/e2e-components/fixtures/app.tsx
+frontend/e2e-components/fixtures/transcriptTouch.tsx
+frontend/e2e-components/spec-viewport.spec.ts
+frontend/e2e-components/transcript-touch.spec.ts

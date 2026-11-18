@@ -126,6 +126,14 @@ const COARSE_HIDDEN_UNTIL_MD = [
   "frontend/src/components/inbox/InboxRow.tsx",
 ];
 
+/**
+ * A transcript row draws neither of these on a coarse pointer: tapping the row
+ * draws both in a strip under it instead, so the reveal has nothing to lift.
+ */
+const COARSE_DRAWS_STRIP_INSTEAD = [
+  "addons/intelligence/frontend/TranscriptSection.tsx",
+];
+
 describe("a row action revealed by hover is revealed by focus too", () => {
   const reveals = hoverReveals();
 
@@ -173,10 +181,20 @@ describe("a row action revealed by hover is revealed by focus too", () => {
       .filter(
         (r) =>
           !FOCUS_AND_TOUCH_EXEMPT.includes(r.where) &&
-          !COARSE_HIDDEN_UNTIL_MD.includes(r.where),
+          !COARSE_HIDDEN_UNTIL_MD.includes(r.where) &&
+          !COARSE_DRAWS_STRIP_INSTEAD.includes(r.where),
       )
       .map((r) => r.where);
     expect(offenders).toEqual([]);
+  });
+
+  it("exempts only the one reveal the strip replaces", () => {
+    for (const rel of COARSE_DRAWS_STRIP_INSTEAD) {
+      expect(
+        reveals.filter((r) => r.where === rel),
+        rel,
+      ).toHaveLength(1);
+    }
   });
 
   /**

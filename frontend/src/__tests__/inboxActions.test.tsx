@@ -323,7 +323,7 @@ describe("SPEC-CORE-032 the selection bar", () => {
 
     screen.getByRole("button", { name: "Move" }).click();
     await screen.findByText("Select destination");
-    fireEvent.click(screen.getByText("archive"));
+    fireEvent.click(await screen.findByText("archive"));
     fireEvent.click(screen.getByRole("button", { name: "Move here" }));
 
     await waitFor(() => expect(api.moveCalls()).toHaveLength(2));

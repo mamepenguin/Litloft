@@ -1,0 +1,5 @@
+frontend/e2e-components/fixture-origin.spec.ts
+frontend/e2e-components/fixtureOrigin.ts
+frontend/e2e-components/player-workbench-desktop.spec.ts
+frontend/e2e-components/spec-viewport.spec.ts
+frontend/e2e-components/workbench-split-desktop.spec.ts

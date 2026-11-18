@@ -1,0 +1,109 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [],
+  "specification_compliance": [
+    "R4-1 (I8) is addressed. TranscriptEditDialog.tsx:72-78 adds a mountedRef that is set to false when the dialog unmounts. save (102-130) calls onSaved only while mounted (115), returns from catch before onChanged or setError once unmounted (117), and guards setSaving in finally (129). The fileId effect (TranscriptSection.tsx:332-343) clears editTarget, so the old dialog unmounts before a new one can open. Opening the new one needs a tap on a strip 修正, so there is always a render with editTarget null between them. That makes the new dialog a fresh instance with its own mountedRef, and the old save's closure only ever reads the old, now-false ref. The late answer can no longer call closeEditDialog/setEditTarget(null), focusRow, refreshAfterWrite or setActionError on the new file.",
+    "A reload does not unmount the dialog: loading is set only on a first load for a fileId (TranscriptSection.tsx:347-348), and `if (loading || !hasAnything) return null` (1043) therefore runs only on a file change or when every source is empty. So the guard does not swallow the answer of a save that is still on screen during a WS or refresh reload (F6/I8 hold).",
+    "The new jsdom tests (TranscriptSectionTouch.test.tsx, 'keeps the next file's dialog and draft when the previous file's save answers … late', for a success and for `changed`) would fail without the guard. On success, onSaved → closeEditDialog → setEditTarget(null) would close the next file's dialog. On `changed`, it would also write CHANGED_MESSAGE. Both assertions catch that.",
+    "I1-I7, I9-I11: the fix commit touches nothing outside the dialog's post-await path, so the r4 trace of these still applies. The strip is gated on isSelected, which requires coarse. The fine controls are gated on !coarse. The dialog sends expected_text/expected_start captured at open. `saving` blocks save, close and Escape, and the field is readOnly while saving."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "A dialog save that succeeds after its dialog has unmounted now triggers no refreshAfterWrite. For a file change this does not matter, because the panel loads the new file. The spec does not say whether a save that completes after an automatic source switch should still reload. A WS transcript.updated event would normally reload anyway."
+  ],
+  "regression_risks": [
+    "The inline (fine-path) saveEdit (TranscriptSection.tsx:968-1016) still writes setEditingIndex/setActionError/refreshAfterWrite after its await with no file or mount guard. It can still close a newly opened inline editor or report the old file's `changed` message on the next file. This is pre-existing and unchanged here; I9 requires the fine path to behave as before.",
+    "If every source becomes empty while the dialog has a save in flight, the early `return null` (TranscriptSection.tsx:1043) unmounts the dialog without clearing editTarget. With the new guard the late success no longer clears editTarget either, so the dialog would reappear from the stored target once a source becomes available again. The last_utterance check makes reaching this unlikely.",
+    "The `if (mountedRef.current) setSaving(false)` guard in finally is not pinned by any test, because React ignores a state update on an unmounted component. Removing it changes nothing visible."
+  ],
+  "test_coverage": [
+    "TranscriptSectionTouch.test.tsx now covers a late success and a late `changed` from the previous file's save while the next file's dialog has a typed draft. It asserts that the dialog, the draft and an empty panel error line survive.",
+    "Mutation in thought: drop `if (mountedRef.current)` before onSaved at TranscriptEditDialog.tsx:115. The success case is killed because the next dialog closes. Drop the `return` at 117. The `changed` case is killed because the dialog closes and CHANGED_MESSAGE appears. Drop the finally guard at 129. That mutant survives, but it is harmless.",
+    "No test covers a late answer after an automatic source switch, or after the all-sources-empty unmount.",
+    "No test asserts where focus goes when the dialog closes (B10). This is unchanged since r2."
+  ],
+  "not_verified": [
+    "I ran no unit or e2e test; every conclusion comes from reading the code.",
+    "I did not read TranscriptSection.tsx lines 1-324, 495-834 or 1020-1350 on disk this round, apart from what the diff and grep show.",
+    "I did not check React StrictMode double-invocation in the app's test setup. The effect re-sets mountedRef to true, so it should not matter.",
+    "I did not read ime-enter-guard.test.ts or row-action-reveal.test.ts beyond their diff hunks.",
+    "I did not check whether a host can change fileId while the modal dialog is open in real use, for example through auto-advance."
+  ],
+  "coverage": [
+    {
+      "path": "addons/intelligence/frontend/DetailedSummaryPanel.test.tsx",
+      "read": "partial",
+      "reason": "Read only the one changed hunk (@@ -145) in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/ExtractionEditsReview.test.tsx",
+      "read": "partial",
+      "reason": "Read only the changed hunk (@@ -424) in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/TranscriptEditDialog.tsx",
+      "read": "full",
+      "reason": "Read the whole file on disk (lines 1-219)."
+    },
+    {
+      "path": "addons/intelligence/frontend/TranscriptSection.test.tsx",
+      "read": "partial",
+      "reason": "Read the two changed hunks and their enclosing it() blocks in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/TranscriptSection.tsx",
+      "read": "partial",
+      "reason": "Read lines 325-494 and 835-1019 on disk, the render hunks in the diff, and grepped editTarget, refreshAfterWrite and the early return. Lines 1-324, 495-834 and 1020-1350 were read only as far as the diff shows them."
+    },
+    {
+      "path": "addons/intelligence/frontend/TranscriptSectionTouch.test.tsx",
+      "read": "full",
+      "reason": "New file. Read all of it in the diff, including the two late-save tests added in this fix."
+    },
+    {
+      "path": "addons/intelligence/frontend/messages/en.json",
+      "read": "full",
+      "reason": "Read the one-line hunk."
+    },
+    {
+      "path": "addons/intelligence/frontend/messages/ja.json",
+      "read": "full",
+      "reason": "Read the one-line hunk."
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/app.tsx",
+      "read": "full",
+      "reason": "Read both changed hunks (the import and the arrangement spread)."
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/transcriptTouch.tsx",
+      "read": "full",
+      "reason": "New file. Read all of it in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/spec-viewport.spec.ts",
+      "read": "full",
+      "reason": "Read the one-line hunk."
+    },
+    {
+      "path": "frontend/e2e-components/transcript-touch.spec.ts",
+      "read": "full",
+      "reason": "New file. Read all of it in the diff."
+    },
+    {
+      "path": "frontend/src/__tests__/ime-enter-guard.test.ts",
+      "read": "partial",
+      "reason": "Read only the diff hunks."
+    },
+    {
+      "path": "frontend/src/__tests__/row-action-reveal.test.ts",
+      "read": "partial",
+      "reason": "Read only the diff hunks."
+    }
+  ],
+  "confidence": 80,
+  "trajectory": "The only change since r4 is 08b6c6304, an addon bump. It adds one state: a mountedRef in TranscriptEditDialog, with three guards after the save's await. It also adds two jsdom tests for a late answer. The round before, 884a57bb3, added a prediction (a clamp) to revealCue's upward scroll, and r3's 3da286167 added a `!following` condition to the reveal effect. This round's guard sits in a different component and on a different concern, the lifetime of an async save, so it does not repeat what the previous round added. Each round since r2 has added one guard that answers the previous review's finding, so the change is growing one guard per round. Still, no two consecutive rounds add to the same branch, state or prediction, so the design is not being patched on one point. No round removed a branch or a state."
+}

@@ -1,0 +1,4 @@
+addons/intelligence/app/extraction.py
+addons/intelligence/app/main.py
+addons/intelligence/app/workers/aligner.py
+addons/intelligence/app/workers/refine.py

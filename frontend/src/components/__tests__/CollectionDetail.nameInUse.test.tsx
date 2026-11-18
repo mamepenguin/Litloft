@@ -160,14 +160,17 @@ describe("SPEC-CORE-108 I9 I10 the collection page's title edit", () => {
     fireEvent.change(input, { target: { value: "Elsewhere" } });
     fireEvent.keyDown(input, { key: "Enter" });
     await waitFor(() => expect(puts()).toBe(1));
-    await settle();
+    await waitFor(() => expect(toast.error).toHaveBeenCalled());
     expectNoNameInUse();
 
     api.on("PUT", DETAIL, nameInUse);
     let again = screen.queryByDisplayValue("Elsewhere") as HTMLInputElement | null;
     if (!again) {
-      const title =
-        screen.queryByRole("button", { name: NAME }) ?? screen.getByRole("button", { name: "Elsewhere" });
+      // The failure closes the field and reloads the collection; the title
+      // is back only once that reload lands.
+      const title = await waitFor(
+        () => screen.queryByRole("button", { name: NAME }) ?? screen.getByRole("button", { name: "Elsewhere" }),
+      );
       fireEvent.click(title);
       again = (screen.queryByDisplayValue(NAME) ?? screen.getByDisplayValue("Elsewhere")) as HTMLInputElement;
     }
