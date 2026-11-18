@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { getStreamUrl } from "@/lib/api";
 import type { MediaController } from "@/lib/mediaController";
 import type { MediaSessionMetadataInput } from "@/lib/mediaSession";
+import { FindOutlineLayer } from "../player/FindOutlineLayer";
 import GenericLinkCard from "./GenericLinkCard";
 import { getLoftPlayer } from "./playerRegistry";
 
@@ -33,6 +34,15 @@ export default function LoftPlayer({
 }: LoftPlayerProps) {
   const [content, setContent] = useState<LoftContent | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [controller, setController] = useState<MediaController | null>(null);
+
+  const handleMediaController = useCallback(
+    (mc: MediaController | null) => {
+      setController(mc);
+      onMediaController?.(mc);
+    },
+    [onMediaController],
+  );
 
   useEffect(() => {
     fetch(getStreamUrl(fileId), { credentials: "include" })
@@ -68,12 +78,13 @@ export default function LoftPlayer({
     <Player
       fileId={fileId}
       url={content.url}
-      onMediaController={onMediaController}
+      onMediaController={handleMediaController}
       initialTime={initialTime}
       durationHint={durationHint}
       onEnded={onEnded}
       mediaSessionMetadata={mediaSessionMetadata}
       posterUrl={posterUrl}
+      pictureOverlay={<FindOutlineLayer controller={controller} />}
     />
   );
 }
