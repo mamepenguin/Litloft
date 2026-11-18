@@ -286,7 +286,7 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-137 | implemented | docs/specs/frame-ocr-hit-place.md | sha256:31fb372117d1650a8ec53185cfef4886a816d2d0b8d9e78d0ca1f26900d8c2fd |
 | SPEC-CORE-134 | implemented | docs/specs/frame-ocr-hit-place.md | sha256:31fb372117d1650a8ec53185cfef4886a816d2d0b8d9e78d0ca1f26900d8c2fd |
 | SPEC-CORE-135 | implemented | docs/specs/frame-ocr-hit-place.md | sha256:31fb372117d1650a8ec53185cfef4886a816d2d0b8d9e78d0ca1f26900d8c2fd |
-| SPEC-ADDON-138 | approved | docs/specs/clips-frame.md | sha256:770d962a2530722fe172017356be68fb9fb92470a91d241849c234395952e82d |
-| SPEC-ADDON-139 | approved | docs/specs/clips-frame.md | sha256:770d962a2530722fe172017356be68fb9fb92470a91d241849c234395952e82d |
-| SPEC-ADDON-140 | approved | docs/specs/clips-frame.md | sha256:770d962a2530722fe172017356be68fb9fb92470a91d241849c234395952e82d |
-| SPEC-CORE-136 | approved | docs/specs/clips-frame.md | sha256:770d962a2530722fe172017356be68fb9fb92470a91d241849c234395952e82d |
+| SPEC-ADDON-138 | implemented | docs/specs/clips-frame.md | sha256:770d962a2530722fe172017356be68fb9fb92470a91d241849c234395952e82d |
+| SPEC-ADDON-139 | implemented | docs/specs/clips-frame.md | sha256:770d962a2530722fe172017356be68fb9fb92470a91d241849c234395952e82d |
+| SPEC-ADDON-140 | implemented | docs/specs/clips-frame.md | sha256:770d962a2530722fe172017356be68fb9fb92470a91d241849c234395952e82d |
+| SPEC-CORE-136 | implemented | docs/specs/clips-frame.md | sha256:770d962a2530722fe172017356be68fb9fb92470a91d241849c234395952e82d |

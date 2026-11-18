@@ -71,6 +71,7 @@ describe("the shared toolbar menu has one home", () => {
   it("is imported by the callers that exist", () => {
     expect(menuImporters().map((i) => i.file)).toEqual([
       "addons/intelligence/frontend/RegenerateWithMenu.tsx",
+      "addons/knowledge/frontend/clipsapp/Library.tsx",
       "addons/knowledge/frontend/library/LibraryList.tsx",
       "addons/knowledge/frontend/library/LibraryRail.tsx",
       "frontend/src/components/OverflowMenu.tsx",
