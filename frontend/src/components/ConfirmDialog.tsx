@@ -68,7 +68,10 @@ export function ConfirmDialog({
           if (!busy) onCancel();
         }}
       />
-      <div className="relative mx-4 w-full max-w-md rounded-2xl bg-bg-card p-6 shadow-lg animate-fade-in-scale">
+      <div
+        className="relative mx-4 w-full max-w-md rounded-2xl bg-bg-card p-6 shadow-lg animate-fade-in-scale"
+        aria-modal="true"
+      >
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-text-primary">{title}</h2>
           <button

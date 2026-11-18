@@ -114,6 +114,8 @@ import { NotesAllClipsToggleArrangement } from "./notesAllClipsToggle";
 import { READING_ARRANGEMENTS } from "./readingTextSize";
 import { NAME_IN_USE_ARRANGEMENTS } from "./nameInUse";
 import { BATCH_PROGRESS_ARRANGEMENTS } from "./batchProgress";
+import { FOCUS_MODE_ARRANGEMENTS } from "./focusMode";
+import { TRANSCRIPT_TOUCH_ARRANGEMENTS } from "./transcriptTouch";
 import {
   InspectorPdfArrangement,
   InspectorVideoArrangement,
@@ -2871,6 +2873,8 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   ...READING_ARRANGEMENTS,
   ...NAME_IN_USE_ARRANGEMENTS,
   ...BATCH_PROGRESS_ARRANGEMENTS,
+  ...FOCUS_MODE_ARRANGEMENTS,
+  ...TRANSCRIPT_TOUCH_ARRANGEMENTS,
 };
 
 function App(): ReactElement {

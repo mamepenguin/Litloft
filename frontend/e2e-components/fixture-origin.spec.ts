@@ -22,6 +22,7 @@ test("every spec that crosses documents serves the fixture over http", () => {
     .filter(({ source }) => ACROSS_DOCUMENTS.test(source));
 
   expect(crossing.map(({ name }) => name).sort()).toEqual([
+    "focus-mode-desktop.spec.ts",
     "player-workbench-desktop.spec.ts",
     "workbench-split-desktop.spec.ts",
   ]);

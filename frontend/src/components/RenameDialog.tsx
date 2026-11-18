@@ -61,7 +61,10 @@ export function RenameDialog({
         className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fade-in"
         onClick={onCancel}
       />
-      <div className="relative mx-4 w-full max-w-md rounded-2xl bg-bg-card p-6 shadow-lg animate-fade-in-scale">
+      <div
+        className="relative mx-4 w-full max-w-md rounded-2xl bg-bg-card p-6 shadow-lg animate-fade-in-scale"
+        aria-modal="true"
+      >
         <div className="mb-4 flex items-center justify-between">
           <h2 className="flex items-center gap-2 text-lg font-semibold text-text-primary">
             <Pencil size={18} />

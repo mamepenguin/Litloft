@@ -1,0 +1,261 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "F1",
+      "origin": "reviewer",
+      "claim": "The new swipe test's 'does not scroll the page' check reads window.scrollY. On the focus-drive fixture the document does not scroll (the h-below-header pane does), so the check passes whatever the gesture does.",
+      "impact": "If `touch-none` is removed from the handle, a pull on a real iPad can start a pan or a pointercancel before the 12px threshold. The pull would then stop revealing, or the page under it would scroll, and this test would still pass on the scroll check.",
+      "evidence": "focus-mode-touch-desktop.spec.ts (the swipe test): `scrollBefore = window.scrollY` and `expect(window.scrollY).toBe(scrollBefore)`. focusMode.tsx DriveRoute wraps the page in `h-below-header` with TwoPaneLayout `overflow-clip`, so window.scrollY stays 0. AppShell.tsx:105 adds `touch-none` to the handle, and that class is the only guard against the page scrolling during the pull.",
+      "repro": "Mutation traced statically, not run: delete `touch-none` from AppShell.tsx:105. The scroll assertion cannot fail, because window.scrollY is 0 before and after. The test would only go red if the emulated CDP touch also fired pointercancel before 12px, which is unverified.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "This is a test that checks less than its name says. No declared invariant covers the pull gesture, which is a human decision beyond I10's tap path."
+      },
+      "severity": "LOW",
+      "proposed_fix": "Read the scrollTop of the element that scrolls (the pane under the handle), or record pointercancel and touch-driven scroll events on page-content during the swipe and assert that none arrive."
+    },
+    {
+      "id": "F2",
+      "origin": "reviewer",
+      "claim": "The approved spec text in docs/specs/focus-mode.md (§1 129 step 4, D7, D11: a 56×22 pill with a down chevron) now disagrees with the code, which draws a 36×5 bar with no icon and also reveals on a downward pull. The human's decision exists only in decisions.md.",
+      "impact": "No user impact. A reader who treats the spec as the source could 'restore' the pill and chevron, which brings back the problem the human saw on the iPad, where the handle covered the top of the video.",
+      "evidence": "AppShell.tsx:104-107 (bar `h-[5px] w-9`, no svg); AppShell.tsx:88-97 (pull reveal); focus-mode.md 129 step 4 and D11 ('a visible 56×22px pill with a down chevron'); decisions.md:39-41 records the human's change on a real iPad.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "Prose that could lead to a wrong code change. The invariants (I1, I10) do not fix the handle's size or icon."
+      },
+      "severity": "INFO",
+      "proposed_fix": "Delete the pill's dimensions and the chevron from 129 step 4 and D11 (or revise them through invariants.md), so that the spec no longer prescribes the rejected shape."
+    }
+  ],
+  "specification_compliance": [
+    "1a9a6c1b8 (the handle as a thin bar): I1 still holds. The handle is the only visible thing focus mode draws over the page with a coarse pointer. The 88×44 hit area stays at the safe area's top, and the test checks it at insets of 0 and 24. The change from a pill to a bar is a recorded human decision (decisions.md:39).",
+    "c3aa19f2e (pull to reveal): the pull ends in the same onReveal as the tap and sets reveal='tap', so it hides by 129 step 4's rule. The handle is not mounted while the page is covered (revealTargets), so the pull cannot reveal under a cover, and I10's cover clause holds. After the pull, the dismiss overlay mounts while the finger is still down, but the dismiss acts only on pointerdown, so the gesture that revealed the header does not hide it again.",
+    "994ae8439 and f8ef0433a are documentation only (INDEX status, an R-5 record) and change no code.",
+    "r7 F1 (the caller-side `layoutChanges` prediction in toggleFocusMode) was not touched by these rounds. It stays as it was: an INFO coupling that no user can hit today."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "A downward pull of 12px or more from the handle reveals the header. The approved spec names only a tap (129 step 4). decisions.md records the human's choice, but the spec and the invariants do not.",
+    "Because of pointer capture, a press on the handle that drifts sideways or upward and is then released can still produce a click on the handle and reveal the header with a mouse on a hybrid device. With touch, a move beyond the tap slop produces no click, so the drift does nothing."
+  ],
+  "regression_risks": [
+    "The handle sets pointer capture and then unmounts in the same gesture. Later events of that pointer go to whatever is hit-tested: the revealed header (z-25) or the dismiss overlay (z-20). Only the CDP emulation exercises this, not a real iPad.",
+    "The bar is 4px below the safe area's top over content that starts at the inset on drive file pages, so it is drawn on the top of the content and not in a gap. This is fine visually per the human, but DESIGN.md's 'sits in the gap above the content' holds only on /files/{id}."
+  ],
+  "test_coverage": [
+    "The new swipe test kills the removal of onPointerMove: a 64px move produces no click, so the header would stay hidden. It probably does not kill the removal of `touch-none` (F1).",
+    "No test covers an upward or sideways press on the handle, or a pull shorter than 12px.",
+    "The handle geometry test now pins the 36×5 bar, 4px below the inset, with no svg, at insets of 0 and 24."
+  ],
+  "not_verified": [
+    "Nothing was executed. No test was run, and every trace was static.",
+    "Whether CDP Input.dispatchTouchEvent fires pointercancel when touch-action allows panning, which decides whether F1's mutation survives.",
+    "Behaviour on a real iPad (the human reports checking it on the device).",
+    "The full content of the R-5 re-run record added by f8ef0433a, beyond grep hits in decisions.md and design-check.md.",
+    "Files outside the fix diffs were not reread beyond their diff hunks in this round."
+  ],
+  "coverage": [
+    {
+      "path": "frontend/e2e-components/file-header-row-desktop.spec.ts",
+      "read": "partial",
+      "reason": "The diff hunks in the review input only."
+    },
+    {
+      "path": "frontend/e2e-components/file-header-row.spec.ts",
+      "read": "partial",
+      "reason": "The diff hunk near lines 77-95 only."
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/app.tsx",
+      "read": "partial",
+      "reason": "The diff hunks (import and ARRANGEMENTS spread) only."
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/focusMode.tsx",
+      "read": "full",
+      "reason": "New file, entirely present in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/inspectorResponsive.tsx",
+      "read": "partial",
+      "reason": "The diff hunks (export changes) only."
+    },
+    {
+      "path": "frontend/e2e-components/focus-mode-desktop.spec.ts",
+      "read": "full",
+      "reason": "New file, entirely present in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/focus-mode-touch-desktop.spec.ts",
+      "read": "full",
+      "reason": "New file, entirely present in the diff, including the bar-geometry and swipe tests from the fix commits."
+    },
+    {
+      "path": "frontend/e2e-components/projects.ts",
+      "read": "partial",
+      "reason": "The diff hunk near line 41 only."
+    },
+    {
+      "path": "frontend/e2e-components/spec-viewport.spec.ts",
+      "read": "partial",
+      "reason": "The diff hunk near line 122 only."
+    },
+    {
+      "path": "frontend/e2e-components/stubs/next-navigation.ts",
+      "read": "partial",
+      "reason": "The diff hunk (lines 1-57) only."
+    },
+    {
+      "path": "frontend/src/app/globals.css",
+      "read": "partial",
+      "reason": "The diff hunk near lines 680-720 only."
+    },
+    {
+      "path": "frontend/src/components/AppShell.tsx",
+      "read": "full",
+      "reason": "The whole file as given in the diff (a new body), and lines 40-119 reread from disk for the handle."
+    },
+    {
+      "path": "frontend/src/components/ChromeButtons.tsx",
+      "read": "partial",
+      "reason": "The diff hunks near lines 39-65 only."
+    },
+    {
+      "path": "frontend/src/components/ConfirmDialog.tsx",
+      "read": "partial",
+      "reason": "The diff hunk near lines 68-75 only."
+    },
+    {
+      "path": "frontend/src/components/DriveUnavailable.tsx",
+      "read": "partial",
+      "reason": "The diff hunks (imports and the layout effect) only."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/FileDetailChrome.tsx",
+      "read": "partial",
+      "reason": "The diff hunks (import and trailing unit near line 141) only."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/FocusModeButton.tsx",
+      "read": "full",
+      "reason": "New file, entirely present in the diff."
+    },
+    {
+      "path": "frontend/src/components/FileDetailShell.tsx",
+      "read": "partial",
+      "reason": "The diff hunks (import and the layout effect near line 208) only."
+    },
+    {
+      "path": "frontend/src/components/FocusModeShortcuts.tsx",
+      "read": "full",
+      "reason": "New file, entirely present in the diff."
+    },
+    {
+      "path": "frontend/src/components/GlobalSearch.tsx",
+      "read": "partial",
+      "reason": "The diff hunk near line 818 only."
+    },
+    {
+      "path": "frontend/src/components/Header.tsx",
+      "read": "partial",
+      "reason": "The diff hunks (props, the --app-header-h effect, the row-inset effect, the header element) only."
+    },
+    {
+      "path": "frontend/src/components/RenameDialog.tsx",
+      "read": "partial",
+      "reason": "The diff hunk near lines 61-67 only."
+    },
+    {
+      "path": "frontend/src/components/Sidebar.tsx",
+      "read": "partial",
+      "reason": "The diff hunk (data-app-sidebar) only."
+    },
+    {
+      "path": "frontend/src/components/SidebarProvider.tsx",
+      "read": "partial",
+      "reason": "The diff hunks in the review input only."
+    },
+    {
+      "path": "frontend/src/components/TreeToggle.tsx",
+      "read": "partial",
+      "reason": "The diff hunks covering the component body only."
+    },
+    {
+      "path": "frontend/src/components/folder/TwoPaneLayout.tsx",
+      "read": "partial",
+      "reason": "The diff hunks near lines 19 and 104-170 only."
+    },
+    {
+      "path": "frontend/src/components/markdown/SaveDot.tsx",
+      "read": "partial",
+      "reason": "The diff hunk near lines 25-40 only."
+    },
+    {
+      "path": "frontend/src/hooks/useFocusMode.ts",
+      "read": "full",
+      "reason": "New file, entirely present in the diff."
+    },
+    {
+      "path": "frontend/src/lib/driveUnavailableStore.ts",
+      "read": "full",
+      "reason": "New file, entirely present in the diff."
+    },
+    {
+      "path": "frontend/src/lib/findShortcut.ts",
+      "read": "partial",
+      "reason": "The diff hunk (lines 12-36) only."
+    },
+    {
+      "path": "frontend/src/lib/focusModeStore.ts",
+      "read": "full",
+      "reason": "New file, entirely present in the diff."
+    },
+    {
+      "path": "frontend/src/lib/readingAnchor.ts",
+      "read": "full",
+      "reason": "New file, entirely present in the diff."
+    },
+    {
+      "path": "frontend/src/lib/safeArea.ts",
+      "read": "full",
+      "reason": "New file, entirely present in the diff."
+    },
+    {
+      "path": "frontend/src/messages-core/en.json",
+      "read": "partial",
+      "reason": "The diff hunk (focusMode keys) only."
+    },
+    {
+      "path": "frontend/src/messages-core/ja.json",
+      "read": "partial",
+      "reason": "The diff hunk (focusMode keys) only."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/__tests__/FileDetailHeaderRow.test.tsx",
+      "read": "partial",
+      "reason": "The diff hunks near lines 280-315 only."
+    },
+    {
+      "path": "frontend/src/components/__tests__/AppShell.quickNote.test.tsx",
+      "read": "partial",
+      "reason": "The diff hunk (the next/navigation mock) only."
+    },
+    {
+      "path": "frontend/src/components/__tests__/MenuButton.test.tsx",
+      "read": "partial",
+      "reason": "The diff hunks (mocks) only."
+    }
+  ],
+  "confidence": 78,
+  "trajectory": "The rounds since r7 do not repeat the earlier pattern. 994ae8439 and f8ef0433a are documentation only (INDEX status and the R-5 record). 1a9a6c1b8 removes something: the 56×22 pill, its ChevronDown icon and the lucide import give way to a single span bar, with no new branch or state. c3aa19f2e adds a new state (the pullFrom ref), pointer capture and a second reveal path (a downward pull of 12px or more). That is a new branch, but not one a previous round also added: it answers a human decision made on the device (decisions.md:41), not a review finding, and it feeds the existing onReveal and 'tap' hide rule rather than adding another hide rule. The r7 caller-side `layoutChanges` prediction is left untouched, neither removed nor extended. These rounds do not show the design being patched. The new pull path is not in the approved spec's text, though (F2)."
+}

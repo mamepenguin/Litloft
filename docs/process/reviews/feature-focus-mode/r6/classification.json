@@ -1,0 +1,184 @@
+{
+  "risk": "HIGH",
+  "score": 7,
+  "base": 3,
+  "zone_max": "MEDIUM",
+  "modifiers": [],
+  "promotions": [],
+  "zones_touched": [
+    {
+      "path": "DESIGN.md",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "docs/specs/INDEX.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/focus-mode.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/user-guide/keyboard-shortcuts.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/user-guide/viewers-and-players.md",
+      "level": "LOW"
+    },
+    {
+      "path": "frontend/e2e-components/file-header-row-desktop.spec.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/file-header-row.spec.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/app.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/focusMode.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/inspectorResponsive.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/focus-mode-desktop.spec.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/focus-mode-touch-desktop.spec.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/projects.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/spec-viewport.spec.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/stubs/next-navigation.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/app/globals.css",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/AppShell.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/ChromeButtons.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/ConfirmDialog.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/DriveUnavailable.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/FileDetailChrome.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/FocusModeButton.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/__tests__/FileDetailHeaderRow.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetailShell.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FocusModeShortcuts.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/GlobalSearch.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/Header.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/RenameDialog.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/Sidebar.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/SidebarProvider.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/TreeToggle.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/AppShell.quickNote.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/MenuButton.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/folder/TwoPaneLayout.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/markdown/SaveDot.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/hooks/useFocusMode.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/findShortcut.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/focusModeStore.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/readingAnchor.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/safeArea.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/messages-core/en.json",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/messages-core/ja.json",
+      "level": "MEDIUM"
+    }
+  ],
+  "human_zones_touched": [],
+  "protected_paths_touched": [],
+  "docs_only": false,
+  "reasons": [
+    "highest zone MEDIUM (4 points)"
+  ]
+}

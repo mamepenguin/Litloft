@@ -12,18 +12,30 @@ vi.mock("../SidebarProvider", () => ({
     toggle: vi.fn(),
     close: vi.fn(),
     setOverlayMode: vi.fn(),
+    setFocusLent: vi.fn(),
     refreshKey: 0,
     requestRefresh: vi.fn(),
   }),
+  useFocusSidebarWhen: vi.fn(),
 }));
 vi.mock("../Sidebar", () => ({ Sidebar: () => <aside /> }));
 vi.mock("../Header", () => ({ Header: () => <header /> }));
+vi.mock("next/navigation", () => ({
+  usePathname: () => "/drive/main",
+  useSearchParams: () => new URLSearchParams(),
+}));
 vi.mock("../CurrentDriveProvider", () => ({ useCurrentDrive: () => "main" }));
 vi.mock("../TreeToggle", () => ({
   TreeToggle: ({ drive }: { drive: string }) => <button data-testid="tree-toggle" data-drive={drive} />,
 }));
 vi.mock("../ShortcutsProvider", () => ({
   ShortcutsProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  useShortcutsContext: () => ({
+    push: vi.fn(),
+    pop: vi.fn(),
+    stack: [],
+    openCheatSheet: vi.fn(),
+  }),
 }));
 
 /**

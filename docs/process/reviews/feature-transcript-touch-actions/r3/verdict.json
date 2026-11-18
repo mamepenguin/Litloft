@@ -1,0 +1,1 @@
+{"verdict":"HUMAN_REVIEW_REQUIRED","reasons":["unspecified_behavior"],"findings":[],"needs_human":[{"kind":"unspecified_behavior","ref":null,"note":"addons/intelligence/app/main.py:61-63 still sets the service-wide `pdfminer` logger to ERROR. This is r1 TP-1, it is still in the diff, and no spec in this review covers it.","paths":[]}]}

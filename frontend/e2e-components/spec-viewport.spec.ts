@@ -84,6 +84,7 @@ const AT_THE_PHONE_WIDTH = [
   "target-menu-rows.spec.ts",
   "batch-progress.spec.ts",
   "drive-unavailable.spec.ts",
+  "transcript-touch.spec.ts",
 ] as const;
 
 const AT_THE_DESKTOP_WIDTH = [
@@ -123,6 +124,8 @@ const AT_THE_DESKTOP_WIDTH = [
   "app-header-desktop.spec.ts",
   "target-menu-rows-desktop.spec.ts",
   "drive-unavailable-desktop.spec.ts",
+  "focus-mode-desktop.spec.ts",
+  "focus-mode-touch-desktop.spec.ts",
 ] as const;
 
 test.describe("the component fixture lays out at the width it was given", () => {

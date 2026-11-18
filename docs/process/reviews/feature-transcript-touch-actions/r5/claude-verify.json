@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [],
+  "specification_compliance": [
+    "I1: a non-selected row on a coarse pointer draws neither the inline edit button nor the quote button. Both are gated on !coarse (TranscriptSection.tsx:1312, :1333), and the strip is drawn only when isSelected (:1288).",
+    "I2: the row tap sets `selected` to {index,start} (:834-837). The highlight effect (:509-531) never touches `selected`. The reload effect clears it only when no cue with the same index and start remains (:495-501).",
+    "I3: the row onClick calls seekTo(cue.start) first, on both pointer types, then selectCue only when coarse (:1257-1261).",
+    "I4: the strip's 修正 is drawn only when source === 'chunks' and is disabled={busy} (:1290-1296). The strip's 引用 calls the same captureCue as the fine-path button, has no disabled prop, and does not clear the selection (:1302-1309).",
+    "I5: on a coarse pointer, 修正 opens TranscriptEditDialog with {index,start,text} (:839-846). The dialog sends correctTranscriptUtterance(fileId, index, field value, target.text, target.start, drive) (TranscriptEditDialog.tsx:107-114), the same argument order as the inline save (TranscriptSection.tsx:974-981).",
+    "I6: Enter outside composition is preventDefault'ed and stopPropagation'ed (TranscriptEditDialog.tsx:187-195). IME keystrokes return early without preventDefault. ShortcutsProvider skips IME keystrokes before it dispatches Escape (ShortcutsProvider.tsx:71). onChange strips \\r\\n (TranscriptEditDialog.tsx:179-185).",
+    "I7: `saving` guards save and close, disables the buttons and makes the textarea readOnly. The Escape handler goes through a ref proxy to the latest `close` (useShortcuts.ts:42-45). Errors other than `changed` go into the dialog's own `error`, and the panel's actionError is hidden while editTarget is set (TranscriptSection.tsx:1115). On `changed`, the dialog closes, the transcript reloads and the panel shows the message (:1362-1366).",
+    "I8: the backdrop has no handler (TranscriptEditDialog.tsx:148). The field's value is set only in an effect keyed on target.text, and editTarget is the same state object through reloads. The pointer-mode effect clears only `selected` (TranscriptSection.tsx:505-507). editTarget is cleared on fileId (:339) and on source (:488-491).",
+    "I9: the fine path keeps the inline input with Enter to save and Escape to cancel (:1200-1218), and its edit button calls beginEdit (:1315). No strip is drawn because isSelected requires coarse (:1176-1180).",
+    "I10: strip buttons are h-7 (28px) with a before:-inset-2 pseudo-element, which makes them 44px tall. The strip has py-2, so the overhang ends at the strip's edge and stays off the seek button and the next row. The dialog's close button is h-11 w-11, and the shared Button applies pointer-coarse:min-h-11.",
+    "I11: revealCue scrolls the minimum amount needed to show the block, and keeps the strip end in view for tall blocks (:569-594). It runs after a tap (:596-600) and again when the clock tick makes the selected row the playing row (:610-613). readPlace and applyPlace key on data-cue-start rows, which are unchanged by the strip."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The two strip buttons sit 12px apart (gap-3), and each pseudo-element hit area extends 8px horizontally, so their hit areas overlap each other by about 4px. The spec explicitly chooses a 12px gap, and I10 forbids overlap only with the seek area and with other rows, so this is not a breach.",
+    "If a reload while the dialog is open leaves the file with no transcript in any source, TranscriptSection returns null (:1043) and the dialog unmounts with its draft. This edge is not covered by the I8 wording."
+  ],
+  "regression_risks": [
+    "Escape in the dialog while the inspector sheet is expanded may also collapse the Radix drawer and drop the draft. The spec acknowledges this under 'Checked, no action' (spec lines 307-311).",
+    "The dialog registers its Escape shortcut at default priority 0, not OVERLAY_PRIORITY. A priority-100 context with an escape binding that is enabled at the same time would take Escape first."
+  ],
+  "test_coverage": [
+    "TranscriptSectionTouch.test.tsx has describe blocks for I1 through I9, including IME Return/Escape, paste line breaks, a save in flight, failures, `changed`, a late save after a file change, a source switch, and a pointer-mode change.",
+    "Hit-area geometry (I10) and scroll reveal (I11) depend on layout and cannot be fully covered by jsdom. The spec routes them to the e2e-components scene, which I did not read."
+  ],
+  "not_verified": [
+    "I did not run any tests or the e2e-components spec, because this review had no command tool.",
+    "I did not read the e2e-components scene and spec, or the TranscriptSection.test.tsx and TranscriptSectionCorrections.test.tsx changes.",
+    "I did not check the ja/en messages for transcriptQuote, or the docs updates.",
+    "I did not check the Radix drawer's Escape behaviour inside MobileInspectorSheet at runtime.",
+    "I did not check the actual rendered pixel sizes of the shared Button labels."
+  ],
+  "confidence": 78,
+  "coverage": [
+    {
+      "path": "addons/intelligence/frontend/TranscriptSection.tsx",
+      "read": "full",
+      "reason": "Main touch point"
+    },
+    {
+      "path": "addons/intelligence/frontend/TranscriptEditDialog.tsx",
+      "read": "full",
+      "reason": "New dialog"
+    },
+    {
+      "path": "frontend/src/hooks/useShortcuts.ts",
+      "read": "full",
+      "reason": "Escape routing"
+    },
+    {
+      "path": "frontend/src/components/ShortcutsProvider.tsx",
+      "read": "full",
+      "reason": "IME guard on Escape"
+    },
+    {
+      "path": "addons/intelligence/frontend/TranscriptSectionTouch.test.tsx",
+      "read": "partial",
+      "reason": "Test names only"
+    },
+    {
+      "path": "docs/specs/transcript-touch-actions.md",
+      "read": "partial",
+      "reason": "Visual spec, Escape notes, invariants"
+    }
+  ]
+}

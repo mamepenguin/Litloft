@@ -1,0 +1,243 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "R1",
+      "origin": "reviewer",
+      "claim": "The diff changes two shared test fixtures, tests/ocr_fixtures.py and tests/loft_media_world.py. The touch-point list does not name them: it covers only tests citing SPEC-ADDON-122/123 and existing frame-OCR tests that assert the 10 s / 16-bit selection, pending counts or the reindex answer.",
+      "impact": "About 25 test modules use build_search_db, including picture OCR, PDF text, frame scan SPEC-ADDON-111, .loft SPEC-ADDON-117/119/121 and index details. They now eagerly import app.database, app.indexer, app.workers.ocr, app.workers.frame_ocr, app.workers.metadata, app.routers.files and app.main, and the search.db accessors are also patched into app.workers.frame_ocr. Every LoftWorld test now replaces detect_boxes/recognise_boxes with WholeImageBoxShim. That shim answers each line as one whole-image box, so box matching is all-or-nothing in those suites: the IoU of the boxes it returns depends only on the line count, and the real split engine path is never exercised. Suites outside the planned scope changed behaviour without being listed.",
+      "evidence": "addons/intelligence/tests/ocr_fixtures.py:354-362 adds \"app.workers.frame_ocr\" to _SEARCH_DB_MODULES; ocr_fixtures.py:425-428 imports every module before patching; ocr_fixtures.py WholeImageBoxShim (diff hunk at @@ -236). addons/intelligence/tests/loft_media_world.py (diff hunk at @@ -109) patches both seams for every LoftWorld. Grep: build_search_db / LoftWorld( appear in 27 test files, e.g. test_pdf_text_rules.py, test_image_ocr_worker.py, test_spec_addon_111_frame_scan_index.py, test_spec_addon_117_loft_media_queue.py.",
+      "repro": "not_reproduced (read-only review; the effect on the unrelated suites was not run)",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Scope or plan gap only. No declared invariant is broken; the touch-point list does not cover the shared fixtures this change edits.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add tests/ocr_fixtures.py and tests/loft_media_world.py to the touch-point list as shared fixtures, or confine the shim to the frame-OCR tests that need it."
+    },
+    {
+      "id": "R2",
+      "origin": "reviewer",
+      "claim": "The diff changes indexer.py's _frame_ocr_worker and adds _reread_running state on IndexManager. The touch-point list does not name them: for indexer.py it lists _collect_incomplete, _resume_incomplete, get_status/IndexStatus, prioritize, raising a queued task's priority and the .loft download gate. The new DB lookup _is_outdated_frame_read sits in the same try as index_frame_ocr.",
+      "impact": "If the pre-check lookup raises (search.db busy or locked), the worker logs 'Frame OCR indexing failed' and drops the task without running index_frame_ocr; it is not queued again until the next resume or prioritize. More importantly, the _reread_running half of I11 is untested. After a re-read's store step, the row is (true, false, 2), which is no longer outdated. Only _reread_running keeps that build phase from holding the .loft backlog, and no test would notice if this tracking were removed.",
+      "evidence": "addons/intelligence/app/indexer.py:2013-2026: `if await asyncio.to_thread(_is_outdated_frame_read, task.file_id): self._reread_running.add(...)` inside the same try/except as `index_frame_ocr`. indexer.py:2171-2178 subtracts _reread_running. tests/test_spec_addon_122_loft_fetch_gate.py covers only a queued re-read (`_queue_native_frame_task` with priority BACKLOG); no test has a re-read running or past its store step while a .loft is enqueued.",
+      "repro": "Mutation: delete `self._reread_running.add(task.file_id)` at indexer.py:2017. No test in the diff exercises a running re-read against the loft gate, so the mutant is expected to survive (not run).",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "An unplanned function-level reach, plus a test gap on the processing clause of I11. No observed I11 violation in the code as written.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Name _frame_ocr_worker in the touch points. Move the _is_outdated_frame_read lookup into its own try so that a failed lookup still runs the task. Add a test where a re-read is processing, including after its store step, while a backlog .loft is enqueued."
+    },
+    {
+      "id": "R3",
+      "origin": "reviewer",
+      "claim": "frame_ocr.py adds `_ReadResult.frame_gap`, written on every decoded frame. No code in the addon reads it, and no spec item or touch point describes it.",
+      "impact": "Dead state with a docstring ('a key-frame read's GOP') that suggests a behaviour nobody implements. A later reader may assume the 3-second gap or the key-frame path depends on it.",
+      "evidence": "Grep for frame_gap in addons/intelligence: only addons/intelligence/app/workers/frame_ocr.py:126 (field) and :404 (assignment); no reader.",
+      "repro": "Mutation: remove the field and line 404. Nothing references it, so the mutant is expected to survive (not run).",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "An unspecified addition, not in any spec item; harmless but reads wrong.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Delete the frame_gap field and its assignment at frame_ocr.py:403-404."
+    },
+    {
+      "id": "R4",
+      "origin": "reviewer",
+      "claim": "The shared helper _get_indexed_file_or_404 now returns frame_ocr_read and frame_ocr_rule. This reaches callers outside the planned files.py endpoints: scenes.py:87, which the touch points list as read only, and the image routes through files.py:1719.",
+      "impact": "No behaviour change was observed: the callers read named keys. It is an unlisted reach of a helper used by about 14 call sites.",
+      "evidence": "addons/intelligence/app/routers/files.py:88-89 adds the keys; callers at routers/scenes.py:87 and files.py:229,282,341,585,627,775,1377,1513,1671,1719,1892,1929.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Scope note only; no invariant is affected.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    },
+    {
+      "id": "R5",
+      "origin": "reviewer",
+      "claim": "reindex_file raises a queued re-read to 100 only in the branch where every requested task is already queued. A request that names frame_ocr together with a fresh task, or with clip, answers 'accepted' and leaves the queued re-read at -10.",
+      "impact": "A multi-task reindex from the API or the failed-jobs modal does not move the re-read ahead of the backlog, so the video waits behind the whole re-read backlog, which can take days. The UI's per-task Regenerate sends one task, so the common path is fine.",
+      "evidence": "addons/intelligence/app/routers/files.py:1072-1083 computes raise_reread; it is used only at :1106-1108 inside `if fresh == [] and not rescan and not loft_updates and not loft_running`. For a request {tasks:[frame_ocr, text]} with text fresh, the code falls through to the flag reset and does not raise or reset frame_ocr (it is in already_queued).",
+      "repro": "not_reproduced (reasoned from code: outdated video with a queued -10 frame task; POST reindex {tasks:[\"frame_ocr\",\"text\"]} → accepted, frame task stays at -10)",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "I10 is worded for a request that answers already_queued, which a mixed request cannot. Spec item 9 ('any other reindex behaves as today') arguably covers it, so this is a reading gap rather than a clear invariant break; a person should decide.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Call manager.raise_task_priority whenever raise_reread is true, not only in the short-circuit branch."
+    }
+  ],
+  "specification_compliance": [
+    "File-level reach: every product file in the diff (database.py, indexer.py, models.py, routers/files.py, workers/frame_ocr.py, workers/frame_scan.py docstring, workers/ocr.py, scripts/dev/frame_ocr_bench/*) and docs/addons/intelligence.md are on the touch-point list. The submodule bump, docs/specs and INDEX.md are implicit or listed.",
+    "Unlisted reaches found: the shared test fixtures tests/ocr_fixtures.py and tests/loft_media_world.py (R1); indexer.py _frame_ocr_worker and the _reread_running state (R2); frame_ocr.py _ReadResult.frame_gap (R3); the shared helper _get_indexed_file_or_404, whose new keys reach scenes.py (listed read-only) and the image routes (R4).",
+    "Listed but not reached by the diff (reverse direction, no finding): app/video_frames.py, app/workers/loft_media.py and app/main.py are unchanged. frame_ocr now uses its own constants and no longer imports GAP_SECONDS/HASH_BITS_THRESHOLD; main.py depends on IndexStatus fields that get_status now fills.",
+    "I1 constants READ_HASH_BITS=8, READ_GAP_SECONDS=3.0; the frame scan still imports the shared GAP_SECONDS/HASH_BITS_THRESHOLD (frame_scan.py:29-31).",
+    "I3: matching takes the highest IoU >= 0.8 among untaken previous boxes, with ties going to the earlier box (strict >). The comparison is against picked.grey, the recognition frame, which is carried over on reuse. The window walk matches step 3.3.",
+    "I6: _store_read writes frame_ocr_read, frame_ocr_indexed=False and frame_ocr_rule=2 in one session alongside the video_frame_texts rows; the migration is guarded by a column check.",
+    "I8: _reread writes only frame_ocr_rule on incomplete outcomes and nothing on unreachable, no engine, engine lost, inactive row or write failure."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "_ReadResult.frame_gap is computed but never used (R3).",
+    "_collect_incomplete's SQL selects every outdated native video under any mode, including manual and false. These rows pass through the inapplicable-flag loop on each resume and are filtered only in the Python queueing loop.",
+    "_frame_ocr_worker performs an extra DB lookup per frame task before running it (R2).",
+    "run.sh pipes every harness output through `grep -v -i warn`, which also removes DIFF lines from i2_check whose recognised text contains 'warn'. run.sh also discards i2_check's exit status with `|| true`."
+  ],
+  "regression_risks": [
+    "_native_frame_busy now loads full IndexedFile ORM rows for every queued or processing FRAME_OCR id, up to about 8,834 during the re-read backlog. This happens on each check, and every 2 s while a backlog .loft is held; with an older SQLite whose variable limit is 999, the IN clause would raise inside the loft worker.",
+    "_collect_incomplete now pulls all outdated native videos on every resume regardless of mode, which adds startup cost on a library with 8,834 videos.",
+    "detect_boxes/recognise_boxes reach into RapidOCR private APIs (_load_det_model, preprocess_img, crop_text_regions, cls_and_rotate, recognize_txt). A RapidOCR version bump can break the frame reader while CI stays green, because both seams are always faked.",
+    "With rereads, picture OCR, page OCR and image_query wait between more and shorter engine calls; an image query with a timeout may time out more often."
+  ],
+  "test_coverage": [
+    "Well covered: I3 (2.0 boundary, the recognition-frame reference, long and tall windows, the cut last window, the IoU threshold, ties, highest IoU, a picked box taken even when its region changed), I4 (dropped box), I5 (detect or recognise failure), engine lost between calls, I8 incomplete or unreachable outcomes, I6 store then build, I7 counts, details, prioritize and queueing, and I10's queued case.",
+    "Gap: the running/processing clause of I11 and _reread_running are not tested (R2).",
+    "Gap: the _engine_call_lock usage in detect_boxes/recognise_boxes (I9: no two engine calls at once) is never exercised, because both functions are always faked.",
+    "Gap: no test checks that paused time is excluded from the 120 s stall limit inside a frame, or the `last_data = time.monotonic()` reset after _read_boxes.",
+    "Gap: no test of a mixed-task reindex for an outdated, queued re-read (R5).",
+    "I2 is checked only by scripts/dev/frame_ocr_bench/i2_check.py on real hardware, as the clarification accepts."
+  ],
+  "not_verified": [
+    "No tests were run; mutation outcomes are reasoned, not executed.",
+    "The real RapidOCR path (_detect_boxes/_recognise_boxes) was not exercised, so I2 equality with engine(image) is unchecked.",
+    "app/main.py was not read, so the status endpoint's pending.total and indexed.frame_ocr wiring is unverified.",
+    "app/workers/loft_media.py and the full reindex_file preamble (before line 990) were not read.",
+    "The test files were reviewed only through the diff hunks in the prompt; except for part of ocr_fixtures.py, they were not opened.",
+    "The SQLite version in the production container (relevant to the IN-clause size) was not checked."
+  ],
+  "coverage": [
+    {
+      "path": "addons/intelligence/app/database.py",
+      "read": "partial",
+      "reason": "Lines 1240-1284: the changed hunk and most of _migrate_frame_page_ocr_columns; the function's tail was not read."
+    },
+    {
+      "path": "addons/intelligence/app/indexer.py",
+      "read": "partial",
+      "reason": "Lines 160-209, 440-579, 915-1204, 1330-1399, 1440-1519 and 1995-2179: every changed hunk with most of its enclosing function."
+    },
+    {
+      "path": "addons/intelligence/app/models.py",
+      "read": "partial",
+      "reason": "Lines 90-114: the changed column and its neighbours."
+    },
+    {
+      "path": "addons/intelligence/app/routers/files.py",
+      "read": "partial",
+      "reason": "Lines 56-105, 990-1140, 1240-1289 and 1700-1729: every changed hunk; the start of reindex_file before line 990 was not read."
+    },
+    {
+      "path": "addons/intelligence/app/workers/frame_ocr.py",
+      "read": "full",
+      "reason": "Read lines 1-797, the whole file."
+    },
+    {
+      "path": "addons/intelligence/app/workers/frame_scan.py",
+      "read": "full",
+      "reason": "The only change is the module docstring; read lines 1-40 including it."
+    },
+    {
+      "path": "addons/intelligence/app/workers/ocr.py",
+      "read": "full",
+      "reason": "Read lines 100-239, which cover run_engine and all new functions (the changed hunks with their enclosing functions)."
+    },
+    {
+      "path": "scripts/dev/frame_ocr_bench/i2_check.py",
+      "read": "full",
+      "reason": "Whole file opened."
+    },
+    {
+      "path": "scripts/dev/frame_ocr_bench/measure.py",
+      "read": "full",
+      "reason": "Whole file opened."
+    },
+    {
+      "path": "scripts/dev/frame_ocr_bench/reference.py",
+      "read": "full",
+      "reason": "Whole file opened."
+    },
+    {
+      "path": "scripts/dev/frame_ocr_bench/run.sh",
+      "read": "full",
+      "reason": "Whole file opened."
+    },
+    {
+      "path": "addons/intelligence/tests/frame_box_doubles.py",
+      "read": "not_read",
+      "reason": "Not opened; reviewed only through the full new-file diff in the prompt."
+    },
+    {
+      "path": "addons/intelligence/tests/loft_media_world.py",
+      "read": "not_read",
+      "reason": "Not opened; reviewed only through the diff hunk in the prompt."
+    },
+    {
+      "path": "addons/intelligence/tests/ocr_fixtures.py",
+      "read": "partial",
+      "reason": "Opened lines 340-430 (_SEARCH_DB_MODULES and build_search_db); the WholeImageBoxShim hunk was seen in the diff only."
+    },
+    {
+      "path": "addons/intelligence/tests/test_frame_page_ocr_readers.py",
+      "read": "not_read",
+      "reason": "Not opened; reviewed only through the diff hunks in the prompt."
+    },
+    {
+      "path": "addons/intelligence/tests/test_picture_lines_frames.py",
+      "read": "not_read",
+      "reason": "Not opened; reviewed only through the diff hunk in the prompt."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_122_frame_ocr_outdated.py",
+      "read": "not_read",
+      "reason": "Not opened; reviewed only through the full new-file diff in the prompt."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_122_frame_ocr_reread.py",
+      "read": "not_read",
+      "reason": "Not opened; reviewed only through the full new-file diff in the prompt."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_122_frame_ocr_reread_text.py",
+      "read": "not_read",
+      "reason": "Not opened; reviewed only through the full new-file diff in the prompt."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_122_frame_ocr_selection.py",
+      "read": "not_read",
+      "reason": "Not opened; reviewed only through the full new-file diff in the prompt."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_122_loft_fetch_gate.py",
+      "read": "not_read",
+      "reason": "Not opened; reviewed only through the full new-file diff in the prompt."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_122_loft_read_rule.py",
+      "read": "not_read",
+      "reason": "Not opened; reviewed only through the full new-file diff in the prompt."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_123_frame_box_reuse.py",
+      "read": "not_read",
+      "reason": "Not opened; reviewed only through the full new-file diff in the prompt."
+    }
+  ],
+  "confidence": 78
+}

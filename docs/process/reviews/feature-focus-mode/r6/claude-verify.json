@@ -1,0 +1,95 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1",
+      "status": "confirmed",
+      "note": "Traced by reading the code. SidebarProvider.tsx:60 sets isOverlay = routeOverlay || focusLent || narrow. The only code that closes the sidebar on a layout change is the layout effect at SidebarProvider.tsx:76-83, which runs only when isOverlay changes. useFocusSidebarWhen (SidebarProvider.tsx:190-195) changes only focusLent. When narrow is already true (NARROW_QUERY max-width 1199px, line 18), isOverlay stays true when focus mode starts and when it ends, so an isOpen=true set by the menu button stays true after leaving. Nothing else closes it on leaving: Sidebar.tsx:69-71 closes only on a nav click, and Sidebar.tsx:290-295 registers only Escape. The overlay is not a reason for T to yield: canTakeFocusModeShortcut (findShortcut.ts:25-28) skips [data-app-sidebar], and the menu button is in ChromeButtons, not inside <header>, so isHeaderMenuOpen is false. T therefore leaves focus mode with the overlay still open, which breaks I4's 'an overlay sidebar opened in focus mode is closed on leaving by either path'. The T path alone is enough to confirm this. I did not check whether the tree-button path can be reached while the z-30 backdrop is up."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F2",
+      "status": "confirmed",
+      "note": "drive/[name]/layout.tsx:86-99 draws DriveUnavailable for any URL under an unavailable drive, including one with ?file=. isFilePageUrl (useFocusMode.ts:15-22) tests only the URL, so on that screen it is true. AppShell.tsx:334 mounts FocusModeShortcuts with active={filePageUrl}. Its guard (FocusModeShortcuts.tsx:25) checks only menus and covers. DriveUnavailable.tsx:29-31 clears the store once, in a mount effect with [] deps. AppShell.tsx:288-290 resets the store only when filePageUrl changes. A T press after mount therefore sets the state on. useFocusLayout (useFocusMode.ts:80-85) then becomes true, and the focus layout (hidden header, lent sidebar) applies over DriveUnavailable. The spec's Terms (focus-mode.md:53-54) say such a URL is not a file page URL, and §2 (focus-mode.md:210-212) says DriveUnavailable is drawn with the header and sidebar."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F3",
+      "status": "confirmed",
+      "note": "toggleFocusMode (useFocusMode.ts:92-95) always calls rememberReadingAnchor. That function sets the module-level `pending` (readingAnchor.ts:120-123) whenever the content is scrolled. restoreReadingAnchor, which consumes `pending`, is called only from the layout effect keyed on focusLayout (AppShell.tsx:311-313). Below 768px, useFocusLayout (useFocusMode.ts:84) stays false, so a T press does not run that effect and the anchor stays pending. Widening to 768px or more with the state on flips focusLayout to true. restoreReadingAnchor (readingAnchor.ts:131-180) then scrolls back to the stale anchor for up to 20 frames, undoing any scrolling the reader did in between. The stale anchor is dropped only if its elements are disconnected or have zero height (line 159-166)."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F4",
+      "status": "confirmed",
+      "note": "frontend/src/lib/readingAnchor.ts is in the r6 changed-file list (docs/process/reviews/feature-focus-mode/r6/product-files.txt:31) but is not in the touch-point list. Neither §7 nor the touch points mention a scroll-restoring module. It changes scrollTop or calls window.scrollBy for up to MAX_FRAMES=20 frames (readingAnchor.ts:28, 169-174). It is called from useFocusMode.ts:93 and AppShell.tsx:312."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F5",
+      "status": "confirmed",
+      "note": "frontend/src/lib/safeArea.ts is in the changed-file list (product-files.txt:32) and not in the touch points. readSafeAreaTop (safeArea.ts:6-15) appends a probe div to document.body and removes it. Header.tsx:44-52 calls it in publish() on every ResizeObserver callback while focusLayout is on. A side effect: each probe append and remove is a childList mutation under documentElement, which AppShell's MutationObserver (AppShell.tsx:180-186) observes with subtree, so the probe also triggers that observer's update()."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F6",
+      "status": "confirmed",
+      "note": "FocusModeShortcuts.tsx (lines 15-32, mounted at AppShell.tsx:334) and FileDetail/FocusModeButton.tsx (used at FileDetailChrome.tsx:17 and :146) both exist and are both in product-files.txt (lines 17 and 19). Neither is in the touch-point list, which places the focus-mode shortcut context in useFocusMode.ts and the button in FileDetailChrome.tsx."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F7",
+      "status": "confirmed",
+      "note": "The touch points list DriveUnavailable.tsx only as a user of h-below-header that keeps its height. At DriveUnavailable.tsx:8 and :27-31 it now imports focusModeStore and calls focusModeStore.set(false) in a mount layout effect. The spec's edge case (focus-mode.md:210-212) does call for the state to turn off there, so the behaviour matches the spec's intent. It is still a place and a write that the touch points do not plan."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F8",
+      "status": "confirmed",
+      "note": "product-files.txt lists e2e-components/stubs/next-navigation.ts, fixtures/app.tsx, fixtures/inspectorResponsive.tsx, projects.ts and spec-viewport.spec.ts as changed (lines 3, 5, 8-10). The stub now has the navigable __fixturePathname/__fixtureNavigate machinery (next-navigation.ts:14-56). inspectorResponsive.tsx exports VIDEO_ID, PDF_ID, installFetch and installMedia (lines 29, 30, 187, 379). projects.ts:44-45 and spec-viewport.spec.ts:125-126 list the two focus-mode specs. None of these files is in the touch points or §7 (focus-mode.md:303-314). I could not run git diff, so I relied on the r6 changed-file lists and the current content."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F9",
+      "status": "confirmed",
+      "note": "r6 lists file-header-row.spec.ts as changed (product-files.txt:2) and AppShell.quickNote.test.tsx and MenuButton.test.tsx as changed (test-files.txt:2-3). The current content shows focus-related edits in each. MenuButton.test.tsx:15 and :19 mock setFocusLent and useFocusSidebarWhen, and :109 asserts safe-area-inset-top. file-header-row.spec.ts:80 and :91 assert there is no Focus mode button. AppShell.quickNote.test.tsx:7-11 mocks next/navigation, which AppShell now needs through useIsFilePageUrl. §7 (focus-mode.md:303-314) lists file-header-row-desktop.spec.ts but none of these three files."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F10",
+      "status": "confirmed",
+      "note": "globals.css:717-720 applies `transition: none !important` to html[data-focus-settling] and to all of its descendants. AppShell.tsx:292-307 sets that attribute for one rAF in a layout effect keyed on [focusLayout]. The effect also runs on the shell's first mount with focusLayout=false, so every app load suppresses all transitions in the document for one frame, as does every focus-layout change. The spec scopes the suppression only to the chrome (sidebar, tree, header)."
+    }
+  ],
+  "specification_compliance": [
+    "I4 (the overlay sidebar closed on leaving by either path) is not met when the sidebar is in overlay form for a reason other than focus mode (F1).",
+    "Terms / §2 (a DriveUnavailable URL is not a file page URL): T can still turn focus mode on over DriveUnavailable (F2).",
+    "The touch-point plan is exceeded by new modules (readingAnchor.ts, safeArea.ts, FocusModeShortcuts.tsx, FocusModeButton.tsx) and by edits to shared test infrastructure and unlisted existing tests (F4-F9)."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "The reading-anchor restore scrolls the page for up to 20 frames after a focus-layout change, and a stale anchor can be applied on a later widening (F3/F4).",
+    "A global one-frame suppression of all CSS transitions on every app load and every focus-layout change (F10).",
+    "safeArea's body probe triggers AppShell's covered-state MutationObserver on every header resize in the focus layout."
+  ],
+  "regression_risks": [
+    "Below 1200px, or with the tree beside or yielded, an overlay sidebar opened in focus mode survives leaving focus mode.",
+    "Shared e2e-components stub and fixture changes affect every component fixture."
+  ],
+  "test_coverage": [
+    "No test covers DriveUnavailable together with focus mode (F2).",
+    "The overlay-sidebar-on-leave test runs only at 1280 with the tree hidden, where isOverlay flips (F1); I did not open the spec to confirm this."
+  ],
+  "not_verified": [
+    "I could not run git diff, the tests or the app; the changed-file sets come from the r6 product-files.txt and test-files.txt and from the current file content.",
+    "Whether the tree-button path of F1 can be reached while the overlay sidebar's z-30 backdrop is up.",
+    "The contents of focus-mode-desktop.spec.ts, including the overlay-sidebar test cited in F1.",
+    "The invariants.md revision file, for any revised wording of I4."
+  ],
+  "confidence": 85
+}

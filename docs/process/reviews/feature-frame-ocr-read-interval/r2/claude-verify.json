@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R1",
+      "status": "confirmed",
+      "note": "I traced this in the code. At indexer.py:2094 `_collect_batch` calls `queue.get_nowait()` and then `queued.discard(task.file_id)` (indexer.py:2467-2468), so once the task is taken it is in neither the queue nor the queued set. At indexer.py:2103 `await self._native_frame_busy()` runs outside the inner try/finally, which starts at 2116. `_native_frame_busy` (2168-2186) calls `asyncio.to_thread(_outdated_frame_ids, frame_ids)` without a try. That runs a `get_search_db_read()` query (182-200) whenever a non-running frame_ocr id is queued or processing. If the query raises, the exception reaches the outer `except Exception` at 2153-2155. That handler only logs 'Loft media worker error' and sleeps 5 s. Neither `_enqueue` nor `_defer_backlog` is called, so the -10 backlog task is lost until something queues it again, such as a restart's resume pass. I did not check whether that pass re-queues it. The DB query inside `_native_frame_busy` is new with SPEC-ADDON-122, so the exposure was introduced by this change."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R2",
+      "status": "confirmed",
+      "note": "`READ_HASH_BITS = 8` is defined at frame_ocr.py:55 and used at frame_ocr.py:404-407 together with `READ_GAP_SECONDS`. No test file references READ_HASH_BITS. A grep for bits, threshold or dhash in the frame tests finds only the frame-scan check of 16 bits (test_spec_addon_111_frame_scan_task.py:218-219). The selection test (test_spec_addon_122_frame_ocr_selection.py:4-6, 34-58, 97) reverses a full-frame ramp every second and asserts only the read counts {3:1, 4:2, 7:3}. frame_box_doubles.py:3-6 and 67-69 reverse the bottom ramp band on every state. test_frame_page_ocr_readers.py:37-65 and :313 use static frames (about 0 bits of change) and a large layout and colour change at 6 s, and assert exactly two engine calls. A threshold of 16 gives the same result. The steady-text test (331-342) checks only merged segments. So no test fixture produces a change between 8 and 16 bits, and a mutant with READ_HASH_BITS = 16 would survive. The upper bound of 'about 100' depends on how many dhash bits each ramp flip changes. I did not compute that number, and I could not run the suite."
+    }
+  ],
+  "specification_compliance": [
+    "I1: the 8-bit / 3-second selection rule is implemented at frame_ocr.py:404-407 and is separate from the frame scan's HASH_BITS_THRESHOLD = 16 (video_frames.py:21, frame_scan.py:151). The 3-second gap is tested. No test pins the 8-bit part (R2).",
+    "SPEC-ADDON-117 I3 revision: `_native_frame_busy` (indexer.py:2168-2186) leaves out running re-reads (`_reread_running`) and outdated queued ids. That matches the revised I3, but this check is now a DB query that can fail and drop the backlog task (R1)."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "The spec does not say what should happen to a backlog `.loft` task taken from the queue when the outdated-read lookup fails. The current behaviour is to drop it with an error log (R1)."
+  ],
+  "regression_risks": [
+    "A transient search.db read error while frame_ocr tasks are queued now drops a -10 `.loft` backlog task. Before this change, `_native_frame_busy` looked only at in-memory queues."
+  ],
+  "test_coverage": [
+    "No test separates READ_HASH_BITS = 8 from 16. The selection fixtures move the hash far past any plausible threshold, or not at all.",
+    "I found no test that makes `_outdated_frame_ids` raise inside `_native_frame_busy`."
+  ],
+  "not_verified": [
+    "I did not run the test suite or any mutant. Both records come from reading the code.",
+    "I did not compute how many dhash bits the ramp flips change, so the exact upper bound on surviving thresholds is unknown.",
+    "I did not check whether a dropped `.loft` backlog task is re-queued by the next startup resume pass.",
+    "I did not check how likely `get_search_db_read` is to raise in normal use."
+  ],
+  "confidence": 85
+}
