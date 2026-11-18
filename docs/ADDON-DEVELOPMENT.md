@@ -1477,6 +1477,12 @@ addons](#core-api-surface-for-in-process-addons)) answers as
 `GET /api/drives/{drive}/files` does for the same parameters; narrow your own
 query to the ids it selects.
 
+For per-folder counts under the same filters, call
+`GET /api/drives/{drive}/folder-counts` or
+`POST /api/drives/{drive}/folder-counts/query` with the member ids, passing the
+target's `params`; each `count` is the `total` the listing answers for the same
+parameters plus `path=<that path>`.
+
 ### Members, the collection list and their states
 
 A Smart Collection whose query has free text is a member target: evaluate it
