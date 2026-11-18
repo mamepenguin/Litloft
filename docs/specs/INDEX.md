@@ -282,6 +282,6 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-131 | implemented | docs/specs/notes-app.md | sha256:72a80db466c1c03fd7f70c990d2c1b6655e186508b184f617c0fdae825a0cce7 |
 | SPEC-ADDON-132 | implemented | docs/specs/notes-app.md | sha256:72a80db466c1c03fd7f70c990d2c1b6655e186508b184f617c0fdae825a0cce7 |
 | SPEC-CORE-130 | implemented | docs/specs/notes-app.md | sha256:72a80db466c1c03fd7f70c990d2c1b6655e186508b184f617c0fdae825a0cce7 |
-| SPEC-CORE-137 | approved | docs/specs/search-modified-operator.md | sha256:cf9fff7b1596e1fa4939f82f19887cc1406866ff274a3a29dc6b6dc03e4e9b5b |
-| SPEC-CORE-138 | approved | docs/specs/search-modified-operator.md | sha256:cf9fff7b1596e1fa4939f82f19887cc1406866ff274a3a29dc6b6dc03e4e9b5b |
-| SPEC-ADDON-143 | approved | docs/specs/search-modified-operator.md | sha256:cf9fff7b1596e1fa4939f82f19887cc1406866ff274a3a29dc6b6dc03e4e9b5b |
+| SPEC-CORE-137 | implemented | docs/specs/search-modified-operator.md | sha256:cf9fff7b1596e1fa4939f82f19887cc1406866ff274a3a29dc6b6dc03e4e9b5b |
+| SPEC-CORE-138 | implemented | docs/specs/search-modified-operator.md | sha256:cf9fff7b1596e1fa4939f82f19887cc1406866ff274a3a29dc6b6dc03e4e9b5b |
+| SPEC-ADDON-143 | implemented | docs/specs/search-modified-operator.md | sha256:cf9fff7b1596e1fa4939f82f19887cc1406866ff274a3a29dc6b6dc03e4e9b5b |

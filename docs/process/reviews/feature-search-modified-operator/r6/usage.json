@@ -1,0 +1,27 @@
+{
+  "claude-read": {
+    "input_tokens": 38,
+    "output_tokens": 21336,
+    "cache_read_input_tokens": 3162688,
+    "cache_creation_input_tokens": 202937,
+    "cost_usd": 4.3969026,
+    "seconds": 247
+  },
+  "claude-deep": {
+    "input_tokens": 48,
+    "output_tokens": 28558,
+    "cache_read_input_tokens": 4355890,
+    "cache_creation_input_tokens": 227551,
+    "cost_usd": 5.294464,
+    "seconds": 368
+  },
+  "claude-verify": {
+    "input_tokens": 18,
+    "output_tokens": 6068,
+    "cache_read_input_tokens": 172501,
+    "cache_creation_input_tokens": 20111,
+    "cost_usd": 0.3168202,
+    "seconds": 56
+  },
+  "diff_truncated": false
+}

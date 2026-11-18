@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: ship (user, 2026-11-19, after r6 HUMAN_REVIEW_REQUIRED: "ship")
 ran_in_app: yes
 at: 403fe14c80972d81d0bc297a0e631bcb6ce93f11
 by: agent

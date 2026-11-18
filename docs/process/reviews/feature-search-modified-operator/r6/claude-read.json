@@ -1,0 +1,802 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [
+    {
+      "id": "R1",
+      "origin": "reviewer",
+      "claim": "The diff adds a new shared module, backend/app/services/mtime.py, that no touch point names; seven core write paths now import it.",
+      "impact": "None that a user can hit. The module is the single place where whole-second truncation is defined for I1/I2/I14. A reader of the touch-point list would not know that a change to this helper reaches the scanner, upload, create-file, copy, content write and link-rewrite paths at once.",
+      "evidence": "backend/app/services/mtime.py:8-17 (new). Imported at scanner.py:38, content_write.py:11, fileops.py:29, markdown_relations.py:23, upload.py:25 and routers/drives.py:60. It is absent from the spec's Touch points section.",
+      "repro": "not_reproduced (this is a comparison against the touch-point list)",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "An unplanned place, not a broken invariant: the helper's behaviour (int(st_mtime) to naive UTC) matches SPEC-CORE-137 step 1.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    },
+    {
+      "id": "R2",
+      "origin": "reviewer",
+      "claim": "frontend/src/components/search/SearchQueryHeader.tsx changes behaviour by adding \"modified\" to the ConditionMenu entries list, and it is not a touch point. The list names only ConditionMenu.tsx and SearchFilterChips.tsx for the menu.",
+      "impact": "This array is what places 「更新日」 between 「長さ」 and 「お気に入り」 in the first level the user sees. The R-5 layout touch point and the order rule depend on it, yet the plan does not name the file. A later edit that reorders or drops the entry would land in an unplanned file.",
+      "evidence": "frontend/src/components/search/SearchQueryHeader.tsx:272-281: entries [\"tag\",\"kind\",\"folder\",collection,\"size\",\"duration\",\"modified\",\"favorite\"]. It is the only ConditionMenu caller (grep ConditionMenu in non-test src). Existing tests SearchQueryHeader.scope.test.tsx and SearchQueryHeader.sizeDuration.test.tsx had their expected first-level lists updated to include \"Modified\".",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "An unplanned file. The behaviour matches the spec's menu rule and is covered by SearchQueryHeader.modified.test.tsx, so no invariant breaks.",
+        "invariant_ref": null
+      },
+      "severity": "LOW"
+    },
+    {
+      "id": "R3",
+      "origin": "reviewer",
+      "claim": "Five e2e fixture files gain modified_at on FileItem literals, but the touch points name only searchMerge.ts and FolderTreePane.tsx as FileItem literals that gain the field.",
+      "impact": "None at runtime. These are build inputs of the component and EPUB e2e harnesses that the required FileItem.modified_at forces to change, so the plan undercounts the places the type change reaches.",
+      "evidence": "frontend/e2e-components/fixtures/clipsRow.tsx:53, justifiedHold.tsx:55, notesLibrary.tsx:46, videoCardByline.tsx:41 and frontend/e2e-epub/preview/app.tsx:48 each add `modified_at: null`. Cause: frontend/src/types/index.ts:66 makes `modified_at: string | null` required on FileItem.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "An unplanned but mechanical consequence of a planned type change.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    },
+    {
+      "id": "R4",
+      "origin": "reviewer",
+      "claim": "The diff edits frontend and mcp-server tests, including expectations in existing tests, that the touch points do not cover. The list names only backend/tests/, the addon's tests/ and core-search-vocabulary.test.ts. One mock also gains a field its type does not have.",
+      "impact": "No user impact. A reader cannot tell from the plan that existing assertions moved: the first-level menu order in SearchQueryHeader.scope/sizeDuration, and the exact get_collection query in mcp-server smartCollections.test.ts, which now expects tz. These look adjusted to the new behaviour, not loosened. FileDetailFullScreen.smartCollection.test.tsx:399 adds `modified_at: null` to a Smart Folder mock, which suggests SmartFolder carries the field when it does not.",
+      "evidence": "frontend/src/components/search/__tests__/SearchQueryHeader.scope.test.tsx:118 and SearchQueryHeader.sizeDuration.test.tsx:84-96 add \"Modified\" to the expected order. mcp-server/src/__tests__/smartCollections.test.ts:288,326 add `tz: Intl.DateTimeFormat().resolvedOptions().timeZone`. frontend/src/components/__tests__/FileDetailFullScreen.smartCollection.test.tsx:388-401: savedSmartFolder() returns a Smart Folder object with `modified_at: null`. About 70 other frontend test files add `modified_at: null` to FileItem literals.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Unplanned test reach. No assertion is weakened, and the stray Smart Folder field reads wrong without breaking anything.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Delete `modified_at: null` from savedSmartFolder() in FileDetailFullScreen.smartCollection.test.tsx."
+    },
+    {
+      "id": "R5",
+      "origin": "reviewer",
+      "claim": "The intelligence addon's own frontend calls parseSearchQuery/filterFromParsed for the Ask scope and its count. The diff reaches it through searchQuery.ts, but it is not a touch point, and a modified: token there is consumed as an operator and then dropped from the scope.",
+      "impact": "A user who types `modified:<1y` into the Ask scope gets a scope (and a scope count) without the condition, silently. Before this change the token was free text and was dropped the same way, and size:/duration: are already dropped there, so the visible outcome is unchanged. The token now sets hasOperators and is a parsed operator that the scope never sends.",
+      "evidence": "addons/intelligence/frontend/Page.tsx:103-127: scopeStringFromRaw keeps only path/in/tag/type, and askScopeFromString builds {folders, collections, tags, kinds} from filterFromParsed(parseSearchQuery(raw), null) with no modified argument. addons/intelligence/frontend/AskFindHeader.tsx:54-61: the count listing sends folder/collection/tag/type only.",
+      "repro": "not_reproduced (read only). Predicted: Ask scope `path:Downloads modified:<1y` counts and scopes every file under Downloads.",
+      "introduced": "pre-existing",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "The Ask scope is outside SPEC-CORE-138 (the spec says MCP Ask sends no filter), and size:/duration: already behave this way. It is an unplanned consumer of the changed parser, not a broken invariant.",
+        "invariant_ref": null
+      },
+      "severity": "LOW"
+    }
+  ],
+  "specification_compliance": [
+    "Touch-point comparison: the diff reaches backend/app/services/mtime.py, frontend/src/components/search/SearchQueryHeader.tsx, five e2e fixtures, many frontend and mcp-server test files, and (through the shared parser) the intelligence addon's Ask frontend. None of these is in the touch-point list (R1-R5).",
+    "Touch points listed but not changed by the diff: frontend/src/lib/api.ts (getDriveFiles and getDriveFilesWithFileIds already route through listingRequest's appendListingFilters, so modified passes through without an edit), FileDetailFullScreen.tsx, SmartFolderSaveButton.tsx, readingAppTarget.ts and VideoAppHeader.tsx. They are reached only as callers of changed functions.",
+    "Implicit touch points (docs/specs, INDEX.md, docs/process/reviews) are not reported.",
+    "Every other changed product file maps to a listed touch point: models, database, scanner, content_write, upload, fileops, drives, internal, shelves, schemas, markdown_relations, searchQuery, listingRequest, useFolderFiles, useFileSearch, appTarget, videoAppTarget, memberTarget, inNameResolution, searchMerge, FolderTreePane, smartCollectionEval, the route, FileListRow, types, messages, the MCP tools, and the addon file_matching."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "os.utime in _ensure_md_id_for_new_file now runs on every new-note registration (scanner pass 2 and register_single_file). Grep shows no other caller, so the reach matches I14.",
+    "The search cache (readSearchCache, keyed by query text) can show a relative modified: result computed at an earlier now until revalidation completes. The spec accepts this ('the search cache keys by the query text').",
+    "ResolvedModified.hasAbsolute is computed but the route recomputes the absolute check on its own; nothing reads the field."
+  ],
+  "regression_risks": [
+    "A change to mtime.py's truncation reaches seven write paths at once, none of which the plan names (R1).",
+    "Reordering the entries array in SearchQueryHeader.tsx changes the R-5 first-level layout outside the planned files (R2).",
+    "Ask scope parsing in the addon frontend treats modified: as an operator and drops it silently (R5)."
+  ],
+  "test_coverage": [
+    "backend/tests/test_search_modified_operator.py covers listing, matching, query, folder-counts and shelves parity, NULL, and wire-form 400/422.",
+    "backend/tests/test_file_modified_at.py covers insert, rewrite, md stamp, scan fill, updated_at stability and migration.",
+    "No test exercises getDriveFilesWithFileIds (the POST path) carrying modified; searchModifiedOperator.test.ts checks only getDriveFiles' GET URL.",
+    "No test covers the addon's Ask-scope frontend handling of modified: tokens (R5)."
+  ],
+  "not_verified": [
+    "No tests or type checks were run; read-only review.",
+    "The 375 px layout of the 「＋ 条件」 first level was not measured (the decisions record says it was measured at 338 px only).",
+    "The addon submodule's tests were read only through the supplied diff; the addon's other frontend files beyond Page.tsx and AskFindHeader.tsx were not searched for parseSearchQuery consumers.",
+    "Whether a non-test file other than the e2e fixtures fails to type-check because modified_at is required on FileItem was not checked.",
+    "The full bodies of database.py, models.py, internal.py, shelves.py, schemas.py, content_write.py, fileops.py, markdown_relations.py and upload.py were not read beyond the changed hunks."
+  ],
+  "coverage": [
+    {
+      "path": "addons/intelligence/app/file_matching.py",
+      "read": "partial",
+      "reason": "Grep with line numbers of the modified hunks (85-91, 220-231) plus the supplied diff; the rest was not opened."
+    },
+    {
+      "path": "backend/app/database.py",
+      "read": "partial",
+      "reason": "Lines 557-571 (the migration hunk) via grep context."
+    },
+    {
+      "path": "backend/app/models.py",
+      "read": "partial",
+      "reason": "Lines 91-97 (the column) via grep context."
+    },
+    {
+      "path": "backend/app/routers/drives.py",
+      "read": "partial",
+      "reason": "Lines 165-294 (parsers, range filters), 960-1144 (filtered_drive_files, FileFiltersQuery, _list_drive_files) and 1440-1610 (create_text_file). The folder-counts hunk near 1306 was read only in the diff."
+    },
+    {
+      "path": "backend/app/routers/internal.py",
+      "read": "partial",
+      "reason": "Lines 40-46, 647-651 and 696-736 via grep context."
+    },
+    {
+      "path": "backend/app/routers/shelves.py",
+      "read": "partial",
+      "reason": "Lines 472-478 via grep context."
+    },
+    {
+      "path": "backend/app/schemas.py",
+      "read": "partial",
+      "reason": "Lines 58-64 and 1301-1307 via grep context."
+    },
+    {
+      "path": "backend/app/services/content_write.py",
+      "read": "partial",
+      "reason": "Lines 8-14 and 69-77 via grep context."
+    },
+    {
+      "path": "backend/app/services/fileops.py",
+      "read": "partial",
+      "reason": "Lines 26-32 and 300-306 via grep context."
+    },
+    {
+      "path": "backend/app/services/markdown_relations.py",
+      "read": "partial",
+      "reason": "Lines 20-26 and 634-642 via grep context."
+    },
+    {
+      "path": "backend/app/services/mtime.py",
+      "read": "full",
+      "reason": "Whole file read."
+    },
+    {
+      "path": "backend/app/services/scanner.py",
+      "read": "partial",
+      "reason": "Lines 110-149 and 260-839, which cover every changed hunk with its enclosing function; the import lines 1-40 were read only in the diff."
+    },
+    {
+      "path": "backend/app/services/upload.py",
+      "read": "partial",
+      "reason": "Lines 22-28, 290-296, 360-367 and 383-389 via grep context."
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/clipsRow.tsx",
+      "read": "partial",
+      "reason": "Grep of line 53 plus the diff hunk."
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/justifiedHold.tsx",
+      "read": "partial",
+      "reason": "Grep of line 55 plus the diff hunk."
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/notesLibrary.tsx",
+      "read": "partial",
+      "reason": "Grep of line 46 plus the diff hunk."
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/videoCardByline.tsx",
+      "read": "partial",
+      "reason": "Grep of line 41 plus the diff hunk."
+    },
+    {
+      "path": "frontend/e2e-epub/preview/app.tsx",
+      "read": "partial",
+      "reason": "Grep of line 48 plus the diff hunk."
+    },
+    {
+      "path": "frontend/src/app/app-api/smart-collection-members/route.ts",
+      "read": "partial",
+      "reason": "Grep lines 51-88 (tz parsing, the absolute check, the evaluation call) plus the diff."
+    },
+    {
+      "path": "frontend/src/components/FileListRow.tsx",
+      "read": "partial",
+      "reason": "Grep of lines 158 and 176 plus the diff."
+    },
+    {
+      "path": "frontend/src/components/folder/FolderTreePane.tsx",
+      "read": "partial",
+      "reason": "Grep of line 139 plus the diff."
+    },
+    {
+      "path": "frontend/src/components/folder/useFolderFiles.ts",
+      "read": "partial",
+      "reason": "Lines 170-320 read. The listing hunk (around 368) and the filter hunk (around 467) were read in the diff and by grep."
+    },
+    {
+      "path": "frontend/src/components/search/ConditionMenu.tsx",
+      "read": "partial",
+      "reason": "Lines 420-540 read (presets filter, presetLabel, preset lists). The type and MODIFIED_PRESETS hunks and the first-level entry hunk were read only in the diff."
+    },
+    {
+      "path": "frontend/src/components/search/SearchFilterChips.tsx",
+      "read": "partial",
+      "reason": "Grep of lines 34 and 75 plus the diff."
+    },
+    {
+      "path": "frontend/src/components/search/SearchQueryHeader.tsx",
+      "read": "partial",
+      "reason": "Lines 271-287 (the entries array)."
+    },
+    {
+      "path": "frontend/src/components/search/useFileSearch.ts",
+      "read": "partial",
+      "reason": "Lines 30-270 read, covering every changed hunk."
+    },
+    {
+      "path": "frontend/src/lib/appTarget.ts",
+      "read": "partial",
+      "reason": "Grep of line 97 plus the diff."
+    },
+    {
+      "path": "frontend/src/lib/inNameResolution.ts",
+      "read": "partial",
+      "reason": "Grep of line 110 plus the diff hunks."
+    },
+    {
+      "path": "frontend/src/lib/listingRequest.ts",
+      "read": "partial",
+      "reason": "Grep of lines 30 and 79-80 plus the diff."
+    },
+    {
+      "path": "frontend/src/lib/memberTarget.ts",
+      "read": "partial",
+      "reason": "Grep of lines 73-75 plus the diff."
+    },
+    {
+      "path": "frontend/src/lib/searchMerge.ts",
+      "read": "partial",
+      "reason": "Grep of line 219 plus the diff."
+    },
+    {
+      "path": "frontend/src/lib/searchQuery.ts",
+      "read": "partial",
+      "reason": "Lines 225-524 read (parsing, identity, zone resolution, impossible range). The type and constant hunks (1-140) and the interpret/parse/chip hunks (614-990) were read only in the diff."
+    },
+    {
+      "path": "frontend/src/lib/smartCollectionEval.ts",
+      "read": "partial",
+      "reason": "Grep of lines 24-134 plus the diff."
+    },
+    {
+      "path": "frontend/src/lib/videoAppTarget.ts",
+      "read": "partial",
+      "reason": "Grep of lines 31 and 48 plus the diff."
+    },
+    {
+      "path": "frontend/src/messages-core/en.json",
+      "read": "partial",
+      "reason": "Lines 328 and 335-337 via grep."
+    },
+    {
+      "path": "frontend/src/messages-core/ja.json",
+      "read": "partial",
+      "reason": "Lines 328 and 335-337 via grep."
+    },
+    {
+      "path": "frontend/src/types/index.ts",
+      "read": "partial",
+      "reason": "Grep of line 66 plus the diff."
+    },
+    {
+      "path": "mcp-server/src/tools/ask.ts",
+      "read": "partial",
+      "reason": "Grep of line 90 plus the diff."
+    },
+    {
+      "path": "mcp-server/src/tools/collections.ts",
+      "read": "partial",
+      "reason": "Grep of lines 13-16 and 130 plus the diff."
+    },
+    {
+      "path": "mcp-server/src/tools/read.ts",
+      "read": "partial",
+      "reason": "Grep of line 129 plus the diff."
+    },
+    {
+      "path": "addons/intelligence/tests/test_filtered_search_contract.py",
+      "read": "partial",
+      "reason": "Diff hunk only."
+    },
+    {
+      "path": "addons/intelligence/tests/test_search_modified_filter.py",
+      "read": "partial",
+      "reason": "New file read in full through the diff; not opened."
+    },
+    {
+      "path": "backend/tests/test_file_modified_at.py",
+      "read": "partial",
+      "reason": "New file read in full through the diff; not opened."
+    },
+    {
+      "path": "backend/tests/test_search_modified_operator.py",
+      "read": "partial",
+      "reason": "New file read in full through the diff; not opened."
+    },
+    {
+      "path": "frontend/src/__tests__/DriveHome.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunks only (fixture field)."
+    },
+    {
+      "path": "frontend/src/__tests__/DuplicatesSection.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunk only."
+    },
+    {
+      "path": "frontend/src/__tests__/FileCard.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunk only."
+    },
+    {
+      "path": "frontend/src/__tests__/accent-budget.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunk only."
+    },
+    {
+      "path": "frontend/src/__tests__/core-search-vocabulary.test.ts",
+      "read": "partial",
+      "reason": "Diff hunks only (count changes)."
+    },
+    {
+      "path": "frontend/src/__tests__/driveHomeFailureState.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunk only."
+    },
+    {
+      "path": "frontend/src/__tests__/driveHomeHiddenEntries.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunk only."
+    },
+    {
+      "path": "frontend/src/__tests__/driveHomeSectionOrder.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunk only."
+    },
+    {
+      "path": "frontend/src/__tests__/homeAppEntries.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunk only."
+    },
+    {
+      "path": "frontend/src/__tests__/homeContinueDesk.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunk only."
+    },
+    {
+      "path": "frontend/src/__tests__/homeResumeRows.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunk only."
+    },
+    {
+      "path": "frontend/src/__tests__/homeShortcuts.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunk only."
+    },
+    {
+      "path": "frontend/src/__tests__/matchTimestampPills.parity.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunk only."
+    },
+    {
+      "path": "frontend/src/__tests__/section-rows.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunk only."
+    },
+    {
+      "path": "frontend/src/app/app-api/__tests__/smartCollectionMembers.modified.test.ts",
+      "read": "partial",
+      "reason": "New file read in full through the diff; not opened."
+    },
+    {
+      "path": "frontend/src/app/app-api/__tests__/smartCollectionMembers.test.ts",
+      "read": "partial",
+      "reason": "Diff hunk only."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/__tests__/MediaPlayerBlock.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunk only."
+    },
+    {
+      "path": "frontend/src/components/__tests__/AudioPlayer.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunk only."
+    },
+    {
+      "path": "frontend/src/components/__tests__/CollectionDetail.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunk only."
+    },
+    {
+      "path": "frontend/src/components/__tests__/CollectionItemsPane.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunk only."
+    },
+    {
+      "path": "frontend/src/components/__tests__/CollectionPanel.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunk only."
+    },
+    {
+      "path": "frontend/src/components/__tests__/ContinueWatchingSection.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunk only."
+    },
+    {
+      "path": "frontend/src/components/__tests__/FileActions.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunk only."
+    },
+    {
+      "path": "frontend/src/components/__tests__/FileCard.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunk only."
+    },
+    {
+      "path": "frontend/src/components/__tests__/FileContextMenu.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunk only."
+    },
+    {
+      "path": "frontend/src/components/__tests__/FileDetailFullScreen.smartCollection.test.tsx",
+      "read": "partial",
+      "reason": "Lines 380-410 opened (savedSmartFolder mock); other hunk from the diff."
+    },
+    {
+      "path": "frontend/src/components/__tests__/FileDetailFullScreen.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunk only."
+    },
+    {
+      "path": "frontend/src/components/__tests__/FileListRow.modifiedDate.test.tsx",
+      "read": "partial",
+      "reason": "New file read in full through the diff; not opened."
+    },
+    {
+      "path": "frontend/src/components/__tests__/FilePreview.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunk only."
+    },
+    {
+      "path": "frontend/src/components/__tests__/FolderBrowser.snapshotScroll.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunk only."
+    },
+    {
+      "path": "frontend/src/components/__tests__/FolderListRow.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunk only."
+    },
+    {
+      "path": "frontend/src/components/__tests__/GlobalSearch.inSmartCollection.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunk only."
+    },
+    {
+      "path": "frontend/src/components/__tests__/GlobalSearch.jump.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunk only."
+    },
+    {
+      "path": "frontend/src/components/__tests__/GlobalSearch.scope.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunk only."
+    },
+    {
+      "path": "frontend/src/components/__tests__/GlobalSearch.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunk only."
+    },
+    {
+      "path": "frontend/src/components/__tests__/ImageGallery.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunk only."
+    },
+    {
+      "path": "frontend/src/components/__tests__/LikeButton.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunk only."
+    },
+    {
+      "path": "frontend/src/components/__tests__/MatchOverlay.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunk only."
+    },
+    {
+      "path": "frontend/src/components/__tests__/SearchPage.filtered.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunk only."
+    },
+    {
+      "path": "frontend/src/components/__tests__/SearchPage.inSmartCollection.loading.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunk only."
+    },
+    {
+      "path": "frontend/src/components/__tests__/SearchPage.inSmartCollection.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunk only."
+    },
+    {
+      "path": "frontend/src/components/__tests__/SearchPage.resultsBar.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunk only."
+    },
+    {
+      "path": "frontend/src/components/__tests__/SearchPage.semanticContinuation.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunk only."
+    },
+    {
+      "path": "frontend/src/components/__tests__/SearchPage.smartCollectionPlay.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunk only."
+    },
+    {
+      "path": "frontend/src/components/__tests__/SearchPage.smartCollectionSlot.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunk only."
+    },
+    {
+      "path": "frontend/src/components/__tests__/SearchPage.smartFolderOverwrite.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunk only."
+    },
+    {
+      "path": "frontend/src/components/__tests__/TrustTierControl.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunk only."
+    },
+    {
+      "path": "frontend/src/components/__tests__/fileActionsMenuFixtureParity.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunk only."
+    },
+    {
+      "path": "frontend/src/components/__tests__/justifiedGrid.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunk only."
+    },
+    {
+      "path": "frontend/src/components/__tests__/justifiedGridFixtureParity.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunk only."
+    },
+    {
+      "path": "frontend/src/components/__tests__/listMetaRendering.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunk only."
+    },
+    {
+      "path": "frontend/src/components/__tests__/listOrdinals.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunk only."
+    },
+    {
+      "path": "frontend/src/components/__tests__/primaryMetaRendering.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunk only."
+    },
+    {
+      "path": "frontend/src/components/__tests__/readingVideoLayoutFixtureParity.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunk only."
+    },
+    {
+      "path": "frontend/src/components/__tests__/sourceCardExcerpt.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunk only."
+    },
+    {
+      "path": "frontend/src/components/__tests__/sourceCardExcerptText.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunk only."
+    },
+    {
+      "path": "frontend/src/components/folder/__tests__/FolderContent.moreMayFollow.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunk only."
+    },
+    {
+      "path": "frontend/src/components/folder/__tests__/FolderContent.searchFilter.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunk only."
+    },
+    {
+      "path": "frontend/src/components/folder/__tests__/FolderContent.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunk only."
+    },
+    {
+      "path": "frontend/src/components/folder/__tests__/RightPaneFile.inboxNav.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunk only."
+    },
+    {
+      "path": "frontend/src/components/folder/__tests__/RightPaneFile.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunk only."
+    },
+    {
+      "path": "frontend/src/components/folder/__tests__/useFolderFiles.continue.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunk only."
+    },
+    {
+      "path": "frontend/src/components/folder/__tests__/useFolderFiles.modified.test.tsx",
+      "read": "partial",
+      "reason": "New file read in full through the diff; not opened."
+    },
+    {
+      "path": "frontend/src/components/folder/__tests__/useFolderFiles.scope.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunk only."
+    },
+    {
+      "path": "frontend/src/components/folder/__tests__/useFolderFiles.sizeDuration.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunk only."
+    },
+    {
+      "path": "frontend/src/components/folder/__tests__/useFolderFiles.sizeDurationStates.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunk only."
+    },
+    {
+      "path": "frontend/src/components/folder/__tests__/useFolderFiles.test.ts",
+      "read": "partial",
+      "reason": "Diff hunk only."
+    },
+    {
+      "path": "frontend/src/components/readingapp/__tests__/ReadingCard.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunk only."
+    },
+    {
+      "path": "frontend/src/components/search/__tests__/MergedResultItem.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunk only."
+    },
+    {
+      "path": "frontend/src/components/search/__tests__/PassageList.screenText.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunk only."
+    },
+    {
+      "path": "frontend/src/components/search/__tests__/PassageList.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunk only."
+    },
+    {
+      "path": "frontend/src/components/search/__tests__/SearchFilterChips.modified.test.tsx",
+      "read": "partial",
+      "reason": "New file read in full through the diff; not opened."
+    },
+    {
+      "path": "frontend/src/components/search/__tests__/SearchQueryHeader.modified.test.tsx",
+      "read": "partial",
+      "reason": "New file read in full through the diff; not opened."
+    },
+    {
+      "path": "frontend/src/components/search/__tests__/SearchQueryHeader.scope.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunk only (expected first-level order)."
+    },
+    {
+      "path": "frontend/src/components/search/__tests__/SearchQueryHeader.sizeDuration.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunk only (expected first-level order)."
+    },
+    {
+      "path": "frontend/src/components/search/__tests__/useFileSearch.modified.test.tsx",
+      "read": "partial",
+      "reason": "New file read in full through the diff; not opened."
+    },
+    {
+      "path": "frontend/src/components/search/__tests__/useFileSearch.scope.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunk only."
+    },
+    {
+      "path": "frontend/src/components/search/__tests__/useFileSearch.sizeDuration.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunk only."
+    },
+    {
+      "path": "frontend/src/hooks/__tests__/useCollectionViewMode.test.ts",
+      "read": "partial",
+      "reason": "Diff hunk only."
+    },
+    {
+      "path": "frontend/src/hooks/__tests__/useFolderFilter.test.ts",
+      "read": "partial",
+      "reason": "Diff hunk only."
+    },
+    {
+      "path": "frontend/src/lib/__tests__/appTarget.modified.test.ts",
+      "read": "partial",
+      "reason": "New file read in full through the diff; not opened."
+    },
+    {
+      "path": "frontend/src/lib/__tests__/dominantKind.test.ts",
+      "read": "partial",
+      "reason": "Diff hunk only."
+    },
+    {
+      "path": "frontend/src/lib/__tests__/listSnapshot.test.ts",
+      "read": "partial",
+      "reason": "Diff hunk only."
+    },
+    {
+      "path": "frontend/src/lib/__tests__/primaryMeta.test.ts",
+      "read": "partial",
+      "reason": "Diff hunk only."
+    },
+    {
+      "path": "frontend/src/lib/__tests__/searchCache.test.ts",
+      "read": "partial",
+      "reason": "Diff hunk only."
+    },
+    {
+      "path": "frontend/src/lib/__tests__/searchCapture.test.ts",
+      "read": "partial",
+      "reason": "Diff hunk only."
+    },
+    {
+      "path": "frontend/src/lib/__tests__/searchMerge.test.ts",
+      "read": "partial",
+      "reason": "Diff hunk only."
+    },
+    {
+      "path": "frontend/src/lib/__tests__/searchModifiedOperator.test.ts",
+      "read": "partial",
+      "reason": "New file read in full through the diff; not opened."
+    },
+    {
+      "path": "frontend/src/lib/__tests__/searchPassages.test.ts",
+      "read": "partial",
+      "reason": "Diff hunk only."
+    },
+    {
+      "path": "frontend/src/lib/__tests__/smartCollectionEval.modified.test.ts",
+      "read": "partial",
+      "reason": "New file read in full through the diff; not opened."
+    },
+    {
+      "path": "frontend/src/lib/__tests__/smartCollectionEval.test.ts",
+      "read": "partial",
+      "reason": "Diff hunk only."
+    },
+    {
+      "path": "mcp-server/src/__tests__/modifiedOperator.test.ts",
+      "read": "partial",
+      "reason": "New file read in full through the diff; not opened."
+    },
+    {
+      "path": "mcp-server/src/__tests__/smartCollections.test.ts",
+      "read": "partial",
+      "reason": "Diff hunks only (tz added to expected query)."
+    }
+  ],
+  "confidence": 80
+}
