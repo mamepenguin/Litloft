@@ -490,8 +490,11 @@ note id when its content read fails.
   (the `type=markdown` alias and the locked and cross-drive cases kept),
   `backend/tests/test_origin_conditions.py`.
 - Core frontend: `components/appshell/TargetMenu.tsx` gains the optional
-  `defaultTargetExcludeOrigin` prop, passed to the "All notes" count (its test beside it);
-  no other source file is edited. Used as they are: `components/appshell/*`,
+  `defaultTargetExcludeOrigin` prop, passed to the "All notes" count (its test beside it).
+  `components/PageHeader.tsx`: when a header has both `actions` and `scopeEnd`, the
+  actions end the title row after `scopeEnd` from `sm`, and below `sm` they are a
+  full-width row after the tabs; a header with only one of them is drawn as today (its
+  layout test beside it). No other source file is edited. Used as they are: `components/appshell/*`,
   `lib/appTarget`, `lib/memberTarget`, `lib/appPrefs`
   (`readAppTarget`/`writeAppTarget`), `useLoad`, `useNearEnd`, `PageTabs`,
   `MarkdownPreview`, `TextPreview`, `usePlainTextDocument`, `lib/featureFlags`
