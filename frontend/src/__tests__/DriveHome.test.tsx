@@ -327,6 +327,9 @@ describe("the drive home's content rows", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    // `clearAllMocks` keeps queued `…Once` answers, and one left unread
+    // here answers the next case's first row.
+    mockGetDriveFiles.mockReset();
     slotIsRegistered.current = false;
     mockProfile.nickname = null;
     mockGetWatchHistory.mockResolvedValue([]);
@@ -349,15 +352,14 @@ describe("the drive home's content rows", () => {
   });
 
   it("gives each row its own total, and drops a row whose fetch failed", async () => {
-    // The three rows are one `allSettled`, so a single shared total would
-    // pass a test that resolves all three the same way. Recently added
-    // resolves with 619; Favourites and Liked reject, and a row with
-    // nothing in it does not render at all — which is also why "a failed
-    // section shows no count" is not assertable here and is asserted
-    // against `CarouselSection` directly in `section-rows.test.tsx`.
+    // The two rows are one `allSettled`, so a single shared total would
+    // pass a test that resolves both the same way. Recently added
+    // resolves with 619; Favourites rejects, and a row with nothing in it
+    // does not render at all — which is also why "a failed section shows
+    // no count" is not assertable here and is asserted against
+    // `CarouselSection` directly in `section-rows.test.tsx`.
     mockGetDriveFiles
       .mockResolvedValueOnce({ data: [oneFile()], meta: { total: 619, page: 1, limit: 12 } })
-      .mockRejectedValueOnce(new Error("network"))
       .mockRejectedValueOnce(new Error("network"));
 
     render(<DriveHome driveName="media" />);

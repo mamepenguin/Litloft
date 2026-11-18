@@ -1,0 +1,4 @@
+addons/intelligence/tests/test_pdf_edge_lines_failures.py
+addons/intelligence/tests/test_pdf_extractor.py
+addons/intelligence/tests/test_pdf_indexing_e2e.py
+addons/intelligence/tests/test_pdf_vertical_acceptance.py

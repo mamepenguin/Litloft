@@ -907,8 +907,10 @@ describe("FileActions Copy ID", () => {
     const input = screen.getByRole("textbox") as HTMLInputElement;
     expect(dialog).toContainElement(input);
     expect(input.value).toBe("file-1");
-    expect(document.activeElement).toBe(input);
-    expect([input.selectionStart, input.selectionEnd]).toEqual([0, 6]);
+    await waitFor(() => {
+      expect(document.activeElement).toBe(input);
+      expect([input.selectionStart, input.selectionEnd]).toEqual([0, 6]);
+    });
     expect(toastSuccessMock).not.toHaveBeenCalled();
     expect(clipboardSpies.copy).not.toHaveBeenCalled();
   });

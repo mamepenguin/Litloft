@@ -28,6 +28,17 @@ export const STACKED_PLAYER_SHARE = 0.5;
  */
 export const WORKBENCH_COLUMNS_MIN_REM = 41;
 
+/** The player's share of the canvas content when the panels sit beside it. */
+export const WORKBENCH_SPLIT_SHARE = 0.6;
+
+/**
+ * The canvas width at which the column beside the player reaches
+ * `COLUMN_REM`: the right column is `1 - WORKBENCH_SPLIT_SHARE` of the width
+ * less the 1rem gap.
+ */
+export const WORKBENCH_SPLIT_MIN_REM =
+  COLUMN_REM / (1 - WORKBENCH_SPLIT_SHARE) + 1;
+
 /** A framed player's cap while a panel is shown under it. */
 export const WORKBENCH_PLAYER_SHARE = 0.5;
 

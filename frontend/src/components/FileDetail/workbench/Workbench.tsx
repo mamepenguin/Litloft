@@ -2,7 +2,7 @@
 
 import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
-import { PanelTopClose, X } from "lucide-react";
+import { Columns2, PanelTopClose, X } from "lucide-react";
 
 import { WORKBENCH_COLUMNS_MIN_REM } from "@/lib/layoutSizes";
 import { isRowBeside } from "@/lib/workbenchBeside";
@@ -14,6 +14,16 @@ interface WorkbenchProps {
   onToggle: (id: string) => void;
   onClose: (id: string) => void;
   actions?: ReactNode;
+  /** Whether the player and the panels are two columns. */
+  split?: boolean;
+  /**
+   * Present only where the page is split-eligible, so its presence is what
+   * draws the button and widens the beside-row budget.
+   */
+  splitButton?: {
+    pressed: boolean;
+    onToggle: () => void;
+  };
   playerFocus?: {
     pressed: boolean;
     onToggle: () => void;
@@ -36,6 +46,8 @@ export function Workbench({
   onToggle,
   onClose,
   actions,
+  split = false,
+  splitButton,
   playerFocus,
 }: WorkbenchProps) {
   const t = useTranslations("workbench");
@@ -72,6 +84,7 @@ export function Workbench({
   }, []);
 
   const wide =
+    !split &&
     measured != null &&
     measured.width >= WORKBENCH_COLUMNS_MIN_REM * measured.rootFontSize;
 
@@ -79,10 +92,16 @@ export function Workbench({
   const shown = shownPanelIds(items, stored);
 
   const beside =
+    !split &&
     playerFocus?.pressed === true &&
     shown.length > 0 &&
     measured != null &&
-    isRowBeside(measured.width, playerFocus.visibleHeight, measured.rootFontSize);
+    isRowBeside(
+      measured.width,
+      playerFocus.visibleHeight,
+      measured.rootFontSize,
+      splitButton != null,
+    );
 
   return (
     <div
@@ -114,7 +133,19 @@ export function Workbench({
             })}
           </div>
           <div className="media-detail-workbench-trailing">
-            {playerFocus != null && shown.length > 0 && (
+            {splitButton != null && (
+              <button
+                type="button"
+                aria-pressed={splitButton.pressed}
+                aria-label={t("splitPanels")}
+                title={t("splitPanels")}
+                onClick={splitButton.onToggle}
+                className={`workbench-toggle workbench-toggle-icon${splitButton.pressed ? " is-on" : ""}`}
+              >
+                <Columns2 size={16} aria-hidden />
+              </button>
+            )}
+            {!split && playerFocus != null && shown.length > 0 && (
               <button
                 type="button"
                 aria-pressed={playerFocus.pressed}

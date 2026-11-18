@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R4-1",
+      "status": "confirmed",
+      "note": "Traced at the commit. TranscriptSection.tsx:1357-1366 passes inline closures that call closeEditDialog(editTarget) and refreshAfterWrite(), and onChanged also calls setActionError(message). closeEditDialog (857-863) runs setEditTarget(null) with no condition, so it clears whatever target is current, then focusRow(target.index), which focuses a row by the old index in the current list. The fileId effect (332-343) clears editTarget, which unmounts the old dialog. Unmounting does not cancel the request: TranscriptEditDialog.tsx `save` (91-129) awaits correctTranscriptUtterance and then calls onSaved() at :104 or onChanged() at :114 with no cancelled or mounted check. The old render's closures still hold the panel's live setters. So when file A's save resolves after the switch to file B: (a) any dialog the user has since opened on B closes and its draft is lost, which breaks I8 (a draft is lost only through the listed causes); (b) for `changed`, A's message is written into B's actionError line; (c) refreshTick bumps, so B reloads once, which does no harm. The window is narrow. The modal covers the page, so the file has to change by some route outside the dialog (navigation, or the host moving to another file) while the request is still in flight. The inline editor's commitEdit (TranscriptSection.tsx:974-1001) has the same unguarded pattern after its await (setEditingIndex(null), setActionError), so the pattern already existed. The dialog path that has it is new in this change."
+    }
+  ],
+  "specification_compliance": [
+    "The R4-1 behaviour breaks I8 when a dialog on the new file is closed by the old file's late save response. Reaching that state needs a file change while a save is in flight.",
+    "The dialog's Escape, close button and キャンセル are all gated on `saving` (TranscriptEditDialog.tsx:69-72, 156, 192), and the textarea is readOnly while saving (:166). This matches the I7/I8 in-flight clauses."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "After a late save response, focusRow(target.index) focuses a row on the new file by the old file's index. This is a focus jump the spec does not define."
+  ],
+  "regression_risks": [
+    "Inline editor (TranscriptSection.tsx:974-1001) already has the same unguarded post-await state writes across a file change. This was not introduced by this change."
+  ],
+  "test_coverage": [
+    "I did not search the test files for a test that switches the file mid-save. Whether that case is covered is unknown."
+  ],
+  "not_verified": [
+    "Did not run any test or reproduce at runtime; the claim was confirmed by reading the code paths only.",
+    "Did not check whether the host (player/page) can change fileId while the modal dialog is open, for example by auto-advance or route change, so how reachable the bug is remains an inference.",
+    "Did not inspect the test files for coverage of a file change during a dialog save."
+  ],
+  "confidence": 88
+}

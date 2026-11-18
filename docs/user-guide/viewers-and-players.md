@@ -26,7 +26,7 @@ On a player file in a narrow window or on a phone, the [panels under the player]
 
 A tab appears only when it has something in it, so a video that was never transcribed has no Transcript tab.
 
-**Correcting a transcript.** In the **Transcript** panel (or tab, in a narrow window), the **分割テキスト** (Text chunks) view offers **修正** (Edit) on each line. Enter or **保存** saves, Escape or **キャンセル** cancels, and an emptied line disappears. A corrected line is marked **修正済み** (Edited). **元の結果に戻す** (Restore original) in the same header puts the whole transcript back to what the machine produced before the first correction. A corrected file is not transcribed again by automatic indexing; only **Index details** → **再生成** replaces it, after a confirmation. The player's subtitles show a correction the next time the file's page is opened.
+**Correcting a transcript.** In the **Transcript** panel (or tab, in a narrow window), the **分割テキスト** (Text chunks) view offers **修正** (Edit) on each line. Enter or **保存** saves, Escape or **キャンセル** cancels, and an emptied line disappears. On a touch screen, tap a line to show **修正** and **引用** (Quote) under it, and **修正** opens a dialog that saves only with **保存**. A corrected line is marked **修正済み** (Edited). **元の結果に戻す** (Restore original) in the same header puts the whole transcript back to what the machine produced before the first correction. A corrected file is not transcribed again by automatic indexing; only **Index details** → **再生成** replaces it, after a confirmation. The player's subtitles show a correction the next time the file's page is opened.
 
 AI sections (intelligence addon) appear once they have been generated. To generate one, use the **AI** menu in the inspector.
 
@@ -72,6 +72,7 @@ On video, audio and `.loft` files, the things you use for a while as you watch s
 - Each panel has a close button. With every panel off, nothing is drawn under the row and the player is at its full size.
 - The choice is remembered on this device and applies to every file you play. Nothing is on until you turn it on.
 - On a wide window the panels sit side by side, and a video takes half of the page's height so they reach the bottom; **Enlarge panels** in that row makes the player smaller, about a third of the height, so the panels are taller. With less room they sit one above the other, and each panel scrolls inside itself.
+- On a wide window the row also has **Show panels beside the player**, which puts the panels in a column to the right of the player at full height. It needs room for both columns; closing the inspector makes room, and below that the panels stay under the player.
 - In a narrow window the inspector moves under the player and the panels become tabs in it. On a phone they are tabs in the bottom sheet.
 
 Transcript and Scenes come from the [intelligence addon](../addons/intelligence.md), and the Note from the [knowledge addon](../addons/knowledge.md).

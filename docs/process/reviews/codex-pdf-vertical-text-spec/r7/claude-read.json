@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "MEDIUM",
+  "findings": [],
+  "specification_compliance": [
+    "I10 (r5): the new test test_spec_addon_115_i10_vertical_dominant_form_page puts the vertical text only inside a form XObject. It has 18 vertical characters against 11 horizontal ones (CHARTLABEL plus H), so the predominantly vertical branch runs. This closes the r6 F1 gap (test covered only the mixed branch).",
+    "I11 (r6): the last commit adds the assertion unit['text'].splitlines() == ['NESTEDVERTICALWORD','CHARTLABEL','H']. It pins the depth-first pdfminer order with figure contents before the later top-level box, as I11 states.",
+    "The two fix commits change only the test file. No production code changed since r6, so I2, I5, I8 and the other invariants are unaffected by this round."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "The exact-order assertion depends on pdfminer 20260107 layout order, which is pinned in requirements. A pdfminer upgrade could break the test even if the behavior stays valid under I11."
+  ],
+  "test_coverage": [
+    "The new test would fail if the text_boxes recursion into LTFigure were removed, because the vertical-dominant page would then yield only 'H' and the NESTEDVERTICALWORD assertion fails.",
+    "The exact line-list assertion would fail if the dominant branch joined boxes differently or in a different order.",
+    "Carried over from earlier rounds and not re-checked: no test asserts the containment rule for an already-present box; no test covers direction (0,-1), which the spec excludes."
+  ],
+  "not_verified": [
+    "I did not run the tests, so the expected line list ['NESTEDVERTICALWORD','CHARTLABEL','H'] was not confirmed against real pdfminer output.",
+    "I did not re-read pdf.py or the test file in this round; conclusions rest on the diffs given in the prompt.",
+    "I did not re-check the r2 status-reader note or the reconciliation retry path.",
+    "I did not measure pdfminer cost on long PDFs under PYMUPDF_LOCK."
+  ],
+  "confidence": 74,
+  "trajectory": "The fix commits since r6 add no branch, state or prediction to production code. 306876dc adds a test for the vertical-dominant form page, which answers the r6 finding that the nested-form test reached only the mixed branch. b7820fde adds one exact-order assertion that pins I11. Nothing was added that an earlier round also added, and nothing was removed. The design is not being patched here: the round only closes a test gap."
+}

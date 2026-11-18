@@ -93,6 +93,7 @@ vi.mock("@/hooks/useFileNav", () => ({
 }));
 
 import { FileDetailFullScreen } from "../FileDetailFullScreen";
+import { getCollectionOnEnded } from "../CollectionPanel";
 
 Element.prototype.scrollIntoView = vi.fn();
 
@@ -158,6 +159,9 @@ function lastContent() {
 }
 
 async function endCurrentFile() {
+  // The queue registers what an ended file does from an effect, which can
+  // run after the queue's rows are already drawn.
+  await waitFor(() => expect(getCollectionOnEnded()).toBeTypeOf("function"));
   const onEnded = lastContent().onEnded as (() => void) | undefined;
   if (onEnded) act(() => onEnded());
 }

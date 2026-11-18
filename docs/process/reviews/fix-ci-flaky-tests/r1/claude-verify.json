@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "MEDIUM",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1",
+      "status": "confirmed",
+      "note": "frontend/e2e-components/fixture-origin.spec.ts:13 defines ACROSS_DOCUMENTS = /\\.reload\\(|\\.context\\(\\)\\.newPage\\(/. Line 22 selects specs only by that regex, and line 20 reads only files ending in `.spec.ts`, so `.cases.ts` helpers are never scanned. A crossing written another way passes unnoticed: a second page.goto in the same test, `context.newPage()` reached through the destructured `context` fixture, goBack/goForward, or a crossing inside a `.cases.ts` file. That spec can stay on pathToFileURL. Grep for newPage|newContext|storageState|goBack|goForward finds only the five `.context().newPage(` sites in the two migrated specs. inspector-responsive-layout-desktop.spec.ts calls open() once per test (lines 442-456, 539-555, 619-626), so its localStorage reads stay within one document. No current spec escapes the guard. The gap is latent."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F2",
+      "status": "confirmed",
+      "note": "Both migrated specs open inspector arrangements, e.g. player-workbench-desktop.spec.ts:15-16 and :63 (`#inspector-video`) with FIXTURE = FIXTURE_URL (:12, :14). The fetch chain runs from inspectorResponsive.tsx:196-254 into app.tsx:140-207 and ends at the browser's real fetch. A relative URL that neither stub answers now resolves against http://localhost:47391. fixtureOrigin.ts:41-51 intercepts every `${ORIGIN}/**` request, finds no file for e.g. /api/... under ROOT (readFile fails, so body is null), and fulfils it with status 404. Under file:// the same URL resolves to file:///api/..., which Chromium fetch rejects with a TypeError, as app.tsx:136-138 describes ('keeps its offline failure'). So unanswered requests now resolve to a 404 Response instead of rejecting. One correction: 'every other component spec' is slightly overstated. played-ranges.spec.ts:65 also installs its own `${ORIGIN}/**` route. I did not check whether any page code actually issues an unstubbed request in these specs, or whether it treats a 404 differently from a rejection."
+    }
+  ],
+  "specification_compliance": [
+    "fixtureOrigin.ts serves the bundle from http://localhost:47391 through context.route, so pages opened with other.goto(page.url()) in the same context are also served (the route is context-scoped).",
+    "fixture-origin.spec.ts enforces that the two specs which reload or open a second page import serveFixture and do not use pathToFileURL."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "Under the http origin, fetches that no stub answers resolve to a 404 Response instead of rejecting with a network error. Code paths that branch on `!res.ok` vs. catch may behave differently in the two migrated specs than under file://."
+  ],
+  "regression_risks": [
+    "A future spec that crosses documents in a form the regex does not match, or does so from a `.cases.ts` file, can stay on file:// and remain flaky with the guard green."
+  ],
+  "test_coverage": [
+    "The guard test checks only source text for literal patterns. It does not verify runtime behaviour."
+  ],
+  "not_verified": [
+    "Did not run Playwright, so I did not observe a 404 vs. TypeError at runtime.",
+    "Did not enumerate which unstubbed requests the inspector fixtures actually issue, or whether any component handles a 404 differently from a rejected fetch.",
+    "Did not check that a context.route on an unused localhost port works without a listener on CI."
+  ],
+  "confidence": 85
+}

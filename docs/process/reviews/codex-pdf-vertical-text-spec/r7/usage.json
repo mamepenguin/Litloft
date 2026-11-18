@@ -1,0 +1,19 @@
+{
+  "claude-read": {
+    "input_tokens": 2,
+    "output_tokens": 1424,
+    "cache_read_input_tokens": 5744,
+    "cache_creation_input_tokens": 58475,
+    "cost_usd": 0.2487184,
+    "seconds": 11
+  },
+  "claude-verify": {
+    "input_tokens": 2,
+    "output_tokens": 480,
+    "cache_read_input_tokens": 5744,
+    "cache_creation_input_tokens": 5160,
+    "cost_usd": 0.026018399999999997,
+    "seconds": 5
+  },
+  "diff_truncated": false
+}

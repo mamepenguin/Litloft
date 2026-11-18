@@ -91,10 +91,13 @@ async function setTypography(page: Page, t: Typography) {
   await page.waitForTimeout(SETTLE_MS);
 }
 
+// The reader drops a turn asked for while one is still running, so each
+// waits for the one before it to land.
 async function turnTimes(page: Page, n: number) {
   for (let i = 0; i < n; i++) {
+    const before = (await messages(page, "turned")).length;
     await page.evaluate(() => window.turn("next"));
-    await page.waitForTimeout(250);
+    await expect.poll(async () => (await messages(page, "turned")).length).toBe(before + 1);
   }
 }
 

@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "MEDIUM",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1-unlisted-text_indexed-readers",
+      "status": "confirmed",
+      "note": "Code matches the claim. addons/intelligence/app/workers/metadata.py:400-401 catches VerticalTextError and returns False without touching text_indexed, so the row keeps text_indexed=0. Readers of the flag: routers/files.py:83 and :118 (state 'done' if row.text_indexed else 'pending'), routers/admin.py:1001-1002, file_find.py:50 and :327, main.py:617. These are the only status readers found by grep of addons/intelligence/app. The touch-point list does not name them, so the scope observation is accurate. However, the pending state is what invariant I5 requires (a vertical extraction exception must not mark the text task successful), and the same pending outcome already applied to any extraction exception before this change. No behaviour defect in those readers was found; the severity is not mine to set and I consider the finding a scope/documentation gap rather than a defect. Not checked: whether indexer.py re-enqueues text_indexed=0 rows on every startup, which would produce repeated retries of an unrecoverable file."
+    }
+  ],
+  "specification_compliance": [
+    "I5: a VerticalTextError leaves text_indexed at 0 (metadata.py:400-401), consistent with the requirement that the text task is not marked successful."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "Failed vertical extraction leaves text_indexed=0; the status readers show 'pending' indefinitely. indexer.py selects text_indexed=0 rows at lines 420 and 860, so a permanently failing file may be re-enqueued on each scan or startup. Not verified."
+  ],
+  "regression_risks": [
+    "None established from the reviewed lines. The readers are unchanged and only read an existing boolean."
+  ],
+  "test_coverage": [
+    "Not examined. I did not read the test files for the VerticalTextError path."
+  ],
+  "not_verified": [
+    "Whether indexer.py lines 420 and 860 cause repeated re-enqueueing of a file that fails vertical extraction.",
+    "Whether the diff at 282ae06b touches any of the four reader files; I only checked the current working tree against the touch-point list.",
+    "Whether tests cover the VerticalTextError return path.",
+    "Runtime behaviour; I used read-only inspection only."
+  ],
+  "confidence": 85
+}

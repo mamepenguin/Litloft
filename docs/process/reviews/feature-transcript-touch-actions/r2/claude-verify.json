@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R2-1",
+      "status": "confirmed",
+      "note": "TranscriptSection.tsx:605-608: the effect `if (!coarse || !selected || selectedPosition !== activeIndex) return; revealCue(selected.index);` never reads `following`. revealCue (569-589) writes `scroller.scrollTop` directly. The follow effect at 557-560 does return early on `!following`. Following is cleared by wheel/touchmove (623-652) and by opening the dialog (813-815). It is set back to true only by seekTo (822) and resumeFollowing (809). A seek made outside the transcript, such as the player's seek bar or a loop, does neither. Reproduction by reading the code: tap row X on a coarse pointer (selected = X, following = true), let playback move past X, scroll the list away (following = false), then seek the player back into X. activeIndex becomes selectedPosition, the effect runs, and the list scrolls to X while following is suspended. The same happens after the dialog closes, even though spec B1 (docs/specs/transcript-touch-actions.md:68-70) says closing the dialog does not resume following. The B1 test (TranscriptSectionTouch.test.tsx:845-869) only checks that the resume button is present. It does not check that the list stays put."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R2-2",
+      "status": "confirmed",
+      "note": "TranscriptEditDialog.tsx:175-183 calls `event.preventDefault()` for Enter outside IME composition. TranscriptSectionTouch.test.tsx:675-687 sends `fireEvent.keyDown(field, { key: 'Enter' })` and ignores its return value. It then checks only the field value, that no PUT was sent, and that the dialog is still present. jsdom does not insert a line break on a synthetic keydown, so all three checks pass with or without the preventDefault call. The composition tests (700-705, 717-722) assert only `notPrevented === true`. No test file has a `defaultPrevented` or `toBe(false)` assertion, and no e2e-components spec presses Enter in the transcript dialog. In a real browser, the onChange strip at lines 167-172 would also remove a Return that slipped through, so the saved text would still have no line break. The missing preventDefault would show only as a caret jump and an extra change event."
+    }
+  ],
+  "specification_compliance": [
+    "I6: the Enter handler (TranscriptEditDialog.tsx:175-183) and the paste/newline strip (167-172) together keep line breaks out of the saved text, but no test pins the preventDefault part.",
+    "B1 / I11: the selection reveal effect (TranscriptSection.tsx:605-608) can scroll the list while following is suspended, which goes against the intent of B1's 'closing the dialog does not resume following' and of the wheel/touch suspension."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "The spec does not say whether the strip-reveal scroll should respect a suspended following state when the playback highlight comes back to the selected row through a seek made outside the transcript."
+  ],
+  "regression_risks": [
+    "On a coarse pointer, the list can jump to the selected row after the reader has scrolled away, whenever playback returns to that row through the player controls or a loop."
+  ],
+  "test_coverage": [
+    "No test covers the reveal effect when following is false.",
+    "No test asserts that Return outside composition is default-prevented in the dialog field."
+  ],
+  "not_verified": [
+    "I did not run any test or browser session. Both findings were checked by reading the code only.",
+    "I did not check that the addons/intelligence submodule checked out in this worktree matches the pointer recorded at commit c79ab7bd2. I assumed the files I read are the ones at that commit, because their line numbers match the findings' evidence.",
+    "I did not check how a real browser behaves with smooth scrolling from the follow effect running at the same time as the reveal effect's scrollTop writes."
+  ],
+  "confidence": 85
+}

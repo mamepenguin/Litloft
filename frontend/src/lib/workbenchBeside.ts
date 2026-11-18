@@ -17,13 +17,19 @@ export function besideFrameWidth(
   );
 }
 
+/** The Show panels beside the player button at the coarse size, plus one gap. */
+export const WORKBENCH_SPLIT_BUTTON_REM = 3.25;
+
 export function isRowBeside(
   canvasWidth: number,
   visibleHeight: number | null,
   rootFontSize: number,
+  splitButton = false,
 ): boolean {
   if (visibleHeight == null) return false;
   const sideSpace =
     canvasWidth - besideFrameWidth(canvasWidth, visibleHeight) - rootFontSize;
-  return sideSpace >= WORKBENCH_ROW_BESIDE_REM * rootFontSize;
+  const threshold =
+    WORKBENCH_ROW_BESIDE_REM + (splitButton ? WORKBENCH_SPLIT_BUTTON_REM : 0);
+  return sideSpace >= threshold * rootFontSize;
 }

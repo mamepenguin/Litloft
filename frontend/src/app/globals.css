@@ -1152,6 +1152,59 @@ pre mark.ask-citation-highlight {
 }
 
 /* ------------------------------------------------------------------
+   The panels beside the player.
+
+   Two columns on the host itself: no box changes parent and no containment
+   context is established, so the player and the panels keep their elements.
+   The workbench root is the right column at the host's full content height,
+   and its row is taken out of the root into the left column, under the
+   frame, the way the beside row is taken out beside the frame.
+   ------------------------------------------------------------------ */
+.media-detail-host[data-workbench-split="on"] {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  grid-template-rows: auto minmax(0, 1fr);
+  column-gap: 1rem;
+  row-gap: 0;
+}
+
+/* The host's `[&>*+*]:mt-4` would push both columns down by a line. */
+.media-detail-host[data-workbench-split="on"] > * + * {
+  margin-top: 0;
+}
+
+.media-detail-host[data-workbench-split="on"] > .media-detail-player {
+  grid-row: 1;
+  grid-column: 1;
+}
+
+.media-detail-host[data-workbench-split="on"]
+  > .media-detail-player[data-framed="true"] {
+  max-width: calc(var(--player-avail, 100dvh) * 16 / 9);
+  margin-inline: 0;
+}
+
+.media-detail-host[data-workbench-split="on"] > .media-detail-workbench {
+  position: relative;
+  grid-row: 1 / span 2;
+  grid-column: 2;
+}
+
+.media-detail-host[data-workbench-split="on"]
+  > .media-detail-workbench
+  > .media-detail-workbench-row {
+  position: absolute;
+  top: calc(
+    min(
+        calc(var(--workbench-split-column, 0px) * 9 / 16),
+        var(--player-avail, 100dvh)
+      ) + 1rem
+  );
+  left: calc(-150% - 1rem);
+  width: 150%;
+}
+
+/* ------------------------------------------------------------------
    The inspector, when the row cannot hold it beside the canvas.
 
    It keeps its width and covers the canvas instead of narrowing it:

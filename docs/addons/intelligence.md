@@ -165,7 +165,9 @@ Re-indexing a file replaces its old index.
 
 #### PDF page edges
 
-A PDF page keeps the text inside the page, plus the lines that overlap the top and bottom 50 points of the page. From those two bands, page numbers (a line with no letter) and later copies of a line that repeats on three or more pages — a running header or footer — are left out; the first copy is kept. A line the PDF converter already kept is not added a second time. The kept lines join the page's own text, the top ones before it and the bottom ones after it, so semantic search, exact search, Ask, excerpts and `read_document` find them and report that page.
+On a page where horizontal text is at least as common as vertical text, the extracted text includes lines that overlap the top and bottom 50 points of the page. From those bands, page numbers (a line with no letter) and later copies of a line that repeats on three or more pages — a running header or footer — are left out; the first copy is kept. A line the PDF converter already kept is not added a second time. The kept lines join the page's own text, the top ones before it and the bottom ones after it, so semantic search, exact search, Ask, excerpts and `read_document` find them and report that page.
+
+For a page with more vertical than horizontal text, extraction uses the complete page text instead; page numbers and repeated headers may remain. On other pages, vertical text boxes are added to the existing Markdown, though isolated vertical characters can be missed. Text split between lines or boxes may not match a continuous search phrase.
 
 The first start after the addon is upgraded to these rules re-extracts every PDF once, in the background and at a lower priority than new uploads. Until its turn comes, a PDF keeps the text it already had. A later start with the same rules changes nothing.
 
@@ -333,7 +335,7 @@ Modes (`features.retrieval_keywords`):
 
 ### Transcript refine
 
-**Clean up with AI** in the transcript asks the LLM to fix punctuation, homophones and names, chunk by chunk. The words are then re-timed against the audio and the embeddings rebuilt. If re-timing fails (audio missing, language not supported, out of memory), the old word timings stay.
+**Clean up with AI** in the transcript asks the LLM to fix punctuation, homophones and names, chunk by chunk. The words are then re-timed against the audio and the embeddings rebuilt. If re-timing a chunk fails (audio missing, language not supported, out of memory), that chunk is left exactly as it was: its old text and word timings stay and it is not marked as refined. A Refine in which no chunk could be re-timed changes nothing and offers no **元の結果に戻す**. A `.loft` file's subtitles have no word timings and are refined as they are.
 
 Refine writes numbers as digits (`2025年`, `1万5000円`) whichever engine transcribed the file. Keyword search, semantic search, the transcript and subtitles use the refined text. A file refined by an earlier version, before refine updated keyword search, keeps matching its text from before refine in keyword search until it is transcribed again.
 
@@ -386,7 +388,7 @@ What is missed: text that is on screen for less than about 3 seconds, and a chan
 
 The engine's text is not always right. A name or a term can be transcribed or read wrongly, and search then misses the word the file actually contains.
 
-**A transcript.** On a video or audio file's page, open the transcript and choose **分割テキスト** (Text chunks). Each row offers **修正** (Edit). Save with **保存** (Save) or Enter; cancel with Escape. An emptied row disappears, and at most one row is edited at a time. Corrected rows carry **修正済み** (Edited) next to **AI整形済み** (AI cleaned) when both apply. The **単語** and external-subtitle views are not editable.
+**A transcript.** On a video or audio file's page, open the transcript and choose **分割テキスト** (Text chunks). Each row offers **修正** (Edit). Save with **保存** (Save) or Enter; cancel with Escape. On a touch screen, tap a row to show **修正** and **引用** (Quote) under it, and **修正** opens a dialog that saves only with **保存**. An emptied row disappears, and at most one row is edited at a time. Corrected rows carry **修正済み** (Edited) next to **AI整形済み** (AI cleaned) when both apply. The **単語** and external-subtitle views are not editable.
 
 **A picture's text.** A picture with stored text shows a **画像の文字** (Text in image) section on its page, whatever `features.image_ocr` is. **修正** opens a multi-line field; Cmd/Ctrl+Enter saves and Escape cancels. The section keeps showing an emptied text so the original can be restored.
 
@@ -800,7 +802,7 @@ Whisper (or the `haas_local` recognizer, when that is the provider), BLIP, the O
 - **Ask** in the sidebar, with the **Ask** and **Find** tabs.
 - Sections on the file page, each shown once it has something in it: **Do you trust this source?**, **AI tag candidates**, **AI chapter candidates**, **AI summary**, **AI image description**.
 - **AI** button in the file's action row. It lists what the file does not have yet (tag candidates, a summary, a detailed summary, chapter candidates, an image description). It is hidden when there is nothing left to create.
-- On a player file, **Transcript**, **Scenes** and **Detailed summary** are [panels under the player](../user-guide/viewers-and-players.md#panels-under-the-player); in a narrow window and on a phone they are tabs in the inspector. **Transcript** has **Clean up with AI**, a switch between **Text chunks**, **Words** and **External** when there is more than one source, and a button on each line that adds it to the capture basket. **Detailed summary**'s **Save as file** also makes the note the file's summary note, which appears in the **Note** panel. On a file without a player, **Detailed summary** is a section in **Info** instead.
+- On a player file, **Transcript**, **Scenes** and **Detailed summary** are [panels under the player](../user-guide/viewers-and-players.md#panels-under-the-player); in a narrow window and on a phone they are tabs in the inspector. **Transcript** has **Clean up with AI**, a switch between **Text chunks**, **Words** and **External** when there is more than one source, and a button on each line that adds it to the capture basket — on a touch screen, **引用** (Quote) under the line you tap. **Detailed summary**'s **Save as file** also makes the note the file's summary note, which appears in the **Note** panel. On a file without a player, **Detailed summary** is a section in **Info** instead.
 - **Similar files** under the inspector's **Related** tab. It searches when the file opens, or when you open the inspector (on a phone, the sheet), so the results are usually there by the time you open the tab, and each result shows keywords it shares with the current file.
 - **Pickup** on the drive home.
 - **Index details** in the file's `…` menu (see below).

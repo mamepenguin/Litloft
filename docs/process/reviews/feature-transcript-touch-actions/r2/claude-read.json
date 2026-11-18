@@ -1,0 +1,147 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "R2-1",
+      "origin": "reviewer",
+      "claim": "On a coarse pointer, the reveal effect scrolls the list to the selected row whenever the playback highlight lands on it again, without checking `following`, so it moves the list even after the reader has suspended following by scrolling away.",
+      "impact": "On a phone: tap row A, scroll down to read ahead (following is now off and the 再生位置に戻る chip shows), then use the player's skip-back or scrubber to return into A's time range. The list jumps back to A even though following is suspended. That breaks the panel's own rule that reading ahead wins over following. The fine path is unaffected.",
+      "evidence": "addons/intelligence/frontend/TranscriptSection.tsx:605-608 runs `useEffect(() => { if (!coarse || !selected || selectedPosition !== activeIndex) return; revealCue(selected.index); }, [activeIndex, ...])`, and the guard never reads `following`. revealCue (lines 569-589) writes `scroller.scrollTop` directly. Compare the follow effect at lines 557-560, which returns early when `!following`, and the suspension listeners at lines 623-652.",
+      "repro": "Mutation in thought: add `|| !following` to the guard at line 606. No test in TranscriptSectionTouch.test.tsx or transcript-touch.spec.ts would fail, because none sets following to false and then moves activeIndex back onto the selected row. Steps on a device: select a row, scroll the list by touch, seek the media back into that row, and the list scrolls.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "I11 asks only that tapping keeps the strip in view and that following still lands on the playing row. Neither covers a scroll while following is suspended, so no declared invariant breaks, but the behaviour contradicts the panel's suspension design.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Run the activeIndex-driven reveal only while `following` is true (the tap path through revealPendingRef already covers the tap itself)."
+    },
+    {
+      "id": "R2-2",
+      "origin": "reviewer",
+      "claim": "No test checks that the dialog field's Enter handler calls preventDefault outside IME composition. The jsdom test for I6 passes whether or not the call is there.",
+      "impact": "If the `event.preventDefault()` on Enter were deleted, a real browser would insert a line break, and onChange would then strip it. The caret would jump and an extra change event would fire, and no test would notice. The saved text stays free of line breaks because of the onChange stripping, so a user does not see wrong data.",
+      "evidence": "addons/intelligence/frontend/TranscriptEditDialog.tsx:173-181 is the Enter handler. TranscriptSectionTouch.test.tsx 'does not save or break the line on Return outside composition' fires keyDown and checks the value and that no PUT was sent. It never checks fireEvent's return value. The composition cases do check `notPrevented`, but only that it is true.",
+      "repro": "Mutation in thought: remove `event.preventDefault()` at TranscriptEditDialog.tsx:178. fireEvent.keyDown in jsdom inserts no text, so the I6 test still passes. The mutant survives.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "I6 still holds because onChange strips line breaks. This is a gap in what the test guards, not a broken invariant.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "In the Return-outside-composition test, assert `expect(fireEvent.keyDown(field, { key: 'Enter' })).toBe(false)`."
+    }
+  ],
+  "specification_compliance": [
+    "I1: the fine-path 修正 and quote buttons are gated by `!coarse` (TranscriptSection.tsx:1307, 1328), and the strip is drawn only for `isSelected`, which requires `coarse` (1171-1175, 1283).",
+    "I2/A8: selection is held as {index,start}. The effect at 495-501 drops it only when no reloaded cue matches both. A source switch (488-491), a file change (338) and a pointer becoming fine (505-507) clear it.",
+    "I3: the row onClick still calls seekTo(cue.start) on both paths and then selectCue only when coarse (1252-1256).",
+    "I4: the strip's 修正 renders only for source==='chunks' and has disabled={busy}. 引用 has no disabled prop and calls the same captureCue (1283-1305).",
+    "I5/I7: the dialog sends correctTranscriptUtterance with target.text/target.start captured at open (TranscriptEditDialog.tsx:91-103). `saving` guards save, close and Escape. `changed` goes to onChanged, which closes, reloads and sets the panel error. Other errors stay inside the dialog, and the panel error is hidden while editTarget is set (TranscriptSection.tsx:1110).",
+    "I6: the IME keystroke check comes first, Enter is prevented, and pasted line breaks are stripped in onChange. ShortcutsProvider also skips IME keystrokes before Escape is matched (ShortcutsProvider.tsx:71).",
+    "I8: the backdrop has no handler. The field is uncontrolled, so a reload does not reset it (its effect depends only on target.text, which comes from the stored target). The field is readOnly while saving. The dialog is rendered whatever the pointer mode.",
+    "I9: the fine path drops only `pointer-coarse:` classes that a fine pointer never matched. The inline editor branch is unchanged.",
+    "Fix commits since r1: a6e38c9e0 narrows the row-action-reveal exemption with a count-of-one assertion, which answers r1 TP-4 in part. c79ab7bd2 bumps the addon with a B1 following-suspension test. r1 TP-1 (the pdfminer log level in main.py) is still in the diff, and no spec covers it."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "addons/intelligence/app/main.py:61-63 still sets the pdfminer logger to ERROR service-wide. This is unchanged since r1 TP-1, and no spec in this review covers it.",
+    "On a coarse pointer, revealCue can scroll the list while following is suspended (R2-1). The spec does not describe this."
+  ],
+  "regression_risks": [
+    "The narrowed reveal exemption (row-action-reveal.test.ts:191-198) counts string literals that contain both tokens, so it sees only the REVEAL constant definition. A new control that reuses `${REVEAL}` without a `!coarse` gate would still count as one. TranscriptSectionTouch.test.tsx's I1 test (it queries for /引用/ and 修正 buttons) would catch the two existing controls losing their gate, but not a new, differently named control.",
+    "If every source becomes empty while the dialog is open, `if (loading || !hasAnything) return null` (TranscriptSection.tsx:1038) unmounts the dialog without clearing editTarget, so a later reload would reopen it from the stored text. last_utterance makes this unlikely."
+  ],
+  "test_coverage": [
+    "TranscriptSectionTouch.test.tsx covers I1-I9 in jsdom, including the reload keep/drop cases, every failure code, the save-in-flight lockout, the pointer change during the dialog, and (new in c79ab7bd2) following suspension on open with no resume on close.",
+    "transcript-touch.spec.ts covers I10 hit areas, the strip-in-view and following parts of I11, the saved scroll place, dialog placement, and 保存 ending above y=367, at 390x844 and 375x667.",
+    "Not covered: a reveal scroll while following is suspended (R2-1), and preventDefault on Enter in the dialog (R2-2).",
+    "The focus target on dialog close (B10) is not asserted by any test."
+  ],
+  "not_verified": [
+    "I did not run any unit or e2e test.",
+    "I did not read TranscriptSectionCorrections.test.tsx or the helpers in testI18nJa.",
+    "I did not confirm in a real browser whether revealCue's direct scrollTop write cancels the follow effect's in-flight smooth scroll.",
+    "I did not check how parseVttCues assigns `index` for the words and external sources.",
+    "I did not verify the pdfminer logging change against pdf extraction behaviour."
+  ],
+  "coverage": [
+    {
+      "path": "addons/intelligence/app/main.py",
+      "read": "full",
+      "reason": "The only hunk is the 3-line pdfminer logger change shown in the diff. I did not reopen the file this round."
+    },
+    {
+      "path": "addons/intelligence/frontend/ExtractionEditsReview.test.tsx",
+      "read": "partial",
+      "reason": "Read only the changed hunk at @@ -424 in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/TranscriptEditDialog.tsx",
+      "read": "full",
+      "reason": "New file; read the whole file in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/TranscriptSection.test.tsx",
+      "read": "partial",
+      "reason": "Read both changed hunks with their enclosing it() blocks in the diff, not the rest of the file."
+    },
+    {
+      "path": "addons/intelligence/frontend/TranscriptSection.tsx",
+      "read": "partial",
+      "reason": "Read lines 150-709, 810-1049 and 1100-1366 from the file, which cover every changed hunk and the state, effects and callbacks they use. Lines 1-149, 710-809 and 1050-1099 were not read."
+    },
+    {
+      "path": "addons/intelligence/frontend/TranscriptSectionTouch.test.tsx",
+      "read": "full",
+      "reason": "New file; read the whole file in the diff, including the B1 test added in c79ab7bd2."
+    },
+    {
+      "path": "addons/intelligence/frontend/messages/en.json",
+      "read": "full",
+      "reason": "Read the one-line hunk."
+    },
+    {
+      "path": "addons/intelligence/frontend/messages/ja.json",
+      "read": "full",
+      "reason": "Read the one-line hunk."
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/app.tsx",
+      "read": "full",
+      "reason": "Read both changed hunks (the import and the arrangement spread)."
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/transcriptTouch.tsx",
+      "read": "full",
+      "reason": "New file; read the whole file in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/spec-viewport.spec.ts",
+      "read": "full",
+      "reason": "Read the one-line hunk."
+    },
+    {
+      "path": "frontend/e2e-components/transcript-touch.spec.ts",
+      "read": "full",
+      "reason": "New file; read the whole file in the diff."
+    },
+    {
+      "path": "frontend/src/__tests__/ime-enter-guard.test.ts",
+      "read": "partial",
+      "reason": "Read only the diff hunks."
+    },
+    {
+      "path": "frontend/src/__tests__/row-action-reveal.test.ts",
+      "read": "full",
+      "reason": "Read the whole file (lines 1-212)."
+    }
+  ],
+  "confidence": 80,
+  "trajectory": "The design is not being patched. No fix round since r1 adds a product branch, state or prediction. a6e38c9e0 adds one test assertion: the TranscriptSection reveal exemption must match exactly one reveal, which narrows r1 TP-4's whole-file exemption. 3cedce4f9 is documentation only (the r1 record). c79ab7bd2 bumps the addon submodule to add a single test for B1 (the dialog suspends following and close does not resume it). No round repeats what the round before it added, and none removes a branch or state. TranscriptSection.tsx and TranscriptEditDialog.tsx are unchanged across the fix commits. r1 TP-1 (the pdfminer log level) is still unaddressed in the diff."
+}
