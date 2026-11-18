@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import { useTranslations } from "next-intl";
 
 import { useShortcuts } from "@/hooks/useShortcuts";
-import { toggleFocusMode, useIsWideViewport } from "@/hooks/useFocusMode";
+import { toggleFocusMode } from "@/hooks/useFocusMode";
 import { canTakeFocusModeShortcut, isHeaderMenuOpen } from "@/lib/findShortcut";
 
 /**
@@ -14,19 +14,18 @@ import { canTakeFocusModeShortcut, isHeaderMenuOpen } from "@/lib/findShortcut";
  */
 export function FocusModeShortcuts({ active }: { active: boolean }) {
   const t = useTranslations("focusMode");
-  const wide = useIsWideViewport();
   const shortcuts = useMemo(
     () => [
       {
         key: "t",
         label: t("toggle"),
-        handler: () => toggleFocusMode(wide),
+        handler: () => toggleFocusMode(),
         // A header menu suppresses the press rather than closing: the press
         // is meant for the listing the menu opened.
         when: () => !isHeaderMenuOpen() && canTakeFocusModeShortcut(),
       },
     ],
-    [t, wide],
+    [t],
   );
   useShortcuts("focus-mode", t("title"), shortcuts, active);
   return null;

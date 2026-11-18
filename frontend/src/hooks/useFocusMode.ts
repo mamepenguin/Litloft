@@ -3,7 +3,7 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 
-import { MOBILE_BREAKPOINT } from "@/hooks/useIsMobile";
+import { MOBILE_BREAKPOINT, subscribeToResize } from "@/hooks/useIsMobile";
 import { driveUnavailableStore } from "@/lib/driveUnavailableStore";
 import { focusModeStore } from "@/lib/focusModeStore";
 import { rememberReadingAnchor } from "@/lib/readingAnchor";
@@ -62,20 +62,12 @@ export function useAnyPointer(): { fine: boolean; coarse: boolean } {
   return pointers;
 }
 
+const isWideNow = () => window.innerWidth >= MOBILE_BREAKPOINT;
+const serverIsWide = () => false;
+
 /** At `MOBILE_BREAKPOINT` and wider the focus layout has room to apply. */
 export function useIsWideViewport(): boolean {
-  const [wide, setWide] = useState(
-    () =>
-      typeof window !== "undefined" &&
-      window.innerWidth >= MOBILE_BREAKPOINT,
-  );
-  useEffect(() => {
-    const handle = () => setWide(window.innerWidth >= MOBILE_BREAKPOINT);
-    handle();
-    window.addEventListener("resize", handle);
-    return () => window.removeEventListener("resize", handle);
-  }, []);
-  return wide;
+  return useSyncExternalStore(subscribeToResize, isWideNow, serverIsWide);
 }
 
 export function useFocusState(): boolean {
@@ -95,15 +87,11 @@ export function useFocusLayout(): boolean {
 }
 
 /**
- * Both ways the reader turns it on or off come through here: the chrome is
+ * Both ways the reader turns it on or off come through here: the chrome may be
  * about to take or give back the space around the content, and the reader's
  * place in that content has to survive it.
- *
- * Below 768px the state moves and the layout does not, so an anchor taken
- * there would be spent by whatever resize applies the layout later, on a
- * position the reader has long since left.
  */
-export function toggleFocusMode(layoutChanges = true): void {
-  if (layoutChanges) rememberReadingAnchor();
+export function toggleFocusMode(): void {
+  rememberReadingAnchor();
   focusModeStore.toggle();
 }
