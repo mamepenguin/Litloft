@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: ship (human, 2026-11-19: "ship"; r6 HUMAN_REVIEW_REQUIRED. Both unspecified behaviours accepted as built: frontmatter cut or invalid is read as body for the site; a multi-page refresh drops cards no longer named except one being saved. R1-R5 touch-point omissions accepted; R6 is covered by the TargetMenu tests on the core PR branch.)
 ran_in_app: yes
 at: a31b4920b94e41bcbc91c3e1720e4bb86809d726
 by: agent
