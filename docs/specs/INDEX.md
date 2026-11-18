@@ -282,7 +282,7 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-131 | implemented | docs/specs/notes-app.md | sha256:72a80db466c1c03fd7f70c990d2c1b6655e186508b184f617c0fdae825a0cce7 |
 | SPEC-ADDON-132 | implemented | docs/specs/notes-app.md | sha256:72a80db466c1c03fd7f70c990d2c1b6655e186508b184f617c0fdae825a0cce7 |
 | SPEC-CORE-130 | implemented | docs/specs/notes-app.md | sha256:72a80db466c1c03fd7f70c990d2c1b6655e186508b184f617c0fdae825a0cce7 |
-| SPEC-ADDON-138 | approved | docs/specs/clips-frame.md | sha256:7a5746f5719b7206d6542f93551eca0c970ac3dffd25cccd0454fbd488dfa841 |
-| SPEC-ADDON-139 | approved | docs/specs/clips-frame.md | sha256:7a5746f5719b7206d6542f93551eca0c970ac3dffd25cccd0454fbd488dfa841 |
-| SPEC-ADDON-140 | approved | docs/specs/clips-frame.md | sha256:7a5746f5719b7206d6542f93551eca0c970ac3dffd25cccd0454fbd488dfa841 |
-| SPEC-CORE-136 | approved | docs/specs/clips-frame.md | sha256:7a5746f5719b7206d6542f93551eca0c970ac3dffd25cccd0454fbd488dfa841 |
+| SPEC-ADDON-138 | approved | docs/specs/clips-frame.md | sha256:770d962a2530722fe172017356be68fb9fb92470a91d241849c234395952e82d |
+| SPEC-ADDON-139 | approved | docs/specs/clips-frame.md | sha256:770d962a2530722fe172017356be68fb9fb92470a91d241849c234395952e82d |
+| SPEC-ADDON-140 | approved | docs/specs/clips-frame.md | sha256:770d962a2530722fe172017356be68fb9fb92470a91d241849c234395952e82d |
+| SPEC-CORE-136 | approved | docs/specs/clips-frame.md | sha256:770d962a2530722fe172017356be68fb9fb92470a91d241849c234395952e82d |
