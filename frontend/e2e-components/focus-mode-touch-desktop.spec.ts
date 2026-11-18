@@ -57,7 +57,7 @@ async function insetTo(page: Page, top: number): Promise<void> {
 }
 
 for (const inset of [0, 24]) {
-  test(`SPEC-CORE-129 §4 / D7 / D11 (safe-area inset ${inset}px): the handle is an 88×44 hit area at the top centre with a 56×22 pill inside, its top at the safe area's top`, async ({
+  test(`SPEC-CORE-129 §4 / D7 / D11 (safe-area inset ${inset}px): the handle is an 88×44 hit area at the top centre with a 36×5 bar 4px below its top, the hit area's top at the safe area's top`, async ({
     page,
   }) => {
     await open(page);
@@ -69,17 +69,18 @@ for (const inset of [0, 24]) {
     expect(Math.round(hit.height)).toBe(44);
     expect(Math.round(hit.top)).toBe(inset);
     expect(Math.abs(hit.left + hit.width / 2 - 590)).toBeLessThanOrEqual(0.5);
-    const pills = await handle(page)
+    const bars = await handle(page)
       .locator("*")
       .evaluateAll((els) =>
         els
           .map((el) => el.getBoundingClientRect())
-          .filter((r) => Math.round(r.width) === 56 && Math.round(r.height) === 22)
-          .map((r) => ({ cx: r.left + r.width / 2 })),
+          .filter((r) => Math.round(r.width) === 36 && Math.round(r.height) === 5)
+          .map((r) => ({ cx: r.left + r.width / 2, top: r.top })),
       );
-    expect(pills).toHaveLength(1);
-    expect(Math.abs(pills[0].cx - 590)).toBeLessThanOrEqual(0.5);
-    await expect(handle(page).locator("svg")).toHaveCount(1);
+    expect(bars).toHaveLength(1);
+    expect(Math.abs(bars[0].cx - 590)).toBeLessThanOrEqual(0.5);
+    expect(Math.round(bars[0].top)).toBe(inset + 4);
+    await expect(handle(page).locator("svg")).toHaveCount(0);
   });
 }
 

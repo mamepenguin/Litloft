@@ -830,9 +830,10 @@ pages; it is not remembered across a reload or a screen that is not a file page.
   header must read the focus layout, never the header's height.
 - **The way back is the top edge.** With a fine pointer a transparent strip along
   the top reveals the header on entry, so it also works over a player's iframe and
-  draws nothing over the file. With a coarse pointer a small handle at the top
-  centre does the same on a tap; it is the only thing the mode draws over the
-  page.
+  draws nothing over the file. With a coarse pointer a thin bar at the top
+  centre, inside a finger-sized hit area, does the same on a tap; it is the only
+  thing the mode draws over the page. It sits in the gap above the content rather
+  than on it: a pill tall enough to hold an icon covered the top of a video.
 - **The revealed header overlays the page and moves nothing.** It sits at the safe
   area's top with a shadow, at its ordinary height, with the menu and tree buttons
   in their usual place. The content keeps the box it had while the header was

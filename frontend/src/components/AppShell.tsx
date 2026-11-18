@@ -8,7 +8,6 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { ChevronDown } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { useEntryVisibility } from "@/hooks/useEntryVisibility";
@@ -79,11 +78,9 @@ function FocusRevealHandle({
       aria-label={label}
       onClick={onReveal}
       style={{ top: "env(safe-area-inset-top, 0px)" }}
-      className="fixed left-1/2 z-[25] flex h-11 w-[88px] -translate-x-1/2 items-center justify-center"
+      className="fixed left-1/2 z-[25] flex h-11 w-[88px] -translate-x-1/2 items-start justify-center"
     >
-      <span className="flex h-[22px] w-14 items-center justify-center rounded-full bg-bg-elevated text-text-muted shadow-lg">
-        <ChevronDown size={14} />
-      </span>
+      <span className="mt-1 h-[5px] w-9 rounded-full bg-text-muted/60" />
     </button>
   );
 }
