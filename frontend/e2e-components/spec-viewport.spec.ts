@@ -90,6 +90,7 @@ const AT_THE_PHONE_WIDTH = [
 
 const AT_THE_DESKTOP_WIDTH = [
   "frame-crop-desktop.spec.ts",
+  "frame-outline-desktop.spec.ts",
   "add-menu-desktop.spec.ts",
   "condition-menu-desktop.spec.ts",
   "anchored-direction-desktop.spec.ts",
