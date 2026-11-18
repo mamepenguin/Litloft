@@ -282,6 +282,6 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-131 | implemented | docs/specs/notes-app.md | sha256:72a80db466c1c03fd7f70c990d2c1b6655e186508b184f617c0fdae825a0cce7 |
 | SPEC-ADDON-132 | implemented | docs/specs/notes-app.md | sha256:72a80db466c1c03fd7f70c990d2c1b6655e186508b184f617c0fdae825a0cce7 |
 | SPEC-CORE-130 | implemented | docs/specs/notes-app.md | sha256:72a80db466c1c03fd7f70c990d2c1b6655e186508b184f617c0fdae825a0cce7 |
-| SPEC-ADDON-141 | approved | docs/specs/ytdlp-node-runtime.md | sha256:1eac24c6f5e6733faf454fc9bcc13b8bb176ed4af68f3cab80bb4698fe89edbd |
-| SPEC-ADDON-142 | approved | docs/specs/ytdlp-node-runtime.md | sha256:1eac24c6f5e6733faf454fc9bcc13b8bb176ed4af68f3cab80bb4698fe89edbd |
-| SPEC-CORE-139 | approved | docs/specs/ytdlp-node-runtime.md | sha256:1eac24c6f5e6733faf454fc9bcc13b8bb176ed4af68f3cab80bb4698fe89edbd |
+| SPEC-ADDON-141 | implemented | docs/specs/ytdlp-node-runtime.md | sha256:1eac24c6f5e6733faf454fc9bcc13b8bb176ed4af68f3cab80bb4698fe89edbd |
+| SPEC-ADDON-142 | implemented | docs/specs/ytdlp-node-runtime.md | sha256:1eac24c6f5e6733faf454fc9bcc13b8bb176ed4af68f3cab80bb4698fe89edbd |
+| SPEC-CORE-139 | implemented | docs/specs/ytdlp-node-runtime.md | sha256:1eac24c6f5e6733faf454fc9bcc13b8bb176ed4af68f3cab80bb4698fe89edbd |
