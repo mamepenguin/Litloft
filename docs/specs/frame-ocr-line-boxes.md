@@ -84,13 +84,17 @@ again: a line's span is the run of time-adjacent segments that contain it.
    - `prioritize` and a reindex raise it;
    - an incomplete re-read keeps the earlier read and sets the rule to 3.
 7. A `.loft` is never outdated, as SPEC-ADDON-133 states.
-   - After this ships, the operator requests a `frame_ocr` reindex of each YouTube `.loft`
-     that has frame text (47 in production). The operator sends five at a time and sends
-     the next five once the previous ones have settled. Each one is downloaded and read
-     again under rule 3. This is an operation, not code.
-   - The operation is done when every one of them has `frame_ocr_rule` 3, or has been
-     closed by `loft_media`'s failure cap.
-   - A closed one keeps its earlier text, its rule and no lines (item 2.5).
+   - After this ships and `video_frame_ocr` is back to `on_index`, the operator requests a
+     `frame_ocr` reindex of each YouTube `.loft` that has frame text and a rule below 3
+     (47 in production): active `indexed_files` rows with the `.loft` mime type,
+     `loft_source` `youtube`, and at least one `video_frame_texts` row.
+   - The operator sends five at a time. The next five go once each of the previous five
+     has settled: `frame_ocr_read` true again, through a new read or `loft_media`'s
+     failure cap.
+   - A reindex of a `.loft` runs the first read of the downloaded file, as it does today,
+     not the re-read of item 6. Its outcomes are today's, item 2.6 included.
+   - The operation is done when every one of them has settled. This is an operation, not
+     code.
 
 ### 2. Failure cases
 
@@ -113,6 +117,14 @@ again: a line's span is the run of time-adjacent segments that contain it.
    - Its boxes cannot be produced again. Its text is not lost and stays searchable.
    - The operator sees this as that file's frame text closed with no new read. Nothing
      else is done.
+6. A reindexed `.loft` is downloaded, but its read is incomplete or `Unreadable`. As
+   today, the first read stores what it read. A partial read replaces the earlier text,
+   and an `Unreadable` file leaves no text. Item 7's operator checks each settled file's
+   text and requests the reindex again if it is short.
+7. A native re-read that is incomplete closes the video at rule 3 with its earlier text
+   and no lines (the revised SPEC-ADDON-133 I8). Such videos are the active native videos
+   with `frame_ocr_read` true, `frame_ocr_rule` 3, at least one `video_frame_texts` row
+   and no `video_frame_lines` row. A **Regenerate** reads one again.
 
 ### 3. States
 
@@ -120,17 +132,25 @@ again: a line's span is the run of time-adjacent segments that contain it.
 NULL, 1 or 2, but only for native videos under `on_index`.
 
 Each combination of `frame_ocr_read`, `frame_ocr_indexed`, `frame_ocr_rule` and
-`video_frame_lines`:
+`video_frame_lines` for a native video under `on_index` (under `manual` or `false`,
+"Outdated" is not reached: a read below rule 3 stays as it is):
 
 | State | read / indexed / rule | `video_frame_lines` | Moves out by |
 |---|---|---|---|
 | Never read | false / false / any | none | a store (to "Stored") |
-| Stored, not built | true / false / 3 | one row per segment with usable quads | the build (to "Current") |
+| Stored, not built | true / false / 3 | one row per segment with usable quads | the build (to "Current"), a reindex, a purge |
 | Current | true / true / 3 | one row per segment with usable quads | a reindex (to "Reindex requested"), a purge |
 | Outdated | true / true / NULL, 1, 2 | none, or rows left by an earlier rule-3 read or an older build | a re-read's store (to "Stored"), an incomplete re-read (to "Kept") |
 | Kept by an incomplete re-read | true / true / 3 | as before the re-read | a reindex, a purge |
 | Reindex requested | false / false / unchanged | as before | a store |
 | File inactive (soft-deleted or missing) | unchanged | unchanged | a purge (rows deleted) |
+
+A `.loft` moves as SPEC-ADDON-117 states, and its stores follow the same rules:
+- it is never outdated, so a read below rule 3 stays as it is;
+- `loft_media`'s failure cap closes the frame flags true with the rule and
+  `video_frame_lines` as they were, from "Never read" or "Reindex requested";
+- a non-YouTube `.loft` is closed without a read;
+- `_reopen_unclassified_lofts` reopens an unclassified `.loft` that has no frame text.
 
 Transitions that never happen:
 - `video_frame_lines` rows written by anything but the store step;
@@ -211,6 +231,8 @@ SPEC-ADDON-133.
 
 ## Touch points
 
+Intelligence addon repository:
+
 - `addons/intelligence/app/workers/frame_ocr.py`:
   - `_Segment`: keeps the lines and their quads;
   - `_read_video`: records the lines of the frame that opens a segment;
@@ -236,7 +258,15 @@ SPEC-ADDON-133.
   - existing tests that assert a stored or kept read writes 2 now expect 3;
   - the existing tests that seed outdated rules (NULL) also cover 2 as outdated, as an
     added case.
+
+Core repository:
+
 - `docs/addons/intelligence.md`: the re-read paragraph (item 7).
+- The `addons/intelligence` gitlink, moved to the merged addon commit.
+- The `docs/specs/INDEX.md` row of SPEC-ADDON-134.
+
+Both repositories:
+
 - Rules passed through: `.claude/rules/backend-conventions.md` (migrations only add).
   `.claude/rules/design-decisions.md` (data that cannot be regenerated) applies only to
   the boxes of a `.loft` whose source is gone (item 2.5).
@@ -246,9 +276,11 @@ SPEC-ADDON-133.
 
 I1. After a stored read, the file has exactly one `video_frame_lines` row per segment with usable quads and no other row: `segment_index` is the segment's position among all the read's segments, `start_time` and `end_time` are the segment's, and `chunk_text` of its lines' texts joined by `\n` equals that segment's `video_frame_texts` chunks in `chunk_index` order; a stored empty read leaves no row.
 I2. Each stored line's quad is eight floats in `[0, 1]`, each equal to the corresponding corner of that line's box on the frame that opened the segment divided by the width (for `x`) or height (for `y`) of the image given to the engine, clamped and rounded to 4 decimal places, in the engine's corner order; a box the engine dropped adds no line, and a reused box gives this frame's quad with its earlier line.
-I3. For the same video and engine answers, the frames read, the engine calls, the segments, the `video_frame_texts` rows, the `text_content` embeddings, the `fts_text_content` rows and the flags are those SPEC-ADDON-066 I2 and SPEC-ADDON-133 I1–I5 define, and the existing frame OCR tests pass with only the rule-related changes the touch points name; a segment with an unusable quad gets no row, one warning, and changes nothing else.
-I4. `video_frame_lines` rows are written only by the store step, in the same transaction as the `video_frame_texts` rows, and deleted only by the store step and `_purge_file`; the build step, a rebuild after a text-embedding model change, a reindex request and a store transaction that fails leave them byte for byte as they were.
-I5. Purging a file deletes its `video_frame_lines` rows, and a purge on a database that has no `video_frame_lines` table still completes and deletes the file's other rows.
+I3. For the same video and engine answers, the frames read, the engine calls, the segments, the `video_frame_texts` rows, the `text_content` embeddings, the `fts_text_content` rows and the flags are those SPEC-ADDON-066 I2 and SPEC-ADDON-133 I1–I5 define.
+I4. A segment with an unusable quad gets no `video_frame_lines` row and exactly one warning naming the file id and its start time, and its text, chunks, search rows and the flags are as they would be with usable quads.
+I5. `lines_json` decodes to a list holding one object per kept line, in the order the lines are joined into the segment text, each with exactly the keys `text` (a string) and `quad` (a list of eight numbers).
+I6. `video_frame_lines` rows are written only by the store step, in the same transaction as the `video_frame_texts` rows, and deleted only by the store step and `_purge_file`; the build step, a rebuild after a text-embedding model change, a reindex request and a store transaction that fails leave them byte for byte as they were.
+I7. Purging a file deletes its `video_frame_lines` rows, and a purge on a database that has no `video_frame_lines` table still completes and deletes the file's other rows.
 
 ## Revises
 
@@ -281,5 +313,7 @@ SPEC-ADDON-133 I8. A running re-read changes no row and no flag before its store
     therefore apply to the displayed frame at any size.
 - **Removing orphaned rows left by an older build's purge**: not done. The future-reader
   rule in item 3 ignores them, and the next store of the file deletes them.
+- **Serialisation options** (`ensure_ascii=False`, compact separators): an
+  implementation choice. I5 is the contract a reader relies on.
 - **Rounding precision**: 4 decimal places is under 0.2 pixels on a 1920-pixel frame,
   finer than a box's own edge.
