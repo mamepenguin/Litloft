@@ -362,6 +362,10 @@ export function ShellLayout({
    * shell that may not be mounted yet (find opening the pane, the sheet
    * rising), and one counter keeps two sources from reusing a sequence
    * number.
+   *
+   * The shell that takes a request retires it. A request left in place would
+   * be replayed by every shell mounted after it, and the reopen, the resize
+   * and the next file are where the selection is meant to start over.
    */
   const [tabRequest, setTabRequest] = useState<{
     tabId: string;
@@ -371,6 +375,9 @@ export function ShellLayout({
   const requestTab = useCallback((tabId: string) => {
     requestSeq.current += 1;
     setTabRequest({ tabId, seq: requestSeq.current });
+  }, []);
+  const retireTabRequest = useCallback((seq: number) => {
+    setTabRequest((request) => (request?.seq === seq ? null : request));
   }, []);
   useEffect(() => {
     if (find.selectRequest) requestTab(find.selectRequest.tabId);
@@ -635,6 +642,7 @@ export function ShellLayout({
       tabs={desktopTabs}
       resetKey={fileId}
       selectRequest={tabRequest}
+      onSelectRequestTaken={retireTabRequest}
       onSelect={(tabId) => find.reportTab("pane", tabId)}
       activeId={desktopActiveId ?? "info"}
       onActiveIdChange={setDesktopWanted}
@@ -652,6 +660,7 @@ export function ShellLayout({
       resetKey={fileId}
       scroll="column"
       selectRequest={tabRequest}
+      onSelectRequestTaken={retireTabRequest}
       onSelect={(tabId) => find.reportTab("sheet", tabId)}
     />
   ) : undefined;

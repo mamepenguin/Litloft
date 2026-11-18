@@ -555,6 +555,23 @@ describe("SPEC-CORE-132 §1.7 - select() from the entry", () => {
     expect(selectedTab()).toBe(DETAIL_LABEL);
   });
 
+  it("SPEC-CORE-132 §3 a reopened inspector starts on Info, not on the last request", async () => {
+    claimSlot("document-side", [DETAIL]);
+    await renderKind(PDF);
+    report("detailed-summary", true);
+    callSelect("detailed-summary");
+    expect(selectedTab()).toBe(DETAIL_LABEL);
+
+    fireEvent.click(screen.getByTestId("inspector-toggle"));
+    await waitFor(() =>
+      expect(screen.queryByTestId("inspector-pane")).toBeNull(),
+    );
+    fireEvent.click(screen.getByTestId("inspector-toggle"));
+    await screen.findByTestId("inspector-pane");
+
+    expect(selectedTab()).toBe("Info");
+  });
+
   it("SPEC-CORE-132 I11 on a phone raises the sheet to its half snap", async () => {
     claimSlot("document-side", [DETAIL]);
     await renderPhone(PDF);

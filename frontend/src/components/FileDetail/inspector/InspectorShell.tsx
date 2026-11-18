@@ -25,6 +25,12 @@ interface InspectorShellProps {
   resetKey?: string;
   scroll?: InspectorScroll;
   selectRequest?: { tabId: string; seq: number } | null;
+  /**
+   * Report that the request has been taken. A request is for the shell that
+   * was mounted when it was made: one mounted later starts on the first tab
+   * rather than replaying a selection nobody asked for again.
+   */
+  onSelectRequestTaken?: (seq: number) => void;
   onSelect?: (tabId: string) => void;
   /**
    * The selection, when the host has to know it during render — the pane's
@@ -41,6 +47,7 @@ export function InspectorShell({
   resetKey,
   scroll = "panel",
   selectRequest = null,
+  onSelectRequestTaken,
   onSelect,
   activeId: controlledId,
   onActiveIdChange,
@@ -79,8 +86,16 @@ export function InspectorShell({
     if (active && active.id !== activeId) setActiveId(active.id);
   }, [active, activeId, setActiveId]);
 
+  const takenRef = useRef(onSelectRequestTaken);
+  useEffect(() => {
+    takenRef.current = onSelectRequestTaken;
+  });
+
   useEffect(() => {
     if (!selectRequest) return;
+    // Taking the request retires it, so a shell mounted later — the pane
+    // reopening, the sheet after a resize — starts on the first tab.
+    takenRef.current?.(selectRequest.seq);
     if (listed.some((tab) => tab.id === selectRequest.tabId)) {
       setActiveId(selectRequest.tabId);
     }
