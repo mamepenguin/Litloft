@@ -46,6 +46,7 @@ export const DESKTOP_ONLY = [
   "**/document-summary-inspector-desktop.spec.ts",
   "**/notes-library-desktop.spec.ts",
   "**/pdf-toolbar-row-desktop.spec.ts",
+  "**/watched-band-desktop.spec.ts",
 ];
 
 /** Literals rather than a device preset, which can change under it. */

@@ -326,6 +326,8 @@ describe("the component fixture's page", () => {
       "epub-bar-loading",
       "markdown-tables",
       "played-ranges",
+      "watched-band",
+      "watched-range-cards",
       "text-resume",
       "home-app-entries",
       "clips-page",
