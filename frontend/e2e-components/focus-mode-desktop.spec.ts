@@ -98,6 +98,8 @@ const focusButton = (page: Page) =>
 const treeButton = (page: Page) =>
   chromeButtons(page).getByRole("button", { name: /^(Show|Hide) tree$/ });
 const menuButton = (page: Page) => chromeButtons(page).getByRole("button", { name: "Menu" });
+/** The same control by position: the hidden header is `inert`, so a role query misses it. */
+const menuControl = (page: Page) => chromeButtons(page).locator("button").first();
 const visibleModal = (page: Page) => page.locator('[aria-modal="true"]').filter({ visible: true });
 
 async function ready(page: Page, kind: "video" | "pdf" | "missing" | "pending" = "video") {
@@ -1091,6 +1093,49 @@ test("SPEC-CORE-128 §1.5 / I4: T with the overlay sidebar open leaves focus mod
   await page.waitForTimeout(300);
   expectSameLayout(await layout(page), before);
 });
+
+for (const row of [
+  { width: 1024, tree: false },
+  { width: 1440, tree: true },
+]) {
+  test(`SPEC-CORE-128 §1.3 / §1.5 / I4 (${row.width} wide, tree ${row.tree ? "shown" : "hidden"}): an overlay sidebar that is an overlay for another reason is closed entering by T and leaving by T or the tree button, writing nothing`, async ({
+    page,
+  }) => {
+    const storage: Record<string, string> = {
+      "workbench-panels": "[]",
+      "sidebar-open": "true",
+    };
+    if (row.tree) storage["tree:enabled:fixture"] = "true";
+    await open(page, { width: row.width, height: 900, storage });
+    await ready(page);
+    await page.waitForTimeout(300);
+    await expect(treeButton(page)).toHaveAttribute("aria-pressed", String(row.tree));
+    await expect(menuControl(page)).toHaveAttribute("aria-pressed", "false");
+
+    await menuButton(page).click();
+    await expect(menuControl(page)).toHaveAttribute("aria-pressed", "true");
+    await pressT(page);
+    await expectFocusLayout(page);
+    await expect(menuControl(page)).toHaveAttribute("aria-pressed", "false");
+
+    await revealByPointer(page);
+    await menuButton(page).click();
+    await expect(menuControl(page)).toHaveAttribute("aria-pressed", "true");
+    await pressT(page);
+    await expectOrdinaryHeader(page);
+    await expect(menuControl(page)).toHaveAttribute("aria-pressed", "false");
+
+    await enterByButton(page);
+    await revealByPointer(page);
+    await menuButton(page).click();
+    await expect(menuControl(page)).toHaveAttribute("aria-pressed", "true");
+    await treeButton(page).click();
+    await expectOrdinaryHeader(page);
+    await expect(menuControl(page)).toHaveAttribute("aria-pressed", "false");
+
+    expect((await writes(page)).filter((w) => w.startsWith("sidebar-open"))).toEqual([]);
+  });
+}
 
 for (const shown of [false, true]) {
   test(`SPEC-CORE-129 §7 / I10 / SPEC-CORE-084 I8 as revised (tree ${shown ? "shown" : "hidden"} by setting): the tree button pressed while revealed ends focus mode and leaves the tree visible, writing tree:enabled only when it was hidden`, async ({

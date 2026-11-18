@@ -68,6 +68,14 @@ export function SidebarProvider({ children }: { children: ReactNode }) {
     return () => mql.removeEventListener("change", handler);
   }, []);
 
+  // A focus-layout change closes an open overlay in either direction. Keyed on
+  // the focus flag itself: `isOverlay` stays true when the sidebar is already
+  // an overlay for another reason (a narrow viewport, the tree beside it), so
+  // the reader's overlay would otherwise outlive the layout it was opened on.
+  useLayoutEffect(() => {
+    setIsOpen(false);
+  }, [focusLent]);
+
   // When effective overlay state flips, force-close or restore the global
   // preference. Ignored during hydration so we don't clobber the first paint.
   // A layout effect, not a passive one: the focus layout ends in a commit
