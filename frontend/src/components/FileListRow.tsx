@@ -155,7 +155,7 @@ function FileListRowImpl({
             </span>
           )}
           <span className="hidden flex-shrink-0 text-xs tabular-nums text-text-muted sm:inline">
-            {formatRelativeDate(file.updated_at)}
+            {formatRelativeDate(file.modified_at ?? file.updated_at)}
           </span>
         </div>
         <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-text-muted">
@@ -173,7 +173,7 @@ function FileListRowImpl({
               <span className="flex-shrink-0 opacity-40 sm:hidden">·</span>
             </>
           )}
-          <span className="flex-shrink-0 sm:hidden">{formatRelativeDate(file.updated_at)}</span>
+          <span className="flex-shrink-0 sm:hidden">{formatRelativeDate(file.modified_at ?? file.updated_at)}</span>
           {file.tags.length > 0 && (
             <>
               <span className="hidden flex-shrink-0 opacity-40 sm:inline">·</span>

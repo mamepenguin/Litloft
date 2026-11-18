@@ -70,6 +70,9 @@ export function resolveMemberTarget(
   if (folder === null) return null;
   const parsed = parseSearchQuery(folder.query);
   if (parsed.text === "") return null;
+  // A `modified:` part has no listing parameter and no stable listing either,
+  // so it is not a member target; the direct target reports it unsupported.
+  if ((parsed.modified?.length ?? 0) > 0) return null;
 
   const { kinds, impossible } = resolveKinds(folder.file_type, parsed.types);
   if (impossible) return { id: folder.id, kinds: [] };

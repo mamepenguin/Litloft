@@ -3,6 +3,7 @@ import re
 import unicodedata
 import logging
 from collections import defaultdict
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Annotated, Literal
 
@@ -56,6 +57,7 @@ from app.schemas import (
 )
 from app.services import fileops
 from app.services import inbox as inbox_service
+from app.services.mtime import read_modified_at
 from app.services.tagops import cleanup_orphan_tags, project_frontmatter_tags
 from app.services.origin import project_frontmatter_origin
 from app.services.file_versions import record_version
@@ -168,6 +170,7 @@ def normalize_collections(values: list[str]) -> list[str]:
 MAX_RANGE_COMPARISONS = 4
 MAX_SIZE_BYTES = 2**53 - 1
 MAX_DURATION_SECONDS = Decimal("10000000")
+MAX_MODIFIED_EPOCH = 253402300799
 
 # Wire form: one of the four comparison words, a colon, a plain decimal.
 # `=` and `gt`/`GTE` spellings are not the form: the frontend writes exactly
@@ -212,6 +215,20 @@ def parse_duration_comparison(item: str) -> str:
     return f"{operator}:{text}"
 
 
+def parse_modified_comparison(item: str) -> str:
+    """Rewrite one listing / ``/files/matching`` modified item in the wire form."""
+    match = _WIRE_FORM.match(item)
+    if match is None:
+        raise ValueError(f"Invalid modified comparison: {item!r}")
+    operator, amount = match.groups()
+    if not _SIZE_NUMBER.fullmatch(amount):
+        raise ValueError(f"Invalid modified comparison: {item!r}")
+    number = int(amount)
+    if number > MAX_MODIFIED_EPOCH:
+        raise ValueError(f"Invalid modified comparison: {item!r}")
+    return f"{operator}:{number}"
+
+
 def _normalise_comparisons(
     values: list[str], parse, label: str
 ) -> list[str]:
@@ -233,6 +250,10 @@ def normalize_durations(values: list[str]) -> list[str]:
     return _normalise_comparisons(values, parse_duration_comparison, "durations")
 
 
+def normalize_modified(values: list[str]) -> list[str]:
+    return _normalise_comparisons(values, parse_modified_comparison, "modified")
+
+
 _COMPARISONS = {
     "gt": lambda column, number: column > number,
     "gte": lambda column, number: column >= number,
@@ -250,6 +271,7 @@ def _apply_range_filters(
     query,
     sizes: list[str] | None,
     durations: list[str] | None,
+    modified: list[str] | None,
 ):
     for item in normalize_sizes(sizes or []):
         operator, number = _split_comparison(item)
@@ -260,6 +282,12 @@ def _apply_range_filters(
     for item in normalize_durations(durations or []):
         operator, number = _split_comparison(item)
         query = query.filter(_COMPARISONS[operator](whole_seconds, float(number)))
+    for item in normalize_modified(modified or []):
+        operator, number = _split_comparison(item)
+        boundary = datetime.fromtimestamp(int(number), UTC).replace(tzinfo=None)
+        query = query.filter(
+            _COMPARISONS[operator](File.modified_at, boundary)
+        )
     return query
 
 
@@ -434,6 +462,7 @@ def apply_file_filters(
     collections: list[str] | None = None,
     sizes: list[str] | None = None,
     durations: list[str] | None = None,
+    modified: list[str] | None = None,
     drive: str | None = None,
     file_ids: list[str] | None = None,
 ):
@@ -498,7 +527,7 @@ def apply_file_filters(
             listed if collection_condition is None
             else or_(collection_condition, listed)
         )
-    query = _apply_range_filters(query, sizes, durations)
+    query = _apply_range_filters(query, sizes, durations, modified)
     return _apply_kinds_filter(
         query, [_normalize_kind(kind) for kind in kinds or []]
     )
@@ -946,6 +975,7 @@ def filtered_drive_files(
     collection: list[str] | None = None,
     size: list[str] | None = None,
     duration: list[str] | None = None,
+    modified: list[str] | None = None,
     trust: str | None = None,
     origin: str | None = None,
     exclude_origin: str | None = None,
@@ -965,6 +995,7 @@ def filtered_drive_files(
         collection = normalize_collections(collection or [])
         size = normalize_sizes(size or [])
         duration = normalize_durations(duration or [])
+        modified = normalize_modified(modified or [])
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -1004,6 +1035,7 @@ def filtered_drive_files(
         collections=collection,
         sizes=size,
         durations=duration,
+        modified=modified,
         drive=drive_name,
         file_ids=file_ids,
     )
@@ -1035,6 +1067,7 @@ class FileFiltersQuery(BaseModel):
     collection: list[str] | None = None
     size: list[str] | None = None
     duration: list[str] | None = None
+    modified: list[str] | None = None
     trust: str | None = Field(None, pattern="^(verified|unverified|unreviewed)$")
     origin: str | None = Field(None, min_length=1, max_length=32)
     exclude_origin: str | None = Field(None, min_length=1, max_length=32)
@@ -1103,6 +1136,7 @@ def _list_drive_files(
         collection=params.collection,
         size=params.size,
         duration=params.duration,
+        modified=params.modified,
         trust=params.trust,
         origin=params.origin,
         exclude_origin=params.exclude_origin,
@@ -1272,6 +1306,7 @@ def _folder_counts(
         collection=params.collection,
         size=params.size,
         duration=params.duration,
+        modified=params.modified,
         trust=params.trust,
         origin=params.origin,
         exclude_origin=params.exclude_origin,
@@ -1436,6 +1471,7 @@ async def create_text_file(
         file_type, mime_type = classify(filename)
 
         replace_file_contents(resolved, content_bytes)
+        modified_at = read_modified_at(resolved)
 
         nfc_name = unicodedata.normalize("NFC", resolved.name)
         parent_rel = str(_Path(normalized_rel).parent)
@@ -1456,6 +1492,8 @@ async def create_text_file(
         existing_missing.mime_type = mime_type
         existing_missing.filename = nfc_name
         existing_missing.folder_path = folder_path
+        if modified_at is not None:
+            existing_missing.modified_at = modified_at
         _record_created_file_version(db, existing_missing, content_bytes)
         _project_created_markdown_tags(db, existing_missing, body.content)
         if body.arrival is not None:
@@ -1557,6 +1595,7 @@ async def create_text_file(
             file_size=len(content_bytes),
             file_type=file_type,
             mime_type=mime_type,
+            modified_at=read_modified_at(candidate_resolved),
         )
         db.add(new_file)
         try:

@@ -237,6 +237,7 @@ function fileItemFromHit(hit: SemanticHit): FileItem {
     missing_since: null,
     created_at: "",
     updated_at: "",
+    modified_at: null,
   };
 }
 

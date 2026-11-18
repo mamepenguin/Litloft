@@ -145,6 +145,7 @@ describe("SPEC-CORE-040 I10 grouping passages by file", () => {
         trust_reviewed_at: null,
         created_at: "",
         updated_at: "",
+        modified_at: null,
       },
     });
 
