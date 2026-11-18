@@ -1313,6 +1313,9 @@ describe("what the canvas keeps and what the inspector takes", () => {
   });
 
   it("keeps an addon section the canvas does not draw", async () => {
+    claimSlot("player-side", [
+      { id: "detailed-summary", label: "Detailed summary", priority: 30, addonName: "some-addon" },
+    ]);
     await renderMedia(makeFile({ has_chapters: false }));
 
     const inspectorSlot = screen.getByTestId(

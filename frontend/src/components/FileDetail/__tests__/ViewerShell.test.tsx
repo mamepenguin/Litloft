@@ -245,11 +245,18 @@ describe.each(KINDS)("%s on the shell", (_name, kind) => {
   });
 
   it("holds back from the inspector only what the canvas itself draws", async () => {
-    // The canvas keeps the detailed summary, whose tables need width a
-    // 384px column has not got. It does *not* draw the Knowledge editor
-    // — that is the other form of this shell — so the inspector must be
-    // asked for it rather than have it withheld. Excluding it here would
-    // send it to neither column.
+    // A file without a player draws the summaries as `document-side` tabs,
+    // so their ids are what Info withholds. The Knowledge editor is not
+    // drawn by this canvas — that is the other form of this shell — so the
+    // inspector must be asked for it rather than have it withheld.
+    claimSlot("document-side", [
+      {
+        id: "detailed-summary",
+        label: "Detailed summary",
+        priority: 30,
+        addonName: "some-addon",
+      },
+    ]);
     await renderKind(kind);
 
     expect(

@@ -70,6 +70,16 @@ interface FileDetailShellProps {
   sheetPeek?: SheetPeek;
   /** What `half` is worth in vaul's units on this page. */
   halfSnap?: number;
+  /**
+   * The file page's inspector is at its wide width: a `document-side` tab
+   * that declares `wide` is selected beside the canvas.
+   */
+  inspectorWide?: boolean;
+  /**
+   * A document-side entry's `select()` asking for its tab to be visible: on
+   * a phone the sheet rises out of the resting strip.
+   */
+  raiseSheetRequest?: number;
   children: ReactNode;
   /**
    * Handed the element that actually scrolls the canvas. The host's own
@@ -100,6 +110,8 @@ export function FileDetailShell({
   mobileSheet,
   sheetPeek,
   halfSnap = SHEET_SNAP_HALF_FALLBACK,
+  raiseSheetRequest,
+  inspectorWide = false,
   children,
   onScrollRootChange,
   resetKey,
@@ -442,6 +454,21 @@ export function FileDetailShell({
     [find.open],
   );
 
+  /**
+   * A `document-side` entry that selects its own tab is asking to be read:
+   * the resting strip has no tabs, so the sheet rises to `half`. At `full`
+   * it is already above that and stays.
+   */
+  const lastRaiseRequest = useRef(raiseSheetRequest);
+  useEffect(() => {
+    if (raiseSheetRequest === lastRaiseRequest.current) return;
+    lastRaiseRequest.current = raiseSheetRequest;
+    if (!isMobile) return;
+    setSheetState((prev) =>
+      isSheetExpanded(prev) ? prev : SHEET_STATE_HALF,
+    );
+  }, [raiseSheetRequest, isMobile]);
+
   return (
     <div
       data-testid="file-detail-shell"
@@ -491,7 +518,9 @@ export function FileDetailShell({
         >
           {children}
         </main>
-        {inspectorOpenOnDesktop && <InspectorPane>{inspector}</InspectorPane>}
+        {inspectorOpenOnDesktop && (
+          <InspectorPane wide={inspectorWide}>{inspector}</InspectorPane>
+        )}
       </div>
       {isMobile && (
         <MobileInspectorSheet

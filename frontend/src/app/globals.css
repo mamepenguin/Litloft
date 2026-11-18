@@ -1290,6 +1290,21 @@ pre mark.ask-citation-highlight {
   border-block-start: 1px solid var(--color-bg-border);
 }
 
+/* ------------------------------------------------------------------
+   The wide pane.
+
+   A `document-side` tab that declares `wide` takes the row's 40%, floored
+   at 512px so the summary reads at about 30 characters a line. CSS on the
+   pane and driven by an attribute, so nothing in it re-renders for the
+   width. Beside only: overlay covers a narrow canvas already, and the
+   stacked and phone forms give the pane the whole width. No transition —
+   the width is a fact of the selected tab, not a motion.
+   ------------------------------------------------------------------ */
+[data-inspector-fit="beside"]
+  .inspector-pane[data-inspector-wide="true"] {
+  width: max(var(--inspector-wide-share, 40%), var(--inspector-wide-min, 32rem));
+}
+
 /* A framed player is capped at half the row, less the find bar, the action
    row and the canvas padding that share the canvas with it: together they
    fit the 60% without scrolling, so the controls are always on screen.

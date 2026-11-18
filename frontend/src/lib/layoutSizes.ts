@@ -16,6 +16,16 @@ export const INSPECTOR_BESIDE_MIN_REM =
   PLAYER_MIN_REM + CANVAS_PADDING_REM + COLUMN_REM;
 
 /**
+ * A document-side tab that declares `wide` takes this share of the row while
+ * it is selected beside the canvas. 40% at 1280 is 416px, about 24 characters
+ * a line at 16px, so the pane keeps a floor as well.
+ */
+export const INSPECTOR_WIDE_SHARE = 0.4;
+
+/** The narrowest wide pane: about 30 characters a line at 16px. */
+export const INSPECTOR_WIDE_MIN_REM = 32;
+
+/**
  * The stacked form, where the two share the row's height instead of its
  * width. A framed player at most fills half the row, controls included. The
  * canvas's 60% cap lives in the stylesheet with the rest of the form.

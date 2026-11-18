@@ -52,6 +52,11 @@ export interface SlotEntry {
   addonName?: string;
   /** A path relative to `/drive/{drive}/`, for a shelf's See all. */
   href?: string;
+  /**
+   * Read on `document-side` entries only: the inspector widens while this
+   * entry's tab is selected beside the canvas. Ignored on every other slot.
+   */
+  wide?: boolean;
 }
 
 export interface AddonsStatus {

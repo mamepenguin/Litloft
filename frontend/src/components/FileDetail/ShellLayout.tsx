@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useLayoutEffect, useState, type ReactNode, type RefObject } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 
@@ -15,7 +15,9 @@ import { usePdfState } from "./pdf/usePdfState";
 import { ArchivePagesPanel } from "./archive/ArchivePagesPanel";
 import { useArchiveState } from "./archive/useArchiveState";
 import { useInspectorForm } from "@/hooks/useInspectorForm";
+import { useInspectorOpen } from "@/hooks/useInspectorOpen";
 import { slotEntryLabel } from "@/lib/slotLabel";
+import type { SlotEntry } from "@/lib/addons";
 import { ActiveSummaryHost } from "../ActiveSummaryHost";
 import { AddonSlot, SlotEntryRenderer } from "../AddonSlot";
 import { useAddonSlots } from "../AddonSlotsProvider";
@@ -29,8 +31,9 @@ import { MarkdownDocumentLayout } from "../markdown/MarkdownDocumentLayout";
 import { FileNavControls } from "./FileNavControls";
 import { MediaCanvas } from "./MediaCanvas";
 import { InspectorShell } from "./inspector/InspectorShell";
-import { buildInspectorTabs } from "./inspector/tabs";
+import { buildInspectorTabs, listedTabs } from "./inspector/tabs";
 import { useInspectorTabActive } from "./inspector/activeTab";
+import { useLowerInspector } from "./lowerInspector";
 import { FindBar } from "./find/FindBar";
 import { FindButton } from "./find/FindButton";
 import { FindTab } from "./find/FindTab";
@@ -90,6 +93,7 @@ export interface ShellLayoutProps {
   addonSlotProps: Record<string, unknown>;
   mediaController: MediaController | null;
   onMediaController: (mc: MediaController | null) => void;
+  documentController: DocumentController | null;
   onDocumentCaptureController: (c: DocumentCaptureController | null) => void;
   onDocumentController: (c: DocumentController | null) => void;
   videoRef: RefObject<HTMLVideoElement | null>;
@@ -116,6 +120,26 @@ function PanelTabBody({ item }: { item: WorkbenchPanelItem }) {
   );
 }
 
+/**
+ * A `document-side` tab's body. `active` comes from the shell's context, so
+ * the entry learns it without the host having to know which tab is selected
+ * for every render of every entry.
+ */
+function DocumentSideTabBody({
+  entry,
+  props,
+}: {
+  entry: SlotEntry;
+  props: Record<string, unknown>;
+}) {
+  const active = useInspectorTabActive(`document-side:${entry.id}`);
+  return (
+    <div className="flex h-full min-h-0 flex-col">
+      <SlotEntryRenderer entry={entry} props={{ ...props, active }} />
+    </div>
+  );
+}
+
 export function ShellLayout({
   file,
   fileId,
@@ -136,6 +160,7 @@ export function ShellLayout({
   addonSlotProps,
   mediaController,
   onMediaController,
+  documentController,
   onDocumentCaptureController,
   onDocumentController,
   videoRef,
@@ -235,6 +260,13 @@ export function ShellLayout({
     hasPlayer && !isMobile && !stackedLayout && !awaitingForm;
 
   const playerSideEntries = hasPlayer ? getSlotEntries("player-side") : [];
+  // A document-side entry is a file page's inspector tab for a file the
+  // canvas draws without a player. The Markdown layout and player files
+  // keep their own summaries.
+  const documentSideEntries =
+    usesCanvasViewer && !hasPlayer
+      ? getSlotEntries("document-side")
+      : [];
 
   const storedPanels = useWorkbenchPanels();
   const playerFocus = useWorkbenchPlayerFocus();
@@ -325,14 +357,103 @@ export function ShellLayout({
     : [];
 
   /**
-   * The inspector excludes exactly these, so a section lands in one
-   * column or the other and never in both.
+   * The pane's width is a fact of the selected tab, so the selection has to
+   * be known here, during render. A request is how a `select()` reaches a
+   * shell that may not be mounted yet (find opening the pane, the sheet
+   * rising), and one counter keeps two sources from reusing a sequence
+   * number.
+   */
+  const [tabRequest, setTabRequest] = useState<{
+    tabId: string;
+    seq: number;
+  } | null>(null);
+  const requestSeq = useRef(0);
+  const requestTab = useCallback((tabId: string) => {
+    requestSeq.current += 1;
+    setTabRequest({ tabId, seq: requestSeq.current });
+  }, []);
+  useEffect(() => {
+    if (find.selectRequest) requestTab(find.selectRequest.tabId);
+  }, [find.selectRequest, requestTab]);
+
+  const lowerInspector = useLowerInspector();
+  const openInViewer = useCallback(
+    (target: { fileId: string; page?: number; section?: number }) => {
+      if (target.fileId !== fileId || documentController == null) return false;
+      if (target.page !== undefined) {
+        documentController.goTo({ page: target.page });
+      } else if (target.section !== undefined) {
+        documentController.goTo({ section: target.section });
+      } else {
+        return false;
+      }
+      // The sheet covers the viewer on a phone, so a jump in place has to
+      // put it back to the resting strip for the page to be visible.
+      if (isMobile) lowerInspector();
+      return true;
+    },
+    [documentController, fileId, isMobile, lowerInspector],
+  );
+
+  // Availability as the entry last reported it, read at the call rather
+  // than from the render's snapshot: an entry reports and selects in one
+  // handler when generation starts.
+  const reportedNow = useRef(new Map<string, boolean>());
+  const [sheetRaiseRequest, setSheetRaiseRequest] = useState(0);
+  const isMobileNow = useRef(isMobile);
+  isMobileNow.current = isMobile;
+  // One callback per entry for the life of the page: an entry that keys an
+  // effect on `onAvailability` would report again on every render if the
+  // host handed it a new function, and its first report is `false`.
+  const documentSideCallbacks = useRef(
+    new Map<
+      string,
+      {
+        onAvailability: (available: boolean) => void;
+        select: () => void;
+      }
+    >(),
+  );
+  const documentSideProps = (entry: SlotEntry) => {
+    let callbacks = documentSideCallbacks.current.get(entry.id);
+    if (!callbacks) {
+      const report = slotAvailability.reporterFor(
+        slotAvailabilityKey("document-side", entry.id),
+      );
+      callbacks = {
+        onAvailability: (available: boolean) => {
+          reportedNow.current.set(entry.id, available);
+          report(available);
+        },
+        select: () => {
+          if (reportedNow.current.get(entry.id) !== true) return;
+          requestTab(`document-side:${entry.id}`);
+          if (isMobileNow.current) {
+            setSheetRaiseRequest((request) => request + 1);
+          }
+        },
+      };
+      documentSideCallbacks.current.set(entry.id, callbacks);
+    }
+    return {
+      ...addonSlotProps,
+      fillHeight: true,
+      labelledByHost: true,
+      onAvailability: callbacks.onAvailability,
+      select: callbacks.select,
+      openInViewer,
+    };
+  };
+
+  /**
+   * The inspector excludes exactly these, so a section lands in one column
+   * or the other and never in both.
    *
    * Do not add a third kind: the general answer is a slot of its own, the
    * way `file-relations` is, not another id core has to know.
    */
   const canvasSlotIds = usesCanvasViewer
-    ? ["detailed-summary"]
+    ? documentSideEntries.map((entry) => entry.id)
     : ["knowledge-edit", "detailed-summary"];
   const sectionExcludeIds = Array.from(
     new Set([
@@ -341,9 +462,9 @@ export function ShellLayout({
     ]),
   );
 
-  // On a player file both are drawn by the workbench, so the canvas and
-  // Info keep neither.
-  const heavySummaries = hasPlayer ? null : (
+  // The Markdown layout keeps the summaries under the text, and at the end
+  // of Info in the sheet; a player file draws both through the workbench.
+  const markdownSummaries = !usesCanvasViewer && (
     <>
       <ActiveSummaryHost fileId={fileId} drive={drive} />
       <AddonSlot
@@ -358,7 +479,7 @@ export function ShellLayout({
   // HTML preview is a pure renderer: intelligence has no concept of
   // "indexing" an HTML artifact, so the empty Suggested-Tags / Summary /
   // Index-Details placeholders would be noise rather than affordance.
-  const infoTabContent = (withHeavySummaries: boolean) => (
+  const infoTabContent = (withFooterSummaries: boolean) => (
     <>
       <ExifSection fileId={fileId} fileType={file.file_type} />
       {!isHtmlPreview && (
@@ -369,16 +490,19 @@ export function ShellLayout({
           props={addonSlotProps}
         />
       )}
+      {!hasPlayer && usesCanvasViewer && !isHtmlPreview && (
+        <ActiveSummaryHost fileId={fileId} drive={drive} />
+      )}
       <CommentSection fileId={fileId} />
-      {withHeavySummaries && !isHtmlPreview && heavySummaries}
+      {withFooterSummaries && !isHtmlPreview && markdownSummaries}
     </>
   );
 
-  const buildTabs = (withHeavySummaries: boolean) =>
+  const buildTabs = (withFooterSummaries: boolean) =>
     buildInspectorTabs({
       info: {
         label: tabLabels("info"),
-        content: infoTabContent(withHeavySummaries),
+        content: infoTabContent(withFooterSummaries),
       },
       coreTabs: [
         {
@@ -411,6 +535,20 @@ export function ShellLayout({
           ) : null,
         },
       ],
+      documentTabs: documentSideEntries.map((entry) => ({
+        entry,
+        label: slotEntryLabel(entry, tGlobal),
+        available:
+          slotAvailability.reportedValue(
+            slotAvailabilityKey("document-side", entry.id),
+          ) === true,
+        content: (
+          <DocumentSideTabBody
+            entry={entry}
+            props={documentSideProps(entry)}
+          />
+        ),
+      })),
       addonTabs:
         hasPlayer && narrowForms && !awaitingForm
           ? workbenchItems.map((item) => ({
@@ -454,13 +592,50 @@ export function ShellLayout({
       })),
     });
 
+  const desktopTabs = buildTabs(stackedLayout);
+  const desktopListed = listedTabs(desktopTabs);
+  // What today's unmounts reset: closing the pane, crossing to the phone
+  // and changing file each build a new shell, so the selection starts over.
+  // The form and focus mode do not, and keep it.
+  const { open: desktopOpen } = useInspectorOpen(drive, hasPlayer);
+  const desktopShellKey = `${fileId}\u0000${
+    isMobile ? "phone" : "desktop"
+  }\u0000${desktopOpen ? "open" : "closed"}`;
+  const [desktopKey, setDesktopKey] = useState(desktopShellKey);
+  const [desktopWanted, setDesktopWanted] = useState<string | null>(null);
+  if (desktopKey !== desktopShellKey) {
+    setDesktopKey(desktopShellKey);
+    setDesktopWanted(null);
+  }
+  const desktopActiveId =
+    desktopWanted && desktopListed.some((tab) => tab.id === desktopWanted)
+      ? desktopWanted
+      : desktopListed[0]?.id;
+  // A vanished tab does not spring back when it returns.
+  if (desktopWanted !== null && desktopWanted !== desktopActiveId) {
+    setDesktopWanted(desktopActiveId ?? null);
+  }
+
+  // The wide width is a fact of the selected tab in this same render, so
+  // the pane is never painted at one tab's width with another's label.
+  const inspectorWide =
+    !isMobile &&
+    form === "beside" &&
+    documentSideEntries.some(
+      (entry) =>
+        entry.wide === true &&
+        `document-side:${entry.id}` === desktopActiveId,
+    );
+
   const inspector = (
     <InspectorShell
       header={meta}
-      tabs={buildTabs(stackedLayout)}
+      tabs={desktopTabs}
       resetKey={fileId}
-      selectRequest={find.selectRequest}
+      selectRequest={tabRequest}
       onSelect={(tabId) => find.reportTab("pane", tabId)}
+      activeId={desktopActiveId ?? "info"}
+      onActiveIdChange={setDesktopWanted}
     />
   );
 
@@ -474,7 +649,7 @@ export function ShellLayout({
       tabs={buildTabs(true)}
       resetKey={fileId}
       scroll="column"
-      selectRequest={find.selectRequest}
+      selectRequest={tabRequest}
       onSelect={(tabId) => find.reportTab("sheet", tabId)}
     />
   ) : undefined;
@@ -506,6 +681,8 @@ export function ShellLayout({
         mobileSheet={mobileSheet}
         sheetPeek={sheetPeek}
         halfSnap={sheetHalfSnap}
+        raiseSheetRequest={sheetRaiseRequest}
+        inspectorWide={inspectorWide}
         resetKey={fileId}
       >
         {findEnabled && find.open && <FindBar />}
@@ -520,12 +697,6 @@ export function ShellLayout({
           split={split}
           splitColumnWidth={splitColumnWidth}
           showPreviewActions={!actionsInRow}
-          // On a phone or in the stacked inspector the other surface takes
-          // them instead: drawing them in both places mounts
-          // `ActiveSummaryHost` twice — two fetches for one file.
-          heavySummaries={
-            isMobile || stackedLayout || awaitingForm ? null : heavySummaries
-          }
           videoRef={videoRef}
           initialTime={initialTime}
           initialPage={initialPage}
@@ -596,7 +767,7 @@ export function ShellLayout({
         </div>
         {!isMobile && !isHtmlPreview && (
           <div className="relative isolate space-y-6 border-t border-bg-border bg-bg-primary px-6 py-8 empty:hidden">
-            {heavySummaries}
+            {markdownSummaries}
           </div>
         )}
       </div>

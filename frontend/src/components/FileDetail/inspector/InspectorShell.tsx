@@ -26,6 +26,13 @@ interface InspectorShellProps {
   scroll?: InspectorScroll;
   selectRequest?: { tabId: string; seq: number } | null;
   onSelect?: (tabId: string) => void;
+  /**
+   * The selection, when the host has to know it during render — the pane's
+   * wide width depends on the tab, so an effect would paint a frame at the
+   * wrong width. Omitted, the shell keeps it itself.
+   */
+  activeId?: string;
+  onActiveIdChange?: (tabId: string) => void;
 }
 
 export function InspectorShell({
@@ -35,6 +42,8 @@ export function InspectorShell({
   scroll = "panel",
   selectRequest = null,
   onSelect,
+  activeId: controlledId,
+  onActiveIdChange,
 }: InspectorShellProps) {
   const t = useTranslations("inspector");
   // Only a listed tab can be selected. An unlisted one is mounted so it
@@ -42,7 +51,16 @@ export function InspectorShell({
   // own entry has just said is empty.
   const listed = listedTabs(tabs);
   const firstId = listed[0]?.id ?? "info";
-  const [activeId, setActiveId] = useState<string>(firstId);
+  const [internalId, setInternalId] = useState<string>(firstId);
+  const controlled = controlledId !== undefined;
+  const activeId = controlled ? controlledId : internalId;
+  const setActiveId = useCallback(
+    (id: string) => {
+      if (controlled) onActiveIdChange?.(id);
+      else setInternalId(id);
+    },
+    [controlled, onActiveIdChange],
+  );
   const tabRefs = useRef(new Map<string, HTMLButtonElement>());
 
   useEffect(() => {
@@ -59,7 +77,7 @@ export function InspectorShell({
   // in state, a dead id springs back the moment its tab returns.
   useEffect(() => {
     if (active && active.id !== activeId) setActiveId(active.id);
-  }, [active, activeId]);
+  }, [active, activeId, setActiveId]);
 
   useEffect(() => {
     if (!selectRequest) return;
@@ -90,7 +108,7 @@ export function InspectorShell({
       setActiveId(next.id);
       tabRefs.current.get(next.id)?.focus();
     },
-    [listed, active?.id],
+    [listed, active?.id, setActiveId],
   );
 
   const column = scroll === "column";
