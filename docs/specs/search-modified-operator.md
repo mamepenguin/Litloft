@@ -340,12 +340,12 @@ I11. A saved Smart Collection with `modified:<1y`, evaluated with `now` a day la
 I12. Removing a 「更新日」 chip removes exactly the tokens with its identity and leaves every other token's raw string unchanged; the menu never offers a preset whose identity is already in the query or that would make the range impossible.
 I13. The list view's row date shows `modified_at`, and `updated_at` only when `modified_at` is NULL.
 I14. Registering a `.md` without an id (by scan or `register_single_file`) leaves its `st_mtime` and `modified_at` equal to the mtime it had before the stamp; renaming a file that other notes link to leaves each rewritten note's `modified_at` equal to its new `st_mtime`.
+I15. `/app-api/smart-collection-members` without `tz` answers 400 for a Smart Collection holding an absolute `modified:` amount, and answers as before for one holding none; both MCP callers send `tz`.
+I16. An app target built from a Smart Collection holding `modified:`, with or without free text, reports `unsupported_part` in both the Video and Reading apps and requests no listing without the condition.
 I17. For the same `modified` comparisons, `/folder-counts`, `/folder-counts/query`, `/shelves` and `/shelves/query` count or list only files that `GET /files` keeps.
 I18. Within one search run, every listing request, the meaning `filter`, the continuation, "Show more by similarity" and every `in:` Smart Collection evaluation carry identical `modified` wire forms.
 I19. The migration only adds `files.modified_at`: every existing row keeps every other column's value, running it again changes nothing, and a build from before this change opens the migrated database and lists files as before.
 I20. Choosing a 「更新日」 preset appends exactly one token that parses back with that preset's identity and submits once; the entry is disabled when the query holds 4 distinct `modified:` identities.
-I15. `/app-api/smart-collection-members` without `tz` answers 400 for a Smart Collection holding an absolute `modified:` amount, and answers as before for one holding none; both MCP callers send `tz`.
-I16. An app target built from a Smart Collection holding `modified:`, with or without free text, reports `unsupported_part` in both the Video and Reading apps and requests no listing without the condition.
 
 ## Checked, no action
 
