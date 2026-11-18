@@ -2,7 +2,7 @@
 
 decision:
 ran_in_app: yes
-at: a84cf80e83a28136660ae11ad5847871b49e0f76
+at: 6cfe4804c8c5daa463b47123185ae45bf3159384
 by: agent
 evidence: Playwright chromium against the R-5 stack (http://video-share-pdf-height.localhost:3101, cloned data). Files: PDF 132btgPYKdiT (258 pp), EPUB 4zQh_nJy5Cwa, archive t15EQOIGMBl3 (lib.zip), video Alx1ShvKJ5ny, Markdown gCAyXit7PP9D and Paa9RQdw77Ya. Measured viewer bottom against the canvas content bottom (gap) and main scrollHeight - clientHeight (overflow) in the page.
   1. Fill, 1440x900 and 1280x800, beside: PDF, EPUB and archive gap 0 and overflow 0 normal, with the find bar opened after load, after it closed, and in focus mode (T; PDF 900/800 tall in focus, canvas 1056/896). Note: pressing T after clicking inside the EPUB iframe did nothing (the iframe holds the keys); after clicking the header it entered focus mode.
@@ -16,6 +16,12 @@ evidence: Playwright chromium against the R-5 stack (http://video-share-pdf-heig
   Screenshots (docs/process/reviews/feature-pdf-viewer-height/r5/): pdf-info-1440.png, pdf-detail-1440.png, pdf-detail-focus-1440.png, pdf-info-focus-1440.png, pdf-detail-1280.png, pdf-phone-peek-390.png, pdf-phone-detail-390.png, epub-info-note-1440.png. All in ja locale; 1440x900 shots have the sidebar open.
   Other observation: on a phone viewport every file page tried (PDF, video, Markdown, EPUB, archive) logs a React hydration error #418 in the console; the home page does not. It is not specific to the document viewers; not compared with the base commit.
   Data left on the cloned stack: a detailed summary on the PDF, an active summary note on the EPUB, a started detailed summary on gCAyXit7PP9D.
+  Re-run at 6cfe4804c (intelligence 98bbc86, rebuilt stack, 1440x900 unless stated, UI in English this time, so tab names are Info / Pages / Detailed summary / Related / Ask):
+  9. EPUB 4zQh_nJy5Cwa could not be used for the AI-menu check: its detailed-summary reason is insufficient_content, so the AI menu offers only "Create AI tag candidates". I made the same Photography Hub.md (Paa9RQdw77Ya) the active summary note of another EPUB, _qXJ37kH0xEt (not_generated), through POST /api/addons/knowledge/file_active_summary, and used it. AI menu on it listed tag candidates, summary and "Create detailed summary". Clicking it: no dialog, POST .../summary/detailed/regenerate at once, within 100 ms the tabs were Info, Detailed summary (selected), Related, Ask and the pane was 512 (aside 384 before), showing "Creating detailed summary..." and finished in about 50 s with the tab still selected (body shows the dormant row "AI detailed summary / Dormant / Create again", because the note is active).
+  10. PDF 132btgPYKdiT: Detailed summary selected 512; find open 384 on Find; find closed back on Detailed summary 512; Close inspector then Open inspector: Info, 384; selected Detailed summary again (512), phone 390x844 then back to 1440x900: Info, 384.
+  11. Regenerate inside the tab on _qXJ37kH0xEt (active note, so Create again opens a confirm "Continue?"): after confirming, the POST went out and the selection stayed on Detailed summary at 512 for the next 20 s (desktop). On 390x844: sheet opened, Detailed summary selected, Create again, confirm; sheet top stayed 506 (height 760) before and for 10 s after, tab stayed selected. Retry (failed state) was not shown, not exercised.
+  12. Regression: PDF 132btgPYKdiT with Source check on, card p.2 Jump: page 1 to 2, URL unchanged, Detailed summary still selected, pane 512. Video Alx1ShvKJ5ny (drive 動画): tabs Info, Related, Ask, pane 384 on Info and Related, close and reopen the inspector gives Info 384, one video element, no page errors.
+  Data left on the cloned stack by this run: _qXJ37kH0xEt now has an active summary note and a detailed summary (regenerated twice; the last run may still have been finishing).
 pending: the design check against the agreed artboards; a document-side tab on an EPUB or an archive (no detailed summary was generated for them); the overlay form and a wide pane without the sidebar were not run; iOS devices.
 
 ## Design differences accepted by the human (design-check.md)
