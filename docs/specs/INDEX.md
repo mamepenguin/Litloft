@@ -278,7 +278,7 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-131 | approved | docs/specs/notes-app.md | sha256:72a80db466c1c03fd7f70c990d2c1b6655e186508b184f617c0fdae825a0cce7 |
 | SPEC-ADDON-132 | approved | docs/specs/notes-app.md | sha256:72a80db466c1c03fd7f70c990d2c1b6655e186508b184f617c0fdae825a0cce7 |
 | SPEC-CORE-130 | approved | docs/specs/notes-app.md | sha256:72a80db466c1c03fd7f70c990d2c1b6655e186508b184f617c0fdae825a0cce7 |
-| SPEC-ADDON-136 | approved | docs/specs/frame-ocr-hit-place.md | sha256:748ee1228d9a5ef58b45811ed4b7c8e432c9f7cb29f4345119c35ac5b3047fd9 |
-| SPEC-ADDON-137 | approved | docs/specs/frame-ocr-hit-place.md | sha256:748ee1228d9a5ef58b45811ed4b7c8e432c9f7cb29f4345119c35ac5b3047fd9 |
-| SPEC-CORE-134 | approved | docs/specs/frame-ocr-hit-place.md | sha256:748ee1228d9a5ef58b45811ed4b7c8e432c9f7cb29f4345119c35ac5b3047fd9 |
-| SPEC-CORE-135 | approved | docs/specs/frame-ocr-hit-place.md | sha256:748ee1228d9a5ef58b45811ed4b7c8e432c9f7cb29f4345119c35ac5b3047fd9 |
+| SPEC-ADDON-136 | draft | docs/specs/frame-ocr-hit-place.md | |
+| SPEC-ADDON-137 | draft | docs/specs/frame-ocr-hit-place.md | |
+| SPEC-CORE-134 | draft | docs/specs/frame-ocr-hit-place.md | |
+| SPEC-CORE-135 | draft | docs/specs/frame-ocr-hit-place.md | |

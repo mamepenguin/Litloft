@@ -5,7 +5,7 @@ SPEC-ID: SPEC-ADDON-137
 SPEC-ID: SPEC-CORE-134
 SPEC-ID: SPEC-CORE-135
 
-Approval: sha256:748ee1228d9a5ef58b45811ed4b7c8e432c9f7cb29f4345119c35ac5b3047fd9 Yuichi Senga 2026-11-18
+Approval:
 
 <!--
 Leave the Approval line empty. After a human approves this spec, the approval step
@@ -219,7 +219,8 @@ Terms used below:
     The slot draws exactly that region, scaled to fill it, with no outline.
 13. The time label, the locator, the file name and the excerpt are unchanged.
 14. A `screen_text` passage that has `keyword` true and a link term links to
-    `/files/{id}?t=<start text>&find=<link term URL-encoded>`. Every other passage links
+    `/files/{id}?t=<start text>&find=<link term URL-encoded>`, encoded with
+    `encodeURIComponent` (a space is `%20`). Every other passage links
     exactly as today; this includes a `screen_text` passage with `keyword` false, or with
     no link term (`?t=<floor(start)>`).
 
@@ -234,7 +235,8 @@ Terms used below:
       order that meets all of these becomes current:
       - its `kind` is `scene`;
       - it has `boxes`;
-      - `|start − t| < 0.0005`.
+      - `|start − t| < 0.001`. The link writes `start` rounded to three decimals, and a
+        start exactly half a millisecond off (12.0625 written `12.062`) is still its own row.
     - **No seek.** Making this row current does not seek. The landing is the player's own
       `initialTime` landing at `t`, as today, so one seek decides where the playhead lands.
       Every later change of the current row (next, previous, a click) seeks as today.
@@ -270,6 +272,7 @@ Terms used below:
       (step 22), and the size is the current row's `frame_size`. A `frame_size` is usable
       when it is two finite numbers, both above 0. Anything else is treated as absent, and
       the rectangle is then unknown.
+    - In both, a picture box of zero width or height leaves the rectangle unknown.
     - **Other `.loft` providers.** Their embeds do not render the layer, and they have no
       frame text, so nothing is drawn.
 19. The outlines follow the time. They appear when the playhead enters the window of
@@ -328,7 +331,9 @@ Terms used below:
 
 ### 2. Failure cases
 
-1. `video_frame_lines` cannot be read (an exception, or malformed `lines_json`).
+1. `video_frame_lines` cannot be read (an exception, or `lines_json` that is not valid
+   JSON). Valid JSON of another shape (not a list, an element without a string `text` or
+   without a quad) is case 2.
    - **Search.** The passage gets null `line_box`, `line_match` and `line_frame_url`. One
      warning per file per search request names the file id. The search answer is
      otherwise unchanged.
@@ -573,7 +578,7 @@ first occurrence of its highlight terms in its excerpt. Every other passage, a k
 
 I6. Opening a file with `find` and `t` makes current, on the first hits answer to that
 URL query (a retry included), the first `scene` row with `boxes` whose `start` is within
-0.0005 of `t`, and no row otherwise, without seeking. A step the viewer requested before
+0.001 of `t`, and no row otherwise, without seeking. A step the viewer requested before
 that answer decides the current row instead. Opening with `find` alone still makes no
 place current. A changed query never applies the rule.
 
