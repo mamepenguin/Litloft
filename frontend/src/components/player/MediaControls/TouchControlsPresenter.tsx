@@ -74,7 +74,19 @@ export function TouchControlsPresenter({
       <div
         data-testid="touch-controls-root"
         data-player-chrome=""
-        onFocusCapture={onChromeFocus}
+        onFocusCapture={(e) => {
+          // Pressing a button focuses it, so focus inside the bar
+          // bottom-only already draws is that press, not a visit to the
+          // controls it hides.
+          if (
+            bottomOnly &&
+            e.target instanceof Element &&
+            e.target.closest('[data-testid="bottom-controls"]')
+          ) {
+            return;
+          }
+          onChromeFocus?.();
+        }}
         className={[
           "absolute inset-0 z-10 transition-opacity duration-200 ease-out motion-reduce:transition-none",
           // This box covers the whole frame purely to position its

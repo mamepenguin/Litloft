@@ -376,7 +376,9 @@ describe("SPEC-CORE-140 touch layout: bottom-only (I5)", () => {
 
     const fullscreen = screen.getByRole("button", { name: "Full screen" });
     expect(takesTouches(fullscreen)).toBe(true);
+    // A press in a real browser focuses the button before the click lands.
     act(() => {
+      fullscreen.focus();
       fireEvent.click(fullscreen);
     });
     expect(mc.toggleFullscreen).toHaveBeenCalledTimes(1);
@@ -386,6 +388,19 @@ describe("SPEC-CORE-140 touch layout: bottom-only (I5)", () => {
     expect(chrome()).toBe("bottom-only");
     wait(200);
     expect(chrome()).toBe("hidden");
+  });
+
+  it("SPEC-CORE-140 focus moving to a control bottom-only does not draw turns it into the whole chrome", async () => {
+    await touchPage();
+    wait(5000);
+    doubleTap();
+    wait(500);
+    expect(chrome()).toBe("bottom-only");
+
+    act(() => {
+      screen.getByRole("button", { name: "Settings" }).focus();
+    });
+    expect(chrome()).toBe("whole");
   });
 
   it("SPEC-CORE-140 a scrub started in bottom-only stays there and restarts the 2 s when it ends", async () => {
