@@ -122,6 +122,10 @@ export function rememberReadingAnchor(): void {
   pending = capture();
 }
 
+export function forgetReadingAnchor(): void {
+  pending = null;
+}
+
 /**
  * Puts the place back now, and again on the frames that follow, until the
  * content stops moving or the reader scrolls. The deepest remembered element

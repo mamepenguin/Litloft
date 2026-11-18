@@ -1,0 +1,87 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "MEDIUM",
+  "findings": [
+    {
+      "id": "F1",
+      "origin": "reviewer",
+      "claim": "The diff edits frontend/src/lib/readingAnchor.ts, which is not in the touch-point list. It adds the exported forgetReadingAnchor(), which clears the module-level pending anchor.",
+      "impact": "None for a user. The scroll-restoring module that changes scrollTop or calls window.scrollBy for up to 20 frames after a focus-layout change now has a new entry point, and the plan does not name it. A reader who checks the plan would not expect this file to change.",
+      "evidence": "readingAnchor.ts:125-127 adds forgetReadingAnchor (pending = null). It is called from AppShell.tsx:339. The touch-point list names useFocusMode.ts and AppShell.tsx but not lib/readingAnchor.ts. The same file was already reported as an unplanned place in docs/process/reviews/feature-focus-mode/r6/claude-read.json:58.",
+      "repro": "not_reproduced: this is a planning-scope observation and needs no runtime reproduction.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "It breaks no declared invariant. The place lies outside the declared touch points."
+      },
+      "severity": "INFO",
+      "proposed_fix": "Add frontend/src/lib/readingAnchor.ts to the touch-point list in invariants.md, or record in decisions.md why it was left out."
+    },
+    {
+      "id": "F2",
+      "origin": "reviewer",
+      "claim": "The diff edits frontend/src/components/FocusModeShortcuts.tsx, which is not in the touch-point list. The `T` handler no longer reads useIsWideViewport and now calls toggleFocusMode() with no argument.",
+      "impact": "None for a user. This is the only component that registers the `focus-mode` shortcut context (I6). The touch-point list puts that context in useFocusMode.ts, so the plan points at a different file from the one this change edits.",
+      "evidence": "FocusModeShortcuts.tsx:7, 17-29 drop the wide argument and the `wide` memo dependency. The touch-point list says that useFocusMode.ts holds the `focus-mode` shortcut context and does not name FocusModeShortcuts.tsx. The same file was already reported as an unplanned place in docs/process/reviews/feature-focus-mode/r6/claude-read.json:88.",
+      "repro": "not_reproduced: this is a planning-scope observation and needs no runtime reproduction.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "It breaks no declared invariant. The place lies outside the declared touch points."
+      },
+      "severity": "INFO",
+      "proposed_fix": "Add frontend/src/components/FocusModeShortcuts.tsx to the touch-point list in invariants.md."
+    }
+  ],
+  "specification_compliance": [
+    "Unplanned places the diff reaches: frontend/src/lib/readingAnchor.ts (F1) and frontend/src/components/FocusModeShortcuts.tsx (F2). AppShell.tsx and useFocusMode.ts are in the touch-point list.",
+    "I2 (scroll anchor across entering and leaving): on a wide file page a toggle changes both focusState and focusLayout. The effect at AppShell.tsx:337-344 sees the layout change and restores the anchor that toggleFocusMode took at useFocusMode.ts:103.",
+    "Below 768px a toggle changes focusState but not focusLayout, so the effect calls forgetReadingAnchor(). A later resize that applies the layout finds pending null and restores nothing. This keeps the behaviour that the old caller-side `wide` guard gave.",
+    "Leaving a file page with the state on: focusLayout drops in the same render through the URL, so the effect restores a pending of null, which does nothing. The later store reset at AppShell.tsx:312 changes only focusState, so the effect forgets. Nothing stale is left.",
+    "All callers of toggleFocusMode (FocusModeButton.tsx:17, TreeToggle.tsx:30, FocusModeShortcuts.tsx:22) now pass no argument, which matches the new signature."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "rememberReadingAnchor() now also runs below 768px. It calls active?.() (readingAnchor.ts:121), so a `T` press on a narrow file page within 20 frames of an earlier restore stops that restore. Before this change the narrow press took no anchor and left the restore running. The window is tiny and no invariant covers it."
+  ],
+  "regression_risks": [
+    "The anchor now depends on the effect order inside AppShell: the store reset (AppShell.tsx:311-313) must run before the anchor effect (AppShell.tsx:337-344). Reordering these effects or splitting AppShell could make the anchor be restored or forgotten in the wrong pass.",
+    "capture() now runs on every narrow `T` press, and capture() calls elementFromPoint and getComputedStyle. This is cheap but new work on phone widths."
+  ],
+  "test_coverage": [
+    "decisions.md names focus-mode-desktop.spec.ts:834 (place kept across entering and leaving) and :890 (T below 768px, then widening keeps the place the reader scrolled to) as the tests that pin this refactor. I did not open them because they are outside the coverage list. The diff adds or changes no tests.",
+    "No test is named for a narrow `T` press during an in-flight restore."
+  ],
+  "not_verified": [
+    "I did not open or run the e2e tests that decisions.md cites (focus-mode-desktop.spec.ts:834 and :890), so I did not check that they kill the mutants it describes.",
+    "I did not check behaviour under React StrictMode double-invoked effects in development.",
+    "I did not check whether the full invariants.md file lists touch points beyond the text quoted in the prompt."
+  ],
+  "coverage": [
+    {
+      "path": "frontend/src/components/AppShell.tsx",
+      "read": "full",
+      "reason": "Read the whole file (1-425)."
+    },
+    {
+      "path": "frontend/src/components/FocusModeShortcuts.tsx",
+      "read": "full",
+      "reason": "Read the whole file (1-32)."
+    },
+    {
+      "path": "frontend/src/hooks/useFocusMode.ts",
+      "read": "full",
+      "reason": "Read the whole file (1-105)."
+    },
+    {
+      "path": "frontend/src/lib/readingAnchor.ts",
+      "read": "full",
+      "reason": "Read the whole file (1-184)."
+    }
+  ],
+  "confidence": 85
+}
