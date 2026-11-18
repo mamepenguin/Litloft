@@ -20,6 +20,8 @@ afterEach(() => {
 });
 
 describe("viewport width hooks across hydration", () => {
+  // UNSPEC: a server-rendered page hydrates at any width without a mismatch,
+  // and the width hooks report the real width once hydration has finished.
   it.each([390, 700, 1440])(
     "hydrate a server render at %ipx without a mismatch, then report the real width",
     async (width) => {
