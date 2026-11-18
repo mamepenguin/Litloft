@@ -1,0 +1,34 @@
+# Decisions
+
+## R-5
+
+decision:
+ran_in_app: yes
+at: fd2b260e81b948703eaf95f9181c5657ae337ea2
+by: agent
+evidence: Own clone stack (`scripts/dev/r5_stack.py clone --with-drives`, http://video-share-frame-ocr-boxes.localhost:3101), addons/intelligence at e953486. UI driven with Playwright (Chromium, en locale); DB read only inside the intelligence container with `mode=ro`. Screenshots and dumps are in the session scratchpad `shots-r5-boxes/` (not committed).
+  Setup. The main checkout's data came from a build older than the frame OCR rule column, so it had no rule-2 reads. To get real ones, the clone first ran the develop pin of intelligence (f83ee5f, FRAME_OCR_RULE 2). Three native videos were re-read by that build (67J5hS5_if8b, TclXl-41xsTy, AlWSycNkuiHE: read/indexed/rule 1/1/2). The other 153 native videos stayed at NULL. The queue was paused, the stack brought down, and the submodule returned to e953486. A checksum of `video_frame_texts` and of the (read, indexed, rule) flags was taken before the switch.
+  1. Upgrade path. The HEAD build was started and the queue paused by a script about 1 s after startup; no frame read had started. The table `video_frame_lines` now exists, with UNIQUE (file_id, segment_index), the index `idx_video_frame_lines_file` on file_id, and 0 rows. Difference from spec item 4: the stored DDL is not the one the spec states (`id INTEGER PRIMARY KEY`, `file_id TEXT`, `start_time`/`end_time REAL`). It is `id INTEGER NOT NULL, file_id VARCHAR(12) NOT NULL, segment_index INTEGER NOT NULL, start_time FLOAT NOT NULL, end_time FLOAT NOT NULL, lines_json TEXT NOT NULL, PRIMARY KEY (id), CONSTRAINT uq_video_frame_lines_file_segment UNIQUE (file_id, segment_index)`. That text also differs from the `CREATE TABLE IF NOT EXISTS` in `app/database.py`, which has `id INTEGER PRIMARY KEY AUTOINCREMENT`, `file_id TEXT` and `REAL`. Before and after the migration, the `video_frame_texts` md5, the flags md5 and six per-file checksums were identical. Counts were 144 NULL + 3 rule-2 native videos with frame text, 153 NULL + 3 rule-2 among all active native videos, and 6703 text rows. `/status` with the queue paused showed `indexed.frame_ocr` 0 and `pending.frame_ocr` 665. That is the 156 native videos (NULL and rule 2) plus 509 `.loft`s never read; frame_ocr waiting was 156. The dashboard showed "Text in video 0 / 665", Paused, and "Text in video 156 waiting" (1-admin.png). Index details for rule-2 video TclXl-41xsTy showed "Text in video: Pending" (1-rule2-index-details.png).
+  2. Background re-reads. Five videos were prioritized through the queue API with curl, then Resume was clicked on the dashboard. The Paused badge was still shown 4 s after the click (2-after-resume.png). `/status`, read in the next command a few seconds later, said paused=false. geN7fGnZhYxb, XWaAfBpieroY, TclXl-41xsTy, AlWSycNkuiHE, 2x5kYuD3K8-r and 67J5hS5_if8b all ended at 1/1/3; all three rule-2 videos (67J5hS5_if8b, TclXl-41xsTy, AlWSycNkuiHE) are in this set. A further 7 files reached rule 3 from the running queue: native videos and two YouTube `.loft` first reads (13 in all). For every rule-3 file (2-verify-all.txt):
+  - segment_index runs 0.. in time order, one row per distinct chunk span;
+  - each row's start/end equals its chunks' start/end;
+  - lines_json decodes to a list of objects with exactly `text` and `quad`, 8 floats in [0,1] at 4 decimals;
+  - `chunk_text` of the lines joined by `\n` equals the stored chunks, including a 136-line segment split into 2 chunks;
+  - no segment is without a row.
+  Across the 13 files: 392 segment lines, all `chunk_text_eq=True`, rows equal distinct spans per file, and indexes contiguous from 0 with rising start times. Empty reads (test_video.mp4, sample2.mp4) left 0 text rows and 0 line rows.
+  Searchability during the re-read: a search for "PRINTOUT", from geN7's NULL-rule text, was sent with curl to the intelligence `/search` API (not the search box) every 2 s and hit geN7 via `text_content` throughout its re-read (15:15:33–15:17:03; log in r5q/during.log). After the store, the new read had "PRINT OUT" instead, so "PRINTOUT" stopped matching. "PRINT OUT" and "ペンギンポックス" then hit geN7. After the re-reads the dashboard showed "Text in video 13 / 665" (2-admin-after-rereads.png), and Index details for TclXl-41xsTy showed Indexed.
+  3. Clip with known titles. The clip is 1280x720, 30 s, with a moving gradient and a moving disc. "QUARTZ NEBULA 41" (white, DejaVu Sans Mono Bold 64) is at 0–15 s, drawn box fractions [0.0469,0.1000,0.5289,0.1792]. "VELVET HARBOR 73" is at 15–30 s, [0.4711,0.8486,0.9531,0.9167]. It was made with PIL and ffmpeg in a container and uploaded through the Library "Add" file input; the upload panel showed Ready (3-upload.png). It was read as 7Fc-jVffB8YQ, 1/1/3, with 2 segments and 2 rows:
+  - seg 0, 0–15: quad [0.0391,0.0806,0.5328,0.0806,0.5328,0.1889,0.0391,0.1889];
+  - seg 1, 15–30: quad [0.4672,0.8347,0.9563,0.8347,0.9563,0.9292,0.4672,0.9292].
+  The corner order is TL, TR, BR, BL. Each quad encloses its drawn text box with a margin of 4–15 px. The stored quads (red) and the drawn boxes (green) are drawn on frames grabbed at each segment start: 7Fc-jVffB8YQ-seg00-0s.png and 7Fc-jVffB8YQ-seg01-15s.png.
+  4. Purge. The clip was moved to trash from File actions → Move to Trash (DELETE /api/files/7Fc-jVffB8YQ 200). While trashed it was inactive and still had 2 line rows and 2 text rows. It was then permanently deleted from the Trash view (DELETE …/purge 200). Afterwards `indexed_files`, `video_frame_texts` and `video_frame_lines` had 0 rows for it.
+  The stack was brought down and destroyed. Runtime links created in the worktree (the .cmux/setup set and the setup-addons.sh link trees) were removed, and the tree is clean. Not attempted:
+  - the `.loft` operator reindex (spec item 7), an operation after shipping;
+  - the unusable-quad and failed-store paths (items 2.2 and 2.3), which ordinary use cannot produce.
+pending: none
+
+## R-5 item 1: the stored column types
+
+- R-5 found `video_frame_lines` stored as `file_id VARCHAR(12)`, `start_time FLOAT`, `end_time FLOAT`, `id INTEGER NOT NULL ... PRIMARY KEY (id)`, where spec item 4 names `TEXT`, `REAL` and `INTEGER PRIMARY KEY`.
+- Cause: `Base.metadata.create_all` (app/database.py) creates the table from the ORM model before the migration's `CREATE TABLE IF NOT EXISTS` runs, as it does for `video_frame_texts`. The migration's statement applies to a database that `create_all` did not reach.
+- Effect: none. SQLite gives `VARCHAR(12)` text affinity and `FLOAT` real affinity, so values are stored as with `TEXT` and `REAL` (checked: `typeof` gives text and real for both declarations). The unique (file_id, segment_index) and the index on file_id are present. Not changed (author, 2026-11-18).
