@@ -52,7 +52,8 @@ Production has only started re-reading videos at rule 3 (SPEC-ADDON-134 item 6),
 videos have no boxes yet. A passage or find row without usable boxes looks and behaves as
 it does today, except for the link in step 14. No new state is shown for it.
 
-The agreed design is saved in `docs/process/reviews/feature-frame-ocr-hit-place/design/`
+The agreed design is the Design Artifact https://claude.ai/artifact/AwPrSrK1AgEQ7LSpjHGEU3,
+saved with its `canvas.json` in `docs/process/reviews/feature-frame-ocr-hit-place/design/`
 (`Main`, `Phone`, `Player` and `Loft`). It checks the following:
 
 - The crop keeps the slot's size and its time label, and has no outline inside it.
@@ -190,8 +191,12 @@ Terms used below:
 
     The slot falls back as follows:
     - If the large frame fails, or loads with a zero size, the slot stays in **frame**.
-    - If the small frame fails, in either state, the slot goes to the file's thumbnail,
-      then to the type icon, as today.
+    - If the small frame fails while the slot is in **frame**, the slot goes to the
+      file's thumbnail, then to the type icon, as today, and never enters **crop**, even
+      if the large frame loads later.
+    - In **crop** the small frame is no longer drawn, and its failure changes nothing.
+    - The large frame may load before the small one; the slot then goes from **frame** to
+      **crop** at once.
 
     A passage that is not croppable starts at `frame_url`, exactly as today.
 12. The **crop region** is measured in the large frame's natural pixels. It is sized by
@@ -230,9 +235,12 @@ Terms used below:
       - its `kind` is `scene`;
       - it has `boxes`;
       - `|start − t| < 0.0005`.
-    - **Seek.** Making the row current seeks to its `start`, as making any `scene` row
-      current does. If the player has not published its controller yet, that seek does
-      nothing, and the landing at `t` stands.
+    - **No seek.** Making this row current does not seek. The landing is the player's own
+      `initialTime` landing at `t`, as today, so one seek decides where the playhead lands.
+      Every later change of the current row (next, previous, a click) seeks as today.
+    - **The viewer's step wins.** If the viewer pressed Enter (or Shift+Enter) before the
+      first answer arrived, that pending step decides the current row, as today, and this
+      rule does not apply.
     - **No row.** If no row qualifies, no place is current, as today.
     - **Later answers.** Once the query changes (typed, cleared), no later answer applies
       this rule.
@@ -240,10 +248,13 @@ Terms used below:
     - find has a term, and its current row has `boxes`;
     - the media's current time `t` satisfies `start − 0.5 ≤ t < end` of the current row.
       The half second absorbs a seek that lands just before `start`;
-    - the media has not ended, and `t` is less than the duration when the duration is
-      known;
+    - the media has not ended. For a native video this is the element's `ended` being
+      false and `t` below its duration. For the embed, which reports no ended state, it is
+      `t` below `getDuration()` when that is positive; the YouTube player holds
+      `getCurrentTime()` at the duration once it ends;
     - the media is not interrupted: `MediaController.isInterrupted()` is not true;
-    - the player is not in the mini player box;
+    - the player is not in the mini player box, and the native video is not in the
+      browser's Picture in Picture window (`document.pictureInPictureElement`);
     - the **painted video rectangle** is known.
 17. The outlines are the distinct quads of every row in the answer that has `boxes` and the
     same `start` and `end` as the current row.
@@ -259,14 +270,19 @@ Terms used below:
       (step 22), and the size is the current row's `frame_size`. A `frame_size` is usable
       when it is two finite numbers, both above 0. Anything else is treated as absent, and
       the rectangle is then unknown.
-    - **Other `.loft` providers.** None of them draws outlines.
+    - **Other `.loft` providers.** Their embeds do not render the layer, and they have no
+      frame text, so nothing is drawn.
 19. The outlines follow the time. They appear when the playhead enters the window of
     step 16, and go when it leaves, whether by playing, seeking, ending or an
     advertisement.
     - **Native video.** The layer follows `timeupdate`, `seeked`, `ended` and
       `loadedmetadata`.
-    - **Embed.** The layer reads the current time at least every 250 ms, but only while
-      find has a current row with `boxes`.
+    - **Embed.** The layer reads the time from the shared media clock
+      (`frontend/src/lib/mediaClock.ts`), which polls each controller once for all its
+      consumers: every 250 ms while playing, every 1000 ms while paused. The layer
+      subscribes only while find has a current row with `boxes`. After a step that seeks a
+      paused embed, the outline can therefore lag the seek by up to a second; this is
+      accepted.
     - **Re-rendering.** The time updates re-render only the layer, never the player or the
       embed. The embed's iframe is never re-parented.
 20. The outlines go in any of these cases:
@@ -295,11 +311,18 @@ Terms used below:
       sits above the iframe.
     - **What an embed that ignores it does.** It draws nothing, as with any optional
       capability of `LoftEmbedProps`.
+    - **Stacking.** When the embed draws its own controls (the Litloft-UI mode), the node
+      sits under those controls, under its gesture overlay and under its poster image.
+      When the provider's own controls are inside the picture (the YouTube-UI mode), the
+      node sits over the iframe and so over those controls.
     - **Where the node lives.** The embed adds no wrapper that takes pointer events, and it
       does not re-create the iframe when the node changes.
-23. The core's `.loft` player passes the outline layer of step 16 as `pictureOverlay`, but
-    only for a YouTube `.loft` on the file page. The layer computes the painted rectangle
-    from its own box and the row's `frame_size`.
+23. The core's `.loft` player passes the outline layer of step 16 as `pictureOverlay` to
+    every embed, without looking at the provider. Whether anything is drawn then depends
+    only on find (which has a term only on the file page), on a usable `frame_size`, and
+    on whether the embed renders the prop. Only media_import's YouTube embed renders it,
+    and only YouTube `.loft`s have frame text with sizes. The layer computes the painted
+    rectangle from its own box and the row's `frame_size`.
 24. The media_import YouTube embed renders `pictureOverlay` in every UI mode, the
     YouTube-UI mode included, where the layer is drawn over YouTube's controls.
 
@@ -325,10 +348,11 @@ Terms used below:
    (step 11). Nothing is retried by the row.
 5. The file page opens with `t` and `find`, but the answer is not hits, or no row
    qualifies. No place is current, and the bar shows what it shows today.
-6. A `t` of `0.000` (a segment at the very start): the player lands where it lands today
-   for `t=0`. A `.loft` may then resume from the saved progress instead, because its
-   embed takes `initialTime` only when it is non-zero. The outline appears when the
-   playhead is in the segment.
+6. A `t` of `0.000` (a segment at the very start, the usual place of a title slide): the
+   player lands where it lands today for `t=0`. A native video and a `.loft` both treat
+   0 as "no position" and may resume from the saved progress instead. Nothing in this
+   change seeks, so there is no race; the outline appears when the playhead is in the
+   segment. This is accepted.
 7. The native video has not loaded its metadata (`videoWidth` is 0), or the embed has not
    laid out its box yet. Nothing is drawn until both are known.
 8. The YouTube embed is playing an advertisement (`isInterrupted()`). Nothing is drawn
@@ -354,8 +378,8 @@ Per segment:
 A video moves between these states only through a frame read (the store step), a purge,
 or an older build writing it. Nothing in this change writes a row.
 
-Search row slot of a croppable passage: **frame** → **crop**, **frame** → thumbnail →
-icon, and **crop** → thumbnail → icon (step 11). No transition goes back.
+Search row slot of a croppable passage: **frame** → **crop**, and **frame** → thumbnail →
+icon (step 11). **crop** is final, and no transition goes back.
 
 Player, while find is open on a video: **no outline** ↔ **outlines drawn**, by the
 conditions in step 16. They are evaluated again on each time update, each change of the
@@ -457,9 +481,18 @@ Unchanged:
 - **Search latency.** One `video_frame_lines` read per keyword `screen_text` passage
   returned, looked up by `file_id` and times (indexed by `file_id`). There is no new read
   for any other passage.
-- **Player.** The embed's time is read at most 4 times a second, and only while find has
-  a current row with `boxes`. The layer re-renders alone.
+- **Player.** The embed's time comes from the shared media clock, which adds no poller;
+  the layer subscribes only while find has a current row with `boxes`, and re-renders
+  alone.
 - **Privacy.** No new data leaves the LAN.
+- **Where geometry is measured.** jsdom lays nothing out, so these are measured on the real
+  components in a real browser (`frontend/e2e-components/`):
+  - the slot keeping 64×36 and 88×50 in the crop state, and the crop region drawn;
+  - the quads at their fractions of the contain-fitted rectangle, for a letterboxed and a
+    pillarboxed native video, and inside the Litloft full screen;
+  - the layer sitting under the Litloft controls.
+
+  The YouTube embed's layer is measured with a stub controller, not the real IFrame API.
 
 ## Touch points
 
@@ -481,6 +514,8 @@ Unchanged:
 - A new shared outline-layer component under `frontend/src/components/player/`.
 - `frontend/src/components/MiniPlayerContainer.tsx`, `frontend/src/hooks/useMiniPlayer.ts`
   — the mini state the layer reads.
+- `frontend/src/lib/mediaClock.ts` — read by the embed layer (unchanged).
+- `frontend/e2e-components/` — the geometry tests.
 - `frontend/src/lib/searchMerge.ts` — the `SearchPassage` type.
 - `frontend/src/lib/searchPassages.ts` — `passageHref` and the link term.
 - `frontend/src/components/search/PassageList.tsx` — the crop in `PassagePicture`.
@@ -528,8 +563,8 @@ them. The migration can run twice, and leaves existing rows' values unchanged.
 I4. The slot of a croppable passage first shows the whole small frame. It shows exactly
 the crop region of step 12 only after the large frame has loaded with a positive size,
 and it never goes back. The time label is over both. When the large frame fails, the slot
-keeps the whole frame. When the small frame fails, the slot shows the thumbnail and then
-the icon. A row that is not croppable renders exactly as before this change.
+keeps the whole frame. When the small frame fails before the crop is shown, the slot
+shows the thumbnail and then the icon, and never the crop. A row that is not croppable renders exactly as before this change.
 
 I5. A keyword `screen_text` passage with a link term links to
 `?t=<start with three decimals>&find=<link term>`, where the link term is the term of the
@@ -538,14 +573,16 @@ first occurrence of its highlight terms in its excerpt. Every other passage, a k
 
 I6. Opening a file with `find` and `t` makes current, on the first hits answer to that
 URL query (a retry included), the first `scene` row with `boxes` whose `start` is within
-0.0005 of `t`, and no row otherwise. Opening with `find` alone still makes no place
-current. A changed query never applies the rule.
+0.0005 of `t`, and no row otherwise, without seeking. A step the viewer requested before
+that answer decides the current row instead. Opening with `find` alone still makes no
+place current. A changed query never applies the rule.
 
 I7. The player draws outlines only while all of these hold:
 - find has a term, and its current row has `boxes`;
 - the media time is in `[start − 0.5, end)` of that row;
 - the media has not ended, and the time is below the known duration;
-- the media is not interrupted, and the player is not in the mini player box;
+- the media is not interrupted, the player is not in the mini player box, and the native
+  video is not in Picture in Picture;
 - the painted rectangle is known.
 
 It then draws the distinct quads of the rows that have the current row's `start` and
@@ -562,8 +599,10 @@ seek or size. A video page with no qualifying row renders and plays exactly as b
 this change.
 
 I9. An embed that supports `pictureOverlay` renders it over its picture box, inside its
-full-screen frame, in every UI mode. An embed without the prop renders exactly as before
-this change.
+full-screen frame, in every UI mode: under its own controls, gesture overlay and poster in
+the Litloft-UI mode, and over the iframe in the YouTube-UI mode. An embed without the prop
+renders exactly as before this change. The core passes the prop without naming a
+provider.
 
 I10. Search, find and the result rows write nothing to the core DB or the intelligence
 DB.
