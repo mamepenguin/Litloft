@@ -228,6 +228,8 @@ describe("the component fixture's page", () => {
       "page-header-title-actions",
       "page-header-title-medium-actions",
       "page-header-title-short-action",
+      "page-header-primary-action",
+      "page-header-primary-only",
       "admin-settings-rows",
       "chrome-buttons",
       "folder-listing-header-deep",

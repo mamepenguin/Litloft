@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>Clips ホーム</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;background:#ffffff}
+a{color:#211922;text-decoration:none}a:hover{color:#211922}
+.ic{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+.sm{width:14px;height:14px}
+.side a{display:flex;align-items:center;gap:12px;height:40px;padding:0 12px;border-radius:12px;font-size:15px;color:#211922}
+.side a.on{background:#f6f6f3;font-weight:600}
+.card{display:block;min-width:0}
+.cover{position:relative;aspect-ratio:4/3;border-radius:12px;overflow:hidden}
+.dot{position:absolute;left:10px;top:10px;width:10px;height:10px;border-radius:999px;background:#d63031;box-shadow:0 0 0 2px #ffffff}
+.ttl{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin-top:10px;font-size:15px;font-weight:600;line-height:1.45}
+.meta{margin-top:4px;font-size:12px;color:#62625b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+</style>
+</helmet>
+<div style="min-height: 1180px; display: flex; flex-wrap: wrap; font-family: -apple-system, system-ui, 'Hiragino Sans', 'Segoe UI', sans-serif; color: #211922; background: #ffffff">
+
+  <nav class="side" aria-label="サイドバー" style="flex: 1 1 240px; max-width: 240px; box-sizing: border-box; border-right: 1px solid rgba(145,145,140,0.2); padding: 64px 12px 24px; display: flex; flex-direction: column; gap: 2px">
+    <a href="#">ホーム</a>
+    <a href="#">Inbox</a>
+    <a href="#">ライブラリ</a>
+    <a href="#">動画</a>
+    <a href="#">読む</a>
+    <a href="#">Ask</a>
+    <a href="#">ノート</a>
+    <a href="#" class="on">Clips</a>
+    <a href="#">Photo Diary</a>
+  </nav>
+
+  <main style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column">
+    <div style="height: 56px; border-bottom: 1px solid rgba(145,145,140,0.2)"></div>
+
+    <div style="width: 100%; box-sizing: border-box; padding: 28px 40px 64px">
+      <header style="display: flex; flex-wrap: wrap; align-items: flex-start; gap: 16px">
+        <div style="display: flex; align-items: center; gap: 12px; flex: 1 1 320px; min-width: 0">
+          <span style="width: 40px; height: 40px; border-radius: 12px; background: #f6f6f3; display: flex; align-items: center; justify-content: center">
+            <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 18h-5"/><path d="M18 14h-8"/><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-4 0v-9a2 2 0 0 1 2-2h2"/><rect width="8" height="4" x="10" y="6" rx="1"/></svg>
+          </span>
+          <div style="min-width: 0">
+            <h1 style="margin: 0; font-size: 24px; line-height: 1.3; font-weight: 700">Clips</h1>
+            <div style="margin-top: 2px; font-size: 14px; color: #62625b">main · 1,452 件</div>
+          </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 12px">
+          <button type="button" style="display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 12px; border: 0; border-radius: 999px; background: transparent; font: inherit; font-size: 14px; color: #62625b">
+            <svg class="ic sm" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="1"/></svg>
+            すべてのクリップ
+            <svg class="ic sm" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+          </button>
+          <button type="button" style="display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 16px; border: 0; border-radius: 999px; background: #d63031; color: #ffffff; font: inherit; font-size: 14px; font-weight: 600">
+            <svg class="ic sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+            Web ページをクリップ
+          </button>
+        </div>
+      </header>
+
+      <nav aria-label="クリップの表示" style="margin-top: 20px; display: flex; gap: 4px; border-bottom: 1px solid rgba(145,145,140,0.2)">
+        <a href="#" style="padding: 10px 16px; font-size: 15px; font-weight: 600; border-bottom: 2px solid #d63031; margin-bottom: -1px">ホーム</a>
+        <a href="ClipsLibrary.dc.html" style="padding: 10px 16px; font-size: 15px; color: #62625b">ライブラリ</a>
+      </nav>
+
+      <section style="margin-top: 36px">
+        <div style="display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 16px">
+          <h2 style="margin: 0; font-size: 20px; font-weight: 700">未読 <span style="font-size: 15px; font-weight: 400; color: #62625b">38</span></h2>
+          <a href="#" style="font-size: 14px; color: #62625b">すべて表示 ›</a>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 24px 20px">
+          <sc-for list="{{unread}}" as="c" hint-placeholder-count="5">
+            <a href="#" class="card">
+              <div class="cover" style="background: {{c.tint}}"><span class="dot" aria-label="未読"></span></div>
+              <div class="ttl">{{c.title}}</div>
+              <div class="meta">{{c.site}} · {{c.min}} · {{c.age}}</div>
+            </a>
+          </sc-for>
+        </div>
+      </section>
+
+      <section style="margin-top: 48px">
+        <div style="display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 16px">
+          <h2 style="margin: 0; font-size: 20px; font-weight: 700">最近開いた</h2>
+          <a href="#" style="font-size: 14px; color: #62625b">すべて表示 ›</a>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 24px 20px">
+          <sc-for list="{{opened}}" as="c" hint-placeholder-count="5">
+            <a href="#" class="card">
+              <div class="cover" style="background: {{c.tint}}"></div>
+              <div class="ttl">{{c.title}}</div>
+              <div class="meta">{{c.site}} · {{c.min}} · {{c.age}}</div>
+            </a>
+          </sc-for>
+        </div>
+      </section>
+
+      <section style="margin-top: 48px">
+        <div style="display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 8px">
+          <h2 style="margin: 0; font-size: 20px; font-weight: 700">未確認</h2>
+          <a href="#" style="font-size: 14px; color: #62625b">すべて表示 ›</a>
+        </div>
+        <ul style="list-style: none; margin: 0; padding: 0">
+          <sc-for list="{{unverified}}" as="c" hint-placeholder-count="3">
+            <li style="display: flex; align-items: center; gap: 14px; padding: 10px 0; border-bottom: 1px solid rgba(145,145,140,0.2)">
+              <span style="width: 72px; height: 54px; border-radius: 8px; background: {{c.tint}}; flex-shrink: 0"></span>
+              <a href="#" style="flex: 1; min-width: 0">
+                <span style="display: block; font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{c.title}}</span>
+                <span style="display: block; margin-top: 2px; font-size: 12px; color: #62625b">{{c.site}} · {{c.age}}</span>
+              </a>
+              <button type="button" style="height: 32px; padding: 0 14px; border: 0; border-radius: 999px; background: #e5e5e0; font: inherit; font-size: 13px; font-weight: 600; color: #211922; flex-shrink: 0">確認済みにする</button>
+            </li>
+          </sc-for>
+        </ul>
+      </section>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1180}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const tints = ['#e3d2bf', '#d9c9b0', '#cfd8c4', '#e8d9c9', '#d5cdc2', '#c9d3cf', '#e6dccf', '#d8cbbd'];
+    const mk = (rows) => rows.map(([title, site, min, age], i) => ({ title, site, min, age, tint: tints[(i * 3 + title.length) % tints.length] }));
+    return {
+      unread: mk([
+        ['さばとトマトのオイル炒め', 'recipe.example.jp', '3 分', '今日'],
+        ['にんにくの芽とじゃがいもの炒めもの', 'recipe.example.jp', '2 分', '昨日'],
+        ['設計システムをコードで定義する', 'blog.example.com', '12 分', '2 日前'],
+        ['さんまの竜田揚げ風', 'recipe.example.jp', '2 分', '3 日前'],
+        ['RAG の精度を上げる検索の工夫', 'tech.example.com', '9 分', '5 日前']
+      ]),
+      opened: mk([
+        ['豚肉とじゃがいもの照り焼き', 'recipe.example.jp', '2 分', '1 週間前'],
+        ['なすと豚肉のみそ炒め', 'recipe.example.jp', '2 分', '1 週間前'],
+        ['書籍の OCR に LLM を組み合わせる', 'tech.example.com', '15 分', '2 週間前'],
+        ['ミックスビーンズのエスニックサラダ', 'recipe.example.jp', '2 分', '3 週間前'],
+        ['基本の焼きおにぎり', 'recipe.example.jp', '1 分', '1 か月前']
+      ]),
+      unverified: mk([
+        ['ヤンニョムチキン', 'recipe.example.jp', '3 分', '8月31日'],
+        ['AI に丸投げしないための開発手法', 'blog.example.com', '11 分', '8月29日'],
+        ['重みは学習するのか測るのか', 'note.example.com', '14 分', '9月14日']
+      ])
+    };
+  }
+}
+</script>
+</body>
+</html>
