@@ -328,9 +328,9 @@ detailed summary does not act on `v` while another tab is selected.
 I11. Starting a detailed summary from the AI button on a file without a player, when the
 tab was not listed before the click, ends with the tab listed and selected; in `beside`
 the pane is wide; on a phone the sheet is at its half snap.
+I12. Nothing in this change writes `localStorage` or `sessionStorage`.
 I13. On a file that has an active summary note and no detailed summary ever generated,
 no 「詳細要約」 tab is listed.
-I12. Nothing in this change writes `localStorage` or `sessionStorage`.
 
 ## Revises
 
