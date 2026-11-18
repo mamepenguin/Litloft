@@ -1406,6 +1406,20 @@ const targetProps: TargetMenuProps = {
 | `SmartFolder` | `@/types/smartFolder` |
 | `FileKind` | `@/types` |
 
+`AppHeader` takes two optional slots beside the Target:
+
+- `actions`: view controls. From `sm` they sit before the Target; below `sm`
+  they are a row after the tabs.
+- `primaryAction`: the page's one main action (a "New" button, for example).
+  From `sm` it follows the Target on the title row; below `sm` it is a
+  full-width row after the tabs and after `actions`. It is drawn only when the
+  header has a Target.
+
+`TargetMenuProps.defaultTargetExcludeOrigin` is optional. When set, the default
+target's count in the menu leaves out files of that `origin`; when absent, every
+origin is counted. Pass the same origin the page's own listing excludes, so the
+menu and the page agree.
+
 ### The app key and its storage keys
 
 `TargetMenuProps.app` and the target helpers take an `AppKey`: a built-in app
