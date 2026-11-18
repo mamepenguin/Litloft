@@ -61,14 +61,15 @@ export function useFillHeight(ref: RefObject<HTMLElement | null>): number | null
     };
 
     measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(canvas);
+    const observer =
+      typeof ResizeObserver === "undefined" ? null : new ResizeObserver(measure);
+    observer?.observe(canvas);
     const observed = new Set<Element>();
     const observeChildren = () => {
       for (const child of Array.from(canvas.children)) {
         if (observed.has(child)) continue;
         observed.add(child);
-        observer.observe(child);
+        observer?.observe(child);
       }
     };
     observeChildren();
@@ -82,7 +83,7 @@ export function useFillHeight(ref: RefObject<HTMLElement | null>): number | null
     mutations?.observe(canvas, { childList: true });
     return () => {
       mutations?.disconnect();
-      observer.disconnect();
+      observer?.disconnect();
     };
   }, [ref]);
 
