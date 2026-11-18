@@ -39,6 +39,8 @@ export interface TargetMenuProps {
   unavailableLabel: string;
   /** The kinds the app's default target counts. */
   defaultTargetTypes: readonly FileKind[];
+  /** An origin the default target's count leaves out; absent counts every origin. */
+  defaultTargetExcludeOrigin?: string;
   isUsable: (folder: SmartFolder) => boolean;
   onChoose: (id: string) => void;
   onRetryFolders: () => void;
@@ -89,6 +91,7 @@ function Rows({
   defaultLabel,
   unavailableLabel,
   defaultTargetTypes,
+  defaultTargetExcludeOrigin,
   onChoose,
   onManage,
 }: {
@@ -100,6 +103,7 @@ function Rows({
   defaultLabel: string;
   unavailableLabel: string;
   defaultTargetTypes: readonly FileKind[];
+  defaultTargetExcludeOrigin?: string;
   onChoose: (id: string) => void;
   onManage: () => void;
 }) {
@@ -115,10 +119,12 @@ function Rows({
       onDefault
         ? null
         : () =>
-            getDriveFiles(drive, { type: types, limit: 1 }).then(
-              (page) => page.meta.total,
-            ),
-    [drive, onDefault, types],
+            getDriveFiles(drive, {
+              type: types,
+              limit: 1,
+              ...(defaultTargetExcludeOrigin ? { exclude_origin: defaultTargetExcludeOrigin } : {}),
+            }).then((page) => page.meta.total),
+    [drive, onDefault, types, defaultTargetExcludeOrigin],
   );
   const { state } = useLoad(loadDefaultCount);
   const defaultCount = onDefault ? currentCount : state.status === "loaded" ? state.data : null;
@@ -173,6 +179,7 @@ export function TargetMenu({
   defaultLabel,
   unavailableLabel,
   defaultTargetTypes,
+  defaultTargetExcludeOrigin,
   isUsable,
   onChoose,
   onRetryFolders,
@@ -216,6 +223,7 @@ export function TargetMenu({
             defaultLabel={defaultLabel}
             unavailableLabel={unavailableLabel}
             defaultTargetTypes={defaultTargetTypes}
+            defaultTargetExcludeOrigin={defaultTargetExcludeOrigin}
             onChoose={(id) => {
               onChoose(id);
               close();
