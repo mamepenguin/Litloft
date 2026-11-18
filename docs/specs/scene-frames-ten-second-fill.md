@@ -115,7 +115,13 @@ says `min_interval: 30` keeps 30 until the operator edits it. The docs say so.
 4. The job logs one line when it starts and one when it ends, with the counts of files
    moved, frames moved and frames deleted. When it moved at least one file it clears the
    similar-files cache (`invalidate_similar_cache`) at its end. When no change frame is
-   left it does nothing and logs nothing.
+   left it does nothing and logs nothing. Before moving anything it checks free space on
+   the data volume against the vectors it would insert (rows × dimension × 4 bytes) times
+   `vec_partition._FREE_SPACE_FACTOR`; when short it logs that and moves nothing in that
+   start. A failure of the job itself (listing the files, a lock timeout outside a file's
+   transaction) is logged with its class; start-up continues and the next start tries
+   again. Each file's transaction holds the write lock for that file's frames only (at
+   most a few hundred rows).
 5. The `vec_clip_change` table stays, empty. Nothing writes it. Its dimension migration
    (`_migrate_vec_clip_change_if_needed`) recreates the table and no longer touches any
    file's flags.
@@ -142,21 +148,28 @@ says `min_interval: 30` keeps 30 until the operator edits it. The docs say so.
 5. After the download and before the scan and OCR stages, the candidates stage:
    1. Probes the downloaded file's duration; when the probe gives none it uses
       `IndexedFile.duration`; when that is NULL too there is no fill.
-   2. Runs steps 1–5 of SPEC-ADDON-144 on the downloaded file, skipping a frame that
-      fails to extract or embed, and waiting between embedding batches while the queue
-      is paused. When no frame is left, the stage has failed.
+   2. Runs steps 1–4 of SPEC-ADDON-144 on the downloaded file and embeds every kept
+      frame, holding the vectors in memory instead of storing per batch, skipping a
+      frame that fails to extract or embed, and waiting between embedding batches while
+      the queue is paused. It writes no BLIP caption. Embedding has a 600 s budget
+      (the budget the scan's embedding had); when it runs out, or no frame is left, the
+      stage has failed.
    3. Writes a `small` frame cache entry from the downloaded file at each kept frame's
       time, keeping an entry already there and skipping one it cannot write, and
       remembers which entries it wrote.
    4. Takes `storyboard_lock(file_id)` and, in one transaction, checks that the file is
-      still active, replaces every scene candidate of the file with the new rows and
-      sets `loft_candidates_done` and `clip_indexed` true. When the transaction fails or
-      the file is no longer active, it removes the cache entries it wrote in 5.3.
+      still active, replaces every scene candidate of the file with the new rows,
+      deletes any change frames of the file and their vectors, and sets
+      `loft_candidates_done` and `clip_indexed` true. When the transaction fails or the
+      file is no longer active, it removes the cache entries it wrote in 5.3. A process
+      killed between 5.3 and 5.4 leaves those entries; they are valid pictures of those
+      times and stay.
    5. After the commit, still under the lock, removes `frames/{id}/tiles/` and clears
       the similar-files cache.
 6. The storyboard leg of a CLIP task (`_index_clip_loft` → `_index_youtube_storyboard`)
    and the storyboard step of a fetch (SPEC-ADDON-121) check the gate right after taking
-   `storyboard_lock`, before any YouTube lookup; when it holds they make no lookup and
+   `storyboard_lock`, before the leg's failed-file gate and retry consumption and before
+   any YouTube lookup; when it holds they make no lookup and
    write no row and no tile, the thumbnail leg runs as today, and the leg ends with
    `clip_indexed` true. When the flag is true but the file has no scene candidate, they
    write the storyboard as before.
@@ -173,12 +186,15 @@ says `min_interval: 30` keeps 30 until the operator edits it. The docs say so.
    so it is wanted again and fetched as backfill (priority -10), as SPEC-ADDON-117
    fetches existing `.loft`s. Its scan and OCR flags are already true, so the fetch is
    candidates-only.
-10. A candidates-only fetch that ends in what SPEC-ADDON-117 counts as a failure (lookup,
-    no rendition, download, short duration, or the stage itself) does not change
-    `loft_fetch_failures`; it sets `loft_candidates_done` true and leaves the scene
-    candidates as they were. What SPEC-ADDON-117 does not count (an unavailable model,
-    the disk guard, a missing yt-dlp, an inactive file) leaves the flag false for a later
-    fetch.
+10. A candidates-only fetch takes part in the YouTube result accounting and backoff
+    (`_note_result`, SPEC-ADDON-119) like any fetch, but never changes
+    `loft_fetch_failures`. An outcome SPEC-ADDON-117 and SPEC-ADDON-119 would count
+    (a lookup or download failure directly after a YouTube success, no rendition, a short
+    duration, or the stage itself failing) sets `loft_candidates_done` true and leaves
+    the scene candidates as they were. Every outcome they would not count (a failure in a
+    refusal run, which returns the file to the backlog; a not-accessible `.loft`; the
+    drive's `index` feature off; an unavailable model; the disk guard; a missing yt-dlp;
+    an inactive file) leaves the flag false for a later fetch.
 11. The fetch's result carries whether the candidates stage committed. When it did, the
     loft worker calls the Visual Index `on_index` hook as it does after a scan; under
     SPEC-ADDON-111 I9 it enqueues a run only for a `.loft` with no run, so an existing
@@ -214,32 +230,32 @@ says `min_interval: 30` keeps 30 until the operator edits it. The docs say so.
 
 ### 3. States
 
-`.loft` scene candidates (the flag is `loft_candidates_done`):
+`.loft` scene candidates. A state is keyed by the source (`loft_source`), the flag
+(`loft_candidates_done`) and the rows:
 
-| State | Candidates | Flag | Wanted by a fetch |
-|---|---|---|---|
-| Unclassified | none, or storyboard | false | yes, to classify (SPEC-ADDON-117) |
-| None yet | no rows | false | yes |
-| Storyboard | storyboard tiles, plus moved change frames | false | yes |
-| From the video | scene changes + fill of the downloaded file | true | no |
-| Video rows after a regenerate | the video's rows, until the storyboard leg replaces them | false | yes |
-| Closed | storyboard tiles and moved change frames, or none | true | no |
-| Source `other` | none | true | no |
+| State | Source | Candidates | Flag | Wanted by a fetch |
+|---|---|---|---|---|
+| Unclassified | NULL | none, storyboard, or the video's rows left by a regenerate | false | yes, to classify (SPEC-ADDON-117) |
+| None yet | youtube | no rows | false | yes |
+| Storyboard | youtube | storyboard tiles, plus moved change frames | false | yes |
+| From the video | youtube | scene changes + fill of the downloaded file | true | no |
+| Closed | youtube | storyboard tiles and moved change frames, or none | true | no |
+| Source `other` | other | none | true | no |
 
 Allowed transitions:
 
-- none or video rows after a regenerate → storyboard: the storyboard leg or a fetch's
-  storyboard step.
-- none, storyboard, or video rows after a regenerate → from the video: a successful
-  candidates stage.
-- none or storyboard → closed: the cap of a fetch that also wants the scan or OCR, a
-  failed candidates-only fetch (step 10), or the migration for a `.loft` already at the
-  cap.
+- unclassified → none yet, storyboard, or source `other`: classification (and the
+  storyboard leg or step, which replaces leftover video rows with the storyboard).
+- none yet → storyboard: the storyboard leg or a fetch's storyboard step.
+- unclassified, none yet or storyboard → from the video: a successful candidates stage.
+- none yet or storyboard → closed: the cap of a fetch that also wants the scan or OCR, a
+  counted failure of a candidates-only fetch (step 10), or the column migration for a
+  `.loft` already at the cap.
 - closed with no rows → closed with storyboard rows: the storyboard leg or step.
-- from the video or closed → video rows after a regenerate, or none, with the flag
-  false: a CLIP regenerate, or the `vec_clip` dimension migration (none) for a `.loft`
-  under the cap.
-- unclassified → any YouTube state, or source `other`: classification.
+- any state, source `other` included → unclassified with the flag false: a CLIP
+  regenerate (it sets the source to NULL), at once or at the end of a running fetch.
+- from the video, storyboard or closed under the cap → none yet with the flag false:
+  the `vec_clip` dimension migration.
 
 Not allowed:
 
@@ -375,7 +391,10 @@ tile does today.
   and the Scenes tiles; the description of storyboard tiles as a YouTube reference's
   scene frames; the scan keeping a small picture of each change frame and its change
   frames joining the representative frames; what a `.loft` failing three times is left
-  without; `max_frames` capping the scan's change frames
+  without; `max_frames` capping the scan's change frames; the `scene-tile` paragraph and
+  "Reading a reference's whole video" (where a `.loft`'s `small` pictures come from);
+  the one-time upgrade effects: the start-up move and its log lines, and the refetch of
+  already-fetched YouTube references (one 720p download each, deleted after)
 - Rules passed through: `.claude/rules/design-decisions.md` (drive-scoped queries,
   missing files keep their data), `.claude/rules/backend-conventions.md` (additive
   migrations, `import app.config as config`)
@@ -384,13 +403,13 @@ tile does today.
 
 I1. For a native video with a known positive duration and no more than `M` times, the stored frame times include every scene frame time, the first is below 1 s, no two consecutive ones are more than `I` apart, and the last is no more than `I` before the duration, except where a frame's extraction or embedding failed.
 I2. A native video's scene candidates number at most `M`; when the scene and fill times numbered `count > M`, the stored times are a subset of the times at index `(i · count) // M` of the time-ordered list, missing only failed frames, so the video is covered to its last `count / M` times; at most `M` fill extractions run.
-I3. For every file, the selection pool (ids, times and order) and the candidate fingerprint are the same before the move, while it runs, and after it; after it no `clip_change` row and no `vec_clip_change` vector exists, and each moved vector is found by a KNN constrained to the `clip` partition; a file whose move failed keeps all its change frames and its scene candidates unchanged, and the other files are still moved.
+I3. For a file whose change frames are intact when the move reaches it, the selection pool (ids, times and order) and the candidate fingerprint read before its commit equal those read after it; after a move in which no file failed, no `clip_change` row and no `vec_clip_change` vector exists; each moved vector is found by a KNN constrained to the `clip` partition; a file whose move failed keeps all its change frames and its scene candidates unchanged, and the other files are still moved.
 I4. The similar-files cache is cleared at the end of a move that moved at least one file and after each candidates stage commit, and is not cleared by a move that moved nothing.
-I5. A YouTube `.loft` whose candidates stage succeeded has scene candidates equal to what SPEC-ADDON-144 gives for its downloaded file and the duration of step 5.1, `loft_candidates_done` and `clip_indexed` true, a `small` cache entry at each candidate's time (except those it could not write), and no `frames/{id}/tiles/` directory unless the removal failed.
-I6. A candidates stage that fails, or finds the file no longer active, leaves the `.loft`'s scene candidates and its tile files as they were and leaves no frame cache entry it wrote; in a fetch that also wants the scan or OCR a failure is counted, an inactive file never is.
-I7. While the gate holds, the storyboard leg and a fetch's storyboard step make no YouTube lookup (SPEC-ADDON-078 I7 as revised); a CLIP regenerate, applied at once or at the end of a running fetch, sets `loft_candidates_done` false, after which the storyboard leg writes the storyboard as before and a fetch rebuilds the candidates from the video.
-I8. A YouTube or unclassified `.loft` with `loft_candidates_done` false and fewer than 3 counted failures is wanted by a fetch; one with its scan and OCR done downloads once and runs only the candidates stage; a native video or a `.loft` of source `other` is never selected by the sweep for this flag, and classification as `other` sets the flag true.
-I9. A candidates-only fetch never changes `loft_fetch_failures`; when it ends in a failure SPEC-ADDON-117 would count, it sets `loft_candidates_done` true and leaves the scene candidates as they were; when it ends in one SPEC-ADDON-117 would not count, it leaves the flag false.
+I5. A YouTube `.loft` whose candidates stage succeeded has scene candidates equal to what SPEC-ADDON-144 gives for its downloaded file and the duration of step 5.1, no change frame, `loft_candidates_done` and `clip_indexed` true, and no `frames/{id}/tiles/` directory unless the removal failed; its cache entries follow SPEC-ADDON-117 I11 as revised.
+I6. A candidates stage that returns with a failure, or finds the file no longer active, leaves the `.loft`'s scene candidates, change frames and tile files as they were; in a fetch that also wants the scan or OCR a failure is counted, an inactive file never is.
+I7. A CLIP regenerate, applied at once or at the end of a running fetch, sets `loft_candidates_done` false, after which the storyboard leg writes the storyboard as before and a fetch rebuilds the candidates from the video.
+I8. A YouTube or unclassified `.loft` with `loft_candidates_done` false and fewer than 3 counted failures is wanted by a fetch, and `prioritize` on it queues a fetch at priority 100 even when its frame text is read but not indexed; one with its scan and OCR done downloads once and runs only the candidates stage; a native video or a `.loft` of source `other` is never selected by the sweep for this flag, and classification as `other` sets the flag true.
+I9. A candidates-only fetch whose outcome SPEC-ADDON-117 and SPEC-ADDON-119 would count sets `loft_candidates_done` true and leaves the scene candidates as they were; one whose outcome they would not count, a refusal run included, leaves the flag false; the failure count follows SPEC-ADDON-117 I6 as revised.
 I10. The third counted failure of a fetch that also wants the scan or OCR sets `loft_candidates_done` true and leaves the scene candidates as they were; the migration that adds the column sets it true for every `.loft` of source `other` or at the cap, and false for every other row.
 I11. The `vec_clip` dimension migration leaves every YouTube `.loft` under the cap with `loft_candidates_done` false and every capped `.loft` with it true.
 I12. After a candidates stage commits, the loft worker calls the Visual Index `on_index` hook for that `.loft`, which enqueues a run only when the `.loft` has no run.
@@ -402,6 +421,7 @@ SPEC-ADDON-111 I1. Scene search, tag kNN, scene segments, similar files, concept
 SPEC-ADDON-111 I7. A frame scan writes its scan row and its flag in one transaction, removing the file's change frames and their vectors in it, or writes nothing; it writes nothing and leaves the flag false when the file is unreachable at the start or before the write, the drive's `index` feature is off or the write fails, and writes nothing when the file is no longer active; it keeps what it read after a stall or an early exit of a reachable file; it embeds no frame, writes no change frame and no frame cache entry, and runs and sets its flag when the CLIP model cannot be loaded.
 SPEC-ADDON-111 I8. Only native videos and YouTube `.loft`s are ever scanned, and every active one with the flag false is queued (a YouTube or unclassified `.loft` as its SPEC-ADDON-117 fetch), new videos and regenerates ahead of the backfill; purging a file and the orphan cleanup remove its scan row, its change frames and their vectors; a `vec_clip_change` dimension mismatch recreates the table and changes no file's flag; a CLIP regenerate of either queues one scan (a fetch for a `.loft`) and sets its flag false, unless one is running, when it is recorded and applied as SPEC-ADDON-117 step 8 says.
 SPEC-ADDON-117 I6. The failure count changes only by a counted failure (+1), a fetch whose stages all set their flags (to 0), or a reindex or CLIP regenerate (to 0), and never by a candidates-only fetch (SPEC-ADDON-146); at 3 the wanted stages are closed with no scan row and no text; a not-accessible `.loft`, an unavailable model or engine, the disk guard, a missing yt-dlp, and a lookup or download failure not directly preceded by a YouTube success are never counted; a download whose probed duration is below 95% of a known lookup duration is counted.
+SPEC-ADDON-117 I3. No download starts while another fetch runs, while the queue is paused, at priority -10 while a native `frame_scan` or `frame_ocr` task that is not a re-read of an outdated read (SPEC-ADDON-133) is queued or processing, while the drive's `index` feature is off, when no stage is wanted, when the model or engine a wanted stage needs is unavailable (the CLIP model for the candidates stage, not the scan), or when the disk guard fails; a fetch that ends before its stages ran changes nothing but the duration (from NULL after a lookup), the loft source, the failure count, the flags closed for source `other`, the wanted stages closed at the cap, `loft_candidates_done` set by a counted failure of a candidates-only fetch (SPEC-ADDON-146), and the candidates, tile files and `clip_indexed` its storyboard step wrote (SPEC-ADDON-121).
 SPEC-ADDON-117 I11. The scan of a `.loft` writes no frame cache entry; the candidates stage (SPEC-ADDON-146) writes a `small` frame cache entry at each new scene candidate's time before its row commit, keeping an entry already there and skipping one it cannot write, and removes the entries it wrote when the commit does not happen; a native video's scan and CLIP leg write none.
 SPEC-ADDON-078 I7. The storyboard leg checks, right after taking `storyboard_lock` and before any lookup, whether the `.loft`'s `loft_candidates_done` is true and it has a scene candidate; if so it makes no lookup and writes no row and no tile. Otherwise it replaces a YouTube `.loft`'s `clip` rows in one transaction after every kept tile has been embedded, times tile `k` (numbered across sheets) as `k` times the interval recovered from `count = round(fps * duration)` (the smallest whole second `i` with `ceil(duration / i) + 1 == count`, else `duration / (count - 1)`), never `k / fps` nor a sheet's duration, keeps the first tile and then a tile only when `k < count`, its timestamp is below the known duration, and it is at least `duration / max_frames` after the last kept tile, does not thin tiles by `min_interval`, writes no `clip_thumbnail` row and no row for another file, and runs whatever the thumbnail leg did.
 SPEC-ADDON-078 I8. After the `clip` task of a `.loft`, `clip_indexed` is true exactly when the thumbnail leg is done and the storyboard leg found the gate of SPEC-ADDON-146 holding, wrote rows, found no `sb0` or no known duration, or found the `.loft` not YouTube; on a transient failure it is false, the existing `clip` rows are as they were, and the same file is not attempted again in that process; a repeat run never leaves two sets of rows or a second `clip_thumbnail` row.
@@ -422,6 +442,15 @@ SPEC-ADDON-121 I4. The storyboard leg run by indexing and by a CLIP regenerate b
 - **Dropping `vec_clip_change`.** A migration only adds (backend conventions); the table
   stays empty so an older build still opens the database. An older build then sees no
   change frames, and its pool is the scene candidates.
+- **A read that straddles a file's move commit.** `load_selection_inputs` reads rows and
+  vectors in separate connections, so one read across the commit can miss that file's
+  moved frames for that read only. The window is one file's transaction; a Visual Index
+  run built in it shows as stale and a regenerate fixes it.
+- **A scan that runs before the move reaches its file.** The scan deletes the file's
+  change frames, so their frames never move; this happens on a regenerate or a scan
+  still pending at upgrade, and the regenerate rebuilds the candidates anyway.
+- **Reclaiming the space of deleted `vec_clip_change` rows.** sqlite-vec keeps it until a
+  VACUUM, which is not run here; `vec_clip` grows by about 0.9 GB on production.
 - **The race between the move and a native CLIP regenerate of the same file.** A
   regenerate deletes the scene candidates before its batches; a move of that file in
   between keeps change frames as candidates next to the new ones. The move runs once,
