@@ -264,5 +264,5 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-CORE-126 | implemented | docs/specs/workbench-split.md | sha256:5e4a96c6cf2598ae8a2d8ed22d6364a51d219e3326173c9fece6adae2590bdc1 |
 | SPEC-CORE-127 | implemented | docs/specs/workbench-split.md | sha256:5e4a96c6cf2598ae8a2d8ed22d6364a51d219e3326173c9fece6adae2590bdc1 |
 | SPEC-ADDON-122 | implemented | docs/specs/pdf-vertical-text.md | sha256:f7de193bc675151d40788b14f9ed89279334dfb437ccfd3aa6abc45971d1279c |
-| SPEC-CORE-128 | approved | docs/specs/focus-mode.md | sha256:f0acbb73f68d5af93860666e9ddaedc9330d1b16a847745bbd9f83af185f0800 |
-| SPEC-CORE-129 | approved | docs/specs/focus-mode.md | sha256:f0acbb73f68d5af93860666e9ddaedc9330d1b16a847745bbd9f83af185f0800 |
+| SPEC-CORE-128 | implemented | docs/specs/focus-mode.md | sha256:f0acbb73f68d5af93860666e9ddaedc9330d1b16a847745bbd9f83af185f0800 |
+| SPEC-CORE-129 | implemented | docs/specs/focus-mode.md | sha256:f0acbb73f68d5af93860666e9ddaedc9330d1b16a847745bbd9f83af185f0800 |
