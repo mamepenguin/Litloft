@@ -4,7 +4,7 @@ The `knowledge` addon adds Markdown notes to Litloft: an editor, version history
 
 ## What it provides
 
-- **Notes** in the sidebar lists and searches the drive's Markdown and text files. See [Notes](../user-guide/notes.md).
+- **Notes** in the sidebar has a Home and a Library for the drive's Markdown and text files, with the chosen note shown and editable beside the list. See [Notes](../user-guide/notes.md).
 - **Clips** in the sidebar, right after Notes, gathers the web pages you clipped, apart from the notes you wrote.
 - A Markdown editor with live preview, autosave, `[[wiki links]]`, and image upload by drag and drop or paste.
 - A version history where you browse and restore earlier versions of a note.
@@ -152,17 +152,17 @@ Saving adds the items to a note under a `## Captures` heading. Each item has a l
 
 **Clips** is at `/drive/{drive}/addons/knowledge/clips`, below Notes in the sidebar. It lists only files whose frontmatter has `origin: webclip`, so a clip stays a clip when you move it or write in it, and it becomes a note again when you delete that line.
 
-- **Clip a web page**, at the top right, opens the same URL and pasted-HTML form as on Notes: destination folder, duplicate check and bookmarklet. A clip made there appears on the page without a reload.
+- **Clip a web page**, at the top right, opens a form for a URL or pasted HTML: destination folder, duplicate check and bookmarklet. A clip made there appears on the page without a reload.
 - **Home** draws up to 12 rows in each shelf: **Unread** (no history row for you), **Recently opened** (latest opening first) and **Unverified** (still waiting for **Trust as a source**). Without a [profile](../user-guide/profile-preferences.md), **Unread** becomes **New clips** and **Recently opened** is not drawn; **Unverified** stays.
 - **All** lists every clip newest first, grouped by the date it was clipped, 60 per page with **Load more**.
 - A row shows the title, the opening text, the folder and the clip date; opening it goes to the file page and counts as opening it.
 - A drive with no clips shows one empty state, and the page keeps its header and its **Clip a web page** action.
 
-The bookmarklet on the Clips page opens `/drive/{drive}/addons/knowledge/clips?prefill=…&title=…&autosubmit=1`, so a bookmarklet clip is made and shown on Clips. A bookmarklet installed earlier still opens Notes, which keeps handling the same parameters.
+The bookmarklet on the Clips page opens `/drive/{drive}/addons/knowledge/clips?prefill=…&title=…&autosubmit=1`, so a bookmarklet clip is made and shown on Clips. A bookmarklet installed earlier still opens Notes, which passes the same parameters on to Clips.
 
 ## Web clipping
 
-Clip a web page from **Clip a web page** on the Clips page, from **Web clip** at the bottom of the Notes page, from **Clip web page** in the **Add** menu, or with the bookmarklet offered on either page.
+Clip a web page from **Clip a web page** on the Clips page, from **Clip web page** in the **Add** menu, or with the bookmarklet offered on the Clips page.
 
 Litloft creates the note at once and fetches the page in the background. It keeps the article, removes scripts and page furniture, converts it to Markdown, and renames the note after the article's title. If you edit the note before the fetch finishes, your edit is kept and the fetched text is discarded.
 
@@ -196,11 +196,11 @@ To keep a clip URL from reaching inside your network, Litloft refuses:
 
 **Create note** in any file's `...` menu creates a note whose frontmatter already cites that file, and opens it.
 
-A file's summary note is the **Note** panel under the player on a video, audio or `.loft` file, and a **Summary note** section on other files. Both show the note chosen as the summary of that file, with **Edit in Knowledge**. With the [intelligence addon](intelligence.md), **Save as file** on an AI detailed summary saves it as a note and makes it that file's summary note.
+A file's summary note is the **Note** panel under the player on a video, audio or `.loft` file, the last block of **Info** before the comments on a file without a player (in the sheet's **Info** on a phone), and a **Summary note** section under the text on a Markdown note or a plain-text document. Every form shows the note chosen as the summary of that file, with **Edit in Knowledge**. With the [intelligence addon](intelligence.md), **Save as file** on an AI detailed summary saves it as a note and makes it that file's summary note.
 
 ## Connections graph
 
-The graph shows the drive's notes and files as points and their connections as lines. It is at `/drive/{drive}/addons/knowledge/connections`. Open it from **Note & file connections** on the Notes page, or from **See connections as a graph** in the **Related** tab of a Markdown or text file.
+The graph shows the drive's notes and files as points and their connections as lines. It is at `/drive/{drive}/addons/knowledge/connections`. Open it from **See this note in the graph** under a note in the Notes Library, or from **See connections as a graph** in the **Related** tab of a Markdown or text file.
 
 - A line is a [file relation](../user-guide/tags-and-relations.md#file-relations), or a note citing a file in `source_file_ids`.
 - Colour points by file type, tag or folder, or use one colour.
@@ -251,11 +251,34 @@ The addon's routes are reached through the backend at `/api/addons/knowledge/...
 | `POST /distill` | Save a summary as a note and make it the file's summary note. *profile* |
 | `GET /notes/by_source_file/<id>` | Notes that cite a file. |
 | `POST /note-openings` | The first lines of the given notes, for lists. |
+| `GET /notes/with-sources` | Ids of the drive's notes that cite at least one source file. |
+| `POST /notes/sources` | The source files of the given notes, in citation order. |
 | `GET /search?q=` | Search the text of the drive's notes. |
 | `GET /connections-graph` | The drive's connections graph. |
 | `POST /resync-tags/<file_id>` | Copy a note's frontmatter tags into Litloft's tag list. |
 | `POST /file_active_summary`, `GET` / `DELETE /file_active_summary/<file_id>` | A file's summary note. |
 | `GET /file_active_summary/<file_id>/note` | The summary note to show on a file page. |
+
+### Notes that cite sources
+
+Both routes need `X-Lit-Drive` and no profile, and answer only for notes the addon has indexed in that drive.
+
+`GET /notes/with-sources` answers `{ "ids": ["<note id>", ...] }`, sorted, for every indexed note of the drive that cites at least one source file in `source_file_ids`.
+
+`POST /notes/sources` takes `{ "file_ids": ["<note id>", ...] }`, 1 to 60 ids (anything else is `422`; repeated ids are read once), and answers:
+
+```json
+{ "notes": { "<note id>": [
+  { "source_file_id": "...", "title": "...", "filename": "...", "folder_path": "...",
+    "mime_type": "...", "has_thumbnail": true, "locator": { "t": 83 } }
+] } }
+```
+
+- A note that is not indexed in the drive is absent from `notes`; a note with no resolvable source has an empty list.
+- Sources are in the order of `source_file_ids`. A source that does not exist, or is in another drive, is left out.
+- `locator` is the position of the note's first `loft://<source id>?t=<seconds>` or `?page=<n>` link to that source in the body, as `{ "t": seconds }` or `{ "page": n }`, and `null` when the body has none.
+- The note texts are read through the backend. When a note cannot be read, its sources come from the index, in id order, and its locators are `null`.
+- `503` means the addon's index (`Knowledge index unavailable`) or the backend's file lookup (`File lookup unavailable`) could not be reached.
 
 Version history is part of Litloft itself: `GET /api/files/<id>/versions?limit=&offset=`, `GET /api/files/<id>/versions/<version_id>`, and `GET /api/files/<id>/versions/<version_id>/diff`.
 

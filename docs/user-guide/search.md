@@ -23,7 +23,7 @@ With the intelligence addon, the footer says **Also searching by meaning…** wh
 With the Knowledge addon installed, opening the modal from a note's page narrows it to notes. A **Notes** chip appears before the query. Then:
 
 - Only notes are listed, and only by name.
-- `Enter` with no row chosen opens the full list of notes matching your query, **All notes**. The same list is linked at the bottom right of the modal.
+- `Enter` with no row chosen opens the [Notes Library](notes.md#library) with your query in its search field. The same link is at the bottom right of the modal. The Library's search, like this one, matches titles and folder names.
 - To search the whole drive instead, press the chip's `×`, or `Backspace` in an empty field. What you typed stays.
 
 ## The search page

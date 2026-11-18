@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1",
+      "status": "confirmed",
+      "note": "addons/knowledge/frontend/VersionHistoryPanel.tsx:248 is `<div className=\"@container border-t border-bg-border p-4\">` and :267 is `grid gap-4 @xl:grid-cols-[minmax(14rem,20rem)_minmax(0,1fr)]`, with no `frameless` condition. Only the section rule at :234 depends on `frameless`. The develop checkout (/Users/libre/Sources/video_share, HEAD ref develop) has `lg:grid-cols-[minmax(14rem,20rem)_minmax(0,1fr)]` at VersionHistoryPanel.tsx:264. Editor.tsx:1556-1564 renders VersionHistoryPanel for every host whenever `!plainBlock`, so the file page is affected. The touch points do not name VersionHistoryPanel.tsx."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F2",
+      "status": "confirmed",
+      "note": "`frameless` appears at Editor.tsx:131,207,1453,1493 (`[&_.cm-content]:!pl-0`) and 1562; EditorToolbar.tsx:236,246,283 (the border-b and px-3 apply only when not frameless); KnowledgeEditSection.tsx:46,54,104; VersionHistoryPanel.tsx:37,76,234. Its only production caller is library/pane/NotePaneContainer.tsx:255. In the develop checkout no Knowledge .tsx file contains `frameless`, and EditorToolbar.tsx:279 there has a fixed `border-b ... px-3`. Spec §7 says Editor.tsx gains `saveHandle` \"and nothing else\", and the touch points do not list EditorToolbar.tsx."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F3",
+      "status": "confirmed",
+      "note": "frontend/e2e-components/build-bundle.ts:25-37 defines the plugin `addon-packages-from-frontend`. For importers under /addons/knowledge/ it resolves `gray-matter` and `@codemirror/*` from frontend/package.json. frontend/e2e-components/projects.ts:44 adds `**/notes-library-desktop.spec.ts`. Neither string appears in the develop checkout's frontend/e2e-components, and neither file is in the touch points."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F4",
+      "status": "confirmed",
+      "note": "addons/knowledge/frontend/__tests__/popup-dismissal.test.ts:53 has `FILE_COUNT = 90`; develop has 66. In VersionHistoryPanel.test.tsx:327-335 the first preview assertion is now a `waitFor` with the comment \"The preview is drawn empty until the version's body arrives\". On develop (:327-329) it was `findByTestId` followed by direct expects. The declared list of rewritten tests names neither file. The waitFor change hints that the preview may now render before the body arrives. I did not trace whether that comes from a VersionHistoryPanel code change."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F5",
+      "status": "confirmed",
+      "note": "addons/knowledge/frontend/api.ts does not mention `with-sources`, `notes/sources` or `folder-counts`. The clients are in notesapp/sourcesApi.ts:19-35, which calls fetch for /notes/with-sources and /notes/sources, and in notesapp/listing.ts:99-109 (folder-counts and /query through its own fetch). The pydantic models NotesWithSourcesResponse, NotesSourcesRequest, NoteSource and NotesSourcesResponse are at app/routers/notes_sources.py:37-57, and app/schemas.py has none of them. The touch points place these in `api.ts` and `app/schemas.py`."
+    }
+  ],
+  "specification_compliance": [
+    "Touch points: F1–F5 confirm that the change edits files and adds module homes the touch points do not list (VersionHistoryPanel.tsx, EditorToolbar.tsx, e2e build-bundle.ts and projects.ts, two extra Knowledge tests, and the new notesapp/* and routers/notes_sources.py files in place of api.ts and schemas.py).",
+    "Spec §7 says Editor.tsx gains `saveHandle` and nothing else, but Editor.tsx also gains `frameless` (F2)."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "The file page's version history panel now switches to two columns by its own container width (@xl, 36rem), where before it followed the viewport (lg, 1024px). At some widths the file page's panel layout may differ from before."
+  ],
+  "regression_risks": [
+    "The VersionHistoryPanel grid change applies to the file page too, so its layout at viewport widths near 1024px may differ from develop.",
+    "The `frameless` prop flows into EditorToolbar and VersionHistoryPanel. Its default `false` should keep the file page's markup, but only the grid at VersionHistoryPanel.tsx:267 is unconditional."
+  ],
+  "test_coverage": [
+    "Tests that use `frameless`: EditorToolbar.border.test.tsx, Editor.saveHandle.acceptance.test.tsx:274 and notesLibrary.test.tsx:562. I found no test of the file-page width at which the version panel switches to two columns."
+  ],
+  "not_verified": [
+    "I could not run git diff. I compared against the develop checkout at /Users/libre/Sources/video_share and assumed its working tree matches origin/develop.",
+    "I ran no tests or builds.",
+    "I did not measure the file page's version panel layout in a browser.",
+    "I did not check whether VersionHistoryPanel's preview rendering changed in a way that explains the test's switch to waitFor."
+  ],
+  "confidence": 85
+}

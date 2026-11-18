@@ -24,7 +24,10 @@ import { TwoPaneLayout } from "@/components/folder/TwoPaneLayout";
 import enMessages from "@/messages-core/en.json";
 import jaMessages from "@/messages-core/ja.json";
 
-import { installFetch, installMedia } from "./inspectorResponsive";
+import intelligenceEn from "../../src/addons/intelligence/messages/en.json";
+import intelligenceJa from "../../src/addons/intelligence/messages/ja.json";
+
+import { deepMerge, installFetch, installMedia, type Messages } from "./inspectorResponsive";
 
 const DRIVE = "fixture";
 
@@ -36,6 +39,14 @@ export const FOCUS_PENDING_ID = "focuspend001";
 const FIXTURE_QUERY = new URLSearchParams(location.search);
 const ARRANGEMENT = FIXTURE_QUERY.get("arrangement") ?? location.hash.slice(1);
 const LOCALE = FIXTURE_QUERY.get("locale") === "ja" ? "ja" : "en";
+
+/** With `docside=1` the `document-side` entries take their labels from the add-on's messages. */
+function shellMessages(): typeof enMessages {
+  const core = LOCALE === "ja" ? jaMessages : enMessages;
+  if (FIXTURE_QUERY.get("docside") !== "1") return core;
+  const addon = LOCALE === "ja" ? intelligenceJa : intelligenceEn;
+  return deepMerge(core as unknown as Messages, addon as unknown as Messages) as unknown as typeof enMessages;
+}
 
 if (ARRANGEMENT.startsWith("focus-")) {
   window.__fixturePathname = FIXTURE_QUERY.get("path") ?? `/drive/${DRIVE}`;
@@ -112,7 +123,7 @@ function Dialogs(): ReactElement {
 
 function Shell({ children }: { children: ReactNode }): ReactElement {
   return (
-    <NextIntlClientProvider locale={LOCALE} messages={LOCALE === "ja" ? jaMessages : enMessages}>
+    <NextIntlClientProvider locale={LOCALE} messages={shellMessages()}>
       <ToastProvider>
         <ProfileProvider>
           <CurrentDriveProvider>

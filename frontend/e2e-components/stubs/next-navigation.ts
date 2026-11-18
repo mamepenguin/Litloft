@@ -16,6 +16,7 @@ declare global {
     __fixtureSearchParams?: URLSearchParams;
     __fixturePathname?: string;
     __fixtureNavigate?: (pathname: string, query?: string) => void;
+    __fixturePushes?: string[];
   }
 }
 
@@ -59,6 +60,11 @@ export function useParams(): Record<string, string> {
   return {};
 }
 
+/** Pushes and replaces are recorded, never followed. */
 export function useRouter() {
-  return { push: () => {}, replace: () => {}, back: () => {}, refresh: () => {}, prefetch: () => {} };
+  const record = (href: string) => {
+    if (typeof window === "undefined") return;
+    (window.__fixturePushes ??= []).push(href);
+  };
+  return { push: record, replace: record, back: () => {}, refresh: () => {}, prefetch: () => {} };
 }

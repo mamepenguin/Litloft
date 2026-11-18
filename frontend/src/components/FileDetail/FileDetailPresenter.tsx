@@ -52,6 +52,7 @@ export interface FileDetailPresenterProps {
   addonSlotProps: Record<string, unknown>;
   mediaController: MediaController | null;
   onMediaController: (mc: MediaController | null) => void;
+  documentController: DocumentController | null;
   onDocumentCaptureController: (c: DocumentCaptureController | null) => void;
   onDocumentController: (c: DocumentController | null) => void;
   videoRef: RefObject<HTMLVideoElement | null>;
@@ -222,6 +223,7 @@ export function FileDetailPresenter({
   addonSlotProps,
   mediaController,
   onMediaController,
+  documentController,
   onDocumentCaptureController,
   onDocumentController,
   videoRef,
@@ -267,6 +269,7 @@ export function FileDetailPresenter({
         addonSlotProps={addonSlotProps}
         mediaController={mediaController}
         onMediaController={onMediaController}
+        documentController={documentController}
         onDocumentCaptureController={onDocumentCaptureController}
         onDocumentController={onDocumentController}
         videoRef={videoRef}

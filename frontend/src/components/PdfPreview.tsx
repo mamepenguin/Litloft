@@ -41,6 +41,7 @@ import {
   PdfFullscreenViewer,
   type DocumentSlotProps,
 } from "@/components/pdf/PdfFullscreenViewer";
+import { useFillHeight } from "@/hooks/useFillHeight";
 import { useFocusScope } from "@/hooks/useFocusScope";
 import { useFindMarksIn } from "@/hooks/useFindMarksIn";
 import { useShortcuts } from "@/hooks/useShortcuts";
@@ -102,6 +103,7 @@ export function PdfPreview({
   onPdfController,
   onDocumentController,
   documentSlotProps,
+  fillCanvas = false,
 }: {
   fileId: string;
   title: string;
@@ -113,9 +115,12 @@ export function PdfPreview({
   ) => void;
   onPdfController?: (controller: PdfController | null) => void;
   onDocumentController?: (controller: DocumentController | null) => void;
+  /** Take the canvas's height; otherwise the page area keeps its 80vh. */
+  fillCanvas?: boolean;
 }) {
   const t = useTranslations("file");
   const rootRef = useRef<HTMLDivElement>(null);
+  const fillHeight = useFillHeight(rootRef);
   const store = useMemo(() => new DocumentCaptureStore(), []);
   const [numPages, setNumPages] = useState(0);
   const [page, setPage] = useState(() =>
@@ -550,9 +555,21 @@ export function PdfPreview({
       row.page === textLayerPageRef.current,
   );
 
+  // Zero until the first measurement: a frame painted at its content height
+  // would then shrink to the canvas's.
   return (
-    <div ref={rootRef} data-viewer-frame className="w-full overflow-hidden rounded-xl bg-bg-card">
-      <div className="sticky top-0 z-10 flex flex-wrap items-center justify-center gap-2 border-b border-bg-border bg-bg-card px-3 py-2">
+    <div
+      ref={rootRef}
+      data-viewer-frame
+      className={`@container w-full overflow-hidden rounded-xl bg-bg-card ${
+        fillCanvas ? "flex min-h-0 flex-col" : ""
+      }`}
+      style={fillCanvas ? { height: fillHeight ?? 0 } : undefined}
+    >
+      <div
+        data-testid="pdf-toolbar"
+        className="sticky top-0 z-10 flex flex-wrap items-center justify-center gap-2 border-b border-bg-border bg-bg-card px-3 py-2"
+      >
         <button
           type="button"
           onClick={() => movePage(-1)}
@@ -588,6 +605,10 @@ export function PdfPreview({
           icon={Maximize2}
           align="start"
           portalOnPhone
+          // Collapsed in place rather than `sr-only`: the value's line box
+          // is what makes this the bar's tallest control, so the bar keeps its
+          // height across the threshold. The name stays in the aria-label.
+          valueClassName="whitespace-nowrap @max-[38rem]:-ml-1.5 @max-[38rem]:w-0 @max-[38rem]:overflow-hidden"
         >
           {(close) => (
             <MenuRadioGroup
@@ -662,7 +683,9 @@ export function PdfPreview({
         // `both-edges`, not plain `stable`: in "whole page" no vertical
         // scrollbar is ever drawn, so a one-sided reservation stays empty
         // and the page sits off true centre.
-        className="flex h-[80vh] [justify-content:safe_center] overflow-auto [scrollbar-gutter:stable_both-edges] bg-bg-elevated p-4"
+        className={`flex ${
+          fillCanvas ? "min-h-0 flex-1" : "h-[80vh]"
+        } [justify-content:safe_center] overflow-auto [scrollbar-gutter:stable_both-edges] bg-bg-elevated p-4`}
       >
         <Document
           file={src}

@@ -48,3 +48,9 @@ export function useRegisterLowerInspector(impl: () => void) {
     return () => registry?.register(null);
   }, [registry, impl]);
 }
+
+/** Lowers the sheet, for a host that answers a jump in place. */
+export function useLowerInspector(): () => void {
+  const registry = useContext(LowerInspectorContext);
+  return useCallback(() => registry?.lower(), [registry]);
+}

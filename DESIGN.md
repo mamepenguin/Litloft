@@ -1307,6 +1307,7 @@ and the same Info tab. Only the canvas differs, and there are two:
 | Token | Value | Meaning |
 |---|---|---|
 | inspector width | `24rem` (384px) | Fixed. Where the row cannot hold it beside the canvas it covers the canvas at the same width rather than narrowing — at 320px Japanese wraps at 12–14 characters a line. A player file (video, audio, `.loft`) instead stacks it under the player, so the width becomes the row's. |
+| wide inspector width | `max(40% of the row, 32rem)` | While a `document-side` tab that declares `wide` is selected in the `beside` form. 40% of a 1280px row is 416px, about 24 characters a line at 16px; the 512px floor keeps about 30. Overlay, the stacked form and the phone keep `24rem`. No transition: the width is a fact of the selected tab. |
 | canvas padding | `2rem` (32px) | Around the canvas contents; part of the sum below because the player is inside it. |
 | beside threshold | player minimum + canvas padding + inspector width | Measured on the row that holds both — never on the canvas, whose width is what is being decided. |
 | stacked canvas | at most `60%` of the row's height | The canvas takes the find bar and the player, and scrolls inside itself; the inspector keeps the rest at full width. |
@@ -1409,6 +1410,14 @@ and a folder tree have already taken space the viewport does not know about.
 - **The host holds the height.** An occupant cannot tell which form it is in and
   must never bound itself.
 
+- **The pane widens for one tab, and only beside.** A `document-side` tab whose
+  entry declares `wide` takes `max(40% of the row, 32rem)`; selecting any other
+  tab returns the pane to `24rem` in the same frame, and the canvas narrows by
+  the same amount. Overlay, the stacked form and the phone keep `24rem`: the
+  pane there already covers or owns the width, and a jump in place would move a
+  page nobody can see. The width is an attribute on the pane and a stylesheet
+  rule, with no transition, so nothing inside the pane re-renders for it.
+
 ### The primary pointer decides whether anything scrolls sideways
 
 A mouse wheel scrolls one axis, so a sideways strip is a dead end there. The
@@ -1486,11 +1495,22 @@ portrait.
 - **Archive listings use these rows too**, with each picture's ratio read once it
   loads.
 
-### A floor under the canvas viewer
+### The viewer fills the canvas
 
-Archive and PDF viewers are at least **70% of the canvas height** (never less than
-320px), so a short archive does not draw a thin band over an empty canvas. A
-floor, not a ceiling. Not on a phone, where the canvas is the screen.
+On a file page, a PDF, an EPUB and an archive viewer take the canvas's content
+bottom: from under the find bar when it is open to above the preview actions
+when they are present, at every width and in focus mode, with no scrollbar in
+the canvas. The height is **measured**, never a `vh` or a container query: the
+rows around it and the resting phone sheet have no CSS length the viewer could
+subtract, and `container-type: size` would make the canvas the containing block
+for the archive's unportalled `position: fixed` overlay. A child added to or
+removed from the canvas — the find bar opening after the viewer mounted —
+re-measures.
+
+The collection route keeps the viewers' own heights: a PDF's page area at
+`80vh`, the EPUB's measured height (`60dvh` before it measures), the archive's
+natural height. Text previews, Office excerpts and images keep their own
+heights on the file page too; only the filled viewers stretch.
 
 ### A drive that cannot be opened
 

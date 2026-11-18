@@ -809,10 +809,10 @@ entries renders nothing.
 
 Every file-page slot (`file-detail-sections`, `file-detail-actions`,
 `file-actions-menu`, `file-relations`, `player-side`, `inspector-tabs`,
-`file-preview-actions`) receives `{ fileId, drive, filename, fileType, mimeType,
-videoRef, mediaController, subtitles, documentCaptureController,
-documentController, lowerInspector, trustTier, trustReviewedAt, onFileChange }`
-plus what its row lists.
+`document-side`, `file-preview-actions`) receives `{ fileId, drive, filename,
+fileType, mimeType, videoRef, mediaController, subtitles,
+documentCaptureController, documentController, lowerInspector, trustTier,
+trustReviewedAt, onFileChange }` plus what its row lists.
 
 | Slot ID | Location | Props / contract |
 |---------|----------|------------------|
@@ -820,10 +820,11 @@ plus what its row lists.
 | `smart-collection-actions` | Search results page (`/drive/{drive}/search`), inside the results bar's `…` menu, after the saved block, while the page is a saved Smart Collection's and its query and type equal the saved ones; in both Files and Passages | `{ drive, smartCollectionId, smartCollectionName, closeMenu }`. Draw each entry as an `ActionMenuItem` row and call `closeMenu` before navigating, so the menu closes before the page changes. With no entry nothing is drawn |
 | `search-results-top` | Search results page (`/drive/{drive}/search`), under the results bar and above the results. Not drawn for a query with operators, nor in Passages with a non-blank query | `{ query, drive, includeSceneClip, typeFilter, smartFolderId }`. `typeFilter` and `smartFolderId` are `null` when unset. Draw nothing when you have nothing to show: the host adds no wrapper |
 | `search-result-actions` | Next to a match excerpt in search results | `{ capture }` |
-| `file-detail-sections` | File detail inspector, **Info** tab | File props. On a file without a player, the entries `detailed-summary` and `knowledge-edit` are placed outside the tab by the core (the canvas, the sheet, or the end of Info in the stacked inspector). On a player file, an entry whose id is also a `player-side` entry is drawn only as that panel; on a file without a player it is drawn here. Not for derived relations (`file-relations`) |
+| `file-detail-sections` | File detail inspector, **Info** tab | File props. On a file without a player, an entry whose id is also a `document-side` entry is drawn only as that slot's inspector tab. On a player file, an entry whose id is also a `player-side` entry is drawn only as that panel. On a Markdown document layout (a note with the editor, a plain-text document, HTML) the core still places `detailed-summary` and `knowledge-edit` itself. Not for derived relations (`file-relations`) |
 | `file-relations` | Inspector **Related** tab, after the core's own relation lists | File props. See [below](#contributing-to-the-related-tab) |
 | `player-side` | Under a media player, as a panel: a row of toggles on the wide forms, one above the other below `41rem`; a tab in the stacked inspector and on the phone. Placement belongs to the core | File props plus `fillHeight`, `labelledByHost`, `onAvailability`, `active`. See [Occupying the player-side slot](#occupying-the-player-side-slot) |
 | `inspector-tabs` | File detail inspector, as a tab after the core tabs and after any panel tabs, on every file page with an inspector (including the HTML preview; not the collection surface) | File props plus `fillHeight`, `labelledByHost`, `onAvailability`, and a required `i18n_key`. See [Occupying the inspector-tabs slot](#occupying-the-inspector-tabs-slot) |
+| `document-side` | File detail inspector, as a tab after the core tabs and before **Related**, on the file page of a file without a player (a PDF, an EPUB, an archive, an image, a text preview, an Office excerpt, a Markdown file shown without the editor, the no-preview card). Not on a player file, a Markdown document layout or the collection surface | File props plus `fillHeight`, `labelledByHost`, `onAvailability`, `active`, `select`, `openInViewer`, a required `i18n_key`, and an optional `wide` on the entry. See [Occupying the document-side slot](#occupying-the-document-side-slot) |
 | `file-preview-actions` | Under the media player, right-aligned. On the wide forms of a player file it moves to the trailing end of the panel-toggle row, which spans the canvas width; in the stacked inspector and on the phone it stays in the player box | File props. Inline buttons |
 | `loft-metadata` | File detail inspector, **Info** tab, under the title, `.loft` (external URL) files only. On the collection playback surface, which has no inspector, under the player | `{ fileId, drive }` |
 | `file-detail-actions` | The file page's action row, before the `[...]` menu | File props. See [Contributing to the file action row](#contributing-to-the-file-action-row) |
@@ -938,6 +939,38 @@ narrow form, after the panels' tabs.
 - Availability, tab ids and DOM ids are keyed by slot and entry id. An entry
   may share an id with a `player-side` entry or a core tab without taking its
   button or panel.
+
+### Occupying the `document-side` slot
+
+One entry is one inspector tab on the **file page of a file without a
+player**: a PDF, an EPUB, an archive, an image, a text preview, an Office
+excerpt, a Markdown file shown without the editor, and the no-preview card.
+Player files, the Markdown document layout and the collection surface draw no
+`document-side` entry. The tab is drawn after the core tabs (Find, Pages) and
+before **Related**; several entries sort by `priority`.
+
+The manifest entry is `{ "id", "component", "i18n_key", "priority"?, "wide"? }`.
+`i18n_key` is required, for the same reason as `inspector-tabs`.
+
+Besides the file props it receives:
+
+| Prop | Meaning |
+|---|---|
+| `fillHeight: boolean` | Fill the bounded height you are given as a flex column and scroll inside yourself, as for [`player-side`](#occupying-the-player-side-slot). |
+| `labelledByHost: boolean` | The tab already shows your name; drop your own title when `true`. |
+| `onAvailability: (available: boolean) => void` | Report whether you have anything for this file. Silence means unavailable, as for `inspector-tabs`: only `true` gives you a button. |
+| `active: boolean` | `true` only while your tab is the selected one. Turn window-level keys off when it is `false`. |
+| `select(): void` | Selects your tab. An unlisted entry's call does nothing, so report `true` first — reporting and selecting in the same handler works. On a phone it also raises the sheet to its half snap. |
+| `openInViewer({ fileId, page?, section? }): boolean` | Ask the open viewer to move before you navigate. It answers `true` and moves the viewer in place when `fileId` is the open file and that viewer has a controller (a PDF lands on the page, an EPUB at the section); on a phone it also lowers the sheet. It answers `false` for another file, on a kind with no controller, and on the collection surface, which does not pass it — then navigate as before. |
+
+- **`wide: true` on the entry** widens the inspector while your tab is
+  selected in the `beside` form: `max(40% of the row, 512px)`. It is read on
+  this slot only and ignored on every other.
+- Availability, tab and DOM ids are keyed by slot: `document-side:<id>`. An
+  id may equal a core tab id or another slot's entry without taking its
+  button.
+- An id registered here is not drawn from `file-detail-sections` on such a
+  file; keep it out of that slot rather than letting it appear twice.
 
 ### Moving the open viewer and lowering the sheet
 
@@ -1430,6 +1463,8 @@ const targetProps: TargetMenuProps = {
 target's count in the menu leaves out files of that `origin`; when absent, every
 origin is counted. Pass the same origin the page's own listing excludes, so the
 menu and the page agree.
+`TargetMenuProps.defaultTargetOrigin` is its counterpart: when set, the count
+covers only files of that `origin`; it may be combined with the exclude prop.
 
 ### The app key and its storage keys
 
@@ -1754,6 +1789,7 @@ Adding a slot, a prop, a field or an endpoint is not breaking and gets no row.
 
 | Date | What changed | What an addon does instead |
 |---|---|---|
+| 2026-11-18 | A new `document-side` slot; on the file page of a file without a player, an id that is a `document-side` entry is drawn only as that slot's tab and no longer from `file-detail-sections`, and the canvas no longer draws `detailed-summary` or the summary note for such a file | Register a document tab in `document-side` with an `i18n_key` and report its availability; do not expect `file-detail-sections` to draw it on those files |
 | 2026-11-12 | `player-side` entries are panels under the player on the wide forms, not tabs beside it; the core chooses the placement, passes `active`, and no longer mounts an entry whose id collides with a core panel or tab id | Treat one entry as one panel, read `active` where it changes what you do, and rename any id that collides with `active-summary`, `chapters`, `info`, `find`, `pages` or `related` |
 | 2026-11-12 | On the wide forms of a player file, `file-preview-actions` entries move from the player box to the trailing end of the panel-toggle row under the player | Draw inline buttons as before; do not position them relative to the player box |
 | 2026-11-12 | `loft-metadata` entries move from beside the player into the inspector's **Info** tab, under the title, on the canonical file page; they stay under the player on the collection playback surface, which has no inspector | Draw the same panel as before; the host decides where it sits |
@@ -1783,6 +1819,8 @@ Slot entries each addon declares, for reference when designing your own.
 | `intelligence` | `file-detail-sections` | `unverified-source`, `suggested-tags`, `suggested-chapters`, `summary`, `detailed-summary`, `visual-description` |
 | `intelligence` | `file-relations` | `similar-files` |
 | `intelligence` | `player-side` | `transcript`, `scenes`, `detailed-summary` |
+| `intelligence` | `document-side` | `detailed-summary` |
+| `intelligence` | `inspector-tabs` | `ask` |
 | `intelligence` | `file-detail-actions` | `file-ai-actions` |
 | `intelligence` | `file-actions-menu` | `index-details` |
 | `intelligence` | `folder-bulk-actions-menu` | `folder-ai-actions` |

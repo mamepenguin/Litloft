@@ -1290,6 +1290,21 @@ pre mark.ask-citation-highlight {
   border-block-start: 1px solid var(--color-bg-border);
 }
 
+/* ------------------------------------------------------------------
+   The wide pane.
+
+   A `document-side` tab that declares `wide` takes the row's 40%, floored
+   at 512px so the summary reads at about 30 characters a line. CSS on the
+   pane and driven by an attribute, so nothing in it re-renders for the
+   width. Beside only: overlay covers a narrow canvas already, and the
+   stacked and phone forms give the pane the whole width. No transition —
+   the width is a fact of the selected tab, not a motion.
+   ------------------------------------------------------------------ */
+[data-inspector-fit="beside"]
+  .inspector-pane[data-inspector-wide="true"] {
+  width: max(var(--inspector-wide-share, 40%), var(--inspector-wide-min, 32rem));
+}
+
 /* A framed player is capped at half the row, less the find bar, the action
    row and the canvas padding that share the canvas with it: together they
    fit the 60% without scrolling, so the controls are always on screen.
@@ -1652,23 +1667,6 @@ div:has(> .fixed[data-fullscreen-moving])::before {
   .justified-grid-name {
     transition: none;
   }
-}
-
-/* A floor under the canvas viewer. `--canvas-h` is measured rather than
-   `70cqh`: `container-type: size` implies `contain: layout`, which would
-   make the canvas the containing block for its unportalled
-   `position: fixed` descendants. */
-main[data-canvas-floor="true"] .media-detail-player {
-  min-height: max(320px, calc(var(--canvas-h, 0px) * 0.7));
-  /* The `min-height` alone reserves the height on this wrapper and
-     stops there: a block box does not stretch its in-flow children. */
-  display: flex;
-  flex-direction: column;
-}
-
-main[data-canvas-floor="true"] .media-detail-player > :first-child {
-  flex: 1 1 auto;
-  min-height: 0;
 }
 
 /* Related files: two tiles per row only where each is at least as wide

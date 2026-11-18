@@ -1,0 +1,424 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "F1",
+      "origin": "reviewer",
+      "claim": "The change threads a new `documentController` prop through FileDetailContainer and FileDetailPresenter into ShellLayout. The touch-point list names neither file.",
+      "impact": "No user-visible defect. Two unlisted core components now carry the document controller, so the plan understates what the change reaches.",
+      "evidence": "frontend/src/components/FileDetail/FileDetailContainer.tsx:346 passes `documentController={documentController}`. frontend/src/components/FileDetail/FileDetailPresenter.tsx:55,226,272 adds the prop and forwards it. ShellLayout.tsx:380-396 reads it in `openInViewer`.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "An unplanned touch point. It breaks no invariant.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add both files to the touch-point list, as the route by which `openInViewer` reaches `goTo`."
+    },
+    {
+      "id": "F2",
+      "origin": "reviewer",
+      "claim": "frontend/src/components/FileDetail/lowerInspector.tsx gains a new exported hook, `useLowerInspector`. The touch-point list does not name this file.",
+      "impact": "No user-visible defect. The lowering registry gets a second consumer, which the plan does not mention.",
+      "evidence": "lowerInspector.tsx:52-56 adds `useLowerInspector`. ShellLayout.tsx:379,392 calls it from `openInViewer` on a phone.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "An unplanned touch point.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "List lowerInspector.tsx under the I8 phone-lowering touch point."
+    },
+    {
+      "id": "F3",
+      "origin": "reviewer",
+      "claim": "FileDetailShell gains a `raiseSheetRequest` prop and an effect that moves the phone sheet to half. The touch-point list names FileDetailShell only for removing `data-canvas-floor` and adding `data-inspector-wide`.",
+      "impact": "The sheet's snap state machine has a new writer. A regression in sheet raising would be outside what the plan says was touched.",
+      "evidence": "frontend/src/components/FileDetailShell.tsx:73-82 adds the props. Lines 457-470 add the effect `setSheetState(prev => isSheetExpanded(prev) ? prev : SHEET_STATE_HALF)`. ShellLayout.tsx:402,431-433,686 feed it.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "An unplanned touch point in the sheet behaviour (I11's phone half).",
+        "invariant_ref": null
+      },
+      "severity": "MEDIUM",
+      "proposed_fix": "Add the sheet-raise request to the FileDetailShell touch point."
+    },
+    {
+      "id": "F4",
+      "origin": "reviewer",
+      "claim": "ShellLayout now routes find's tab requests through a new `tabRequest` state, and makes the desktop InspectorShell controlled (`activeId`/`onActiveIdChange`) on every page. That includes player files and the MarkdownDocumentLayout, which the touch points say stay unchanged.",
+      "impact": "Tab selection on player files, Markdown and HTML pages now goes through new lifted state: a reset key built from fileId, phone/desktop and open/closed, and a request counter. A selection regression on those pages would fall outside the planned scope.",
+      "evidence": "ShellLayout.tsx:366-377 replaces `selectRequest={find.selectRequest}` with `tabRequest`. Lines 597-642 add `desktopShellKey`, `desktopWanted` and `activeId={desktopActiveId ?? 'info'}`, built unconditionally. Line 732 passes the same `inspector` to MarkdownDocumentLayout. The phone sheet's InspectorShell at line 654 also takes `tabRequest`.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "The touch points say 'The Markdown path unchanged' and 'Player files: unchanged', but their inspector selection was rewritten. No declared invariant is shown broken.",
+        "invariant_ref": null
+      },
+      "severity": "MEDIUM",
+      "proposed_fix": "Either scope the controlled selection to files without a player, or state in the touch points that every file page's inspector selection is now lifted into ShellLayout."
+    },
+    {
+      "id": "F5",
+      "origin": "reviewer",
+      "claim": "On a player file, Info's exclusion of `detailed-summary` changed. It used to be a hard-coded core exclusion. Now it holds only when a `player-side` entry has the same id. The touch-point list does not name this player-file change.",
+      "impact": "With the real intelligence manifest, `detailed-summary` stays out of Info on a player file because it is also in `player-side`, so I9 holds. If an add-on registers `detailed-summary` only in `file-detail-sections`, Info on a player file now draws it. Three existing tests had to claim `player-side` to keep passing.",
+      "evidence": "ShellLayout.tsx:457-465: for `usesCanvasViewer` (player files included), `canvasSlotIds` is `documentSideEntries.map(...)`, which is `[]` when `hasPlayer`. The base used `['detailed-summary']`. MediaShell.test.tsx:1316-1318 and FileDetailContent.test.tsx:572-579 add a `player-side` claim. FileDetailContent.test.tsx:221-223 changes a slot count from 4 to 3.",
+      "repro": "Mutation: drop the `player-side` claim added at MediaShell.test.tsx:1316. Read from the code: the 'keeps an addon section the canvas does not draw' expectation of an exclude list containing detailed-summary would no longer hold. Not run.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "I9 holds with the shipped manifest. The player-file exclusion rule changed without a touch point.",
+        "invariant_ref": null
+      },
+      "severity": "MEDIUM",
+      "proposed_fix": "Add the player-file exclusion change to the ShellLayout touch point and to the ADDON-DEVELOPMENT `file-detail-sections` row, or keep `detailed-summary` excluded on player files."
+    },
+    {
+      "id": "F6",
+      "origin": "reviewer",
+      "claim": "DetailedSummarySection's `canShow` no longer counts an active summary note. This changes the availability the same component reports in `player-side` on player files. The touch point names only `openInViewer`, `select()` and `active`.",
+      "impact": "On a video with an active summary note and no generated detailed summary, the Detailed summary panel and narrow-form tab used to be listed, though the body drew nothing. They are now unlisted. Arguably a fix, but it reaches player files, which the touch points say stay unchanged.",
+      "evidence": "addons/intelligence/frontend/DetailedSummarySection.tsx:190-194 removes `hasActiveSummary ||` from `canShow`. Lines 247-250 report `canShow` through `onAvailability` in every slot. The same component is registered in `player-side` (WorkbenchManifest.test.ts asserts `ids('player-side')` contains detailed-summary).",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "An unplanned change to player-side availability. I13 covers only the document-side tab.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "List the `canShow` change in the add-on touch point, including its effect on the player-side panel."
+    },
+    {
+      "id": "F7",
+      "origin": "reviewer",
+      "claim": "`doRegenerate` now sets the status to generating early, reports available and calls `select()` on every regenerate path: Retry, regenerate from the body, the confirmed regenerate, and player-side mounts. The touch point says only 'call select() when its AI-menu action starts generation'.",
+      "impact": "A Retry or regenerate pressed inside the tab also re-requests the tab. On a phone it raises the sheet to half when the sheet sits lower. Local `data` gets a synthetic `status: 'generating'` before the server answers.",
+      "evidence": "DetailedSummarySection.tsx:304-313 sets the early status, calls `onAvailabilityRef.current?.(true)` and `selectRef.current?.()` unconditionally inside `doRegenerate`. Its callers are `handleGenerate` (AI menu and Retry) and `handleConfirmRegenerate`.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Wider than the planned touch point. No invariant is shown broken.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Name the actual scope (every regenerate start) in the touch point, or call select() only from the AI-menu run."
+    },
+    {
+      "id": "F8",
+      "origin": "reviewer",
+      "claim": "I11 fails when an active summary note exists: 'Create detailed summary' from the AI menu opens a confirm dialog that is never rendered. Nothing is generated and no tab is listed or selected.",
+      "impact": "A reader on a PDF with a summary note clicks AI → Create detailed summary and nothing happens. The action fails silently.",
+      "evidence": "DetailedSummarySection.tsx:494-501 offers the AI action whenever `!data.available` and the status is neither generating nor failed. `startGenerate` (344-348) sets `confirmRegenerateOpen` when `hasActiveSummary`. The ConfirmDialog renders only inside DetailedSummaryBody (925-926), which is reached only when `data.available` (575 returns null otherwise). `doRegenerate`, and with it `select()`, is never called.",
+      "repro": "not_reproduced (traced in code: an active note plus reason 'not_generated' leads to setConfirmRegenerateOpen(true) and the component returning null)",
+      "introduced": "pre-existing",
+      "bucket_proposal": {
+        "bucket": "A",
+        "reason": "I11 requires the tab listed and selected after starting from the AI button. The add-on test DetailedSummaryDocumentSide.test.tsx covers only the no-note case.",
+        "invariant_ref": "I11"
+      },
+      "severity": "MEDIUM",
+      "proposed_fix": "Render the confirm dialog outside the available-only body, or skip the confirmation when no detailed summary exists yet."
+    },
+    {
+      "id": "F9",
+      "origin": "reviewer",
+      "claim": "Several fixture, stub and test files that the touch-point list omits were changed. The shared Next navigation stub's `useRouter` now records pushes in a global for every component spec.",
+      "impact": "The test harness is changed for all e2e-components specs, not just the new ones. A spec that relied on `push` being a no-op object identity is unaffected, but the reach is wider than planned.",
+      "evidence": "frontend/e2e-components/stubs/next-navigation.ts:63-69. Also changed: fixtures/focusMode.tsx (message merge under docside), fixtures/inspectorResponsive.tsx (archive file, document-side entries, exported deepMerge), stubs/documentSideSlot.tsx (new), spec-viewport.spec.ts, componentFixtureParity.test.tsx, the new DocumentSideJump.test.tsx and DocumentSideSlot.test.tsx, and MediaShell.test.tsx.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Unplanned test and fixture touch points.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "List these under the e2e registry and stubs bullet."
+    },
+    {
+      "id": "F10",
+      "origin": "reviewer",
+      "claim": "docs/ADDON-DEVELOPMENT.md adds an `intelligence | inspector-tabs | ask` row to the per-add-on slot table. That row has nothing to do with `document-side`.",
+      "impact": "Documentation only. It does not mislead a code change.",
+      "evidence": "The diff of docs/ADDON-DEVELOPMENT.md near line 1790 adds `| intelligence | inspector-tabs | ask |` next to the planned document-side row.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "An unplanned doc row.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    }
+  ],
+  "specification_compliance": [
+    "The touch points cover useFillHeight, PdfPreview/ArchivePreview fillCanvas, the floor removal, SlotEntry.wide, the InspectorPane width attribute and CSS, layoutSizes, tabs.ts and InspectorShell controlled mode, the manifest and the add-on openInViewer and select. The diff matches them.",
+    "Unlisted places the diff reaches: FileDetailContainer and FileDetailPresenter (documentController), lowerInspector.tsx (useLowerInspector), FileDetailShell's raiseSheetRequest, the selection rewrite for player and Markdown pages, the player-file exclusion of detailed-summary, DetailedSummarySection's canShow and doRegenerate scope, extra fixtures and stubs, and a doc row in ADDON-DEVELOPMENT."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "tabRequest in ShellLayout is never cleared. When the desktop InspectorShell remounts (the inspector reopens), its selectRequest effect replays the last request after the resetKey effect. The result is Info only because the detailed summary reports false in a layout effect on mount; an entry that does not report false on mount would be reselected on reopen (§3 'open again → Info').",
+    "On a player file, Info's exclusion of detailed-summary now depends on the player-side registration."
+  ],
+  "regression_risks": [
+    "Selection on player-file and Markdown pages now goes through lifted state in ShellLayout.",
+    "Player-side Detailed summary panel availability changed through canShow.",
+    "The shared e2e navigation stub now records pushes."
+  ],
+  "test_coverage": [
+    "DocumentSideSlot.test and DocumentSideJump.test cover I3, I2, I10, select(), openInViewer and I12 in jsdom.",
+    "No test covers starting generation from the AI menu while a summary note is active (F8).",
+    "The e2e test for closing and reopening the inspector selects the wide tab by click only, so a stale tabRequest replay is not exercised."
+  ],
+  "not_verified": [
+    "Did not run any test or e2e spec.",
+    "Did not read EpubPreview, MediaPlayerBlock, MediaCanvas or the e2e app.tsx beyond the diff hunks.",
+    "Did not verify the behaviour of the MobileInspectorSheet mount/unmount with stale tabRequest."
+  ],
+  "coverage": [
+    {
+      "path": "addons/intelligence/frontend/CitationInlinePanel.tsx",
+      "read": "partial",
+      "reason": "Diff hunks only."
+    },
+    {
+      "path": "addons/intelligence/frontend/DetailedSummaryDocumentSide.test.tsx",
+      "read": "full",
+      "reason": "New file, whole diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/DetailedSummarySection.tsx",
+      "read": "partial",
+      "reason": "Lines 110-590 and 875-934, plus the diff hunks."
+    },
+    {
+      "path": "addons/intelligence/manifest.json",
+      "read": "partial",
+      "reason": "Diff hunk."
+    },
+    {
+      "path": "frontend/e2e-components/document-summary-inspector-desktop.spec.ts",
+      "read": "full",
+      "reason": "New file in diff."
+    },
+    {
+      "path": "frontend/e2e-components/document-summary-inspector.spec.ts",
+      "read": "full",
+      "reason": "New file in diff."
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/app.tsx",
+      "read": "partial",
+      "reason": "Diff hunks."
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/focusMode.tsx",
+      "read": "partial",
+      "reason": "Diff hunks."
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/inspectorResponsive.tsx",
+      "read": "partial",
+      "reason": "Diff hunks."
+    },
+    {
+      "path": "frontend/e2e-components/projects.ts",
+      "read": "partial",
+      "reason": "Diff hunk."
+    },
+    {
+      "path": "frontend/e2e-components/spec-viewport.spec.ts",
+      "read": "partial",
+      "reason": "Diff hunks."
+    },
+    {
+      "path": "frontend/e2e-components/stubs/addons.ts",
+      "read": "partial",
+      "reason": "Diff hunks."
+    },
+    {
+      "path": "frontend/e2e-components/stubs/documentSideSlot.tsx",
+      "read": "full",
+      "reason": "New file in diff."
+    },
+    {
+      "path": "frontend/e2e-components/stubs/next-navigation.ts",
+      "read": "partial",
+      "reason": "Diff hunks."
+    },
+    {
+      "path": "frontend/src/app/globals.css",
+      "read": "partial",
+      "reason": "Diff hunks."
+    },
+    {
+      "path": "frontend/src/components/ArchivePreview.tsx",
+      "read": "partial",
+      "reason": "Diff hunks."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/FileDetailContainer.tsx",
+      "read": "partial",
+      "reason": "Diff hunk."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/FileDetailPresenter.tsx",
+      "read": "partial",
+      "reason": "Diff hunks."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/MediaCanvas.tsx",
+      "read": "partial",
+      "reason": "Diff hunks."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/MediaPlayerBlock.tsx",
+      "read": "partial",
+      "reason": "Diff hunks."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/ShellLayout.tsx",
+      "read": "partial",
+      "reason": "Lines 180-739 (all changed hunks except the import and props header, which were seen in the diff)."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/hooks/useCanvasFloor.ts",
+      "read": "full",
+      "reason": "Deleted; the whole file is in the diff."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/inspector/InspectorShell.tsx",
+      "read": "full",
+      "reason": "Read the whole file."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/inspector/tabs.ts",
+      "read": "partial",
+      "reason": "Diff hunks."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/lowerInspector.tsx",
+      "read": "partial",
+      "reason": "Diff hunk."
+    },
+    {
+      "path": "frontend/src/components/FileDetailShell.tsx",
+      "read": "partial",
+      "reason": "Diff hunks."
+    },
+    {
+      "path": "frontend/src/components/FilePreview.tsx",
+      "read": "partial",
+      "reason": "Diff hunks."
+    },
+    {
+      "path": "frontend/src/components/InspectorPane.tsx",
+      "read": "full",
+      "reason": "The diff shows nearly the whole file."
+    },
+    {
+      "path": "frontend/src/components/PdfPreview.tsx",
+      "read": "partial",
+      "reason": "Diff hunks, plus a grep for early returns."
+    },
+    {
+      "path": "frontend/src/components/epub/EpubPreview.tsx",
+      "read": "partial",
+      "reason": "Import hunk."
+    },
+    {
+      "path": "frontend/src/components/epub/useFillHeight.ts",
+      "read": "full",
+      "reason": "Deleted; the whole file is in the diff."
+    },
+    {
+      "path": "frontend/src/hooks/useFillHeight.ts",
+      "read": "full",
+      "reason": "New file in diff."
+    },
+    {
+      "path": "frontend/src/lib/addons.ts",
+      "read": "partial",
+      "reason": "Diff hunk."
+    },
+    {
+      "path": "frontend/src/lib/fileDetailShell.ts",
+      "read": "partial",
+      "reason": "Diff hunks."
+    },
+    {
+      "path": "frontend/src/lib/layoutSizes.ts",
+      "read": "partial",
+      "reason": "Diff hunk."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/__tests__/WorkbenchManifest.test.ts",
+      "read": "partial",
+      "reason": "Diff hunk."
+    },
+    {
+      "path": "frontend/src/__tests__/i18n-keys.test.ts",
+      "read": "partial",
+      "reason": "Diff hunks."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/__tests__/DocumentSideJump.test.tsx",
+      "read": "full",
+      "reason": "New file in diff."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/__tests__/DocumentSideSlot.test.tsx",
+      "read": "full",
+      "reason": "New file in diff."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/__tests__/FileDetailContent.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunks."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/__tests__/MediaShell.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunk."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/__tests__/ViewerShell.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunks."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/hooks/__tests__/useCanvasFloor.test.tsx",
+      "read": "full",
+      "reason": "Deleted; the whole file is in the diff."
+    },
+    {
+      "path": "frontend/src/components/__tests__/componentFixtureParity.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunk."
+    },
+    {
+      "path": "frontend/src/components/archive/__tests__/archiveJustifiedCells.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunks."
+    },
+    {
+      "path": "frontend/src/lib/__tests__/fileDetailShell.test.ts",
+      "read": "partial",
+      "reason": "Diff hunks."
+    }
+  ],
+  "confidence": 75
+}

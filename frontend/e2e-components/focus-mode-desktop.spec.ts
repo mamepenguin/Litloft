@@ -845,13 +845,14 @@ test("SPEC-CORE-128 §1.3 / I2: the content at the top of the scrolled pane keep
     page.evaluate(() => {
       const w = window as unknown as { __page?: number; __scroller?: Element };
       if (!w.__scroller) {
-        const candidates = [...document.querySelectorAll('[data-testid="page-content"] *')].filter(
-          (el) => {
-            const s = getComputedStyle(el);
-            return /(auto|scroll)/.test(s.overflowY) && el.scrollHeight > el.clientHeight + 200;
-          },
-        );
-        w.__scroller = candidates.sort((a, b) => b.scrollHeight - a.scrollHeight)[0];
+        // The pane that scrolls the PDF's pages, found from a page rather than
+        // by how much it overflows: the fixture's document is only a little
+        // taller than the pane that holds it.
+        let el = document.querySelector("section[data-pdf-page]")?.parentElement ?? null;
+        while (el && !(/(auto|scroll)/.test(getComputedStyle(el).overflowY) && el.scrollHeight > el.clientHeight)) {
+          el = el.parentElement;
+        }
+        w.__scroller = el ?? undefined;
         if (!w.__scroller) return null;
         w.__scroller.scrollTop = 400;
       }

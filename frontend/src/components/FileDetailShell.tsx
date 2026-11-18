@@ -12,7 +12,6 @@ import {
 } from "react";
 import { useTranslations } from "next-intl";
 
-import { useCanvasFloor } from "./FileDetail/hooks/useCanvasFloor";
 import { useFind } from "./FileDetail/find/FindContext";
 import { useInspectorOpen } from "@/hooks/useInspectorOpen";
 import { useInspectorForm } from "@/hooks/useInspectorForm";
@@ -52,7 +51,6 @@ interface FileDetailShellProps {
   titleNode?: ReactNode;
   fileId?: string;
   chromeControls?: ReactNode;
-  canvasFloor?: boolean;
   onBack?: () => void;
   inspector: ReactNode;
   /** A video, an audio file or a `.loft`: the only kinds that stack. */
@@ -72,6 +70,16 @@ interface FileDetailShellProps {
   sheetPeek?: SheetPeek;
   /** What `half` is worth in vaul's units on this page. */
   halfSnap?: number;
+  /**
+   * The file page's inspector is at its wide width: a `document-side` tab
+   * that declares `wide` is selected beside the canvas.
+   */
+  inspectorWide?: boolean;
+  /**
+   * A document-side entry's `select()` asking for its tab to be visible: on
+   * a phone the sheet rises out of the resting strip.
+   */
+  raiseSheetRequest?: number;
   children: ReactNode;
   /**
    * Handed the element that actually scrolls the canvas. The host's own
@@ -95,7 +103,6 @@ export function FileDetailShell({
   titleNode,
   fileId,
   chromeControls,
-  canvasFloor,
   onBack,
   inspector,
   isPlayerFile = false,
@@ -103,6 +110,8 @@ export function FileDetailShell({
   mobileSheet,
   sheetPeek,
   halfSnap = SHEET_SNAP_HALF_FALLBACK,
+  raiseSheetRequest,
+  inspectorWide = false,
   children,
   onScrollRootChange,
   resetKey,
@@ -115,11 +124,6 @@ export function FileDetailShell({
   const find = useFind();
   const { stack } = useShortcutsContext();
 
-  // Not on a phone: the player is `position: sticky` under
-  // `[data-sheet-snap]`, so a floor would pin 70% of the screen to the
-  // top for the whole scroll.
-  const floorActive = !!canvasFloor && !isMobile;
-  const measureCanvas = useCanvasFloor(floorActive);
   const canvasRef = useRef<HTMLElement | null>(null);
   // The position before find's bar is inserted above the content: scroll
   // anchoring folds the bar's height into `scrollTop`, so reading it after
@@ -132,10 +136,9 @@ export function FileDetailShell({
   const attachCanvas = useCallback(
     (node: HTMLElement | null) => {
       canvasRef.current = node;
-      measureCanvas(node);
       onScrollRootChange?.(node);
     },
-    [measureCanvas, onScrollRootChange],
+    [onScrollRootChange],
   );
 
   // Which state, never the snap it resolves to. `half`'s snap moves with
@@ -451,6 +454,21 @@ export function FileDetailShell({
     [find.open],
   );
 
+  /**
+   * A `document-side` entry that selects its own tab is asking to be read:
+   * the resting strip has no tabs, so the sheet rises to `half`. At `full`
+   * it is already above that and stays.
+   */
+  const lastRaiseRequest = useRef(raiseSheetRequest);
+  useEffect(() => {
+    if (raiseSheetRequest === lastRaiseRequest.current) return;
+    lastRaiseRequest.current = raiseSheetRequest;
+    if (!isMobile) return;
+    setSheetState((prev) =>
+      isSheetExpanded(prev) ? prev : SHEET_STATE_HALF,
+    );
+  }, [raiseSheetRequest, isMobile]);
+
   return (
     <div
       data-testid="file-detail-shell"
@@ -489,7 +507,6 @@ export function FileDetailShell({
         <main
           ref={attachCanvas}
           onScroll={noteCanvasScroll}
-          data-canvas-floor={floorActive ? "true" : undefined}
           className="flex min-w-0 min-h-0 flex-1 flex-col overflow-auto"
           // The sheet rests over the bottom of the page, so the page
           // has to end above it.
@@ -501,7 +518,9 @@ export function FileDetailShell({
         >
           {children}
         </main>
-        {inspectorOpenOnDesktop && <InspectorPane>{inspector}</InspectorPane>}
+        {inspectorOpenOnDesktop && (
+          <InspectorPane wide={inspectorWide}>{inspector}</InspectorPane>
+        )}
       </div>
       {isMobile && (
         <MobileInspectorSheet
