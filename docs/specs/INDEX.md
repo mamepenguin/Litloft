@@ -282,6 +282,6 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-131 | implemented | docs/specs/notes-app.md | sha256:72a80db466c1c03fd7f70c990d2c1b6655e186508b184f617c0fdae825a0cce7 |
 | SPEC-ADDON-132 | implemented | docs/specs/notes-app.md | sha256:72a80db466c1c03fd7f70c990d2c1b6655e186508b184f617c0fdae825a0cce7 |
 | SPEC-CORE-130 | implemented | docs/specs/notes-app.md | sha256:72a80db466c1c03fd7f70c990d2c1b6655e186508b184f617c0fdae825a0cce7 |
-| SPEC-ADDON-144 | draft | docs/specs/scene-frames-ten-second-fill.md | |
-| SPEC-ADDON-145 | draft | docs/specs/scene-frames-ten-second-fill.md | |
-| SPEC-ADDON-146 | draft | docs/specs/scene-frames-ten-second-fill.md | |
+| SPEC-ADDON-144 | approved | docs/specs/scene-frames-ten-second-fill.md | sha256:b8f691c32fc88fc84869d121b1c2945d83df8d78b4267924e12bca7a92bedda1 |
+| SPEC-ADDON-145 | approved | docs/specs/scene-frames-ten-second-fill.md | sha256:b8f691c32fc88fc84869d121b1c2945d83df8d78b4267924e12bca7a92bedda1 |
+| SPEC-ADDON-146 | approved | docs/specs/scene-frames-ten-second-fill.md | sha256:b8f691c32fc88fc84869d121b1c2945d83df8d78b4267924e12bca7a92bedda1 |
