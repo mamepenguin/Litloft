@@ -78,3 +78,8 @@ pending: none (no agent_cannot_verify part is touched)
   - F1: the I8 acceptance parametrisation gains a re-read that decodes no frame (ffmpeg exits 0). Expected values are unchanged.
   - r2 R2 / F2: a test reads a frame whose hash moved by 8 to 15 bits.
 - Not changed (impact 3 or less): F3 (a reused box the engine dropped can become an empty string), F4 (no test that a native frame scan holds back the `.loft` backlog), F5 and F6 (not observable in normal use).
+
+## Renumbered to SPEC-ADDON-133
+
+- develop took SPEC-ADDON-122 for the vertical PDF spec (`docs/specs/pdf-vertical-text.md`) while this branch was open, and both specs' addon tests cited 122. The human chose to renumber this spec's 122 to 133 (2026-11-18); 123 was unique and stays. The human approved the new content hash `sha256:ce242fcb…` (2026-11-18, 「承認します」).
+- Review records r1 to r3 and `mutation-review.md` keep the old number as written.

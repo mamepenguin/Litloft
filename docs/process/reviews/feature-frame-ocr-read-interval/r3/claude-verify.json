@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R1",
+      "status": "confirmed",
+      "note": "Confirmed by reading the code; I did not run the suite. frame_ocr.py:55 sets READ_HASH_BITS = 8, and frame_ocr.py:404-408 skips a later frame when the distance is `< READ_HASH_BITS` or the gap is under READ_GAP_SECONDS. test_frame_ocr_read_threshold.py:121 asserts that the clip's change is exactly 8 bits, and :126 asserts that both frames are read. That gives an upper bound only: it fails for thresholds of 9 or more, and for `<=`. No test feeds a change of 1-7 bits at least 3 s after a read and asserts that the frame is NOT read. The other frame-reader fixtures are: test_frame_page_ocr_readers.py:37-65 (_encode: a static H.264 picture with one large change at 6 s; asserted at :313/:354/:370 as two engine calls); :68-95 (_encode_steady_text, a moving block; the test at :331-339 asserts only the merged rows, which do not depend on how many frames are read); test_spec_addon_122_frame_ocr_selection.py:34-58 (full-ramp flips each second, far above 8 bits, so only the gap decides); and frame_box_doubles.py:59-88 (lossless FFV1, frames identical within each 3 s state, and the band flip is far above 8 bits). The re-read tests reuse the same `media` fixture (test_spec_addon_122_frame_ocr_reread.py:27). So thresholds from 2 to 8 cannot change any asserted read count. One caveat: for a threshold of 1, a single bit flipped by H.264 keyframe-reconstruction noise between static frames could add a read (e.g. at t=3 s in the threshold test's own clip) and kill that mutant. I could not check this without running ffmpeg. It does not change the substance of the finding."
+    }
+  ],
+  "specification_compliance": [
+    "I1's 8-bit lower bound (a change below 8 bits is not read) has no test that would fail if the threshold were lowered; only the upper bound is pinned, by test_frame_ocr_read_threshold.py:121-126."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "A later edit that lowers READ_HASH_BITS below 8 would make the reader read more frames in normal use, and CI would not catch it."
+  ],
+  "test_coverage": [
+    "READ_HASH_BITS values of 9 to 16 and the `<=` mutant are killed by test_frame_ocr_read_threshold.py; values of 2 to 7 survive by inspection; a value of 1 depends on codec noise and was not checked."
+  ],
+  "not_verified": [
+    "I did not run pytest or ffmpeg; the mutant results come from reading the code, not from runs.",
+    "Whether H.264 keyframe-reconstruction noise in the static fixtures flips any dHash bit (relevant only to a threshold of 1).",
+    "The other invariants (I2-I11) were outside the finding and were not reviewed."
+  ],
+  "confidence": 85
+}

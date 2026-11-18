@@ -260,5 +260,5 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-CORE-122 | implemented | docs/specs/phone-polish.md | sha256:60535145f7a1c4c8df045a41a2326ed11996ad70ddf190a5d4e967f1ec441943 |
 | SPEC-CORE-123 | implemented | docs/specs/phone-polish.md | sha256:60535145f7a1c4c8df045a41a2326ed11996ad70ddf190a5d4e967f1ec441943 |
 | SPEC-CORE-125 | implemented | docs/specs/drive-unavailable.md | sha256:e9f9b0a9e569095f6578e0e75e0cc306a6729290d76598bdda6f7c61b163cc12 |
-| SPEC-ADDON-122 | implemented | docs/specs/frame-ocr-read-interval.md | sha256:ba6a606f7cd9910d178c0e5d6c37a088dabe88824497194733bd1fdbd251d2e8 |
-| SPEC-ADDON-123 | implemented | docs/specs/frame-ocr-read-interval.md | sha256:ba6a606f7cd9910d178c0e5d6c37a088dabe88824497194733bd1fdbd251d2e8 |
+| SPEC-ADDON-133 | approved | docs/specs/frame-ocr-read-interval.md | sha256:ce242fcb7edbe2b2146caa6d16027c09c341688228aea67ccc1a754b3d849426 |
+| SPEC-ADDON-123 | approved | docs/specs/frame-ocr-read-interval.md | sha256:ce242fcb7edbe2b2146caa6d16027c09c341688228aea67ccc1a754b3d849426 |
