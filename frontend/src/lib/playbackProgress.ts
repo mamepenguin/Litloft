@@ -20,7 +20,7 @@ import { useProfile } from "@/components/ProfileProvider";
 
 const SAVE_INTERVAL = 5;
 /** Dead zone at both ends of the timeline where resume is skipped. */
-const RESUME_THRESHOLD = 5;
+export const RESUME_THRESHOLD = 5;
 const TEARDOWN_MIN_DELTA = 1;
 
 export interface UsePlaybackProgressOptions {

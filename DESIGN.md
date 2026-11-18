@@ -685,6 +685,15 @@ with a **border in the accent colour**, never a fill.
   hover, and never use `scale()`.**
 - **A card's name clamps to two lines where it clamps at all.** A one-line
   `truncate` is also fine; a third number is not.
+- **A media card's progress bar fills only the watched ranges**, on the bar's
+  existing track and fill colour (video shelf 4px, black 50 % track, white
+  fill; continue-watching 3px, white 20 % track, accent fill). An empty range
+  list keeps the old fill from the start to the resume point.
+- **The resume tick** is a 3px by 10px white bar with 2px rounded top corners
+  and a 1px black 50 % outline, rising from the thumbnail's bottom edge and
+  centred on the resume point. It is drawn only when the ranges are (so the
+  resume point is where opening the file starts), and only when that point
+  sits more than 5 seconds from either end.
 - **A video card's title is 16/22 medium and sits 12px under the thumbnail; its
   byline is 14/20 muted, one truncated line, 4px under the title.**
 - **A text file's stand-in thumbnail** — its title over a shrunken cast of the

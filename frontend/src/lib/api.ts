@@ -1,4 +1,4 @@
-import type { ArchiveContents, AuthStatus, BatchRenameRequest, BatchRenameResponse, ChunkResponse, CollectionDetail, CollectionSummary, Comment, CommentsResponse, DashboardResponse, Drive, DriveSummary, DuplicatesResponse, FileExif, FileItem, Folder, FolderCount, FolderTreeNode, Highlight, HighlightInput, HomeShortcut, HomeShortcutKind, Neighbors, PaginatedResponse, PinnedFolder, ListingSortField, SortField, SortOrder, Tag, TrustTier, FileKind, UnlockResult, UploadInitResponse, WatchHistoryItem, WatchProgress } from "@/types";
+import type { ArchiveContents, AuthStatus, BatchRenameRequest, BatchRenameResponse, ChunkResponse, CollectionDetail, CollectionSummary, Comment, CommentsResponse, DashboardResponse, Drive, DriveSummary, DuplicatesResponse, FileExif, FileItem, Folder, FolderCount, FolderTreeNode, Highlight, HighlightInput, HomeShortcut, HomeShortcutKind, Neighbors, PaginatedResponse, PinnedFolder, ListingSortField, SortField, SortOrder, Tag, TrustTier, FileKind, UnlockResult, UploadInitResponse, WatchHistoryItem, WatchProgress, WatchedRange } from "@/types";
 import type { SmartFolder, SmartFolderCreate, SmartFolderUpdate } from "@/types/smartFolder";
 import { ApiStatusError } from "@/lib/apiError";
 import { REQUEST_TIMEOUT_MS, type BatchAnswer } from "@/lib/batchChunks";
@@ -155,7 +155,10 @@ export interface ShelvesParams extends ListingFilters {
   page?: number;
 }
 
-export type ShelfItem = FileItem & { watch_progress?: WatchProgress };
+export type ShelfItem = FileItem & {
+  watch_progress?: WatchProgress;
+  watched_ranges?: WatchedRange[];
+};
 
 export interface Shelf {
   key: string;

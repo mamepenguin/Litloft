@@ -54,7 +54,8 @@
         "thumb": "relative aspect-video overflow-hidden rounded-2xl bg-bg-elevated",
         "duration": "absolute bottom-2 right-2 rounded-lg bg-black/70 px-1.5 py-0.5 text-xs font-medium tabular-nums text-white",
         "progressTrack": "absolute inset-x-0 bottom-0 h-1 bg-black/50",
-        "progressFill": "h-full bg-white",
+        "progressFill": "absolute inset-y-0 bg-white",
+        "resumeTick": "absolute bottom-0 h-[10px] w-[3px] -translate-x-1/2 rounded-t-[2px] bg-white",
         "cardTitle": "mt-2 line-clamp-2 text-sm font-semibold text-text-primary",
         "longTitle": "A very long video title that keeps going well past two lines so that the clamp has something to cut and the card is measured at its tallest, not its tidiest",
         "shortTitle": "Short title"
@@ -110,10 +111,17 @@
         thumb.append(el("span", SPEC.duration, "12:34"));
         if (index % 2 === 0) {
           const track = el("div", SPEC.progressTrack, undefined, { "data-progress": "" });
-          const fill = el("div", SPEC.progressFill);
-          fill.style.width = "40%";
-          track.append(fill);
+          for (const [left, width] of [[0, 15], [25, 5], [95, 5]]) {
+            const fill = el("div", SPEC.progressFill, undefined, { "data-progress-fill": "" });
+            fill.style.left = `${left}%`;
+            fill.style.width = `${width}%`;
+            track.append(fill);
+          }
           thumb.append(track);
+          const tick = el("div", SPEC.resumeTick, undefined, { "data-resume-tick": "" });
+          tick.style.left = "40%";
+          tick.style.boxShadow = "0 0 0 1px rgba(0, 0, 0, 0.5)";
+          thumb.append(tick);
         }
         link.append(
           thumb,
@@ -225,6 +233,8 @@
           longTitle: { ...box(all("[data-card-title]")[0]), lineHeight },
           shortTitle: box(shortTitle),
           progress: all("[data-progress]").length ? box(all("[data-progress]")[0]) : null,
+          progressFills: Array.from(firstCard.querySelectorAll("[data-progress-fill]")).map(box),
+          resumeTick: firstCard.querySelector("[data-resume-tick]") ? box(firstCard.querySelector("[data-resume-tick]")) : null,
           shelfTitles: all("[data-shelf] h2").map((h) => ({ ...box(h), truncated: h.scrollWidth > h.clientWidth })),
           seeAll: all("[data-see-all]").map(box),
         };

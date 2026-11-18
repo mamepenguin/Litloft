@@ -355,6 +355,11 @@ export interface WatchProgress {
   duration: number;
 }
 
+export interface WatchedRange {
+  start: number;
+  end: number;
+}
+
 export interface Highlight {
   id: string;
   page: number | null;
@@ -373,6 +378,7 @@ export interface HighlightInput {
 
 export interface WatchHistoryItem extends FileItem {
   watch_progress: WatchProgress;
+  watched_ranges?: WatchedRange[];
 }
 
 export interface BatchRenameRequest {

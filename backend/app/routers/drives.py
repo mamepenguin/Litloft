@@ -65,6 +65,7 @@ from app.services.atomic_write import replace_file_contents
 from app.services.diskpath import existing_or_409, name_taken, new_or_409
 from app.services.safepath import _contains_symlink, resolve_safe_path
 from app.services.scanner import scan_drive
+from app.services.watched_ranges import watched_ranges_by_file
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/drives", tags=["drives"])
@@ -1789,6 +1790,9 @@ def get_watch_history(
         .all()
     )
 
+    ranges = watched_ranges_by_file(
+        db, viewer_id, {record.file_id: record.duration for record in records}
+    )
     items = [
         WatchHistoryItemResponse(
             **_to_response(record.file).model_dump(),
@@ -1796,6 +1800,7 @@ def get_watch_history(
                 position=record.playback_position,
                 duration=record.duration,
             ),
+            watched_ranges=ranges[record.file_id],
         )
         for record in records
     ]

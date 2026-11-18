@@ -714,6 +714,11 @@ class WatchProgressInfo(BaseModel):
     duration: float
 
 
+class WatchedRange(BaseModel):
+    start: float
+    end: float
+
+
 class WatchHistoryItemResponse(_UtcDateTimeMixin, BaseModel):
     id: str
     filename: str
@@ -739,6 +744,7 @@ class WatchHistoryItemResponse(_UtcDateTimeMixin, BaseModel):
     created_at: datetime
     updated_at: datetime
     watch_progress: WatchProgressInfo
+    watched_ranges: list[WatchedRange]
 
     model_config = {"from_attributes": True}
 
@@ -749,12 +755,14 @@ class WatchHistoryResponse(BaseModel):
 
 class ShelfItemResponse(FileResponse):
     watch_progress: WatchProgressInfo | None = None
+    watched_ranges: list[WatchedRange] | None = None
 
     @model_serializer(mode="wrap")
     def _omit_absent_progress(self, handler):
         data = handler(self)
         if data.get("watch_progress") is None:
             data.pop("watch_progress", None)
+            data.pop("watched_ranges", None)
         return data
 
 
