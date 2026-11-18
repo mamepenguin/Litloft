@@ -273,3 +273,7 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-128 | implemented | docs/specs/refine-alignment-failure.md | sha256:748d0edd82eaaf091f7a36d56307b6d6b6479ad68b68aece75366f24a24df455 |
 | SPEC-ADDON-133 | implemented | docs/specs/frame-ocr-read-interval.md | sha256:ce242fcb7edbe2b2146caa6d16027c09c341688228aea67ccc1a754b3d849426 |
 | SPEC-ADDON-123 | implemented | docs/specs/frame-ocr-read-interval.md | sha256:ce242fcb7edbe2b2146caa6d16027c09c341688228aea67ccc1a754b3d849426 |
+| SPEC-CORE-131 | draft | docs/specs/document-summary-inspector.md | |
+| SPEC-CORE-132 | draft | docs/specs/document-summary-inspector.md | |
+| SPEC-CORE-133 | draft | docs/specs/document-summary-inspector.md | |
+| SPEC-ADDON-135 | draft | docs/specs/document-summary-inspector.md | |
