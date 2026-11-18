@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R7-1",
+      "status": "confirmed",
+      "note": "Confirmed by reading the code. FileDetailShell.tsx:462-470 handles a raise request with `setSheetState(prev => isSheetExpanded(prev) ? prev : SHEET_STATE_HALF)`. isSheetExpanded (MobileInspectorSheet.tsx:70-71) returns `state !== 'peek'`, so a sheet already at 'full' stays at 'full'. The comment at :460 says this is deliberate. ShellLayout.tsx:436-440 raises the request from `select()` only on mobile. Spec §1 step 7 (document-summary-inspector.md:90-91) and I11 (:330) both say the sheet ends 'at its half snap', with no exception for 'full', so the code departs from the literal spec text. The case can happen in normal use: the full snap is 0.9 (sheetSnap.ts:19), which leaves the top 10% of the viewport uncovered, and the drawer is `modal={false}` (MobileInspectorSheet.tsx:237), so the page chrome above the sheet stays usable. Test gap confirmed: the e2e test at document-summary-inspector.spec.ts:141-152 calls raiseSheet (to half) before startGenerating and asserts a snap fraction of about 0.5, so the full→? path is never exercised. Whether staying at full is the intended reading of 'raises' is a spec-wording question; the code and the invariant as written disagree."
+    }
+  ],
+  "specification_compliance": [
+    "I11 phone clause: holds from peek and half, not from full (the sheet stays at full).",
+    "Spec §1 step 7 says 'raises the sheet to its half snap'; the implementation reads 'raise' as never lowering."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "The sheet's state after select() when it starts at full is not covered by I11 as written; the code keeps it at full."
+  ],
+  "regression_risks": [
+    "If the spec is changed to match the code instead, the I11 phone test should also start from full to pin the 'stays at full' behaviour."
+  ],
+  "test_coverage": [
+    "document-summary-inspector.spec.ts I11 (phone) covers only half→half, not peek→half or full.",
+    "No test starts generation with the sheet at full."
+  ],
+  "not_verified": [
+    "Did not run the e2e or unit tests; the verification is from static reading only.",
+    "Did not confirm exactly where the intelligence AI-menu button renders on a phone, or that it is visible above the full-snap sheet; I inferred it is reachable from the 0.9 snap and modal={false}.",
+    "Did not check the other invariants (I1-I10, I12, I13)."
+  ],
+  "confidence": 85
+}

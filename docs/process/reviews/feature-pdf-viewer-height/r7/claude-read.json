@@ -1,0 +1,289 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "R7-1",
+      "origin": "reviewer",
+      "claim": "On a phone, `select()` leaves the sheet at `full` when it is already there, so I11's 'on a phone the sheet is at its half snap' does not hold if the reader starts generation from the AI button while the sheet is fully raised.",
+      "impact": "A reader who has dragged the sheet to full and starts a detailed summary from the AI menu gets the tab selected, but the sheet stays at full rather than half. The viewer stays covered. Nothing fails silently: the tab is selected and shows its generating state.",
+      "evidence": "frontend/src/components/FileDetailShell.tsx:462-470: `setSheetState(prev => isSheetExpanded(prev) ? prev : SHEET_STATE_HALF)`, and the comment there says 'At `full` it is already above that and stays'. ShellLayout.tsx:435-441 bumps `sheetRaiseRequest` from `select()`. The phone e2e test (document-summary-inspector.spec.ts, I11 phone) and DocumentSideSlot.test 'on a phone raises the sheet to its half snap' both start from the strip-raised sheet only, never from full.",
+      "repro": "not_reproduced (traced in code: sheet state full → raise effect keeps prev)",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "The behaviour is deliberate and §1.7 says select() 'raises' the sheet, which assumes a lower starting point. Read literally, I11 would make this bucket A, so a person should decide which reading holds. It is not part of the r7 fix diffs.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Either state in I11 that a sheet already at full stays at full, or set the sheet to half unconditionally."
+    }
+  ],
+  "specification_compliance": [
+    "The r6 bucket-A finding F8 (I11 with an active summary note) is addressed. `startGenerate` (DetailedSummarySection.tsx:342-356) now opens the confirm dialog only when `data?.available` and the summary is edited or a note is active. A never-generated summary with an active note goes straight to `doRegenerate(false, profile, true)`, which reports available and calls `select()`. A new add-on test, 'generates and selects when a summary note is active and nothing was generated yet', pins this.",
+    "The r6 finding F7 (every regenerate path selects the tab) is addressed. `doRegenerate` takes an `announce` flag (default false), and only `handleGenerate` (the AI-menu `run`) passes true. Retry, the body's Create again, Regenerate with… and the confirmed regenerate go through `handleRegenerate`/`startGenerate(profile)`/`handleConfirmRegenerate` with announce false. Four new tests assert select() is not called on those paths.",
+    "The r6 unspecified behaviour (a stale `tabRequest` replayed by a later shell) is addressed. InspectorShell.tsx:89-105 calls `onSelectRequestTaken(seq)` when it takes a request. ShellLayout.tsx:379-381 `retireTabRequest` clears the request only if its seq still matches. Both the desktop pane and the phone sheet are wired (ShellLayout.tsx:645,663). A unit test checks that a reopened inspector starts on Info after `select()`.",
+    "Only one InspectorShell consumes `tabRequest` at a time. The pane mounts only when `inspectorOpenOnDesktop`, and the sheet only on mobile (FileDetailShell.tsx:521-534). Retiring on take therefore cannot steal a request from a second mounted shell.",
+    "`useInspectorOpen` is a `useSyncExternalStore`, so ShellLayout's `desktopOpen` (used in `desktopShellKey`) and FileDetailShell's open state read the same store.",
+    "r6 findings F1-F6, F9 and F10 (touch-point scope, and the player-file exclusion of detailed-summary now depending on its player-side registration) are untouched by these fixes and remain as recorded."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "A request is retired by whichever shell takes it, even when the requested tab is not listed in that shell at that moment, so the request is dropped. Before the fix, an unlisted target was not applied later either, because the effect is keyed on seq. Behaviour is unchanged, but the retire step now makes the drop permanent.",
+    "A `tabRequest` made while no shell is mounted (for example a find request on a phone with the sheet at peek) still lingers until a shell mounts. It is not reset on a file change, so it could be applied on the next file's first shell if that tab id is listed there. Not traced through find's own open/close handling."
+  ],
+  "regression_risks": [
+    "The retire callback sets parent state from a child effect on every request, which adds a render per request. Under StrictMode the double-invoked effect takes the same request twice before the state update lands; this is harmless because setActiveId is idempotent.",
+    "`startGenerate` now skips the confirm dialog whenever nothing is generated yet, also on player files with an active summary note. Starting generation there no longer asks for consent, where before it silently did nothing because of the unrendered dialog.",
+    "The split between `handleGenerate` and `handleRegenerate` depends on every in-body control using `handleRegenerate`/`startGenerate` without `announce`. A future control wired to `handleGenerate` would move the reader's selection again."
+  ],
+  "test_coverage": [
+    "DocumentSideSlot.test 'a reopened inspector starts on Info, not on the last request' would likely fail if the `takenRef.current?.(seq)` call were removed, assuming the harness entry does not report false again on remount. Not run.",
+    "DetailedSummaryDocumentSide.test covers the AI menu with an active note (generates and selects, no dialog), Retry with and without a note, Create again from the body, and the confirmed regenerate over a note, all without select. Flipping `announce`'s default to true, or dropping the `data?.available &&` guard, would each fail one of them. Read only, not run.",
+    "No test covers a phone sheet at `full` receiving `select()` (R7-1).",
+    "No test covers retirement on the phone sheet path, for example a request taken by the sheet and then a desktop crossing."
+  ],
+  "not_verified": [
+    "Did not run any unit or e2e test.",
+    "Did not read the jsdom harness (`__tests__/harness.tsx`) to confirm that the reopen test's entry keeps its reported availability across remount, which is what makes that test kill the missing retire.",
+    "Did not read MobileInspectorSheet to confirm that the sheet's InspectorShell is unmounted at peek.",
+    "Did not trace find's `selectRequest` producer for whether find opening on a phone raises the sheet.",
+    "Did not re-read EpubPreview, MediaCanvas, MediaPlayerBlock, PdfPreview or ArchivePreview beyond the diff hunks, since the r7 fix commits do not touch them."
+  ],
+  "coverage": [
+    {
+      "path": "addons/intelligence/frontend/CitationInlinePanel.tsx",
+      "read": "partial",
+      "reason": "Diff hunks only; the fix commits do not change it."
+    },
+    {
+      "path": "addons/intelligence/frontend/DetailedSummaryDocumentSide.test.tsx",
+      "read": "full",
+      "reason": "New file, read in full in the diff, including the r7 additions."
+    },
+    {
+      "path": "addons/intelligence/frontend/DetailedSummarySection.tsx",
+      "read": "partial",
+      "reason": "Lines 120-640 (the whole component body around doRegenerate, startGenerate and the handlers, plus the render branches), the diff hunks, and a grep of onChoose/onGenerateWith call sites."
+    },
+    {
+      "path": "addons/intelligence/manifest.json",
+      "read": "partial",
+      "reason": "Diff hunk."
+    },
+    {
+      "path": "frontend/e2e-components/document-summary-inspector-desktop.spec.ts",
+      "read": "full",
+      "reason": "New file, read in full in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/document-summary-inspector.spec.ts",
+      "read": "full",
+      "reason": "New file, read in full in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/app.tsx",
+      "read": "partial",
+      "reason": "Diff hunks."
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/focusMode.tsx",
+      "read": "partial",
+      "reason": "Diff hunks."
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/inspectorResponsive.tsx",
+      "read": "partial",
+      "reason": "Diff hunks."
+    },
+    {
+      "path": "frontend/e2e-components/projects.ts",
+      "read": "partial",
+      "reason": "Diff hunk."
+    },
+    {
+      "path": "frontend/e2e-components/spec-viewport.spec.ts",
+      "read": "partial",
+      "reason": "Diff hunks."
+    },
+    {
+      "path": "frontend/e2e-components/stubs/addons.ts",
+      "read": "partial",
+      "reason": "Diff hunks."
+    },
+    {
+      "path": "frontend/e2e-components/stubs/documentSideSlot.tsx",
+      "read": "full",
+      "reason": "New file, read in full in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/stubs/next-navigation.ts",
+      "read": "partial",
+      "reason": "Diff hunks."
+    },
+    {
+      "path": "frontend/src/app/globals.css",
+      "read": "partial",
+      "reason": "Diff hunks."
+    },
+    {
+      "path": "frontend/src/components/ArchivePreview.tsx",
+      "read": "partial",
+      "reason": "Diff hunks."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/FileDetailContainer.tsx",
+      "read": "partial",
+      "reason": "Diff hunk."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/FileDetailPresenter.tsx",
+      "read": "partial",
+      "reason": "Diff hunks."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/MediaCanvas.tsx",
+      "read": "partial",
+      "reason": "Diff hunks."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/MediaPlayerBlock.tsx",
+      "read": "partial",
+      "reason": "Diff hunks."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/ShellLayout.tsx",
+      "read": "partial",
+      "reason": "Lines 170-750 (every changed hunk with its enclosing function body). The import and props header were seen in the diff."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/hooks/useCanvasFloor.ts",
+      "read": "full",
+      "reason": "Deleted; the whole file is in the diff."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/inspector/InspectorShell.tsx",
+      "read": "full",
+      "reason": "Read the whole file at HEAD."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/inspector/tabs.ts",
+      "read": "partial",
+      "reason": "Diff hunks."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/lowerInspector.tsx",
+      "read": "partial",
+      "reason": "Diff hunk."
+    },
+    {
+      "path": "frontend/src/components/FileDetailShell.tsx",
+      "read": "partial",
+      "reason": "Lines 440-537 (the raise effect and the render), plus the diff hunks."
+    },
+    {
+      "path": "frontend/src/components/FilePreview.tsx",
+      "read": "partial",
+      "reason": "Diff hunks."
+    },
+    {
+      "path": "frontend/src/components/InspectorPane.tsx",
+      "read": "full",
+      "reason": "The diff shows nearly the whole file."
+    },
+    {
+      "path": "frontend/src/components/PdfPreview.tsx",
+      "read": "partial",
+      "reason": "Diff hunks."
+    },
+    {
+      "path": "frontend/src/components/epub/EpubPreview.tsx",
+      "read": "partial",
+      "reason": "Import hunk."
+    },
+    {
+      "path": "frontend/src/components/epub/useFillHeight.ts",
+      "read": "full",
+      "reason": "Deleted; the whole file is in the diff."
+    },
+    {
+      "path": "frontend/src/hooks/useFillHeight.ts",
+      "read": "full",
+      "reason": "New file, read in full in the diff."
+    },
+    {
+      "path": "frontend/src/lib/addons.ts",
+      "read": "partial",
+      "reason": "Diff hunk."
+    },
+    {
+      "path": "frontend/src/lib/fileDetailShell.ts",
+      "read": "partial",
+      "reason": "Diff hunks."
+    },
+    {
+      "path": "frontend/src/lib/layoutSizes.ts",
+      "read": "partial",
+      "reason": "Diff hunk."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/__tests__/WorkbenchManifest.test.ts",
+      "read": "partial",
+      "reason": "Diff hunk."
+    },
+    {
+      "path": "frontend/src/__tests__/i18n-keys.test.ts",
+      "read": "partial",
+      "reason": "Diff hunks."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/__tests__/DocumentSideJump.test.tsx",
+      "read": "full",
+      "reason": "New file, read in full in the diff."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/__tests__/DocumentSideSlot.test.tsx",
+      "read": "full",
+      "reason": "New file, read in full in the diff, including the r7 reopen test."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/__tests__/FileDetailContent.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunks."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/__tests__/MediaShell.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunk."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/__tests__/ViewerShell.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunks."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/hooks/__tests__/useCanvasFloor.test.tsx",
+      "read": "full",
+      "reason": "Deleted; the whole file is in the diff."
+    },
+    {
+      "path": "frontend/src/components/__tests__/componentFixtureParity.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunk."
+    },
+    {
+      "path": "frontend/src/components/archive/__tests__/archiveJustifiedCells.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunks."
+    },
+    {
+      "path": "frontend/src/lib/__tests__/fileDetailShell.test.ts",
+      "read": "partial",
+      "reason": "Diff hunks."
+    }
+  ],
+  "confidence": 78,
+  "trajectory": "Yes, the design is being patched: each fix round adds state or a branch on top of one the previous round added. In core, the earlier round added a lifted `tabRequest` state with a sequence counter so that `select()` could reach a shell that is not mounted yet. This round adds a retirement protocol on top of it (`onSelectRequestTaken`, `retireTabRequest`, `takenRef`) to undo that state's side effect, the replay on every later mount. In the add-on, the earlier round put an unconditional generating mark, availability report and `select()` inside `doRegenerate`. This round adds an `announce` parameter, a separate `handleRegenerate`, and a `data?.available &&` precondition on the confirm gate to narrow that behaviour back to the AI-menu path and to work around the dialog being drawn only in the body. Each fix is a predicate layered on the previous one, not a simplification. The round also removed two things: the unconditional `select()` on every regenerate path, and the confirmation for a never-generated summary beside an active note (which could never render)."
+}
