@@ -269,3 +269,5 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-126 | implemented | docs/specs/transcript-touch-actions.md | sha256:a5e89c57569e23df19e2e0a550c010f29423b78a1a32cd2c4d492a8d92705130 |
 | SPEC-ADDON-127 | implemented | docs/specs/refine-alignment-failure.md | sha256:748d0edd82eaaf091f7a36d56307b6d6b6479ad68b68aece75366f24a24df455 |
 | SPEC-ADDON-128 | implemented | docs/specs/refine-alignment-failure.md | sha256:748d0edd82eaaf091f7a36d56307b6d6b6479ad68b68aece75366f24a24df455 |
+| SPEC-ADDON-133 | implemented | docs/specs/frame-ocr-read-interval.md | sha256:ce242fcb7edbe2b2146caa6d16027c09c341688228aea67ccc1a754b3d849426 |
+| SPEC-ADDON-123 | implemented | docs/specs/frame-ocr-read-interval.md | sha256:ce242fcb7edbe2b2146caa6d16027c09c341688228aea67ccc1a754b3d849426 |

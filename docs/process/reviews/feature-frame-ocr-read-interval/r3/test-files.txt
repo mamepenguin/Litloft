@@ -1,0 +1,15 @@
+addons/intelligence/tests/frame_box_doubles.py
+addons/intelligence/tests/loft_media_world.py
+addons/intelligence/tests/ocr_fixtures.py
+addons/intelligence/tests/test_frame_ocr_read_threshold.py
+addons/intelligence/tests/test_frame_ocr_worker_reread.py
+addons/intelligence/tests/test_frame_page_ocr_readers.py
+addons/intelligence/tests/test_picture_lines_frames.py
+addons/intelligence/tests/test_reindex_endpoint.py
+addons/intelligence/tests/test_spec_addon_122_frame_ocr_outdated.py
+addons/intelligence/tests/test_spec_addon_122_frame_ocr_reread.py
+addons/intelligence/tests/test_spec_addon_122_frame_ocr_reread_text.py
+addons/intelligence/tests/test_spec_addon_122_frame_ocr_selection.py
+addons/intelligence/tests/test_spec_addon_122_loft_fetch_gate.py
+addons/intelligence/tests/test_spec_addon_122_loft_read_rule.py
+addons/intelligence/tests/test_spec_addon_123_frame_box_reuse.py
