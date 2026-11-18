@@ -1,0 +1,11 @@
+addons/intelligence/frontend/ScenesSection/__tests__/WorkbenchManifest.test.ts
+frontend/src/__tests__/i18n-keys.test.ts
+frontend/src/components/FileDetail/__tests__/DocumentSideJump.test.tsx
+frontend/src/components/FileDetail/__tests__/DocumentSideSlot.test.tsx
+frontend/src/components/FileDetail/__tests__/FileDetailContent.test.tsx
+frontend/src/components/FileDetail/__tests__/MediaShell.test.tsx
+frontend/src/components/FileDetail/__tests__/ViewerShell.test.tsx
+frontend/src/components/FileDetail/hooks/__tests__/useCanvasFloor.test.tsx
+frontend/src/components/__tests__/componentFixtureParity.test.tsx
+frontend/src/components/archive/__tests__/archiveJustifiedCells.test.tsx
+frontend/src/lib/__tests__/fileDetailShell.test.ts
