@@ -1,0 +1,573 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "F1",
+      "origin": "reviewer",
+      "claim": "VersionHistoryPanel.tsx is edited although the touch points name neither it nor any layout change to the file page's editor, and its open grid switches from the viewport breakpoint `lg:` to the container query `@xl:` unconditionally, not only when `frameless`.",
+      "impact": "On the file page (where KnowledgeEditSection mounts the same Editor and panel), the version list and preview now lay out side by side whenever the panel is at least 36rem wide, not whenever the viewport is at least 1024px. A tablet-width file page (640–1023px viewport) draws two columns where it drew one, and a narrow desktop column draws one where it drew two. This changes the file page beyond the spec's statement that Editor 'gains the optional saveHandle prop and nothing else'.",
+      "evidence": "addons/knowledge/frontend/VersionHistoryPanel.tsx:248 adds `@container`; :267 `grid gap-4 @xl:grid-cols-[minmax(14rem,20rem)_minmax(0,1fr)]` (was `lg:grid-cols-…`), with no `frameless` condition. The panel is rendered from Editor.tsx:1557 for every host, including the file page.",
+      "repro": "not_reproduced (read only). Mutation in thought: on the file page at a 900px viewport with the panel ~600px wide, the class `@xl:grid-cols-…` applies, where before `lg:` did not.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "No declared invariant covers the version panel's layout (I12 covers requests, the save indicator and the view-mode toggle). The reach falls outside the touch points and the 'nothing else' scope statement."
+      },
+      "severity": "MEDIUM",
+      "proposed_fix": "Either declare VersionHistoryPanel.tsx (and its file-page layout change) in the touch points, or make the `@container`/`@xl:` switch apply only under `frameless`, keeping `lg:` for the file page."
+    },
+    {
+      "id": "F2",
+      "origin": "reviewer",
+      "claim": "Editor.tsx, EditorToolbar.tsx and KnowledgeEditSection.tsx gain a second optional prop `frameless` (toolbar rule, toolbar inset, `.cm-content` left padding, version-panel rule), but the touch points say Editor gains `saveHandle` 'and nothing else' and do not list EditorToolbar.tsx at all.",
+      "impact": "A reader working from the touch points would not expect the shared toolbar and editor host classes to change. The default (`frameless` absent) keeps the file page's classes, so a user hits nothing unless F1's unconditional part applies.",
+      "evidence": "addons/knowledge/frontend/Editor.tsx:131,207,1453,1493,1562; EditorToolbar.tsx:236,246,283 (class now built from `frameless`); KnowledgeEditSection.tsx:46,54,104; used only from library/pane/NotePaneContainer.tsx:255.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "No invariant is broken; the file page passes no `frameless`, and Editor.saveHandle.acceptance.test.tsx pins the default classes. It is an undeclared reach."
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add EditorToolbar.tsx, VersionHistoryPanel.tsx and the `frameless` prop to the touch points."
+    },
+    {
+      "id": "F3",
+      "origin": "reviewer",
+      "claim": "The e2e component build gains a Vite resolve plugin that maps `gray-matter` and `@codemirror/*` imported from `addons/knowledge/` to `frontend/`'s packages, and `projects.ts` gains a DESKTOP_ONLY entry; neither file is in the touch points.",
+      "impact": "Build infrastructure for every component fixture changes. An addon file that resolves through this plugin can pass the fixture build while resolving differently from the production build. Only test tooling is affected.",
+      "evidence": "frontend/e2e-components/build-bundle.ts:23-38 (plugin `addon-packages-from-frontend`); frontend/e2e-components/projects.ts:44 (`**/notes-library-desktop.spec.ts`).",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "Outside the listed touch points (the list names fixtures/app.tsx, spec-viewport.spec.ts and componentFixtureParity, but not build-bundle.ts or projects.ts); no invariant is affected."
+      },
+      "severity": "LOW",
+      "proposed_fix": "List build-bundle.ts and projects.ts among the e2e touch points."
+    },
+    {
+      "id": "F4",
+      "origin": "reviewer",
+      "claim": "Knowledge test files beyond the declared list are changed: popup-dismissal.test.ts (FILE_COUNT 66→90) and VersionHistoryPanel.test.tsx (the preview assertion turned into a waitFor).",
+      "impact": "Weakening the VersionHistoryPanel preview assertion to `waitFor` hides a change in when the preview fills, in a file the spec does not plan to touch. The count bump is mechanical.",
+      "evidence": "addons/knowledge/frontend/__tests__/popup-dismissal.test.ts:53; addons/knowledge/frontend/__tests__/VersionHistoryPanel.test.tsx:324-336.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "Undeclared touch on tests; no invariant is involved."
+      },
+      "severity": "INFO"
+    },
+    {
+      "id": "F5",
+      "origin": "reviewer",
+      "claim": "New Knowledge modules sit outside the planned homes: the `notes/with-sources` and `notes/sources` clients and the listing clients are in new `notesapp/sourcesApi.ts` and `notesapp/listing.ts`, not in `api.ts`, and the route's models are in `routers/notes_sources.py`, not `app/schemas.py`.",
+      "impact": "No user effect. The touch points' `__tests__/api.test.ts` expectations for these clients have no counterpart in api.ts, so a reader following the plan looks in the wrong file.",
+      "evidence": "addons/knowledge/frontend/notesapp/sourcesApi.ts, notesapp/listing.ts (getNoteFolderCounts builds its own fetch); addons/knowledge/app/routers/notes_sources.py:37-57 (pydantic models).",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "A placement difference against the touch points; no invariant is involved."
+      },
+      "severity": "INFO"
+    }
+  ],
+  "specification_compliance": [
+    "The touch-point list misses: VersionHistoryPanel.tsx (with a file-page layout change), EditorToolbar.tsx, the `frameless` prop on Editor/KnowledgeEditSection, frontend/e2e-components/build-bundle.ts, frontend/e2e-components/projects.ts, popup-dismissal.test.ts and VersionHistoryPanel.test.tsx.",
+    "Core edits match the declared list: TargetMenu.tsx, PageHeader.tsx and AppHeader.tsx, each with tests beside it. The e2e fixture notesAllClipsToggle was replaced by notesLibrary, along with app.tsx, spec-viewport and componentFixtureParity, as declared.",
+    "Planned homes are not used: there is no api.ts/api.test.ts change and no schemas.py change; the clients and models live in new modules instead (F5)."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "The file page's version history panel switches between one and two columns by container width rather than viewport width (F1).",
+    "The e2e fixture build resolves addon packages from frontend/ (F3)."
+  ],
+  "regression_risks": [
+    "The file-page version history layout changes at tablet widths (VersionHistoryPanel @xl).",
+    "The core inventory tests named in the touch points (escape-listeners, line-clamp-display, page-container-width, ime-enter-guard, page-headings, section-headings counts) do not appear in the product file list; if they count addons/knowledge files, adding ~24 modules may break them."
+  ],
+  "test_coverage": [
+    "Editor.saveHandle.acceptance.test.tsx pins the default (non-frameless) toolbar and history-panel classes, but no test covers the `@xl` vs `lg` grid switch on the file page.",
+    "EditorToolbar.border.test.tsx covers the `frameless` rule toggle."
+  ],
+  "not_verified": [
+    "I did not run any test or build.",
+    "I did not check the truncated tail of the diff (backend test files beyond the cut, and any core inventory test edits).",
+    "I did not measure the file page's editor column width at real viewports.",
+    "I did not verify whether removed `knowledge.notes` message keys are still referenced by Clips (ClipShelf uses dynamic keys)."
+  ],
+  "coverage": [
+    {
+      "path": "addons/knowledge/app/main.py",
+      "read": "full",
+      "reason": "diff hunk (router import and include) read"
+    },
+    {
+      "path": "addons/knowledge/app/routers/notes_sources.py",
+      "read": "full",
+      "reason": "new file, whole content in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/AllNotes.tsx",
+      "read": "full",
+      "reason": "deleted; whole content in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/AllNotesRail.tsx",
+      "read": "full",
+      "reason": "deleted; whole content in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/ContinueCard.tsx",
+      "read": "full",
+      "reason": "diff hunks read; usages grepped"
+    },
+    {
+      "path": "addons/knowledge/frontend/Editor.tsx",
+      "read": "partial",
+      "reason": "changed hunks in diff plus grep of frameless/VersionHistoryPanel lines 131-207, 1447-1562; not the whole 1500+ line file"
+    },
+    {
+      "path": "addons/knowledge/frontend/EditorToolbar.tsx",
+      "read": "full",
+      "reason": "changed hunks and enclosing component read via diff and grep"
+    },
+    {
+      "path": "addons/knowledge/frontend/KnowledgeEditSection.tsx",
+      "read": "full",
+      "reason": "changed hunks in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/NoteResults.tsx",
+      "read": "full",
+      "reason": "deleted; whole content in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/NoteSearchScope.tsx",
+      "read": "full",
+      "reason": "diff hunk read"
+    },
+    {
+      "path": "addons/knowledge/frontend/NotesLanding.tsx",
+      "read": "full",
+      "reason": "diff hunks read (only SectionHeading kept)"
+    },
+    {
+      "path": "addons/knowledge/frontend/NotesPage.tsx",
+      "read": "full",
+      "reason": "rewritten; whole new content in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/Page.tsx",
+      "read": "full",
+      "reason": "diff hunks with the whole component"
+    },
+    {
+      "path": "addons/knowledge/frontend/VersionHistoryPanel.tsx",
+      "read": "partial",
+      "reason": "diff hunks plus lines 220-279 read in file"
+    },
+    {
+      "path": "addons/knowledge/frontend/allNotesParams.ts",
+      "read": "full",
+      "reason": "deleted; whole content in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/editorSaveHandle.ts",
+      "read": "full",
+      "reason": "new file in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/library/LibraryList.tsx",
+      "read": "full",
+      "reason": "new file in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/library/LibraryRail.tsx",
+      "read": "full",
+      "reason": "new file in diff; ToolbarMenu props checked"
+    },
+    {
+      "path": "addons/knowledge/frontend/library/NotesLibrary.tsx",
+      "read": "full",
+      "reason": "new file in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/library/libraryUrl.ts",
+      "read": "full",
+      "reason": "new file in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/library/pane/Connections.tsx",
+      "read": "full",
+      "reason": "new file in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/library/pane/NotePaneContainer.tsx",
+      "read": "full",
+      "reason": "new file in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/library/pane/NotePanePresenter.tsx",
+      "read": "full",
+      "reason": "new file in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/library/pane/useNoteData.ts",
+      "read": "full",
+      "reason": "new file in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/library/railModel.ts",
+      "read": "full",
+      "reason": "new file in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/library/shownNote.ts",
+      "read": "full",
+      "reason": "new file in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/library/useLibraryLayout.ts",
+      "read": "full",
+      "reason": "new file in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/library/useNotesList.ts",
+      "read": "full",
+      "reason": "new file in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/library/useRailEntries.ts",
+      "read": "full",
+      "reason": "new file in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/library/useScopedLoad.ts",
+      "read": "full",
+      "reason": "new file in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/messages/en.json",
+      "read": "partial",
+      "reason": "diff hunk for notesLibrary/notesApp/notes only"
+    },
+    {
+      "path": "addons/knowledge/frontend/messages/ja.json",
+      "read": "partial",
+      "reason": "diff hunk for notesLibrary/notesApp/notes only"
+    },
+    {
+      "path": "addons/knowledge/frontend/notesapp/ContinueWritingSection.tsx",
+      "read": "full",
+      "reason": "new file in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/notesapp/Home.tsx",
+      "read": "full",
+      "reason": "new file in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/notesapp/NotesWithSourcesSection.tsx",
+      "read": "full",
+      "reason": "new file in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/notesapp/RecentlyUpdatedSection.tsx",
+      "read": "full",
+      "reason": "new file in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/notesapp/RetryLink.tsx",
+      "read": "full",
+      "reason": "new file in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/notesapp/Skeleton.tsx",
+      "read": "full",
+      "reason": "new file in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/notesapp/changeGate.ts",
+      "read": "full",
+      "reason": "new file in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/notesapp/listing.ts",
+      "read": "full",
+      "reason": "new file in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/notesapp/locator.ts",
+      "read": "full",
+      "reason": "new file in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/notesapp/sourceKind.ts",
+      "read": "full",
+      "reason": "new file in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/notesapp/sourcesApi.ts",
+      "read": "full",
+      "reason": "new file in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/notesapp/useNotesTarget.ts",
+      "read": "full",
+      "reason": "new file in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/notesapp/useNotesWithSources.ts",
+      "read": "full",
+      "reason": "new file in diff"
+    },
+    {
+      "path": "addons/knowledge/manifest.json",
+      "read": "full",
+      "reason": "diff hunk read"
+    },
+    {
+      "path": "frontend/e2e-components/build-bundle.ts",
+      "read": "full",
+      "reason": "diff hunk read"
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/app.tsx",
+      "read": "partial",
+      "reason": "diff hunks only"
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/notesAllClipsToggle.tsx",
+      "read": "full",
+      "reason": "deleted; whole content in diff"
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/notesLibrary.tsx",
+      "read": "full",
+      "reason": "new file in diff"
+    },
+    {
+      "path": "frontend/e2e-components/notes-all-clips-toggle.spec.ts",
+      "read": "full",
+      "reason": "deleted; whole content in diff"
+    },
+    {
+      "path": "frontend/e2e-components/notes-library-desktop.spec.ts",
+      "read": "full",
+      "reason": "new file in diff"
+    },
+    {
+      "path": "frontend/e2e-components/page-header-actions.spec.ts",
+      "read": "partial",
+      "reason": "added hunk only"
+    },
+    {
+      "path": "frontend/e2e-components/projects.ts",
+      "read": "partial",
+      "reason": "diff hunk only"
+    },
+    {
+      "path": "frontend/e2e-components/spec-viewport.spec.ts",
+      "read": "partial",
+      "reason": "diff hunks only"
+    },
+    {
+      "path": "frontend/src/components/PageHeader.tsx",
+      "read": "partial",
+      "reason": "diff hunks only"
+    },
+    {
+      "path": "frontend/src/components/appshell/AppHeader.tsx",
+      "read": "full",
+      "reason": "diff hunks covering the whole component"
+    },
+    {
+      "path": "frontend/src/components/appshell/TargetMenu.tsx",
+      "read": "partial",
+      "reason": "diff hunks only"
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/AllNotes.test.tsx",
+      "read": "full",
+      "reason": "deleted; content in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/Editor.requestSequence.test.tsx",
+      "read": "full",
+      "reason": "new, in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/Editor.saveHandle.acceptance.test.tsx",
+      "read": "full",
+      "reason": "new, in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/Editor.saveHandle.test.tsx",
+      "read": "full",
+      "reason": "new, in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/EditorToolbar.border.test.tsx",
+      "read": "full",
+      "reason": "new, in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/KnowledgeEditSection.saveHandle.test.tsx",
+      "read": "full",
+      "reason": "new, in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/NoteSearchScope.test.tsx",
+      "read": "partial",
+      "reason": "diff hunk only"
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/NotesPage.test.tsx",
+      "read": "partial",
+      "reason": "deleted; skimmed in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/VersionHistoryPanel.test.tsx",
+      "read": "partial",
+      "reason": "diff hunk only"
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/c3-chrome.test.tsx",
+      "read": "partial",
+      "reason": "diff hunks only"
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/notesApp.frame.test.tsx",
+      "read": "partial",
+      "reason": "skimmed in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/notesApp.home.test.tsx",
+      "read": "partial",
+      "reason": "skimmed in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/notesAppHarness.tsx",
+      "read": "partial",
+      "reason": "skimmed in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/notesFrame.test.tsx",
+      "read": "partial",
+      "reason": "skimmed in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/notesHome.test.tsx",
+      "read": "partial",
+      "reason": "skimmed in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/notesLeaveClipsOut.test.tsx",
+      "read": "partial",
+      "reason": "diff hunks only"
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/notesLibrary.test.tsx",
+      "read": "partial",
+      "reason": "skimmed in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/notesPrimaryAction.test.tsx",
+      "read": "full",
+      "reason": "new, in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/notesRoutesManifest.test.ts",
+      "read": "full",
+      "reason": "new, in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/page.test.tsx",
+      "read": "partial",
+      "reason": "diff hunks only"
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/popup-dismissal.test.ts",
+      "read": "partial",
+      "reason": "diff hunk only"
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/reachability.test.ts",
+      "read": "partial",
+      "reason": "diff hunk only"
+    },
+    {
+      "path": "addons/knowledge/frontend/library/__tests__/NotesLibrary.test.tsx",
+      "read": "partial",
+      "reason": "skimmed in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/library/__tests__/libraryUrl.test.ts",
+      "read": "full",
+      "reason": "new, in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/library/__tests__/listing.test.ts",
+      "read": "full",
+      "reason": "new, in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/library/__tests__/railModel.test.ts",
+      "read": "full",
+      "reason": "new, in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/library/__tests__/shownNote.test.ts",
+      "read": "full",
+      "reason": "new, in diff"
+    },
+    {
+      "path": "addons/knowledge/tests/test_notes_sources.py",
+      "read": "partial",
+      "reason": "diff was truncated partway through this file"
+    },
+    {
+      "path": "addons/knowledge/tests/test_notes_with_sources.py",
+      "read": "not_read",
+      "reason": "beyond the diff truncation; not opened"
+    },
+    {
+      "path": "frontend/src/components/__tests__/PageHeader.test.tsx",
+      "read": "partial",
+      "reason": "diff hunk only"
+    },
+    {
+      "path": "frontend/src/components/__tests__/componentFixtureParity.test.tsx",
+      "read": "partial",
+      "reason": "diff hunks only"
+    },
+    {
+      "path": "frontend/src/components/__tests__/toolbarMenuHome.test.ts",
+      "read": "partial",
+      "reason": "diff hunk only"
+    },
+    {
+      "path": "frontend/src/components/appshell/__tests__/AppHeader.test.tsx",
+      "read": "full",
+      "reason": "new, in diff"
+    },
+    {
+      "path": "frontend/src/components/appshell/__tests__/TargetMenu.test.tsx",
+      "read": "partial",
+      "reason": "diff hunk only"
+    }
+  ],
+  "confidence": 78
+}

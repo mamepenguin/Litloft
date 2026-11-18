@@ -110,7 +110,7 @@ import { PersistentHighlightsArrangement } from "./persistentHighlights";
 import { ScenesSectionArrangement } from "./scenesSection";
 import { ClipsPageArrangement } from "./clipsPage";
 import { ClipsRowArrangement } from "./clipsRow";
-import { NotesAllClipsToggleArrangement } from "./notesAllClipsToggle";
+import { NotesLibraryArrangement, notesLibraryResponse } from "./notesLibrary";
 import { READING_ARRANGEMENTS } from "./readingTextSize";
 import { NAME_IN_USE_ARRANGEMENTS } from "./nameInUse";
 import { BATCH_PROGRESS_ARRANGEMENTS } from "./batchProgress";
@@ -143,6 +143,8 @@ window.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
   const url =
     typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
   const method = (init?.method ?? "GET").toUpperCase();
+  const library = notesLibraryResponse(url);
+  if (library !== null) return Promise.resolve(library);
   if (url.endsWith("/api/admin/config/drives")) {
     return Promise.resolve(
       jsonResponse([{ name: "Household Archive", path: "/mnt/archive", access_group: "family" }]),
@@ -2825,7 +2827,7 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "home-app-entries": HomeAppEntriesArrangement,
   "clips-page": ClipsPageArrangement,
   "clips-row": ClipsRowArrangement,
-  "notes-all-clips-toggle": NotesAllClipsToggleArrangement,
+  "notes-library": NotesLibraryArrangement,
   "discover-prefix": DiscoverPrefixArrangement,
   "video-card-byline": VideoCardBylineArrangement,
   "video-card-spacing": VideoCardSpacingArrangement,

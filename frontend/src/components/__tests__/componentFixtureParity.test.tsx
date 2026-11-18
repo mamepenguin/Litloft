@@ -330,7 +330,7 @@ describe("the component fixture's page", () => {
       "home-app-entries",
       "clips-page",
       "clips-row",
-      "notes-all-clips-toggle",
+      "notes-library",
       "discover-prefix",
       "video-card-byline",
       "video-card-spacing",

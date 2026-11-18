@@ -20,7 +20,22 @@ export default async function buildComponentFixture(): Promise<void> {
     root: FIXTURE_DIR,
     base: "./",
     logLevel: "warn",
-    plugins: [react()],
+    plugins: [
+      react(),
+      {
+        // An addon file sits outside `frontend/`, so its own packages do not
+        // resolve from there; the fixture supplies them from `frontend/`.
+        name: "addon-packages-from-frontend",
+        async resolveId(id, importer, options) {
+          if (!importer || !importer.includes("/addons/knowledge/")) return null;
+          if (!/^(gray-matter|@codemirror\/[a-z-]+)$/.test(id)) return null;
+          return this.resolve(id, join(__dirname, "..", "package.json"), {
+            ...options,
+            skipSelf: true,
+          });
+        },
+      },
+    ],
     resolve: {
       // No `preserveSymlinks`: under pnpm keeping the symlink path stops a
       // dependency's own dependency from resolving (`next-intl` →

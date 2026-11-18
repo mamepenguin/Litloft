@@ -274,7 +274,7 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-133 | implemented | docs/specs/frame-ocr-read-interval.md | sha256:ce242fcb7edbe2b2146caa6d16027c09c341688228aea67ccc1a754b3d849426 |
 | SPEC-ADDON-123 | implemented | docs/specs/frame-ocr-read-interval.md | sha256:ce242fcb7edbe2b2146caa6d16027c09c341688228aea67ccc1a754b3d849426 |
 | SPEC-ADDON-134 | implemented | docs/specs/frame-ocr-line-boxes.md | sha256:11dbb51d14a823b1f5ca9edd236aa2484a6538b7a8cc493c309e79f4e33501b5 |
-| SPEC-ADDON-130 | approved | docs/specs/notes-app.md | sha256:72a80db466c1c03fd7f70c990d2c1b6655e186508b184f617c0fdae825a0cce7 |
-| SPEC-ADDON-131 | approved | docs/specs/notes-app.md | sha256:72a80db466c1c03fd7f70c990d2c1b6655e186508b184f617c0fdae825a0cce7 |
-| SPEC-ADDON-132 | approved | docs/specs/notes-app.md | sha256:72a80db466c1c03fd7f70c990d2c1b6655e186508b184f617c0fdae825a0cce7 |
-| SPEC-CORE-130 | approved | docs/specs/notes-app.md | sha256:72a80db466c1c03fd7f70c990d2c1b6655e186508b184f617c0fdae825a0cce7 |
+| SPEC-ADDON-130 | implemented | docs/specs/notes-app.md | sha256:72a80db466c1c03fd7f70c990d2c1b6655e186508b184f617c0fdae825a0cce7 |
+| SPEC-ADDON-131 | implemented | docs/specs/notes-app.md | sha256:72a80db466c1c03fd7f70c990d2c1b6655e186508b184f617c0fdae825a0cce7 |
+| SPEC-ADDON-132 | implemented | docs/specs/notes-app.md | sha256:72a80db466c1c03fd7f70c990d2c1b6655e186508b184f617c0fdae825a0cce7 |
+| SPEC-CORE-130 | implemented | docs/specs/notes-app.md | sha256:72a80db466c1c03fd7f70c990d2c1b6655e186508b184f617c0fdae825a0cce7 |
