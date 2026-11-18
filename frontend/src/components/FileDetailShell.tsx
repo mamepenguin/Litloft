@@ -12,7 +12,6 @@ import {
 } from "react";
 import { useTranslations } from "next-intl";
 
-import { useCanvasFloor } from "./FileDetail/hooks/useCanvasFloor";
 import { useFind } from "./FileDetail/find/FindContext";
 import { useInspectorOpen } from "@/hooks/useInspectorOpen";
 import { useInspectorForm } from "@/hooks/useInspectorForm";
@@ -52,7 +51,6 @@ interface FileDetailShellProps {
   titleNode?: ReactNode;
   fileId?: string;
   chromeControls?: ReactNode;
-  canvasFloor?: boolean;
   onBack?: () => void;
   inspector: ReactNode;
   /** A video, an audio file or a `.loft`: the only kinds that stack. */
@@ -95,7 +93,6 @@ export function FileDetailShell({
   titleNode,
   fileId,
   chromeControls,
-  canvasFloor,
   onBack,
   inspector,
   isPlayerFile = false,
@@ -115,11 +112,6 @@ export function FileDetailShell({
   const find = useFind();
   const { stack } = useShortcutsContext();
 
-  // Not on a phone: the player is `position: sticky` under
-  // `[data-sheet-snap]`, so a floor would pin 70% of the screen to the
-  // top for the whole scroll.
-  const floorActive = !!canvasFloor && !isMobile;
-  const measureCanvas = useCanvasFloor(floorActive);
   const canvasRef = useRef<HTMLElement | null>(null);
   // The position before find's bar is inserted above the content: scroll
   // anchoring folds the bar's height into `scrollTop`, so reading it after
@@ -132,10 +124,9 @@ export function FileDetailShell({
   const attachCanvas = useCallback(
     (node: HTMLElement | null) => {
       canvasRef.current = node;
-      measureCanvas(node);
       onScrollRootChange?.(node);
     },
-    [measureCanvas, onScrollRootChange],
+    [onScrollRootChange],
   );
 
   // Which state, never the snap it resolves to. `half`'s snap moves with
@@ -489,7 +480,6 @@ export function FileDetailShell({
         <main
           ref={attachCanvas}
           onScroll={noteCanvasScroll}
-          data-canvas-floor={floorActive ? "true" : undefined}
           className="flex min-w-0 min-h-0 flex-1 flex-col overflow-auto"
           // The sheet rests over the bottom of the page, so the page
           // has to end above it.

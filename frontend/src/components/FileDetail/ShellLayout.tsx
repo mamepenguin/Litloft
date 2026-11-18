@@ -15,7 +15,6 @@ import { usePdfState } from "./pdf/usePdfState";
 import { ArchivePagesPanel } from "./archive/ArchivePagesPanel";
 import { useArchiveState } from "./archive/useArchiveState";
 import { useInspectorForm } from "@/hooks/useInspectorForm";
-import { viewerTakesCanvasFloor } from "@/lib/fileDetailShell";
 import { slotEntryLabel } from "@/lib/slotLabel";
 import { ActiveSummaryHost } from "../ActiveSummaryHost";
 import { AddonSlot, SlotEntryRenderer } from "../AddonSlot";
@@ -490,7 +489,6 @@ export function ShellLayout({
         onBack={onBack}
         onScrollRootChange={attachScrollRoot}
         findEnabled={findEnabled}
-        canvasFloor={viewerTakesCanvasFloor(file.file_type, file.mime_type)}
         isPlayerFile={hasPlayer}
         publishesForm
         chromeControls={

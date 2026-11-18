@@ -1,10 +1,18 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { useTranslations } from "next-intl";
 import { getArchiveContents } from "@/lib/api";
+import { useFillHeight } from "@/hooks/useFillHeight";
 import {
   ArchiveContentsStore,
   type ArchiveController,
@@ -35,13 +43,18 @@ import { ArchiveToolbar } from "./archive/ArchiveToolbar";
 export function ArchivePreview({
   fileId,
   onArchiveController,
+  fillCanvas = false,
 }: {
   fileId: string;
   onArchiveController?: (controller: ArchiveController | null) => void;
+  /** Take the canvas's height; otherwise the listing keeps its own. */
+  fillCanvas?: boolean;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const currentPath = searchParams.get("archivePath") || "";
+  const fillRef = useRef<HTMLDivElement | null>(null);
+  const fillHeight = useFillHeight(fillRef);
 
   const t = useTranslations("archive");
   const [archive, setArchive] = useState<ArchiveContents | null>(null);
@@ -279,26 +292,40 @@ export function ArchivePreview({
     return () => onArchiveController?.(null);
   }, [onArchiveController, archiveStore]);
 
+  // The measured box, always mounted: the fill hook measures the node its
+  // ref points at once, so a wrapper that came and went would leave it
+  // measuring a detached element. `contents` keeps the collection surface's
+  // and the loading box's layout exactly as they were.
+  const frame = (content: ReactNode) => (
+    <div
+      ref={fillCanvas ? fillRef : undefined}
+      className={fillCanvas ? "flex min-h-0 w-full flex-col" : "contents"}
+      style={fillCanvas ? { height: fillHeight ?? 0 } : undefined}
+    >
+      {content}
+    </div>
+  );
+
   if (loading) {
-    return (
+    return frame(
       <div className="flex w-full items-center justify-center rounded-xl bg-bg-card py-16">
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-accent border-t-transparent" />
-      </div>
+      </div>,
     );
   }
 
   if (error) {
-    return (
+    return frame(
       <div className="flex w-full items-center justify-center rounded-xl bg-bg-card py-16">
         <p className="text-sm text-danger">
           {t("loadFailed", { error: error ?? "" })}
         </p>
-      </div>
+      </div>,
     );
   }
 
   if (viewerMode === "image" && currentImage) {
-    return (
+    return frame(
       <ArchiveImageViewer
         fileId={fileId}
         currentImage={currentImage}
@@ -329,16 +356,15 @@ export function ArchivePreview({
         showRightHalf={imageViewer.showRightHalf}
         navigatePrev={imageViewer.navigatePrev}
         navigateNext={imageViewer.navigateNext}
-      />
+      />,
     );
   }
 
   const displayEntries = applySortFilter(currentEntries);
 
-  return (
-    // `h-full`: the canvas reserves a floor on the wrapper above and
-    // stretches this box into it, so the listing gets the height rather
-    // than leaving it empty underneath.
+  return frame(
+    // `h-full` on the collection surface, where the canvas above gives it a
+    // box. On the file page the measured wrapper is that box.
     <div className="flex h-full w-full flex-col">
       <ArchiveToolbar
         fileId={fileId}
@@ -389,6 +415,6 @@ export function ArchivePreview({
           closeViewer={closeViewerFull}
         />
       )}
-    </div>
+    </div>,
   );
 }

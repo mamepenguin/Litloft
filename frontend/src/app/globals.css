@@ -1654,23 +1654,6 @@ div:has(> .fixed[data-fullscreen-moving])::before {
   }
 }
 
-/* A floor under the canvas viewer. `--canvas-h` is measured rather than
-   `70cqh`: `container-type: size` implies `contain: layout`, which would
-   make the canvas the containing block for its unportalled
-   `position: fixed` descendants. */
-main[data-canvas-floor="true"] .media-detail-player {
-  min-height: max(320px, calc(var(--canvas-h, 0px) * 0.7));
-  /* The `min-height` alone reserves the height on this wrapper and
-     stops there: a block box does not stretch its in-flow children. */
-  display: flex;
-  flex-direction: column;
-}
-
-main[data-canvas-floor="true"] .media-detail-player > :first-child {
-  flex: 1 1 auto;
-  min-height: 0;
-}
-
 /* Related files: two tiles per row only where each is at least as wide
    as the rail's one column. The rail leaves the grid 22rem before its
    scrollbar, so 2 x 22rem + the 0.5rem gap = 44.5rem, and the rounding

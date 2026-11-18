@@ -20,7 +20,7 @@ import { EpubPositionBar } from "./EpubPositionBar";
 import { EpubTocPanel } from "./EpubTocPanel";
 import { EpubTypographyPanel } from "./EpubTypographyPanel";
 import { useEpubReader, type ReaderActivity, type ReaderTheme } from "./useEpubReader";
-import { useFillHeight } from "./useFillHeight";
+import { useFillHeight } from "@/hooks/useFillHeight";
 
 export const EPUB_READER_URL = "/epub-reader/reader.html";
 

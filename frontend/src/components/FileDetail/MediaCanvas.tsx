@@ -15,6 +15,7 @@ interface MediaCanvasProps
     | "framed"
     | "bleed"
     | "showPreviewActions"
+    | "fillCanvas"
   > {
   file: FileItem;
   metrics: CompanionMetrics;
@@ -78,6 +79,7 @@ export function MediaCanvas({
         bleed={isDocumentViewer(file.mime_type)}
         showPreviewActions={showPreviewActions}
         showMetadataAside={false}
+        fillCanvas
       />
 
       {workbench}
