@@ -5,11 +5,12 @@
  */
 
 import { test, expect, type Locator, type Page } from "@playwright/test";
-import { pathToFileURL } from "node:url";
 
-import { PAGE } from "./build-bundle";
+import { FIXTURE_URL, serveFixture } from "./fixtureOrigin";
 
-const FIXTURE = pathToFileURL(PAGE).href;
+const FIXTURE = FIXTURE_URL;
+
+test.beforeEach(({ context }) => serveFixture(context));
 
 const VIDEO = "video0000001";
 const PDF = "pdf000000001";
