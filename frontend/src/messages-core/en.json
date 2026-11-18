@@ -1554,5 +1554,12 @@
     "title": "Can't open the drive “{name}”",
     "allDrives": "All drives",
     "unlock": "Unlock"
+  },
+  "focusMode": {
+    "enter": "Focus mode (T)",
+    "exit": "Leave focus mode (T)",
+    "reveal": "Show header",
+    "title": "Focus mode",
+    "toggle": "Toggle focus mode"
   }
 }

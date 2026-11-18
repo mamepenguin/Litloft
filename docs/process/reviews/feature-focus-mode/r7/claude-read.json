@@ -1,0 +1,246 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "F1",
+      "origin": "reviewer",
+      "claim": "The c8c7c5f7b fix decides whether to take a reading anchor from a caller-side guess (`toggleFocusMode(layoutChanges)`, with `wide` passed from FocusModeShortcuts and an implicit `true` from FocusModeButton and TreeToggle). The anchor is spent only by AppShell's layout effect keyed on the real `useFocusLayout`, so this guess is a second derivation of state × file page URL × wide that has to stay in step with the real one.",
+      "impact": "Today every caller's guess matches the real layout change, so a user cannot hit this. If a new caller is added, or a page passes `true` while the layout does not change, the anchor stays pending and the next layout change scrolls the reader back to an old place. That is the failure r6 F3 described.",
+      "evidence": "useFocusMode.ts:105-108 `if (layoutChanges) rememberReadingAnchor()`; FocusModeShortcuts.tsx:17,23 `toggleFocusMode(wide)` (the shortcut is active only on file page URLs, AppShell.tsx:334); FocusModeButton.tsx:17 `toggleFocusMode()` (drawn only when !isMobile, FileDetailChrome.tsx:146, and only in the hosted trailing slot); TreeToggle handleToggle calls `toggleFocusMode()` only while focusLayout is true. restoreReadingAnchor is called only from AppShell.tsx:311-313, keyed on [focusLayout]. useIsWideViewport and useIsMobile both test innerWidth against 768, so they agree.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "No declared invariant is broken with the current callers. This is a fragile, duplicated prediction, not a defect a user can hit."
+      },
+      "severity": "INFO",
+      "proposed_fix": "Take the anchor where the layout actually changes, for example capture it in a render-phase or pre-commit step when the derived focusLayout differs from the previous one, or drop any pending anchor when a focus-state change does not change useFocusLayout. Then remove the `layoutChanges` parameter."
+    }
+  ],
+  "specification_compliance": [
+    "r6 F1 (I4, overlay sidebar closed on entering and leaving when it is an overlay for another reason): fixed. SidebarProvider.tsx:75-77 runs a layout effect keyed on focusLent that calls setIsOpen(false) in both directions. At ≥1200px with the tree hidden, the isOverlay effect declared after it (lines 84-91) still restores the stored preference in the same layout phase, and the later setState wins, so restoring the inline column is unaffected. New test rows at 1024 (narrow) and 1440 (tree beside) cover entering by T and leaving by T and by the tree button. Removing the new effect would make them fail.",
+    "r6 F2 (Terms / I4: a DriveUnavailable screen is not a file page URL): fixed. DriveUnavailable registers in driveUnavailableStore through a mount/unmount layout effect. useIsFilePageUrl reads it, so FocusModeShortcuts is inactive there (T does nothing, the cheat sheet has no entry), useFocusLayout is false, and AppShell's `if (!filePageUrl) focusModeStore.set(false)` turns the state off when the screen replaces a file page while the state is on. The new focus-unavailable test covers T and the cheat sheet. Dropping the store check from useIsFilePageUrl would make it fail.",
+    "r6 F3 (stale anchor after T below 768px): fixed for the current callers by passing `wide` from FocusModeShortcuts. The new 700→1280 test covers it. See F1 for the fragility.",
+    "No new invariant breach found in the three fix commits."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "useSyncExternalStore subscribes in a passive effect. If DriveUnavailable mounts in the same commit as AppShell (a first load on an unavailable drive), the store change is noticed after the subscription is set up, which may be after a paint. On a fresh load the focus state is off anyway, so nothing visible follows.",
+    "The earlier B and INFO items from r6 (F4–F10: readingAnchor and safeArea modules, the document-wide one-frame transition kill, the router stub change) are untouched by these fixes and remain as they were."
+  ],
+  "regression_risks": [
+    "The new focusLent-keyed close in SidebarProvider closes any open overlay sidebar whenever the focus layout begins or ends for any reason: a resize across 768px with the state on, or a URL leaving the file page. That matches §1.3/§1.6, but it is broader than a press.",
+    "driveUnavailableStore is a module-level counter. A DriveUnavailable mounted outside a drive route would also make every file page URL read as not a file page while it is mounted. Today the only user is app/drive/[name]/layout.tsx:90."
+  ],
+  "test_coverage": [
+    "The new 1024 and 1440-tree-shown rows kill the removal of SidebarProvider's focusLent close effect.",
+    "The new focus-unavailable test kills the removal of the driveUnavailableStore check in useIsFilePageUrl. Nothing tests the path where a drive becomes unavailable while the focus state is on (the state turning off in that commit); only the T-on-the-screen path is covered.",
+    "The new below-768 anchor test depends on the PDF pane's scroller element surviving the 700→1280 resize. If it were remounted, the test would read a detached element and go red, not pass silently.",
+    "No test covers the focus-files arrangement in its failed state, or reading-position restore when the document scrolls (/files/{id})."
+  ],
+  "not_verified": [
+    "Nothing was executed: no unit, component or e2e test was run, and the fixes were traced statically.",
+    "Whether React flushes the useSyncExternalStore update triggered from DriveUnavailable's layout effect before paint in every mount order. I assumed the documented sync-lane behaviour.",
+    "Whether any hosted file page (FileHeaderRowPortal) can appear on a URL that is not a file page URL, which would let FocusModeButton toggle the state and take an anchor that is never spent.",
+    "Real touch and iPad behaviour.",
+    "Earlier review rounds before r6. The trajectory is judged from r6 onward only."
+  ],
+  "coverage": [
+    {
+      "path": "frontend/e2e-components/file-header-row-desktop.spec.ts",
+      "read": "partial",
+      "reason": "The diff hunks given in the review input only."
+    },
+    {
+      "path": "frontend/e2e-components/file-header-row.spec.ts",
+      "read": "partial",
+      "reason": "The diff hunk around lines 77-95 only."
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/app.tsx",
+      "read": "partial",
+      "reason": "The diff hunks (the import near 114 and the ARRANGEMENTS spread near 2802) only."
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/focusMode.tsx",
+      "read": "full",
+      "reason": "New file, entirely present in the diff, including the focus-unavailable arrangement added in f128dae1a."
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/inspectorResponsive.tsx",
+      "read": "partial",
+      "reason": "The diff hunks (export changes) only."
+    },
+    {
+      "path": "frontend/e2e-components/focus-mode-desktop.spec.ts",
+      "read": "full",
+      "reason": "New file, entirely present in the diff, including the tests added by the three fix commits."
+    },
+    {
+      "path": "frontend/e2e-components/focus-mode-touch-desktop.spec.ts",
+      "read": "full",
+      "reason": "New file, entirely present in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/projects.ts",
+      "read": "partial",
+      "reason": "The diff hunk near line 41 only."
+    },
+    {
+      "path": "frontend/e2e-components/spec-viewport.spec.ts",
+      "read": "partial",
+      "reason": "The diff hunk near line 122 only."
+    },
+    {
+      "path": "frontend/e2e-components/stubs/next-navigation.ts",
+      "read": "partial",
+      "reason": "The diff hunk (lines 1-57) only; the rest of the file (useParams and below) was not read."
+    },
+    {
+      "path": "frontend/src/app/globals.css",
+      "read": "partial",
+      "reason": "The diff hunk near lines 680-720 only."
+    },
+    {
+      "path": "frontend/src/components/AppShell.tsx",
+      "read": "full",
+      "reason": "Read the whole file (1-394)."
+    },
+    {
+      "path": "frontend/src/components/ChromeButtons.tsx",
+      "read": "partial",
+      "reason": "The diff hunks near lines 39-65 only."
+    },
+    {
+      "path": "frontend/src/components/ConfirmDialog.tsx",
+      "read": "partial",
+      "reason": "The diff hunk near lines 68-75 only."
+    },
+    {
+      "path": "frontend/src/components/DriveUnavailable.tsx",
+      "read": "partial",
+      "reason": "The diff hunks (imports and the layout effect, lines 1-35) only."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/FileDetailChrome.tsx",
+      "read": "full",
+      "reason": "Read lines 40-228, the whole component that encloses the changed hunk; the import hunk is in the diff."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/FocusModeButton.tsx",
+      "read": "full",
+      "reason": "New file, entirely present in the diff."
+    },
+    {
+      "path": "frontend/src/components/FileDetailShell.tsx",
+      "read": "partial",
+      "reason": "The diff hunks (the import and the layout effect near line 208) only."
+    },
+    {
+      "path": "frontend/src/components/FocusModeShortcuts.tsx",
+      "read": "full",
+      "reason": "New file, entirely present in the diff."
+    },
+    {
+      "path": "frontend/src/components/GlobalSearch.tsx",
+      "read": "partial",
+      "reason": "The diff hunk near line 818 only."
+    },
+    {
+      "path": "frontend/src/components/Header.tsx",
+      "read": "partial",
+      "reason": "The diff hunks (props, the --app-header-h layout effect, the row-inset effect, the header element) only."
+    },
+    {
+      "path": "frontend/src/components/RenameDialog.tsx",
+      "read": "partial",
+      "reason": "The diff hunk near lines 61-67 only."
+    },
+    {
+      "path": "frontend/src/components/Sidebar.tsx",
+      "read": "partial",
+      "reason": "The diff hunk (data-app-sidebar near line 325) only."
+    },
+    {
+      "path": "frontend/src/components/SidebarProvider.tsx",
+      "read": "full",
+      "reason": "Read the whole file (1-203)."
+    },
+    {
+      "path": "frontend/src/components/TreeToggle.tsx",
+      "read": "partial",
+      "reason": "The diff hunks covering the whole component body (lines 5-60) only."
+    },
+    {
+      "path": "frontend/src/components/folder/TwoPaneLayout.tsx",
+      "read": "partial",
+      "reason": "The diff hunks near lines 19, 104-170 only."
+    },
+    {
+      "path": "frontend/src/components/markdown/SaveDot.tsx",
+      "read": "partial",
+      "reason": "The diff hunk near lines 25-40 only."
+    },
+    {
+      "path": "frontend/src/hooks/useFocusMode.ts",
+      "read": "full",
+      "reason": "New file, entirely present in the diff, including the f128dae1a and c8c7c5f7b changes."
+    },
+    {
+      "path": "frontend/src/lib/driveUnavailableStore.ts",
+      "read": "full",
+      "reason": "New file, entirely present in the diff."
+    },
+    {
+      "path": "frontend/src/lib/findShortcut.ts",
+      "read": "partial",
+      "reason": "The diff hunk (lines 12-36) only."
+    },
+    {
+      "path": "frontend/src/lib/focusModeStore.ts",
+      "read": "full",
+      "reason": "New file, entirely present in the diff."
+    },
+    {
+      "path": "frontend/src/lib/readingAnchor.ts",
+      "read": "full",
+      "reason": "New file, entirely present in the diff."
+    },
+    {
+      "path": "frontend/src/lib/safeArea.ts",
+      "read": "full",
+      "reason": "New file, entirely present in the diff."
+    },
+    {
+      "path": "frontend/src/messages-core/en.json",
+      "read": "partial",
+      "reason": "The diff hunk (focusMode keys near line 1554) only."
+    },
+    {
+      "path": "frontend/src/messages-core/ja.json",
+      "read": "partial",
+      "reason": "The diff hunk (focusMode keys near line 1554) only."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/__tests__/FileDetailHeaderRow.test.tsx",
+      "read": "partial",
+      "reason": "The diff hunks near lines 280-315 only."
+    },
+    {
+      "path": "frontend/src/components/__tests__/AppShell.quickNote.test.tsx",
+      "read": "partial",
+      "reason": "The diff hunk (the next/navigation mock) only."
+    },
+    {
+      "path": "frontend/src/components/__tests__/MenuButton.test.tsx",
+      "read": "partial",
+      "reason": "The diff hunks (mocks near lines 12-39) only."
+    }
+  ],
+  "confidence": 80,
+  "trajectory": "Each fix round since r6 adds a new branch, state or prediction instead of removing one. e3d04c7c2 adds a second close path in SidebarProvider: a layout effect keyed on focusLent, alongside the existing one keyed on isOverlay. Two effects now both write isOpen in one layout phase, and they depend on declaration order so that the restore wins. f128dae1a adds new state, a module-level driveUnavailableStore counter that useIsFilePageUrl reads. It also removes one thing, DriveUnavailable's one-shot focusModeStore reset, so this round replaces a mechanism rather than only adding one. c8c7c5f7b adds a prediction: a `layoutChanges` parameter on toggleFocusMode, computed by each caller (`wide` from FocusModeShortcuts, an implicit true elsewhere). It duplicates the state × file page × wide derivation that useFocusLayout already does, because the anchor is captured at the press but spent by a layout effect. That is the same class of fix r6 F3 asked for, and it patches the symptom rather than tying capture to the actual layout change. Overall the design is being patched: the focus-layout lifetime is now spread over the URL, a mounted-screen flag, a lent-sidebar flag and a caller-side prediction."
+}

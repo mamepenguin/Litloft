@@ -1,0 +1,141 @@
+{
+  "v": 3,
+  "attachments": {},
+  "boards": {
+    "Collection.dc.html": {
+      "h": 900,
+      "title": "通常・コレクション面",
+      "w": 1440,
+      "x": 1520,
+      "y": 3800
+    },
+    "CollectionFocus.dc.html": {
+      "h": 900,
+      "title": "集中モード・コレクション面",
+      "w": 1440,
+      "x": 3040,
+      "y": 3800
+    },
+    "ExitFloat.dc.html": {
+      "h": 900,
+      "title": "B 右上に小さなボタンを常に浮かべる",
+      "w": 1440,
+      "x": 1520,
+      "y": 2500
+    },
+    "ExitReveal.dc.html": {
+      "h": 900,
+      "title": "A（推奨）上端に寄せるとヘッダーが被さって出る",
+      "w": 1440,
+      "x": 0,
+      "y": 2500
+    },
+    "Focus1280.dc.html": {
+      "h": 800,
+      "title": "集中モード・1280・インスペクタあり",
+      "w": 1280,
+      "x": 1360,
+      "y": 1300
+    },
+    "Focus1440.dc.html": {
+      "h": 900,
+      "title": "集中モード・1440・インスペクタあり",
+      "w": 1440,
+      "x": 1520,
+      "y": 0
+    },
+    "Focus1440Closed.dc.html": {
+      "h": 900,
+      "title": "集中モード・1440・インスペクタを閉じた",
+      "w": 1440,
+      "x": 3040,
+      "y": 0
+    },
+    "Main.dc.html": {
+      "h": 900,
+      "is_interactive": true,
+      "title": "通常・1440・インスペクタあり（操作できます）",
+      "w": 1440,
+      "x": 0,
+      "y": 0
+    },
+    "Normal1280.dc.html": {
+      "h": 800,
+      "title": "通常・1280・インスペクタあり",
+      "w": 1280,
+      "x": 0,
+      "y": 1300
+    },
+    "Pdf.dc.html": {
+      "h": 900,
+      "title": "集中モード・PDF",
+      "w": 1440,
+      "x": 0,
+      "y": 3800
+    },
+    "Touch.dc.html": {
+      "h": 820,
+      "title": "A を iPad 横画面で（上端のつまみをタップ）",
+      "w": 1180,
+      "x": 3170,
+      "y": 2319
+    }
+  },
+  "createdOnFiles": {
+    "at": "2026-11-18T12:00:00Z",
+    "v": 1
+  },
+  "designSystems": [],
+  "launch": {
+    "view": "canvas"
+  },
+  "notes": {
+    "row1": {
+      "kind": "title1",
+      "maxW": 4480,
+      "text": "通常と集中モード（1440）",
+      "w": 240,
+      "x": 0,
+      "y": -260
+    },
+    "row2": {
+      "kind": "title1",
+      "maxW": 2640,
+      "text": "1280",
+      "w": 240,
+      "x": 0,
+      "y": 1040
+    },
+    "row3": {
+      "kind": "title1",
+      "maxW": 4220,
+      "text": "集中モード中の出口",
+      "w": 240,
+      "x": 0,
+      "y": 2240
+    },
+    "row4": {
+      "kind": "title1",
+      "maxW": 4480,
+      "text": "読み物とコレクション面",
+      "w": 240,
+      "x": 0,
+      "y": 3540
+    }
+  },
+  "order": [
+    "Main.dc.html",
+    "Focus1440.dc.html",
+    "Focus1440Closed.dc.html",
+    "Normal1280.dc.html",
+    "Focus1280.dc.html",
+    "ExitReveal.dc.html",
+    "ExitFloat.dc.html",
+    "Touch.dc.html",
+    "Pdf.dc.html",
+    "Collection.dc.html",
+    "CollectionFocus.dc.html"
+  ],
+  "pages": [],
+  "title": "Focus Mode"
+}

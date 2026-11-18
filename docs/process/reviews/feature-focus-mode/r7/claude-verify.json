@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1",
+      "status": "confirmed",
+      "note": "Every factual point in the finding holds. useFocusMode.ts:106-109: `toggleFocusMode(layoutChanges = true)` calls rememberReadingAnchor() only when layoutChanges is true. FocusModeShortcuts.tsx:17,23 passes `wide` from useIsWideViewport. FocusModeButton.tsx:17 and TreeToggle.tsx:30 call it with no argument, so the default true applies. The anchor is spent only by AppShell.tsx:311-313, a useLayoutEffect keyed on [focusLayout], and focusLayout comes from useFocusLayout, which is state && useIsFilePageUrl && wide (useFocusMode.ts:90-95). The caller-side flag is therefore a second derivation of when the layout changes. I found no case where the two disagree at this commit: the shortcut is active only when filePageUrl is true (AppShell.tsx:334); FocusModeButton is not drawn when isMobile (FileDetailChrome.tsx:146); TreeToggle calls toggleFocusMode only inside `if (focusLayout)`; and useIsMobile (innerWidth < 768) and useIsWideViewport (innerWidth >= 768) both use MOBILE_BREAKPOINT, so they are exact complements. The finding is confirmed as a coupling and maintainability observation, not as a divergence that shows up today."
+    }
+  ],
+  "specification_compliance": [
+    "For F1, at this commit the flag each caller passes to toggleFocusMode matches the change in useFocusLayout for all three callers. I found no breach of I2's reading-anchor clause along these paths."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "If a future caller of toggleFocusMode() relies on the default layoutChanges=true while the URL is not a file page URL, or below 768px, it would leave a stale pending anchor. A later focusLayout change, such as a resize, would then spend that anchor at a reading position the reader has already left."
+  ],
+  "regression_risks": [
+    "The anchor decision is made by each caller and is not derived from useFocusLayout. A change to the file-page-URL test, for example driveUnavailableStore, or to the breakpoint can make the two disagree without any error."
+  ],
+  "test_coverage": [
+    "I did not check whether any test asserts that no anchor is taken below 768px, or that one is taken from the button and the tree toggle paths."
+  ],
+  "not_verified": [
+    "I did not run any test or browser reproduction; this verification is static reading only.",
+    "I did not trace whether FileHeaderRowPortal drops `trailing` when the page is not hosted, or whether FileDetailChrome can render while driveUnavailableStore is true.",
+    "I did not check whether the first render of useIsWideViewport (from the initial state) and of useIsMobile can differ during hydration."
+  ],
+  "confidence": 85
+}

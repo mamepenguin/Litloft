@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { usePathname, useSearchParams } from "next/navigation";
 
 import { useTreeVisible } from "@/hooks/useTreeVisible";
+import { toggleFocusMode, useFocusLayout } from "@/hooks/useFocusMode";
 import { routeHidesTree } from "@/lib/driveViews";
 
 interface TreeToggleProps {
@@ -19,6 +20,20 @@ export function TreeToggle({ drive, visible = true }: TreeToggleProps) {
   // The effective state, not the stored one. Below `md` a stored "on" is
   // suppressed.
   const { visible: treeVisible, toggle } = useTreeVisible(drive);
+  // The focus layout gives the pane's width to the page, so the button
+  // reports the pane as hidden there and a press has to end that layout
+  // before its ordinary press means anything.
+  const focusLayout = useFocusLayout();
+  const shown = treeVisible && !focusLayout;
+  const handleToggle = () => {
+    if (focusLayout) {
+      toggleFocusMode();
+      // The layout leaving produces shows the pane: the press has already
+      // done what it was for, and the ordinary press would hide it again.
+      if (treeVisible) return;
+    }
+    toggle();
+  };
 
   if (!visible) return null;
   if (!pathname.startsWith("/drive/")) return null;
@@ -31,15 +46,15 @@ export function TreeToggle({ drive, visible = true }: TreeToggleProps) {
   return (
     <button
       type="button"
-      onClick={toggle}
-      aria-pressed={treeVisible}
-      aria-label={treeVisible ? t("treeOff") : t("treeOn")}
-      title={treeVisible ? t("treeOff") : t("treeOn")}
+      onClick={handleToggle}
+      aria-pressed={shown}
+      aria-label={shown ? t("treeOff") : t("treeOn")}
+      title={shown ? t("treeOff") : t("treeOn")}
       className={`${display} h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl transition-colors hover:bg-bg-elevated hover:text-text-primary ${
-        treeVisible ? "bg-bg-elevated text-text-primary" : "text-text-muted"
+        shown ? "bg-bg-elevated text-text-primary" : "text-text-muted"
       }`}
     >
-      {treeVisible ? <PanelLeftClose size={20} /> : <PanelLeft size={20} />}
+      {shown ? <PanelLeftClose size={20} /> : <PanelLeft size={20} />}
     </button>
   );
 }

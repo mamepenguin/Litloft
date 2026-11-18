@@ -41,6 +41,8 @@ export const DESKTOP_ONLY = [
   "**/app-header-desktop.spec.ts",
   "**/target-menu-rows-desktop.spec.ts",
   "**/drive-unavailable-desktop.spec.ts",
+  "**/focus-mode-desktop.spec.ts",
+  "**/focus-mode-touch-desktop.spec.ts",
 ];
 
 /** Literals rather than a device preset, which can change under it. */

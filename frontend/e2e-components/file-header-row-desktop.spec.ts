@@ -41,6 +41,26 @@ async function ordinaryControlX(page: Page): Promise<number[]> {
 const headerToggle = (page: Page) =>
   page.locator("header").getByTestId("inspector-toggle").filter({ visible: true });
 
+const focusButton = (page: Page) =>
+  page.locator("header").getByRole("button", {
+    name: /^(Focus mode|Leave focus mode) \(T\)$/,
+  });
+
+/** Puts the tab on a file page URL and enters focus mode. */
+async function enterFocus(page: Page, fileId = "hrvideo00001"): Promise<void> {
+  await page.evaluate((id) => window.__fixtureNavigate!("/drive/fixture", `file=${id}`), fileId);
+  await expect(focusButton(page)).toHaveCount(1);
+  await focusButton(page).click();
+  await expect(page.locator("header")).toHaveAttribute("data-focus-header", "hidden");
+}
+
+/** Reveals the hidden header with the pointer, at the top edge. */
+async function revealFocusHeader(page: Page, width: number): Promise<void> {
+  await page.mouse.move(width / 2, 300);
+  await page.mouse.move(width / 2, 3, { steps: 4 });
+  await expect(page.locator("header")).toHaveAttribute("data-focus-header", "revealed");
+}
+
 /** The rightmost visible button or link in the header. */
 const lastHeaderControl = (page: Page) =>
   page.locator("header").locator("button, a[href]").filter({ visible: true }).last();
@@ -66,7 +86,7 @@ const trailIn = (scope: Locator) =>
   scope.locator('a[href="/drive/fixture/Videos/Clips"]').filter({ visible: true });
 
 for (const width of [1280, 900]) {
-  test(`SPEC-CORE-094 D1 / I1 (${width}px): the trail is in the app header, at the ordinary header's height, with no row below it`, async ({
+  test(`SPEC-CORE-094 I1 (${width}px): outside the focus layout the trail is in the app header at the ordinary header's height with no row below it, and in the focus layout it takes no row while hidden and overlays the content while revealed`, async ({
     page,
   }) => {
     await open(page, "header-row-ordinary", width);
@@ -80,9 +100,19 @@ for (const width of [1280, 900]) {
 
     await expect(trailIn(page.locator("main"))).toHaveCount(0);
     await expect(page.locator("main").getByRole("button", { name: /inspector/i })).toBeHidden();
+
+    await enterFocus(page);
+    const contentBefore = await box(page.locator("[data-testid='page-content']"));
+    await revealFocusHeader(page, width);
+    await expect(trailIn(header)).toHaveCount(1);
+    expect((await box(header)).top).toBe(0);
+    const contentAfter = await box(page.locator("[data-testid='page-content']"));
+    for (const side of ["left", "top", "width", "height"] as const) {
+      expect(Math.abs(contentAfter[side] - contentBefore[side]), `content.${side}`).toBeLessThanOrEqual(1);
+    }
   });
 
-  test(`SPEC-CORE-094 D3 / I2 as revised by SPEC-CORE-098 (${width}px): with an inspector, search, quick note and the avatar sit left of a folder page's x by the profile-to-toggle distance; without one, at that x`, async ({
+  test(`SPEC-CORE-094 D3 / I2 as revised by SPEC-CORE-098 (${width}px): with an inspector, search, quick note and the avatar sit left of a folder page's x by the profile-to-last-control distance, outside the focus layout and in its revealed header; without one, at that x`, async ({
     page,
   }) => {
     await open(page, "header-row-ordinary", width);
@@ -107,6 +137,25 @@ for (const width of [1280, 900]) {
     for (let i = 0; i < ORDINARY_CONTROLS.length; i += 1) {
       expect(Math.abs(withoutInspector[i] - ordinary[i]), `error state: ${ORDINARY_CONTROLS[i]}`).toBeLessThanOrEqual(0.5);
     }
+
+    await open(page, "header-row-video", width);
+    await enterFocus(page);
+    await revealFocusHeader(page, width);
+    const revealed = await ordinaryControlX(page);
+    const revealedShift =
+      (await box(headerToggle(page))).right - (await box(profileButton(page))).right;
+    expect(revealedShift).toBeGreaterThan(0);
+    for (let i = 0; i < ORDINARY_CONTROLS.length; i += 1) {
+      expect(
+        Math.abs(ordinary[i] - revealed[i] - revealedShift),
+        `revealed: ${ORDINARY_CONTROLS[i]}`,
+      ).toBeLessThanOrEqual(0.5);
+    }
+    const crumb = await box(page.locator("header").getByRole("navigation").locator("a, button").first());
+    const fixed = await box(page.getByTestId("chrome-buttons"));
+    const frame = await box(page.locator("header"));
+    expect(crumb.left).toBeGreaterThanOrEqual(fixed.right + 12 - 0.5);
+    expect(crumb.left).toBeGreaterThanOrEqual(frame.left + 16 - 0.5);
   });
 }
 
@@ -138,7 +187,7 @@ test("SPEC-CORE-094 D2 as revised by SPEC-CORE-098: left to right — menu and t
   expect(await dividersIn(page, avatar.right, toggle.left)).toHaveLength(1);
 });
 
-test("SPEC-CORE-094 I3 as revised by SPEC-CORE-098 (wide): quick note, the avatar and the tree button are shown, and the inspector toggle is the header's last control", async ({
+test("SPEC-CORE-094 I3 as revised by SPEC-CORE-098 (wide): quick note, the avatar, the tree button and the Focus mode button are shown, and the inspector toggle is the header's last control", async ({
   page,
 }) => {
   await open(page, "header-row-video");
@@ -147,6 +196,7 @@ test("SPEC-CORE-094 I3 as revised by SPEC-CORE-098 (wide): quick note, the avata
   await expect(header.getByRole("button", { name: "Quick note" })).toBeVisible();
   await expect(header.getByRole("button", { name: "Profile Setup" })).toBeVisible();
   await expect(page.getByRole("button", { name: /tree/i })).toBeVisible();
+  await expect(focusButton(page)).toBeVisible();
   await expect(lastHeaderControl(page)).toHaveAttribute("data-testid", "inspector-toggle");
 });
 
@@ -159,6 +209,7 @@ test("SPEC-CORE-094 I3 as revised by SPEC-CORE-098 (wide): a rename in progress 
   for (const name of ["Search", "Quick note", "Profile Setup", enMessages.find.button]) {
     await expect(header.getByRole("button", { name })).toBeVisible();
   }
+  await expect(focusButton(page)).toBeVisible();
   await expect(lastHeaderControl(page)).toHaveAttribute("data-testid", "inspector-toggle");
   await expect(header.locator("svg.lucide-pencil").filter({ visible: true })).toHaveCount(1);
   await expect(page.getByRole("button", { name: /tree/i })).toBeVisible();
@@ -302,7 +353,7 @@ const profileButton = (page: Page) =>
   page.locator("header").getByRole("button", { name: "Profile Setup" });
 
 /** Boxes of every visible button and link in the header. */
-const headerControls = (page: Page): Promise<(Box & { toggle: boolean })[]> =>
+const headerControls = (page: Page): Promise<(Box & { toggle: boolean; focus: boolean })[]> =>
   page.locator("header").locator("button, a[href], input").evaluateAll((els) =>
     els
       .map((el) => ({ el, r: el.getBoundingClientRect() }))
@@ -315,6 +366,7 @@ const headerControls = (page: Page): Promise<(Box & { toggle: boolean })[]> =>
         width: r.width,
         height: r.height,
         toggle: el.getAttribute("data-testid") === "inspector-toggle",
+        focus: el.getAttribute("data-testid") === "focus-mode-toggle",
       })),
   );
 
@@ -336,18 +388,36 @@ async function expectNoUnit(page: Page): Promise<void> {
   const header = page.locator("header");
   await expect(header.getByTestId("inspector-toggle").filter({ visible: true })).toHaveCount(0);
   await expect(header.getByRole("button", { name: /inspector/i }).filter({ visible: true })).toHaveCount(0);
+  await expect(focusButton(page).filter({ visible: true })).toHaveCount(0);
   const headerBox = await box(header);
   const profile = await box(profileButton(page));
   expect(await dividersIn(page, profile.right, headerBox.right)).toHaveLength(0);
   expect(Math.abs(headerBox.right - profile.right - 16), "profile 16px from the header's right end").toBeLessThanOrEqual(0.5);
 }
 
+/** A page with no inspector: the Focus mode button is the last control, 16px in. */
+async function expectFocusAtRightEnd(page: Page): Promise<void> {
+  await expect(headerToggle(page)).toHaveCount(0);
+  const headerBox = await box(page.locator("header"));
+  const focus = await box(focusButton(page));
+  expect(await dividersIn(page, focus.right, headerBox.right)).toHaveLength(0);
+  for (const control of await headerControls(page)) {
+    if (control.focus) continue;
+    expect(control.right, "a control right of the Focus mode button").toBeLessThanOrEqual(focus.left + 0.5);
+  }
+  expect(Math.abs(headerBox.right - focus.right - 16), "Focus mode 16px from the header's right end").toBeLessThanOrEqual(0.5);
+}
+
 for (const width of [1280, 900]) {
-  test(`SPEC-CORE-098 I1 (${width}px): the inspector toggle is the header's last control, past the profile button, 16px from the header's right end`, async ({
+  test(`SPEC-CORE-098 I1 as revised (${width}px): outside the focus layout and with the header revealed in it, the inspector toggle is the header's last control, past the profile button, 16px from the header's right end`, async ({
     page,
   }) => {
     await open(page, "header-row-video", width);
     await expect(trailIn(page.locator("header"))).toHaveCount(1);
+    await expectUnitAtRightEnd(page);
+
+    await enterFocus(page);
+    await revealFocusHeader(page, width);
     await expectUnitAtRightEnd(page);
   });
 }
@@ -362,25 +432,29 @@ test("SPEC-CORE-098 I1 (collection route, a note that rides the shell): the togg
   await expectUnitAtRightEnd(page);
 });
 
-test("SPEC-CORE-098 I2: one divider between the profile button and the toggle, 12px from each, looking like the first; the first is still there", async ({
+test("SPEC-CORE-098 I2 as revised: exactly one divider right of the profile button, 12px from it and 12px from the Focus mode button that follows it; the toggle follows the Focus mode button 12px away; the first divider is still there", async ({
   page,
 }) => {
   await open(page, "header-row-video");
   const header = page.locator("header");
   await expect(trailIn(header)).toHaveCount(1);
   await expect(headerToggle(page)).toHaveCount(1);
+  await expect(focusButton(page)).toHaveCount(1);
 
   const find = await box(header.getByRole("button", { name: enMessages.find.button }));
   const search = await box(header.getByRole("button", { name: "Search" }));
   const profile = await box(profileButton(page));
+  const focus = await box(focusButton(page));
   const toggle = await box(headerToggle(page));
+  const headerBox = await box(header);
 
   const first = await dividersIn(page, find.right, search.left);
-  const second = await dividersIn(page, profile.right, toggle.left);
+  const trailing = await dividersIn(page, profile.right, headerBox.right);
   expect(first).toHaveLength(1);
-  expect(second).toHaveLength(1);
-  expect(Math.abs(second[0].left - profile.right - 12)).toBeLessThanOrEqual(0.5);
-  expect(Math.abs(toggle.left - second[0].right - 12)).toBeLessThanOrEqual(0.5);
+  expect(trailing).toHaveLength(1);
+  expect(Math.abs(trailing[0].left - profile.right - 12), "divider 12px from the profile").toBeLessThanOrEqual(0.5);
+  expect(Math.abs(focus.left - trailing[0].right - 12), "Focus mode 12px from the divider").toBeLessThanOrEqual(0.5);
+  expect(Math.abs(toggle.left - (focus.left + focus.width) - 12), "toggle 12px from Focus mode").toBeLessThanOrEqual(0.5);
 
   const colours = await header.locator("*").evaluateAll(
     (els, spans) =>
@@ -391,7 +465,7 @@ test("SPEC-CORE-098 I2: one divider between the profile button and the toggle, 1
         });
         return el ? getComputedStyle(el).backgroundColor : null;
       }),
-    [first[0], second[0]],
+    [first[0], trailing[0]],
   );
   expect(colours[0]).not.toBeNull();
   expect(colours[1]).toBe(colours[0]);
@@ -416,14 +490,31 @@ test("SPEC-CORE-098 I7: no inspector toggle between the file's controls and the 
   }
 });
 
-test("SPEC-CORE-098 I10: Tab from the profile button reaches the toggle, and Tab from the toggle leaves the header", async ({
+test("SPEC-CORE-098 I10 as revised: Tab from the profile button reaches the Focus mode button, then the toggle where the page has one, and Tab from the last of them leaves the header", async ({
   page,
 }) => {
   await open(page, "header-row-video");
   await expect(trailIn(page.locator("header"))).toHaveCount(1);
+  await expect(headerToggle(page)).toHaveCount(1);
   await profileButton(page).focus();
   await page.keyboard.press("Tab");
+  await expect(page.locator(":focus")).toHaveAttribute("data-testid", "focus-mode-toggle");
+  await page.keyboard.press("Tab");
   await expect(page.locator(":focus")).toHaveAttribute("data-testid", "inspector-toggle");
+  await page.keyboard.press("Tab");
+  expect(
+    await page.evaluate(() => {
+      const active = document.activeElement;
+      return active !== null && document.querySelector("header")!.contains(active);
+    }),
+  ).toBe(false);
+
+  await open(page, "header-row-collection");
+  await expect(page.locator("header").getByRole("button", { name: /^Back/ })).toBeVisible();
+  await expect(headerToggle(page)).toHaveCount(0);
+  await profileButton(page).focus();
+  await page.keyboard.press("Tab");
+  await expect(page.locator(":focus")).toHaveAttribute("data-testid", "focus-mode-toggle");
   await page.keyboard.press("Tab");
   expect(
     await page.evaluate(() => {
@@ -522,7 +613,7 @@ test("SPEC-CORE-098 I9: pressing the right-end toggle, then a beside-to-stacked 
   expect(after.time).toBeCloseTo(1.5, 1);
 });
 
-test("SPEC-CORE-098 I8: at 768px on the canonical route with a 200-character name, the header does not wrap, nothing overlaps, the leaf truncates and the toggle is inside the header", async ({
+test("SPEC-CORE-098 I8 as revised: at 768px on the canonical route with a 200-character name, the header does not wrap, nothing overlaps, the leaf truncates, and the Focus mode button and the toggle are inside the header", async ({
   page,
 }) => {
   await open(page, "header-row-ordinary", 768);
@@ -546,6 +637,7 @@ test("SPEC-CORE-098 I8: at 768px on the canonical route with a 200-character nam
 
   const controls = await headerControls(page);
   const profile = await box(profileButton(page));
+  const focus = await box(focusButton(page));
   const toggle = await box(headerToggle(page));
   const dividers = await dividersIn(page, headerBox.left, headerBox.right);
   const parts: Box[] = [...controls, ...dividers, await box(leaf)];
@@ -567,6 +659,11 @@ test("SPEC-CORE-098 I8: at 768px on the canonical route with a 200-character nam
   expect(toggle.right).toBeLessThanOrEqual(headerBox.right + 0.5);
   expect(toggle.top).toBeGreaterThanOrEqual(headerBox.top - 0.5);
   expect(toggle.bottom).toBeLessThanOrEqual(headerBox.bottom + 0.5);
+  expect(focus.left).toBeGreaterThanOrEqual(headerBox.left - 0.5);
+  expect(focus.right).toBeLessThanOrEqual(headerBox.right + 0.5);
+  expect(focus.top).toBeGreaterThanOrEqual(headerBox.top - 0.5);
+  expect(focus.bottom).toBeLessThanOrEqual(headerBox.bottom + 0.5);
+  expect(focus.right).toBeLessThanOrEqual(toggle.left + 0.5);
 });
 
 test("SPEC-CORE-098 I6: a file page outside the shell keeps its toggle at the end of its own row, with no divider before it", async ({
@@ -604,10 +701,9 @@ const drawn: Record<string, (page: Page) => Locator> = {
 
 for (const [arrangement, label] of [
   ["header-row-ordinary", "a page that is not a file page"],
-  ["header-row-missing", "a file page in its error state"],
-  ["header-row-collection", "a collection-route video, which does not ride the shell"],
+  ["header-row-missing", "a failed file page with no trailing chrome"],
 ] as const) {
-  test(`SPEC-CORE-098 I3 (${label}): no toggle, no divider after the profile button, profile 16px from the right end`, async ({
+  test(`SPEC-CORE-098 I3 (${label}): no toggle, no Focus mode button, no divider after the profile button, profile 16px from the right end`, async ({
     page,
   }) => {
     await open(page, arrangement);
@@ -617,9 +713,25 @@ for (const [arrangement, label] of [
   });
 }
 
+test("SPEC-CORE-098 I3 (a collection-route video, a hosted file page without an inspector): no toggle, and the Focus mode button is the header's last control 16px from its right end", async ({
+  page,
+}) => {
+  await open(page, "header-row-collection");
+  await expect(drawn["header-row-collection"](page)).toBeVisible();
+  await expect(profileButton(page)).toBeVisible();
+  await expectFocusAtRightEnd(page);
+});
+
 /* SPEC-CORE-098 I5, sampled on every animation frame. */
 
-type Frame = { header: number; anywhere: number; inRow: number; trailingDividers: number };
+type Frame = {
+  header: number;
+  anywhere: number;
+  focus: number;
+  inRow: number;
+  trailingDividers: number;
+  toggleRightmost: boolean;
+};
 
 function recordUnitFrames(page: Page) {
   return page.addInitScript(() => {
@@ -632,7 +744,9 @@ function recordUnitFrames(page: Page) {
     const tick = () => {
       const header = document.querySelector("header");
       const toggles = [...document.querySelectorAll('[data-testid="inspector-toggle"]')].filter(shown);
+      const focuses = [...document.querySelectorAll('[data-testid="focus-mode-toggle"]')].filter(shown);
       const inHeader = header ? toggles.filter((t) => header.contains(t)) : [];
+      const focusInHeader = header ? focuses.filter((t) => header.contains(t)) : [];
       const profile = header
         ? [...header.querySelectorAll("button")].find(
             (b) =>
@@ -649,13 +763,19 @@ function recordUnitFrames(page: Page) {
             return Math.round(r.width) === 1 && Math.round(r.height) === 20 && r.left >= profileBox.right - 0.5;
           }).length
         : 0;
+      const controls = header
+        ? [...header.querySelectorAll("button, a[href]")].filter(shown)
+        : [];
+      const rightmost = controls.reduce((right, el) => Math.max(right, el.getBoundingClientRect().right), -Infinity);
       frames.push({
         header: inHeader.length,
         anywhere: toggles.length,
+        focus: focusInHeader.length,
         inRow: profileBox
           ? inHeader.filter((t) => t.getBoundingClientRect().right <= profileBox.left + 0.5).length
           : 0,
         trailingDividers: trailing,
+        toggleRightmost: inHeader.every((t) => t.getBoundingClientRect().right >= rightmost - 0.5),
       });
       requestAnimationFrame(tick);
     };
@@ -666,8 +786,15 @@ function recordUnitFrames(page: Page) {
 const unitFrames = (page: Page): Promise<Frame[]> =>
   page.evaluate(() => (window as unknown as { __unitFrames: Frame[] }).__unitFrames.slice());
 
-const isNone = (f: Frame) => f.header === 0 && f.anywhere === 0 && f.trailingDividers === 0;
-const isUnit = (f: Frame) => f.header === 1 && f.anywhere === 1 && f.inRow === 0 && f.trailingDividers === 1;
+const isNone = (f: Frame) => f.header === 0 && f.anywhere === 0 && f.focus === 0 && f.trailingDividers === 0;
+const isUnit = (f: Frame) =>
+  f.focus === 1 &&
+  f.trailingDividers === 1 &&
+  f.inRow === 0 &&
+  f.header === f.anywhere &&
+  f.header <= 1 &&
+  f.toggleRightmost;
+const isUnitWithToggle = (f: Frame) => isUnit(f) && f.header === 1;
 
 function expectEveryFrameWhole(frames: Frame[]): void {
   const bad = frames.findIndex((f) => !isNone(f) && !isUnit(f));
@@ -676,7 +803,7 @@ function expectEveryFrameWhole(frames: Frame[]): void {
 
 function expectUnitThroughout(frames: Frame[]): void {
   expect(frames.length).toBeGreaterThan(0);
-  const bad = frames.findIndex((f) => !isUnit(f));
+  const bad = frames.findIndex((f) => !isUnitWithToggle(f));
   expect(bad, `frame ${bad}: ${JSON.stringify(frames[bad])}`).toBe(-1);
 }
 
@@ -764,13 +891,13 @@ test("SPEC-CORE-098 I5 / flow 5 (leaving the file page): the toggle and its divi
   expectEveryFrameWhole(await unitFrames(page));
 });
 
-test("SPEC-CORE-098 I5 (collection route): a video that does not ride the shell has no unit, a note that does gains it, and note → note keeps it in every frame", async ({
+test("SPEC-CORE-098 I5 (collection route): a video that does not ride the shell has the Focus mode button and its divider only, a note that does gains the toggle too, and note → note keeps the unit in every frame", async ({
   page,
 }) => {
   await recordUnitFrames(page);
   await open(page, "header-row-collection-swap");
   await expect(page.locator("header").getByRole("button", { name: /^Back/ })).toBeVisible();
-  await expectNoUnit(page);
+  await expectFocusAtRightEnd(page);
 
   await page.getByRole("button", { name: "to-note" }).click();
   await expect(

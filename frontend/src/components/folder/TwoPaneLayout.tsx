@@ -19,6 +19,7 @@ import { LeftPaneContext } from "@/lib/leftPaneContext";
 import { navigateWithTransition } from "@/lib/viewTransitions";
 
 import { useGuardedRouter } from "@/hooks/useGuardedRouter";
+import { useFocusLayout } from "@/hooks/useFocusMode";
 import { useSelectedFile } from "@/hooks/useSelectedFile";
 import { useTreeBeside } from "@/hooks/useTreeBeside";
 import { useTreeEnabled } from "@/hooks/useTreeEnabled";
@@ -104,6 +105,11 @@ export function TwoPaneLayout({
   const { visible: treeOpen, beside: treeBeside, yielded } = useTreeVisible(drive);
   const { enabled: treeEnabled } = useTreeEnabled(drive);
   const besideViewport = useTreeBeside();
+  // The pane keeps its setting, its mounted tree and its yield, and only stops
+  // taking width: the focus layout gives that width to the page, and the pane
+  // is back the way that state left it when the layout ends.
+  const focusLayout = useFocusLayout();
+  const paneShown = treeOpen && !focusLayout;
 
   // The yield is a state of the file page, not of the setting: it ends with
   // the page, and a reopened pane starts from the setting on the next one.
@@ -132,11 +138,12 @@ export function TwoPaneLayout({
   useEffect(() => {
     if (treeOpen && !hasEverEnabled) setHasEverEnabled(true);
   }, [treeOpen, hasEverEnabled]);
-  const treeAsideWidth = treeOpen
-    ? hasFile
-      ? "w-0 md:w-[280px]"
-      : "w-[100vw] md:w-[280px]"
-    : "w-0";
+  const treeAsideWidth =
+    !treeOpen || focusLayout
+      ? "w-0"
+      : hasFile
+        ? "w-0 md:w-[280px]"
+        : "w-[100vw] md:w-[280px]";
   const showSectionOnMobile = !treeOpen || hasFile;
 
   return (
@@ -146,14 +153,14 @@ export function TwoPaneLayout({
       <div className="flex h-below-header w-full overflow-clip">
         <aside
           className={`h-full flex-shrink-0 overflow-hidden ${
-            yielded ? "" : "transition-[width] duration-150 ease-out"
+            yielded || focusLayout ? "" : "transition-[width] duration-150 ease-out"
           } ${treeAsideWidth}`}
           ref={setPaneElement}
           aria-label={leftPaneAriaLabel ?? "Folder tree"}
-          aria-hidden={!treeOpen}
+          aria-hidden={!paneShown}
           // aria-hidden alone lets keyboard focus still land on the
           // (visually clipped) tree rows underneath.
-          inert={!treeOpen}
+          inert={!paneShown}
         >
           <div className="flex h-full w-[100vw] flex-col md:w-[280px]">
             <div className="flex items-center justify-end border-b border-bg-border p-1 md:hidden">

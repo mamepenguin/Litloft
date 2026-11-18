@@ -10,6 +10,8 @@ Controls for the kind of file sit to its right (a Markdown note puts its save in
 
 During collection playback the row also keeps a way back to the collection you were playing.
 
+On a file page at 768 px or wider, the **Focus mode** button at the right end of the header (or `T`) hides the header, the sidebar and the folder tree so the file and its panes get the room. The header comes back when you move the pointer to the top edge of the window; on a touch screen, tap the handle at the top centre. Press the button in the revealed header, or `T`, to leave focus mode. It also ends when you leave the file for a folder or another screen.
+
 ## The inspector
 
 The tab strip is the top of the inspector. The first tab, **Info**, starts with the file's title, one fact about the file (see [the table in *Browsing files*](file-browsing.md#file-grid-and-list-modes)), the like, favourite, **AI** and `⋮` buttons, and the tags; all of it scrolls away with the rest of Info.
