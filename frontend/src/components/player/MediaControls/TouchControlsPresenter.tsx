@@ -103,8 +103,10 @@ export function TouchControlsPresenter({
           // selectable — the loupe appears and the gesture is lost.
           "select-none [-webkit-user-select:none] [-webkit-touch-callout:none]",
           // Keyboard users must be able to reach the controls even once
-          // the idle timer has faded them out.
-          "focus-within:opacity-100",
+          // the idle timer has faded them out. Not focus-within: a tap
+          // leaves focus on the button it pressed, which would hold the
+          // bar on screen after the timer hid it.
+          "has-[:focus-visible]:opacity-100",
           drawn ? "opacity-100" : "opacity-0",
         ].join(" ")}
       >
