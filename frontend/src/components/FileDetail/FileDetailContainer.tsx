@@ -97,6 +97,7 @@ export function FileDetailContainer({
     enabled: findEnabled,
     isMobile,
     initialFind,
+    initialTime,
     mediaController,
     documentController,
   });

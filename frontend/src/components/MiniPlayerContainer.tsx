@@ -3,7 +3,7 @@
 import { useEffect, useRef, type ReactNode, type RefObject } from "react";
 import { useTranslations } from "next-intl";
 import { X, CornerUpLeft } from "lucide-react";
-import { useMiniPlayer } from "@/hooks/useMiniPlayer";
+import { MiniPlayerBoxContext, useMiniPlayer } from "@/hooks/useMiniPlayer";
 import { setMiniPlayerShown } from "@/lib/bottomChrome";
 import type { MediaController } from "@/lib/mediaController";
 
@@ -75,7 +75,7 @@ export function MiniPlayerContainer({
             : undefined
         }
       >
-        {children}
+        <MiniPlayerBoxContext value={isMini}>{children}</MiniPlayerBoxContext>
         {isMini && (
           <>
             {/* Both buttons top-left so they don't collide with

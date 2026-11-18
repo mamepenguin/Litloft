@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 import type { MediaController } from "@/lib/mediaController";
 import type { MediaSessionMetadataInput } from "@/lib/mediaSession";
 
@@ -37,4 +39,12 @@ export interface LoftEmbedProps {
    * its own poster ignores it.
    */
   posterUrl?: string;
+  /**
+   * Drawn over the picture, inside the embed's own full-screen frame. An
+   * embed that supports it fills the box its picture is drawn in with the
+   * node and keeps it under its own controls, gesture overlay and poster,
+   * or over the iframe when the provider's controls are inside the
+   * picture. An embed that ignores it draws nothing.
+   */
+  pictureOverlay?: ReactNode;
 }
