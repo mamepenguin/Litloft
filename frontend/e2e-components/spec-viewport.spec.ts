@@ -126,6 +126,7 @@ const AT_THE_DESKTOP_WIDTH = [
   "focus-mode-desktop.spec.ts",
   "focus-mode-touch-desktop.spec.ts",
   "notes-library-desktop.spec.ts",
+  "clips-primary-action-desktop.spec.ts",
 ] as const;
 
 test.describe("the component fixture lays out at the width it was given", () => {

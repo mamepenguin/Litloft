@@ -108,8 +108,8 @@ import { VideoCardSpacingArrangement } from "./videoCardSpacing";
 import { AppHeaderArrangement } from "./appHeader";
 import { PersistentHighlightsArrangement } from "./persistentHighlights";
 import { ScenesSectionArrangement } from "./scenesSection";
-import { ClipsPageArrangement } from "./clipsPage";
-import { ClipsRowArrangement } from "./clipsRow";
+import { ClipsPageArrangement, clipsPageResponse } from "./clipsPage";
+import { ClipsRowArrangement, clipsRowResponse } from "./clipsRow";
 import { NotesLibraryArrangement, notesLibraryResponse } from "./notesLibrary";
 import { READING_ARRANGEMENTS } from "./readingTextSize";
 import { NAME_IN_USE_ARRANGEMENTS } from "./nameInUse";
@@ -145,6 +145,8 @@ window.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
   const method = (init?.method ?? "GET").toUpperCase();
   const library = notesLibraryResponse(url);
   if (library !== null) return Promise.resolve(library);
+  const clips = clipsPageResponse(url, init) ?? clipsRowResponse(url, init);
+  if (clips !== null) return clips;
   if (url.endsWith("/api/admin/config/drives")) {
     return Promise.resolve(
       jsonResponse([{ name: "Household Archive", path: "/mnt/archive", access_group: "family" }]),
