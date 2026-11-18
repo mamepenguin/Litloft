@@ -41,6 +41,8 @@ export interface TargetMenuProps {
   defaultTargetTypes: readonly FileKind[];
   /** An origin the default target's count leaves out; absent counts every origin. */
   defaultTargetExcludeOrigin?: string;
+  /** An origin the default target's count is limited to; absent counts every origin. */
+  defaultTargetOrigin?: string;
   isUsable: (folder: SmartFolder) => boolean;
   onChoose: (id: string) => void;
   onRetryFolders: () => void;
@@ -92,6 +94,7 @@ function Rows({
   unavailableLabel,
   defaultTargetTypes,
   defaultTargetExcludeOrigin,
+  defaultTargetOrigin,
   onChoose,
   onManage,
 }: {
@@ -104,6 +107,7 @@ function Rows({
   unavailableLabel: string;
   defaultTargetTypes: readonly FileKind[];
   defaultTargetExcludeOrigin?: string;
+  defaultTargetOrigin?: string;
   onChoose: (id: string) => void;
   onManage: () => void;
 }) {
@@ -122,9 +126,10 @@ function Rows({
             getDriveFiles(drive, {
               type: types,
               limit: 1,
+              ...(defaultTargetOrigin ? { origin: defaultTargetOrigin } : {}),
               ...(defaultTargetExcludeOrigin ? { exclude_origin: defaultTargetExcludeOrigin } : {}),
             }).then((page) => page.meta.total),
-    [drive, onDefault, types, defaultTargetExcludeOrigin],
+    [drive, onDefault, types, defaultTargetExcludeOrigin, defaultTargetOrigin],
   );
   const { state } = useLoad(loadDefaultCount);
   const defaultCount = onDefault ? currentCount : state.status === "loaded" ? state.data : null;
@@ -180,6 +185,7 @@ export function TargetMenu({
   unavailableLabel,
   defaultTargetTypes,
   defaultTargetExcludeOrigin,
+  defaultTargetOrigin,
   isUsable,
   onChoose,
   onRetryFolders,
@@ -224,6 +230,7 @@ export function TargetMenu({
             unavailableLabel={unavailableLabel}
             defaultTargetTypes={defaultTargetTypes}
             defaultTargetExcludeOrigin={defaultTargetExcludeOrigin}
+            defaultTargetOrigin={defaultTargetOrigin}
             onChoose={(id) => {
               onChoose(id);
               close();

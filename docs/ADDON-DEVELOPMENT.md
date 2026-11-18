@@ -1419,6 +1419,8 @@ const targetProps: TargetMenuProps = {
 target's count in the menu leaves out files of that `origin`; when absent, every
 origin is counted. Pass the same origin the page's own listing excludes, so the
 menu and the page agree.
+`TargetMenuProps.defaultTargetOrigin` is its counterpart: when set, the count
+covers only files of that `origin`; it may be combined with the exclude prop.
 
 ### The app key and its storage keys
 
