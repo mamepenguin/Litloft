@@ -21,7 +21,7 @@ media_import is built into the backend image whenever `addons/media_import/` is 
 docker compose up -d --build
 ```
 
-The image build installs yt-dlp from the addon's `requirements.txt`. To stop the addon loading, leave the submodule uninitialised; see [Enabling and disabling addons](overview.md#enabling-and-disabling-addons).
+The image build installs yt-dlp from the addon's `requirements.txt`, and Node.js for yt-dlp's JavaScript challenges. To stop the addon loading, leave the submodule uninitialised; see [Enabling and disabling addons](overview.md#enabling-and-disabling-addons).
 
 ## Per-drive policy
 
@@ -142,7 +142,7 @@ Every item shows its title and a link to the video, including items that were no
 
 | Symptom | Likely cause |
 |---|---|
-| Import fails for a URL that used to work | yt-dlp is out of date. Rebuild the backend image (`docker compose up -d --build`). |
+| Import fails for a URL that used to work | yt-dlp is out of date. Rebuild the backend image without the layer cache (`docker compose build --no-cache backend`, then `docker compose up -d backend`). |
 | No captions | The video has none, or they could not be downloaded. The caption status under the player says which. |
 | **Embedded playback is disabled for this video** | The owner does not allow embedding. Use **Watch on YouTube**. |
 | **Refresh metadata** changes nothing | The fetch failed. Check `docker compose logs backend`. |

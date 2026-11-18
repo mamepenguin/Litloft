@@ -293,3 +293,6 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-CORE-137 | implemented | docs/specs/search-modified-operator.md | sha256:cf9fff7b1596e1fa4939f82f19887cc1406866ff274a3a29dc6b6dc03e4e9b5b |
 | SPEC-CORE-138 | implemented | docs/specs/search-modified-operator.md | sha256:cf9fff7b1596e1fa4939f82f19887cc1406866ff274a3a29dc6b6dc03e4e9b5b |
 | SPEC-ADDON-143 | implemented | docs/specs/search-modified-operator.md | sha256:cf9fff7b1596e1fa4939f82f19887cc1406866ff274a3a29dc6b6dc03e4e9b5b |
+| SPEC-ADDON-141 | implemented | docs/specs/ytdlp-node-runtime.md | sha256:1eac24c6f5e6733faf454fc9bcc13b8bb176ed4af68f3cab80bb4698fe89edbd |
+| SPEC-ADDON-142 | implemented | docs/specs/ytdlp-node-runtime.md | sha256:1eac24c6f5e6733faf454fc9bcc13b8bb176ed4af68f3cab80bb4698fe89edbd |
+| SPEC-CORE-139 | implemented | docs/specs/ytdlp-node-runtime.md | sha256:1eac24c6f5e6733faf454fc9bcc13b8bb176ed4af68f3cab80bb4698fe89edbd |

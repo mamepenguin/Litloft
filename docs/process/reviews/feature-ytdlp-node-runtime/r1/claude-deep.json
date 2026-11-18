@@ -1,0 +1,136 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-deep",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [
+    {
+      "id": "claude-deep-1",
+      "origin": "reviewer",
+      "claim": "The change modifies the shared intelligence test double addons/intelligence/tests/youtube_frame_doubles.py (new `stderr` knob on `set_ytdlp` and in the fake yt-dlp script), and this file is not in the touch-point list. The two new submodule test files are not listed either.",
+      "impact": "Nothing a user can hit. The double is shared by many intelligence suites. The new key defaults to None and the fake script writes stderr only when the key is set and only on the `-J` path after the `fail` branch, so existing tests keep their behaviour. A later reader of the touch-point list would not know that the double changed.",
+      "evidence": "addons/intelligence/tests/youtube_frame_doubles.py:85-86 (`if cfg.get(\"stderr\"): sys.stderr.write(...)`) and :271-274 (`set_ytdlp(..., stderr=None)` writes the key to ytdlp.json). The spec's Touch points name only tests/test_backend_dockerfile.py among test files.",
+      "repro": "not_reproduced (read only). Diffed the touch-point list against the files in the core and submodule diffs: every product file in the diff is listed. Outside the implicit spec, INDEX and review records, the only unlisted paths are the three test files: youtube_frame_doubles.py (modified), test_spec_addon_141_ytdlp_node_runtime.py and test_spec_addon_142_ytdlp_node_runtime.py (new).",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Test scaffolding outside the declared touch points. It breaks no invariant and only affects how complete the planning record is.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Add the shared test double, and optionally the two new spec test files, to the touch-point list in the review's invariants revision, or accept them as implicit test touch points."
+    }
+  ],
+  "specification_compliance": [
+    "I2: run_lookup argv is [yt-dlp, -J, --no-playlist, --ignore-config, --no-js-runtimes, --js-runtimes=node, url] (youtube_source.py:164). The download argv puts the same pair after `-o template` and before source_url (youtube_source.py:346-355). No --remote-components. The URL is last and is the only positional argument; the option values (-f, --http-chunk-size, -o) are allowed by the revised I2.",
+    "I3/I4: all seven yt_dlp.YoutubeDL constructions (service.py:82, 170, 275, 348; manager.py:102; providers/youtube.py:196, 222) merge JS_RUNTIME_OPTIONS ({'js_runtimes': {'node': {}}}). Their other keys match the table in item 4, including `playlistend` only when a limit is given in the listing. A grep of the addons' non-test code found no other YoutubeDL construction.",
+    "I7: backend/Dockerfile names no addon and no JS runtime. The new I7 test checks this against .gitmodules and the addon directory names.",
+    "I8: backend/Dockerfile:22-31 uses `if [ -f ]; then ... || exit 1; fi` in both loops, with no trailing `; true`. An unmatched glob gives a false `-f` test inside `if`, which exits 0. cloud-sync's install.sh is a single `&&` chain, so its status reaches the loop.",
+    "Rule 'No core-to-addon dependencies': the Node runtime is declared in media_import's requirements.txt, not in core's files.",
+    "Touch points: every product path in the diff is listed. Outside the implicit spec, INDEX and review records, the only unlisted paths are test files (claude-deep-1)."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "providers/youtube.py now imports `...service` at module level (providers/youtube.py:57) to get JS_RUNTIME_OPTIONS. This is a new import edge. service.py does not import the subscription package, so no import cycle was found.",
+    "JS_RUNTIME_OPTIONS is one module-level dict. `**` spreading copies only the top level, so every YoutubeDL instance, including concurrent ones, gets the same inner `{'node': {}}` object. This is harmless only if yt-dlp never mutates params['js_runtimes'] in place. Not verified against the yt-dlp source."
+  ],
+  "regression_risks": [
+    "The backend build now fails on any addon pip or install.sh failure, including cloud-sync's apt-get for rclone. A slow IPv4 path to PyPI or Debian now blocks rebuilds where it used to produce a degraded image. The spec accepts this.",
+    "yt-dlp[default] in the backend image adds requests, urllib3, brotli, mutagen, pycryptodomex and yt-dlp-ejs, with floors on websockets and certifi. If core's pins ever fall below those floors, pip could move shared libraries. Not checked against backend/requirements.txt pins."
+  ],
+  "test_coverage": [
+    "I8 harness, mutations reasoned through: dropping `|| exit 1` from the pip loop is caught by `requirements-fails-before-one-that-succeeds` because 'pip b_later' runs. Reverting to `; done; true` is caught by every failure case. Dropping `|| exit 1` from the install.sh loop is caught by `install-sh-fails-before-one-that-succeeds`.",
+    "I2 tests cover the three lookup callers (frame read, storyboard index, .loft fetch) and the download, through the fake yt-dlp argv log. Removing either runtime argument, or putting it after the URL, fails assert_node_only.",
+    "I3/I4 tests patch yt_dlp.YoutubeDL and compare each built dict exactly with its row plus NODE_ONLY. Adding or dropping a key fails them.",
+    "I5 test: `failures(warned) <= 2` is loose, but `flags[0] is True` and the absence of the back-off log together catch a lookup that is wrongly counted as failed.",
+    "I6 test builds a real YoutubeDL with node removed from PATH, but runs only inside the test image."
+  ],
+  "not_verified": [
+    "Whether yt-dlp mutates params['js_runtimes'] in place (the shared inner dict). No yt-dlp source was available locally.",
+    "Whether nodejs-wheel's `node` console script on PATH is what yt-dlp detects as node-24 in the built images (I1). The spec says this was checked in R-5, which I did not inspect.",
+    "Whether the submodule commits 5449c5a and 6bf2aef are pushed to their remotes.",
+    "Whether the tests pass. I could not run anything.",
+    "Whether core's backend/requirements.txt pins conflict with the floors that yt-dlp[default] adds."
+  ],
+  "coverage": [
+    {
+      "path": "addons/intelligence/Dockerfile",
+      "read": "full",
+      "reason": "Whole file read."
+    },
+    {
+      "path": "addons/intelligence/Dockerfile.test",
+      "read": "full",
+      "reason": "Whole file read."
+    },
+    {
+      "path": "addons/intelligence/app/youtube_source.py",
+      "read": "partial",
+      "reason": "Lines 60-399 read: the constant, run_lookup, and download_rendition with its argv; these enclose both changed hunks."
+    },
+    {
+      "path": "addons/media_import/backend/requirements.txt",
+      "read": "full",
+      "reason": "Whole file read."
+    },
+    {
+      "path": "addons/media_import/backend/service.py",
+      "read": "partial",
+      "reason": "Lines 1-369 read: the imports, the constant and all four YoutubeDL functions; these enclose every changed hunk."
+    },
+    {
+      "path": "addons/media_import/backend/subscription/manager.py",
+      "read": "partial",
+      "reason": "Lines 30-119 read: the import block and _resolve_channel_id_via_yt_dlp; these enclose both hunks."
+    },
+    {
+      "path": "addons/media_import/backend/subscription/providers/youtube.py",
+      "read": "partial",
+      "reason": "Lines 40-239 read: the import and both yt-dlp helper functions; these enclose every hunk."
+    },
+    {
+      "path": "backend/Dockerfile",
+      "read": "full",
+      "reason": "Whole file read."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_141_ytdlp_node_runtime.py",
+      "read": "full",
+      "reason": "Read in full as shown in the diff (new file)."
+    },
+    {
+      "path": "addons/intelligence/tests/youtube_frame_doubles.py",
+      "read": "partial",
+      "reason": "Lines 50-289 read: the fake yt-dlp script and set_ytdlp, covering both hunks."
+    },
+    {
+      "path": "addons/media_import/backend/tests/test_spec_addon_142_ytdlp_node_runtime.py",
+      "read": "full",
+      "reason": "Read in full as shown in the diff (new file)."
+    },
+    {
+      "path": "tests/test_backend_dockerfile.py",
+      "read": "full",
+      "reason": "Lines 1-80 read from the file; the new section is read in full from the diff."
+    }
+  ],
+  "perspectives": [
+    {
+      "name": "scope",
+      "notes": "Every product file in the diff is on the touch-point list. The only unlisted paths are submodule test files (claude-deep-1). backend/Dockerfile changes behaviour for cloud-sync's install.sh, which the spec covers in item 7."
+    },
+    {
+      "name": "submodules",
+      "notes": "Both pointers move. Product changes stay inside each addon. Core's Dockerfile names no addon (I7). Whether the pinned commits are pushed was not verified."
+    },
+    {
+      "name": "persistence",
+      "notes": "No table, file or cache changes. yt-dlp output paths are unchanged."
+    },
+    {
+      "name": "concurrency",
+      "notes": "The intelligence lookup and download keep their existing locking. media_import YoutubeDL instances share one inner js_runtimes dict, which is safe unless yt-dlp mutates it (unverified)."
+    }
+  ],
+  "confidence": 82
+}
