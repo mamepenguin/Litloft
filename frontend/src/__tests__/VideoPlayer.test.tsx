@@ -15,6 +15,7 @@ vi.mock("@/lib/api", () => ({
   getWatchProgress: (...args: unknown[]) => mockGetWatchProgress(...args),
   saveWatchProgress: (...args: unknown[]) => mockSaveWatchProgress(...args),
   deleteWatchProgress: (...args: unknown[]) => mockDeleteWatchProgress(...args),
+  getPlayedSegments: vi.fn().mockResolvedValue({ segment_seconds: 5, segments: [] }),
 }));
 
 const mockGetSavedProgress = vi.fn().mockReturnValue(0);

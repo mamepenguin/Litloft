@@ -53,6 +53,8 @@ export function PointerControlsPresenter({
   onSettingsOpenChange,
   settingsExtra,
   settingsToggles,
+  watchedPieces,
+  bandVisible,
 }: MediaControlsPresenterProps) {
   const t = useTranslations("player");
 
@@ -99,6 +101,8 @@ export function PointerControlsPresenter({
           onScrubStart={onScrubStart}
           onScrubChange={onScrubChange}
           onScrubEnd={onScrubEnd}
+          watchedPieces={watchedPieces}
+          bandVisible={bandVisible}
         />
 
         <div className="flex items-center gap-0.5">

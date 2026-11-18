@@ -1,4 +1,4 @@
-import type { ArchiveContents, AuthStatus, BatchRenameRequest, BatchRenameResponse, ChunkResponse, CollectionDetail, CollectionSummary, Comment, CommentsResponse, DashboardResponse, Drive, DriveSummary, DuplicatesResponse, FileExif, FileItem, Folder, FolderCount, FolderTreeNode, Highlight, HighlightInput, HomeShortcut, HomeShortcutKind, Neighbors, PaginatedResponse, PinnedFolder, ListingSortField, SortField, SortOrder, Tag, TrustTier, FileKind, UnlockResult, UploadInitResponse, WatchHistoryItem, WatchProgress, WatchedRange } from "@/types";
+import type { ArchiveContents, AuthStatus, BatchRenameRequest, BatchRenameResponse, ChunkResponse, CollectionDetail, CollectionSummary, Comment, CommentsResponse, DashboardResponse, Drive, DriveSummary, DuplicatesResponse, FileExif, FileItem, Folder, FolderCount, FolderTreeNode, Highlight, HighlightInput, HomeShortcut, HomeShortcutKind, Neighbors, PaginatedResponse, PinnedFolder, ListingSortField, SortField, SortOrder, Tag, TrustTier, FileKind, UnlockResult, UploadInitResponse, WatchHistoryItem, WatchProgress, WatchedRange, PlayedSegmentsResponse } from "@/types";
 import type { SmartFolder, SmartFolderCreate, SmartFolderUpdate } from "@/types/smartFolder";
 import { ApiStatusError } from "@/lib/apiError";
 import { REQUEST_TIMEOUT_MS, type BatchAnswer } from "@/lib/batchChunks";
@@ -1042,6 +1042,12 @@ export async function recordFileView(fileId: string): Promise<void> {
 
 export async function getWatchProgress(fileId: string): Promise<WatchProgress> {
   return fetchJSON<WatchProgress>(`${API_BASE}/files/${fileId}/progress`);
+}
+
+export async function getPlayedSegments(fileId: string): Promise<PlayedSegmentsResponse> {
+  return fetchJSON<PlayedSegmentsResponse>(
+    `${API_BASE}/files/${fileId}/played-segments`,
+  );
 }
 
 export async function listHighlights(fileId: string): Promise<Highlight[]> {

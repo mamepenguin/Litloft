@@ -360,6 +360,16 @@ export interface WatchedRange {
   end: number;
 }
 
+export interface PlayedSegmentItem {
+  index: number;
+  played_seconds: number;
+}
+
+export interface PlayedSegmentsResponse {
+  segment_seconds: number;
+  segments: PlayedSegmentItem[];
+}
+
 export interface Highlight {
   id: string;
   page: number | null;

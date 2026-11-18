@@ -1030,6 +1030,21 @@ exception. Full-screen image and archive viewers follow the same rules.
   (ad, end screen).
 - Track fills `bg-white/25` empty and `bg-white/40` buffered; the volume
   slider's played range is `bg-accent`.
+- **The watched band sits above the seek line**: a 3px strip spanning the
+  line's own box, its bottom edge 8px above the visible 4px line (4px above
+  the knob's top), with no track of its own. Levels are white at 35 %, 60 %
+  and 90 %. It appears only while a mouse or pen is over the seek row, while
+  the bar is scrubbed, for 2 seconds after a skip, and while the touch chrome
+  is bottom-only — not for focus, a pause, or any other reveal. The line, its
+  buffered and played fills, and the knob are unchanged.
+- **On touch a skip shows the bottom bar alone**: time, full-screen and the
+  seek bar with its band, beside the half-disc skip feedback, and not the
+  centre transport, the top-right buttons or the hairline. It holds for 2
+  seconds after the last skip, scrub end or full-screen press, then hides
+  while playing and returns whole while paused; a single tap, a pause or
+  resume, focus entering the chrome, or the settings sheet also ends it. With
+  a mouse or pen a skip reveals the whole bar, as any other control press
+  does.
 - **The seek indicator follows the theme**: `--player-indicator` — coral in
   light, white in dark — fills the played range and the knob alike, in the
   control bar and in the hairline that stays behind once the bar fades. Dark

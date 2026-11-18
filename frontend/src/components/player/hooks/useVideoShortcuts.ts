@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 
 import { useShortcuts } from "@/hooks/useShortcuts";
 import type { MediaController } from "@/lib/mediaController";
+import { watchedRangesStore } from "@/lib/watchedRangesStore";
 
 /** `fullscreenToggle` is the frame's own toggle where it has one. */
 export function useVideoShortcuts(
@@ -22,22 +23,38 @@ export function useVideoShortcuts(
     {
       key: "arrowleft",
       label: tShortcuts("seekBack10"),
-      handler: () => mc?.seek(mc.getCurrentTime() - 10),
+      handler: () => {
+        if (!mc) return;
+        mc.seek(mc.getCurrentTime() - 10);
+        watchedRangesStore.reportSkip(mc);
+      },
     },
     {
       key: "arrowright",
       label: tShortcuts("seekForward10"),
-      handler: () => mc?.seek(mc.getCurrentTime() + 10),
+      handler: () => {
+        if (!mc) return;
+        mc.seek(mc.getCurrentTime() + 10);
+        watchedRangesStore.reportSkip(mc);
+      },
     },
     {
       key: "arrowup",
       label: tShortcuts("seekForward60"),
-      handler: () => mc?.seek(mc.getCurrentTime() + 60),
+      handler: () => {
+        if (!mc) return;
+        mc.seek(mc.getCurrentTime() + 60);
+        watchedRangesStore.reportSkip(mc);
+      },
     },
     {
       key: "arrowdown",
       label: tShortcuts("seekBack60"),
-      handler: () => mc?.seek(mc.getCurrentTime() - 60),
+      handler: () => {
+        if (!mc) return;
+        mc.seek(mc.getCurrentTime() - 60);
+        watchedRangesStore.reportSkip(mc);
+      },
     },
     {
       key: "m",
