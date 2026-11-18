@@ -282,3 +282,6 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-131 | implemented | docs/specs/notes-app.md | sha256:72a80db466c1c03fd7f70c990d2c1b6655e186508b184f617c0fdae825a0cce7 |
 | SPEC-ADDON-132 | implemented | docs/specs/notes-app.md | sha256:72a80db466c1c03fd7f70c990d2c1b6655e186508b184f617c0fdae825a0cce7 |
 | SPEC-CORE-130 | implemented | docs/specs/notes-app.md | sha256:72a80db466c1c03fd7f70c990d2c1b6655e186508b184f617c0fdae825a0cce7 |
+| SPEC-CORE-137 | draft | docs/specs/search-modified-operator.md | |
+| SPEC-CORE-138 | draft | docs/specs/search-modified-operator.md | |
+| SPEC-ADDON-143 | draft | docs/specs/search-modified-operator.md | |

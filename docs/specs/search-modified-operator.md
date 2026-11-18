@@ -1,0 +1,284 @@
+# Search by modification time: the `modified:` operator
+
+SPEC-ID: SPEC-CORE-137
+SPEC-ID: SPEC-CORE-138
+SPEC-ID: SPEC-ADDON-143
+
+Approval:
+
+## Summary
+
+There is no way to find files that have not changed for a long time, for example to clean
+up old downloads in a few folders. `File.created_at` cannot serve: it is the file's mtime
+at the moment Litloft first saw it (or the upload time), and it never changes afterwards,
+so a note imported two years ago and edited yesterday reads as two years old. The
+filesystem's access time cannot serve either: Litloft itself reads every file (hashing,
+thumbnails, transcription), and mounts are often `relatime` or `noatime`.
+
+This change keeps the file's real modification time in a new column and adds a range
+operator over it, written like `size:`: `modified:<2024-01-01`, `modified:<=2023`,
+`modified:>=2024-06`, and relative to now, `modified:<1y`, `modified:>=30d`. Combined with
+`path:` (any of the folders), `path:Downloads path:Work/old modified:<1y` lists what has
+not changed for a year, and saved as a Smart Collection it keeps meaning "a year before
+today". Deleting stays a separate, manual step (the trash, or `trash_files` over MCP).
+
+- **SPEC-CORE-137**: the `files.modified_at` column and when it is written.
+- **SPEC-CORE-138**: parsing `modified:`, chips and chip removal, the 「＋ 条件」 entry with
+  presets, the listing's `modified` parameter, `POST /files/matching`'s `modified`, and
+  the Smart Collection evaluation's time zone.
+- **SPEC-ADDON-143**: intelligence's `filter` accepts `modified` with the same validation
+  as the core and passes it through.
+
+Decided by the user on 2026-11-18 and not reopened here: the value is the filesystem mtime
+kept in a new column, not `created_at`; a "last opened" condition (from `WatchHistory`)
+is not part of this change; both absolute and relative values are accepted; a comparison
+is required, as for `size:`. `added:` / `date:` stay rejected (SPEC-CORE-043): the name
+says modification time because that is what the column holds.
+
+## Required items
+
+### 1. Normal flow
+
+Terms. *Comparison*, *wire form*, *impossible range* and the four operators are those of
+SPEC-CORE-047. *Modified comparison*: the number is a whole number of seconds since
+1970-01-01T00:00:00Z (epoch seconds). *Evaluation zone*: the IANA time zone in which
+absolute dates are read (sending step 4).
+
+SPEC-CORE-137, the column:
+
+1. `files` gains `modified_at DATETIME NULL` (UTC, naive as the other `files` timestamps).
+   The migration only adds the column; no backfill runs in the migration.
+2. Every path that inserts a `files` row for a file on disk sets `modified_at` from the
+   file's `st_mtime` read after the file is in place: the scanner's two insert paths,
+   `register_single_file`, the upload finaliser, the create-file endpoint, and the copy
+   in `fileops` (`shutil.copy2` keeps the source's mtime, so the copy keeps the source's
+   time).
+3. Every path that rewrites a file's bytes and the row's `file_size` in the same step sets
+   `modified_at` from the new `st_mtime`: `write_text_content` (content PUT, MCP edits,
+   tag edits on `.md`, Markdown image import) and the upload that revives a missing row.
+4. Each scan stats every active file it walks, including those it skips for hashing today,
+   and sets `modified_at` to the stat's `st_mtime` when it differs from the stored value
+   (or is NULL). A failed stat leaves the stored value. So after an upgrade the startup
+   scan fills the column, and a file edited outside Litloft is reflected at the next scan
+   (startup or the manual rescan).
+5. A write of `modified_at` alone does not change `updated_at`. A write that also changes
+   another column changes `updated_at` as it does today.
+6. Rename and move inside Litloft keep `modified_at` (the filesystem keeps the mtime).
+
+SPEC-CORE-138, parsing (`searchQuery.ts`):
+
+1. A `modified:` token is read through the existing tokenizer and normalised as a `size:`
+   value (NFKC, whitespace removed). It must start with `>=`, `<=`, `>` or `<`; otherwise,
+   or when the amount does not parse, it is text.
+2. Absolute amounts: `YYYY`, `YYYY-MM`, `YYYY-MM-DD`, with `/` accepted for `-`; years
+   1970 to 9999; a month or day that does not exist (`2023-02-30`) is text. Each names a
+   period, the year, month or day, starting at local midnight of its first day in the
+   evaluation zone and ending at local midnight of the next period. The comparison maps
+   to a boundary: `<P` is `lt:<start>`, `>=P` is `gte:<start>`, `<=P` is `lt:<end>`,
+   `>P` is `gte:<end>`. So `<=2023` and `<2024` are the same comparison.
+3. Relative amounts: a positive whole number followed by `d` (1 day = 86,400 s), `w`
+   (7 days), `m` (30 days) or `y` (365 days), case-insensitive; at most 36,500 days. The
+   amount names the instant that many seconds before the moment the query is evaluated,
+   and the operator is kept: `<1y` is `lt:<now − 365 d>`, "changed more than a year ago";
+   `>=30d` is `gte:<now − 30 d>`, "changed within the last 30 days". Units are fixed
+   lengths, not calendar months, so the result does not depend on the zone.
+4. `ParsedQuery` gains `modified`, a list of the parsed tokens (operator plus amount, not
+   yet resolved to seconds), in order of first appearance, deduplicated by the typed
+   amount after normalisation and the operator; at most 4 distinct, the fifth and later
+   are text. A `modified:` token sets `hasOperators`.
+5. Resolution to epoch seconds happens when a request is built (sending step 1), not when
+   the text is parsed, so a relative value follows the clock. The impossible-range check
+   of SPEC-CORE-047 applies to the resolved comparisons (`modified:>2024 modified:<2023`
+   requests nothing).
+
+SPEC-CORE-138, chips: one chip per distinct parsed token, 「更新日 <value>」 / "Modified
+<value>", the value as typed after normalisation; ✕ removes every `modified:` token equal
+to it, keeping every other token's raw string (SPEC-CORE-047 chips, rule 2).
+
+SPEC-CORE-138, sending:
+
+1. `SearchFilter` gains `modified: string[]`, the wire forms (`lt:1704034800`) resolved at
+   the moment the filter is built. `filterQueryParam` writes it last and only when
+   non-empty. Everything SPEC-CORE-047 sending says about `sizes` applies, including
+   "Show more by similarity" and the continuation.
+2. The results page and the modal send each wire form as a repeated `modified` parameter
+   of `getDriveFiles`.
+3. `GET /api/drives/{name}/files` accepts `modified: list[str]`; `POST
+   /api/internal/files/matching` gains `modified: [str]`, default `[]`. Both go through
+   `apply_file_filters`: every comparison must hold (AND) against `files.modified_at`;
+   a row whose `modified_at` is NULL never passes. Validation is the same on the listing
+   (400), `/files/matching` (422) and the addon (422): the wire form, one of the four
+   operators, a whole number from 0 to 253402300799 (9999-12-31T23:59:59Z), duplicates
+   counted once, at most 4 distinct.
+4. Evaluation zone. On a page it is the browser's zone. The frontend server's Smart
+   Collection evaluation (`GET /app-api/smart-collection-members`) accepts an optional
+   `tz` parameter naming an IANA zone and uses it; without `tz` it uses the frontend
+   server's own zone; an unknown zone is 400. The MCP server sends its host's zone as `tz`
+   on every call to that route, so a Smart Collection listed through MCP on the machine
+   where the viewer reads it holds the same files as on the page.
+
+SPEC-CORE-138, 「＋ 条件」 menu: 「更新日」 / "Modified" sits between 「長さ」 and 「お気に入り」.
+It opens three fixed presets: 「30 日以内」 / "Last 30 days" (`modified:>=30d`), 「1 年以上前」
+/ "Over a year ago" (`modified:<1y`), 「3 年以上前」 / "Over 3 years ago" (`modified:<3y`).
+Offering, the empty row, the disabled entry at 4 comparisons, and choosing behave as for
+「サイズ」 (SPEC-CORE-047 menu, rules 3 and 4); "already in the query" compares the typed
+token, and "would make the range impossible" compares the resolved comparisons.
+
+SPEC-CORE-138, list rows: `FileResponse` gains `modified_at` (nullable). The list view's row
+date (`FileListRow`) shows `modified_at`, and `updated_at` when it is NULL.
+
+SPEC-ADDON-143:
+
+1. `SearchFilter` gains `modified: list[str]`, default `[]`, validated as SPEC-CORE-138
+   sending step 3 and passed to `/files/matching` unchanged after normalisation.
+2. Everything else of SPEC-ADDON-065 applies unchanged.
+
+### 2. Failure cases
+
+- A value that does not parse (`modified:2024`, `modified:<yesterday`,
+  `modified:<2023-02-30`, `modified:<1h`): the token is text.
+- An impossible range: nothing is requested; the chips stay so one can be removed.
+- `modified_at` still NULL (before the first scan after the upgrade, or a file whose stat
+  failed): the file passes no `modified:` comparison. The startup scan fills it.
+- A file edited outside Litloft after the last scan: the old `modified_at` answers until
+  the next scan; the user guide says so.
+- A file's mtime set in the future or in the distant past (a camera with a wrong clock, an
+  archive extracted with its original times): the operator answers on that mtime, which
+  is what the filesystem says.
+- An unknown `tz` on the Smart Collection route: 400, as for a bad `offset`. A host whose
+  zone cannot be read leaves `tz` out and the server zone applies.
+- A malformed `modified` on the listing: 400; in `filter` or `/files/matching`: 422. The
+  frontend never sends either.
+
+### 3. States
+
+Per file, `modified_at`: NULL (never stamped) → set (on insert, write or scan) → set to a
+new value (write or scan). It never returns to NULL. The search states of SPEC-CORE-039
+are unchanged; a change of `modified` is a change of the filter. The 「＋ 条件」 menu gains
+one value list (first level → modified presets → back), as SPEC-CORE-047's table.
+
+### 4. Data read and written
+
+- Core: writes `files.modified_at` (insert, content write, revive, scan). Reads it in
+  `apply_file_filters` and `FileResponse`. Migration adds the column.
+- Intelligence: reads what SPEC-ADDON-065 reads. Writes nothing.
+- Browser and frontend server: nothing stored; the search cache keys by the query text.
+
+### 5. External services
+
+None. The scan's extra `stat` is local filesystem I/O.
+
+### 6. Authorization
+
+Unchanged from SPEC-CORE-047. Internal API policy, endpoint 15: R1, the modification time
+is core-owned file metadata, now shown in the core UI (the list row); R2, the field names
+a time, no addon; R3, row 15's exception stands; R4, read-only. The `tz` parameter is read
+only by the frontend server's own route and reaches no backend.
+
+### 7. Effect on existing features
+
+- `GET /api/drives/{name}/files` and `/files/matching`: a new optional input only.
+- `FileResponse` gains a field; MCP `get_file` and the iOS app ignore unknown fields.
+- The scanner does one more `stat` per walked file per scan.
+- `updated_at`: unchanged by a `modified_at`-only write, so the upgrade's backfill does
+  not move every file in an `updated_at` sort.
+- The list view's row date changes source; the card's date (`created_at`) and the
+  「新しい順」 / 「古い順」 sorts are unchanged.
+- Smart Collections save the query text; re-running resolves relative values again.
+- `core-search-vocabulary.test.ts` counts change with the new keys.
+- The other range operators, `size:` / `duration:`, are unchanged.
+
+### 8. Error behavior
+
+As in 2. The scanner logs nothing for a failed stat beyond what it logs today for the same
+file; the core logs nothing new; the addon logs a 422 `filter` at no level above INFO.
+
+### 9. User-visible behavior
+
+- `path:Downloads modified:<1y` lists files in Downloads unchanged for a year, newest
+  first; `modified:>=2024-06 modified:<2024-07` lists June 2024.
+- Chip 「更新日 <1y」; menu entry 「更新日」 with three presets.
+- The list view's row date is the modification time.
+- New strings in `messages-core/ja.json` and `en.json`: the chip label / menu item, the
+  three presets, the "no preset left" row.
+- `docs/user-guide/search.md`: the operators table gains `modified:` with the absolute and
+  relative forms, that `<` means "before", the boundary rule for `<=2023`, and that a
+  change made outside Litloft shows after the next scan. `docs/reference/api.md`: the
+  listing's `modified`, `FileResponse.modified_at`. `docs/ADDON-DEVELOPMENT.md`: the
+  `/files/matching` body. `docs/addons/intelligence.md`: the `filter` key.
+
+### 10. Non-functional
+
+- Caps as in sending step 3; each comparison adds one predicate; no index (the drive
+  predicate narrows the scan, as for `file_size`).
+- The scan: one `stat` per walked file; on a 50,000-file drive this stays within the
+  scan's current time plus the cost of 50,000 stats.
+- Privacy: nothing new leaves the Docker network; `tz` is the host's zone name only.
+
+## Touch points
+
+Core:
+- `backend/app/models.py`: `File.modified_at`.
+- `backend/app/database.py` (HIGH): migration adding the column.
+- `backend/app/services/scanner.py` (HIGH): both inserts, `register_single_file`, the
+  per-file stat of walked files.
+- `backend/app/services/content_write.py`: `write_text_content`.
+- `backend/app/services/upload.py`, `backend/app/services/fileops.py` (HIGH),
+  `backend/app/routers/drives.py` (create file, missing revive, listing, filters,
+  wire-form parser).
+- `backend/app/routers/internal.py` (HIGH): `FileMatchingRequest.modified`.
+- `backend/app/schemas.py`: `FileResponse.modified_at`.
+- `.claude/rules/internal-api-policy.md`: row 15's note names `modified`.
+- `backend/tests/`: column writes per path, scan backfill, `updated_at` unchanged, listing
+  and matching parity, NULL, caps.
+- `frontend/src/lib/searchQuery.ts`: parsing, resolution, `ParsedQuery`, `SearchFilter`,
+  chips, impossible range.
+- `frontend/src/lib/api.ts`, `frontend/src/components/folder/useFolderFiles.ts`,
+  `frontend/src/components/search/useFileSearch.ts`.
+- `frontend/src/components/search/ConditionMenu.tsx`, `SearchFilterChips.tsx`.
+- `frontend/src/lib/smartCollectionEval.ts`,
+  `frontend/src/app/app-api/smart-collection-members/route.ts`: the evaluation zone and
+  `tz`.
+- `frontend/src/components/FileListRow.tsx`, `frontend/src/types/index.ts`.
+- `frontend/src/messages-core/ja.json`, `en.json`; `core-search-vocabulary.test.ts`.
+- `mcp-server/src/tools/collections.ts` (or its client): sends `tz`.
+- Docs: `docs/user-guide/search.md`, `docs/reference/api.md`, `docs/ADDON-DEVELOPMENT.md`,
+  `docs/addons/intelligence.md`.
+
+Addon (`addons/intelligence`, its own PR, then the pointer bump):
+- `app/file_matching.py`: `SearchFilter.modified`.
+- `tests/`.
+
+## Invariants
+
+I1. After a scan, every active file the scan could stat has `modified_at` equal to its `st_mtime` (to the second), including a file whose bytes changed outside Litloft while its size stayed the same.
+I2. Every path that inserts a `files` row or rewrites a file's bytes through Litloft leaves `modified_at` equal to the file's `st_mtime` after the write, never NULL.
+I3. Writing only `modified_at` leaves `updated_at` unchanged.
+I4. A file whose `modified_at` is NULL is never kept by a query with any `modified:` comparison, on the listing and on `/files/matching`.
+I5. For any combination of the existing conditions with `modified`, `POST /files/matching` returns exactly the ids `GET /api/drives/{name}/files` returns for the same conditions with no `search`, `path` or `trust`.
+I6. In zone Asia/Tokyo, `modified:<2024`, `modified:<=2023` and `modified:<2024-01-01` all send `lt:1704034800`, and `modified:>2023-12-31` sends `gte:1704034800`.
+I7. `modified:<1y` keeps a file changed 366 days before now and not one changed 364 days before now; `modified:>=30d` keeps one changed 29 days before now and not 31.
+I8. The same Smart Collection with an absolute `modified:` evaluates to the same files on the page and through `/app-api/smart-collection-members` called with the page's zone as `tz`.
+I9. The parser turns into text every value the core or the addon would reject, and the listing (400), `/files/matching` (422) and the addon's `SearchFilter` (422) accept and reject the same wire forms.
+I10. A query with no `modified:` token sends the same listing parameters and the same `filter` as before this change.
+
+## Checked, no action
+
+- "Last opened" from `WatchHistory`: not added (user choice, 2026-11-18). It is per viewer,
+  so it needs the viewer on the search path, in the cache key and a rule for shared Smart
+  Collections (the `is:unwatched` reasons of SPEC-CORE-043), and history before Litloft
+  does not exist.
+- Filesystem atime: unusable, as the Summary says.
+- Reusing `created_at` or `updated_at`: `created_at` never follows edits; `updated_at`
+  moves on every metadata change (missing, title, thumbnail).
+- A periodic rescan so outside edits show sooner: not added; scans run at startup and on
+  the manual rescan, as for every other file attribute.
+- A sort by `modified_at`: not added; the card date and the sorts keep `created_at`. For
+  files edited after Litloft first saw them the two differ, and only there.
+- Calendar months and years for relative values: fixed lengths keep the result
+  independent of the zone and of the day of the month.
+- Times of day (`modified:<2024-01-01T12:00`) and `=`: not added, as `=` for `size:`.
+- Updating `modified_at` immediately for writes other than those in SPEC-CORE-137 step 3
+  (Markdown link rewrites on rename, the `.md` id stamp): the next scan picks them up.
+- MCP `semantic_search` / Ask: they send no `filter`, as in SPEC-CORE-047.
+- A design artifact: no new screen; one menu entry and a chip in the existing pattern.
