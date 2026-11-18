@@ -1,0 +1,106 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "MEDIUM",
+  "findings": [
+    {
+      "id": "F1",
+      "origin": "reviewer",
+      "claim": "The change reaches the shared ToolbarMenu component's public props and its value span's class composition, a place outside the PDF viewer, and no invariants file declares a touch-point list that names it.",
+      "impact": "Every ToolbarMenu caller now renders its value span through the new join/filter expression. Callers that do not pass valueClassName get the same class string as before (or undefined), so no user-visible change is expected today. The new prop is an unreviewed extension point for later callers.",
+      "evidence": "frontend/src/components/ToolbarMenu.tsx:149 adds `valueClassName?: string`; ToolbarMenu.tsx:241-253 replaces the ternary with `[...].filter(Boolean).join(\" \") || undefined`. Grep finds only one caller that passes it, frontend/src/components/PdfPreview.tsx:611. No docs/process/reviews/fix-pdf-toolbar-narrow/invariants.md exists, so there is no touch-point list to check against.",
+      "repro": "not_reproduced. Read only: with valueClassName undefined, the array becomes [old value or undefined]; filter(Boolean) and join produce the old string, or an empty string that `|| undefined` maps back to undefined, which is identical to the previous className.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "No invariant is declared, and the reach into the shared component appears behavior-preserving for existing callers. It is recorded because the first-review question asks for every unlisted reach."
+      },
+      "severity": "INFO"
+    },
+    {
+      "id": "F2",
+      "origin": "reviewer",
+      "claim": "The PDF viewer frame now has `container-type: inline-size` (Tailwind `@container`), which gives the whole viewer, including the page canvas, inline-size containment and a new query container. No invariants file declares this reach.",
+      "impact": "The frame's inline size no longer depends on its content. At the current call site the frame is `w-full`, so its width comes from its parent and nothing changes. A future host that sizes the viewer to its content (shrink-to-fit or inline-flex) would see it collapse to its padding width. Any descendant `@`-container utility would now resolve against this frame instead of an outer container. Grep found no such utility inside PdfPreview other than the new one.",
+      "evidence": "frontend/src/components/PdfPreview.tsx:564 `@container w-full overflow-hidden ...`. The only `@` utilities in the file are at :564 and :611. The frame is rendered from frontend/src/components/FilePreview.tsx:214. globals.css:1519 also styles `[data-viewer-frame]`, but only its border-radius.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "No declared invariant. In current use the frame is full-width, so I found no user-reachable defect. This is an unlisted reach into a layout property of the whole viewer."
+      },
+      "severity": "INFO"
+    },
+    {
+      "id": "F3",
+      "origin": "reviewer",
+      "claim": "No test pins the `@max-[38rem]:-ml-1.5` compensation that keeps the icon-only zoom button's icon centred. Removing it or changing its sign leaves every new assertion passing.",
+      "impact": "A regression that leaves the icon-only zoom button lopsided by about 6px at viewer widths below 608px would ship silently. The defect is cosmetic.",
+      "evidence": "PdfPreview.tsx:611 holds `-ml-1.5`. pdf-toolbar-row-desktop.spec.ts measures only the row count, whether the value has width (>1px), the bar height and the aria-label. It never checks the icon's position inside the button. decisions.md records the 13px/13px inset from a manual R-5 run only.",
+      "repro": "Mutation in thought: delete `@max-[38rem]:-ml-1.5`. The value span collapses to w-0 but keeps the button's gap-1.5, so the icon sits 6px left of centre. rows stays 1, valueShown stays false, the height set is unchanged, and the aria-label is unchanged, so every test in the new spec still passes (the mutant survives).",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "The defect is cosmetic, no invariant is declared, and the gap is in test coverage rather than behavior."
+      },
+      "severity": "LOW",
+      "proposed_fix": "In the 1280×800 wide-tab test, assert that the icon's left and right insets inside the zoom button are equal within 1px."
+    }
+  ],
+  "specification_compliance": [
+    "No spec or invariants file for this change was given to the reviewer, and none exists at docs/process/reviews/fix-pdf-toolbar-narrow/invariants.md. Compliance was judged against the code's own evident intent: one toolbar row on desktop, the zoom-mode name hidden below a 38rem frame, and the accessible name kept."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The zoom-mode value always gets `whitespace-nowrap`, including at wide widths where it was previously allowed to wrap. This is harmless with the current short mode labels.",
+    "Below a 38rem frame (including every phone) the zoom menu is icon-only. Its visible name is gone and only the aria-label names it."
+  ],
+  "regression_risks": [
+    "`container-type: inline-size` on [data-viewer-frame] would collapse the frame if a future host sized it to its content.",
+    "The new ToolbarMenu value-class composition affects every ToolbarMenu caller. Reading the code shows it is equivalent for callers that omit valueClassName."
+  ],
+  "test_coverage": [
+    "The new desktop e2e spec covers en and ja: one row at 1280×800 with the wide inspector tab (icon only, aria-label kept), one row with the name shown at 1440×900, and a frame-width sweep from 760 to 440px across three zoom modes that checks the name is shown only on a single row and that the bar keeps one height.",
+    "Changing the 38rem threshold in either direction far enough would be caught: a larger value never shows the name within the sweep, and a smaller one shows it on a wrapped row.",
+    "The icon-centring margin (-ml-1.5) is not covered (F3).",
+    "projects.ts and spec-viewport.spec.ts both register the new spec, and the existing consistency test there enforces it."
+  ],
+  "not_verified": [
+    "I did not run any test or build. Tailwind's generation of `@max-[38rem]:` utilities and of `@container` was assumed, not observed.",
+    "I did not check whether the fullscreen PDF dialog reuses this toolbar or renders inside the new container.",
+    "I did not check the e2e fixture (fixtureOrigin, app.tsx) to confirm that `docside=1` and the seeded localStorage give the stated frame widths.",
+    "Phone layouts were not checked beyond reading that portalOnPhone is unchanged."
+  ],
+  "coverage": [
+    {
+      "path": "frontend/e2e-components/pdf-toolbar-row-desktop.spec.ts",
+      "read": "full",
+      "reason": "New file; read in full from the diff."
+    },
+    {
+      "path": "frontend/e2e-components/projects.ts",
+      "read": "full",
+      "reason": "Read the whole file."
+    },
+    {
+      "path": "frontend/e2e-components/spec-viewport.spec.ts",
+      "read": "partial",
+      "reason": "Read lines 90-179: the changed list and the test that consumes it."
+    },
+    {
+      "path": "frontend/src/components/PdfPreview.tsx",
+      "read": "partial",
+      "reason": "Read lines 540-679: the render function's frame and toolbar, which contain both changed hunks, plus a grep of the whole file for container utilities."
+    },
+    {
+      "path": "frontend/src/components/ToolbarMenu.tsx",
+      "read": "full",
+      "reason": "Read the whole file."
+    }
+  ],
+  "confidence": 78
+}

@@ -45,6 +45,8 @@ export const DESKTOP_ONLY = [
   "**/focus-mode-touch-desktop.spec.ts",
   "**/document-summary-inspector-desktop.spec.ts",
   "**/notes-library-desktop.spec.ts",
+  "**/clips-primary-action-desktop.spec.ts",
+  "**/pdf-toolbar-row-desktop.spec.ts",
 ];
 
 /** Literals rather than a device preset, which can change under it. */
