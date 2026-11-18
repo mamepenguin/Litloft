@@ -36,3 +36,5 @@ The FAILED item above (a pointer-revealed header stayed revealed over an EPUB or
 ## Changed by the human after the iPad check
 
 Yuichi Senga, 2026-11-18, on a real iPad: the handle's 56×22 pill (spec §4 step 4, D7, D11) sat 11px below the safe area's top and covered the top of the video, and was in the way. Decided to draw a 36×5 rounded bar in the muted colour, 4px below the safe area's top, with no icon, keeping the 88×44 hit area at the safe area's top. The tap handling was confirmed on the device.
+
+Then, on the same device: the grabber bar invites a downward swipe, and a swipe did nothing, which read as a bug. Decided to keep the bar and have a downward swipe that starts on it reveal the header as a tap does.

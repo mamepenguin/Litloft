@@ -110,6 +110,29 @@ test("SPEC-CORE-129 §4 / I10: a tap on the handle reveals the header and remove
   ).toEqual([]);
 });
 
+test("SPEC-CORE-129 §4: a downward swipe that starts on the handle reveals the header, like a tap, and does not scroll the page", async ({
+  page,
+}) => {
+  await open(page);
+  await enter(page);
+  const hit = await box(handle(page));
+  const x = hit.left + hit.width / 2;
+  const y = hit.top + 6;
+  const scrollBefore = await page.evaluate(() => window.scrollY);
+  const cdp = await page.context().newCDPSession(page);
+  const touch = (type: "touchStart" | "touchMove" | "touchEnd", ty: number) =>
+    cdp.send("Input.dispatchTouchEvent", {
+      type,
+      touchPoints: type === "touchEnd" ? [] : [{ x, y: ty }],
+    });
+  await touch("touchStart", y);
+  for (const dy of [8, 16, 28, 44, 64]) await touch("touchMove", y + dy);
+  await touch("touchEnd", y + 64);
+  await expect.poll(() => headerInert(page)).toBe(false);
+  await expect(handle(page)).toHaveCount(0);
+  expect(await page.evaluate(() => window.scrollY)).toBe(scrollBefore);
+});
+
 test("SPEC-CORE-129 §4 / §6: with the overlay sidebar open, a tap outside closes the sidebar and the header stays revealed", async ({
   page,
 }) => {

@@ -63,7 +63,14 @@ function FocusRevealStrip({
   );
 }
 
-/** The coarse pointer's way back: a pill inside a hit area large enough for a finger. */
+/** A pull this far down from the handle counts as pulling the header down. */
+const HANDLE_PULL_PX = 12;
+
+/**
+ * The coarse pointer's way back: a grabber bar inside a hit area large enough
+ * for a finger. A grabber invites a pull, so a downward swipe from it reveals
+ * the header as a tap does.
+ */
 function FocusRevealHandle({
   label,
   onReveal,
@@ -71,14 +78,31 @@ function FocusRevealHandle({
   label: string;
   onReveal: () => void;
 }) {
+  const pullFrom = useRef<number | null>(null);
   return (
     <button
       type="button"
       data-testid="focus-reveal-handle"
       aria-label={label}
       onClick={onReveal}
+      onPointerDown={(event) => {
+        pullFrom.current = event.clientY;
+        event.currentTarget.setPointerCapture?.(event.pointerId);
+      }}
+      onPointerMove={(event) => {
+        const from = pullFrom.current;
+        if (from === null || event.clientY - from < HANDLE_PULL_PX) return;
+        pullFrom.current = null;
+        onReveal();
+      }}
+      onPointerUp={() => {
+        pullFrom.current = null;
+      }}
+      onPointerCancel={() => {
+        pullFrom.current = null;
+      }}
       style={{ top: "env(safe-area-inset-top, 0px)" }}
-      className="fixed left-1/2 z-[25] flex h-11 w-[88px] -translate-x-1/2 items-start justify-center"
+      className="fixed left-1/2 z-[25] flex h-11 w-[88px] -translate-x-1/2 touch-none items-start justify-center"
     >
       <span className="mt-1 h-[5px] w-9 rounded-full bg-text-muted/60" />
     </button>
