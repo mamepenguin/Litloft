@@ -17,6 +17,8 @@ export interface AppHeaderProps {
   breadcrumb?: ReactNode;
   /** Below the tabs on a phone, beside the Target at `sm` and wider. */
   actions?: ReactNode;
+  /** The page's main action: after the Target at `sm` and wider, a full-width row below the tabs on a phone. */
+  primaryAction?: ReactNode;
   tabs?: ReactNode;
 }
 
@@ -28,6 +30,7 @@ export function AppHeader({
   target,
   breadcrumb,
   actions,
+  primaryAction,
   tabs,
 }: AppHeaderProps) {
   const tc = useTranslations("common");
@@ -53,6 +56,7 @@ export function AppHeader({
       breadcrumb={breadcrumb}
       scope={scope}
       actions={actions}
+      primaryAction={primaryAction}
       scopeEnd={<TargetMenu {...target} />}
       tabs={tabs}
     />

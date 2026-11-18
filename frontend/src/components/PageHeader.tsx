@@ -29,6 +29,12 @@ export interface PageHeaderProps {
    * tabs below `sm`.
    */
   scopeEnd?: ReactNode;
+  /**
+   * The page's one main action, drawn only beside a `scopeEnd`: it ends the
+   * title row after it from `sm`, and is a full-width row after the tabs (and
+   * after `actions`) below `sm`.
+   */
+  primaryAction?: ReactNode;
   tabs?: ReactNode;
 }
 
@@ -45,6 +51,7 @@ export function PageHeader({
   scope,
   actions,
   scopeEnd,
+  primaryAction,
   tabs,
 }: PageHeaderProps) {
   const hasTitle = given(title);
@@ -63,6 +70,7 @@ export function PageHeader({
     (given(leading) && !hasTitle);
 
   const withScopeEnd = hasTitle && !hasTitleField && given(scopeEnd);
+  const withPrimary = withScopeEnd && given(primaryAction);
 
   const rows = {
     title: "row-start-1",
@@ -105,7 +113,13 @@ export function PageHeader({
       )}
 
       {withScopeEnd && (
-        <div className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-x-3 gap-y-1 sm:grid-cols-[auto_minmax(120px,1fr)_auto_fit-content(40%)]">
+        <div
+          className={`grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-x-3 gap-y-1 ${
+            withPrimary
+              ? "sm:grid-cols-[auto_minmax(120px,1fr)_auto_fit-content(40%)_auto]"
+              : "sm:grid-cols-[auto_minmax(120px,1fr)_auto_fit-content(40%)]"
+          }`}
+        >
           <div className={`col-start-1 ${rows.title} row-span-2 flex items-start gap-2`}>
             {!hasTrailRow && leading}
             {TitleIcon && (
@@ -139,13 +153,24 @@ export function PageHeader({
             )}
           </div>
           {given(tabs) && (
-            <div className={`col-span-3 ${rows.tabs} min-w-0 sm:col-span-4`}>{tabs}</div>
+            <div
+              className={`col-span-3 ${rows.tabs} min-w-0 ${
+                withPrimary ? "sm:col-span-5" : "sm:col-span-4"
+              }`}
+            >
+              {tabs}
+            </div>
           )}
           {given(actions) && (
             <div
               className={`col-span-3 ${rows.actions} flex min-w-0 justify-end gap-2 max-sm:-mr-2 sm:col-span-1 sm:col-start-3`}
             >
               {actions}
+            </div>
+          )}
+          {withPrimary && (
+            <div className="col-span-3 row-start-5 flex min-w-0 justify-end gap-2 max-sm:[&>*]:flex-1 sm:col-span-1 sm:col-start-5 sm:row-start-1">
+              {primaryAction}
             </div>
           )}
         </div>
