@@ -5,7 +5,7 @@ SPEC-ID: SPEC-ADDON-139
 SPEC-ID: SPEC-ADDON-140
 SPEC-ID: SPEC-CORE-136
 
-Approval:
+Approval: sha256:fd3ffcd53dc463245201cbd5d2f891ef644d8e112e5b13370b035eb0a00acd65 Yuichi Senga 2026-11-18
 
 ## Summary
 
