@@ -74,7 +74,8 @@ Visible decisions of the design, as checkable lines:
   with padding and no border or frame.
 - Phone (390): header and tabs, the full-width "New note", then a row with the rail
   menu button ("Folders: <name> ⌄") and the sort button, the search field, and the list
-  rows edge to edge.
+  rows edge to edge. On the phone, the button's `<name>` and the search placeholder's
+  folder are the selected folder's last segment.
 
 Declared differences between the design and this spec, accepted with it:
 
@@ -107,7 +108,10 @@ Declared differences between the design and this spec, accepted with it:
    empty state is drawn. A member target whose evaluation answers `tooLarge` or fails is
    unusable, as in Video and Reading: the default target is in force, the saved id stays,
    and the menu marks the saved target with its unavailable label. The menu's `label` is
-   "Target" and its `defaultLabel` "All notes".
+   "Target" and its `defaultLabel` "All notes". The menu's own count for "All notes" is
+   asked with `type=text` and `exclude_origin=webclip`, through a new optional
+   `defaultTargetExcludeOrigin` prop on the core `TargetMenu` (absent: the count is asked
+   as today).
 3. The scope line shows the drive and, once known, "N notes": the `total` of `files` with
    the target, `type=text` and `exclude_origin=webclip`.
 4. "Home" is the URL without `view`; "Library" is `?view=all`. A tab is a link (history
@@ -221,10 +225,12 @@ and `page` as "p. N" (ja "N ページ").
    - the request fails → the pane's error state with a retry; the URL is kept.
 4. **Reading.** The pane fetches the note's metadata and content and draws them as the
    file page does: `MarkdownPreview` for Markdown, `TextPreview` for a plain-text file. The
-   meta line shows the folder, the updated time and the tags as read-only chips. Once a
-   note is shown, the pane records the view as the file page does (an empty
+   meta line shows the folder, the updated time and the tags as read-only chips. When the
+   viewer chose the note, the pane records the view as the file page does (an empty
    `POST /api/files/{id}/progress`), once per note shown; with no profile that answers
-   204 and nothing is kept.
+   204 and nothing is kept. The viewer chose it when they clicked its row, or when the URL
+   they arrived at (a link, a reload, Back or Forward) carried its `note`. A note shown
+   because there was no `note`, or because step 3 replaced one, is not recorded.
 5. **Edit** is offered once all are known to hold, as on the file page: the drive's
    `knowledge` `editor` policy has resolved enabled, the inline editor flag
    (`isInlineKnowledgeEditorEnabled()`) is on, and the file is Markdown or a `text/plain`
@@ -359,8 +365,8 @@ and `page` as "p. N" (ja "N ページ").
 - Read: Knowledge `note-openings`; new `notes/with-sources` (tables `note_origins`,
   `note_origin_sources`) and `notes/sources` (those tables; content and file metadata
   through the Internal API).
-- Written: the view record, an empty `POST /api/files/{id}/progress` per note shown in
-  the pane, as the file page writes it.
+- Written: the view record, an empty `POST /api/files/{id}/progress` per note the viewer
+  chose in the pane, as the file page writes it.
 - Written, only from the pane's editor and only as the file page's inline editor writes
   them: the note's content (`PUT /api/files/{id}/content` with its ETag, including an
   overwrite the viewer confirms in the conflict dialog), images dropped or pasted into it
@@ -483,8 +489,10 @@ note id when its content read fails.
   `folder-counts/query`, counting distinct files), `backend/tests/test_drive_folder_counts.py`
   (the `type=markdown` alias and the locked and cross-drive cases kept),
   `backend/tests/test_origin_conditions.py`.
-- Core frontend: no source file is edited. Used as they are: `components/appshell/*`,
-  `TargetMenu`, `lib/appTarget`, `lib/memberTarget`, `lib/appPrefs`
+- Core frontend: `components/appshell/TargetMenu.tsx` gains the optional
+  `defaultTargetExcludeOrigin` prop, passed to the "All notes" count (its test beside it);
+  no other source file is edited. Used as they are: `components/appshell/*`,
+  `lib/appTarget`, `lib/memberTarget`, `lib/appPrefs`
   (`readAppTarget`/`writeAppTarget`), `useLoad`, `useNearEnd`, `PageTabs`,
   `MarkdownPreview`, `TextPreview`, `usePlainTextDocument`, `lib/featureFlags`
   (`isInlineKnowledgeEditorEnabled`), `lib/markdownChromeContext`, `lib/navigationGuard`,
@@ -536,7 +544,7 @@ I17. The Clips page's rows and section headings render the same markup as before
 I18. After Done with a successful save, the pane's meta line, Related files and Sources show what the server holds after the save, and the list and rail are requested again.
 I19. When the scope line shows `0`, Home and Library draw only the header, the tabs and the "No notes yet" state; Continue writing is not drawn.
 I20. `notes/sources` answers 422 for an empty list or more than 60 ids; Notes with sources requests at most 3 pages of the listing; the rail draws at most 200 entries plus the selected one.
-I21. Showing a note in the pane sends one empty `POST /api/files/{id}/progress` for it, so the note appears in Continue writing as it would after opening its file page.
+I21. Showing a note the viewer chose in the pane (a row click, or a `note` in the URL they arrived at) sends one empty `POST /api/files/{id}/progress` for it, so the note appears in Continue writing as it would after opening its file page; a note shown without that choice (the first row with no `note`, or a replacement for a `note` that is not a note) sends none.
 
 ## Revises
 
