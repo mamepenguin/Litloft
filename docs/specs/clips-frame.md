@@ -102,9 +102,9 @@ Declared differences between the design and this spec, accepted with it:
    under the header; `?prefill=` opens it with the URL and title filled, as today.
    **Refresh** happens on `knowledge.clip.ready` and on `ClipSection`'s `onClipAdded`
    (which also covers pasted clips and "create anyway"). The scope count re-asks, and so
-   does the drive-wide count when it was 0. Every shown card shelf or grid re-asks its
-   first page (Home shelves; a No grouping grid's or a shelf page's first 60) and merges
-   it in its sort order: a clip not drawn yet takes its place, a drawn card is updated
+   does the drive-wide count when it was 0. Every shown card shelf or grid re-asks every
+   page it has loaded (Home shelves; each page of 60 a No grouping grid or a shelf page
+   has drawn) and merges them in its sort order: a clip not drawn yet takes its place, a drawn card is updated
    with the answer's data (title, size, dates), and later pages already drawn stay. By
    tag re-asks its first 12 tag shelves and replaces that set, its order and counts; the
    shelves drawn after them are dropped and asked again from `offset=12` as the viewer
