@@ -207,7 +207,9 @@ async function renderKind(
     <FileDetailContent fileId="f1" drive="main" surface={surface} />,
   );
   if (surface === "collection") {
-    await shellLoaded();
+    // The page row is drawn by the full-screen host around this component,
+    // not by the collection canvas itself.
+    await loaded();
   } else {
     await loaded();
     await waitFor(() =>
