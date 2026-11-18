@@ -87,6 +87,7 @@ const item = (id: string): WatchHistoryItem => ({
   trust_reviewed_at: null,
   created_at: "2026-01-01T00:00:00",
   updated_at: "2026-01-01T00:00:00",
+  modified_at: null,
   watch_progress: { position: 60, duration: 300 },
 });
 

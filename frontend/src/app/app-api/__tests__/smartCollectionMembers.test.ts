@@ -40,6 +40,7 @@ const file = (id: string, createdAt: string, overrides: Partial<FileItem> = {}):
   trust_reviewed_at: null,
   created_at: createdAt,
   updated_at: createdAt,
+  modified_at: null,
   ...overrides,
 });
 

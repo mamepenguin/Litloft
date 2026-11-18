@@ -285,7 +285,7 @@ describe("SPEC-CORE-112 I5 get_collection", () => {
 
     const calls = endpointCalls(client);
     expect(calls).toHaveLength(1);
-    expect(queryOf(calls[0])).toEqual({ drive: DRIVE, id: "s-1", offset: "0", limit: "50" });
+    expect(queryOf(calls[0])).toEqual({ drive: DRIVE, id: "s-1", offset: "0", limit: "50", tz: Intl.DateTimeFormat().resolvedOptions().timeZone });
   });
 
   it("asks the smart-folders list only after the collection endpoint's 404; another error is returned as is", async () => {
@@ -323,7 +323,7 @@ describe("SPEC-CORE-112 I5 get_collection", () => {
     );
 
     const body = parsed(result);
-    expect(queryOf(endpointCalls(client)[0])).toEqual({ drive: DRIVE, id: "s-1", offset: "100", limit: "200" });
+    expect(queryOf(endpointCalls(client)[0])).toEqual({ drive: DRIVE, id: "s-1", offset: "100", limit: "200", tz: Intl.DateTimeFormat().resolvedOptions().timeZone });
     expect(body.offset).toBe(100);
     expect(body.total).toBe(120);
     expect(body.items.map((i: { position: number }) => i.position)).toEqual(
