@@ -1,0 +1,32 @@
+{
+  "risk": "MEDIUM",
+  "score": 4,
+  "base": 0,
+  "zone_max": "MEDIUM",
+  "modifiers": [],
+  "promotions": [],
+  "zones_touched": [
+    {
+      "path": "frontend/src/components/AppShell.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FocusModeShortcuts.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/hooks/useFocusMode.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/readingAnchor.ts",
+      "level": "MEDIUM"
+    }
+  ],
+  "human_zones_touched": [],
+  "protected_paths_touched": [],
+  "docs_only": false,
+  "reasons": [
+    "highest zone MEDIUM (4 points)"
+  ]
+}

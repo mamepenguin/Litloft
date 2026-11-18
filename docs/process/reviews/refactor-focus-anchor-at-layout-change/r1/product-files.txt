@@ -1,0 +1,4 @@
+frontend/src/components/AppShell.tsx
+frontend/src/components/FocusModeShortcuts.tsx
+frontend/src/hooks/useFocusMode.ts
+frontend/src/lib/readingAnchor.ts
