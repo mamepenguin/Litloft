@@ -37,7 +37,7 @@ export function ClipsRowArrangement(): ReactElement {
       <ClipMetaContext value={context}>
         <PageFrame width="wide" header={null}>
           <div id="clips-cards" className="px-4 pb-10 pt-6">
-            <CoverGrid items={FILES} now={NOW} showAge />
+            <CoverGrid items={FILES} now={NOW} showAge skeletons={1} />
           </div>
         </PageFrame>
       </ClipMetaContext>

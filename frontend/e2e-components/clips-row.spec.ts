@@ -32,7 +32,7 @@ async function open(page: Page, width: number, hold: boolean): Promise<void> {
   await page.setViewportSize({ width, height: 844 });
   await page.goto(`${FIXTURE}?run=${++run}${hold ? "&hold=1" : ""}#clips-row`);
   await expect(page.locator("body")).toHaveAttribute("data-arrangement", "clips-row");
-  await expect(page.locator("#clips-cards li")).toHaveCount(6);
+  await expect(page.locator("#clips-cards li")).toHaveCount(7);
 }
 
 function measure(page: Page): Promise<Card[]> {
@@ -89,5 +89,39 @@ for (const width of [390, 1280]) {
         }
       }
     });
+  });
+}
+
+for (const width of [390, 1280]) {
+  test(`SPEC-ADDON-138 I8 at ${width}px cards with a one-line and a two-line title are as tall as each other and as a skeleton card`, async ({
+    page,
+  }) => {
+    await open(page, width, false);
+    await expect(page.locator("#clips-cards li img").first()).toBeVisible();
+
+    const { cards, skeleton } = await page.evaluate(() => {
+      const lines = (title: Element) => {
+        const range = document.createRange();
+        range.selectNodeContents(title);
+        return new Set([...range.getClientRects()].map((r) => Math.round(r.top))).size;
+      };
+      return {
+        cards: [...document.querySelectorAll<HTMLElement>("#clips-cards li > a")].map((card) => ({
+          lines: lines(card.children[1]),
+          height: card.getBoundingClientRect().height,
+        })),
+        skeleton: document
+          .querySelector('#clips-cards li[data-testid="clip-skeleton"]')!
+          .getBoundingClientRect().height,
+      };
+    });
+
+    const one = cards.filter((c) => c.lines === 1);
+    const two = cards.filter((c) => c.lines >= 2);
+    expect(one.length, "the fixture has one-line titles").toBeGreaterThan(0);
+    expect(two.length, "the fixture has two-line titles").toBeGreaterThan(0);
+    const height = two[0].height;
+    for (const c of cards) expect(Math.abs(c.height - height), `${c.lines}-line card`).toBeLessThanOrEqual(1);
+    expect(Math.abs(skeleton - height), "skeleton card").toBeLessThanOrEqual(1);
   });
 }
