@@ -78,7 +78,6 @@ const AT_THE_PHONE_WIDTH = [
   "clips-primary-action.spec.ts",
   "clips-row.spec.ts",
   "name-in-use.spec.ts",
-  "notes-all-clips-toggle.spec.ts",
   "file-header-row.spec.ts",
   "reading-text-size.spec.ts",
   "target-menu-rows.spec.ts",
@@ -123,6 +122,7 @@ const AT_THE_DESKTOP_WIDTH = [
   "app-header-desktop.spec.ts",
   "target-menu-rows-desktop.spec.ts",
   "drive-unavailable-desktop.spec.ts",
+  "notes-library-desktop.spec.ts",
 ] as const;
 
 test.describe("the component fixture lays out at the width it was given", () => {

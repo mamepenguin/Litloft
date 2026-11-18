@@ -41,6 +41,7 @@ export const DESKTOP_ONLY = [
   "**/app-header-desktop.spec.ts",
   "**/target-menu-rows-desktop.spec.ts",
   "**/drive-unavailable-desktop.spec.ts",
+  "**/notes-library-desktop.spec.ts",
 ];
 
 /** Literals rather than a device preset, which can change under it. */
