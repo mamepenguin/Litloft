@@ -75,6 +75,16 @@ beforeEach(() => {
 });
 
 describe("SPEC-CORE-063 the Target menu lists the shown set", () => {
+  it.each([
+    { name: "with the prop", extra: { defaultTargetExcludeOrigin: "webclip" }, expected: { exclude_origin: "webclip" } },
+    { name: "without the prop", extra: {}, expected: {} },
+  ])("counts the default target's files $name", async ({ extra, expected }) => {
+    render(menu({ selectedId: "sf-a", ...extra }));
+    openMenu();
+    await waitFor(() => expect(getDriveFiles).toHaveBeenCalled());
+    expect(getDriveFiles).toHaveBeenCalledWith(DRIVE, { type: ["video"], limit: 1, ...expected });
+  });
+
   it("lists every smart folder when nothing was ever saved, unusable ones disabled", () => {
     render(menu());
     openMenu();
