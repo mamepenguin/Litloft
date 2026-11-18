@@ -14,12 +14,13 @@ import { useEntryVisibility } from "@/hooks/useEntryVisibility";
 import {
   useAnyPointer,
   useFocusLayout,
+  useFocusState,
   useIsFilePageUrl,
 } from "@/hooks/useFocusMode";
 import { useReportPageBackground } from "@/hooks/useReportPageBackground";
 import { canTakeFocusModeShortcut, isHeaderMenuOpen } from "@/lib/findShortcut";
 import { focusModeStore } from "@/lib/focusModeStore";
-import { restoreReadingAnchor } from "@/lib/readingAnchor";
+import { forgetReadingAnchor, restoreReadingAnchor } from "@/lib/readingAnchor";
 
 import { ChromeButtons } from "./ChromeButtons";
 import { useCurrentDrive } from "./CurrentDriveProvider";
@@ -116,6 +117,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   useReportPageBackground();
   const tFocus = useTranslations("focusMode");
 
+  const focusState = useFocusState();
   const focusLayout = useFocusLayout();
   const filePageUrl = useIsFilePageUrl();
   useFocusSidebarWhen(focusLayout);
@@ -329,9 +331,17 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   // A viewer whose content re-fits itself to the wider box does it over the
   // frames that follow; the restore keeps trying for those frames.
+  // A toggle that leaves the layout as it was (below 768px) drops its anchor:
+  // kept, it would be spent by a later resize on a place the reader has left.
+  const anchoredLayout = useRef(focusLayout);
   useLayoutEffect(() => {
+    if (anchoredLayout.current === focusLayout) {
+      forgetReadingAnchor();
+      return;
+    }
+    anchoredLayout.current = focusLayout;
     restoreReadingAnchor();
-  }, [focusLayout]);
+  }, [focusState, focusLayout]);
 
   const revealed = focusLayout && !covered && reveal !== "hidden";
   const chromeHidden = focusLayout && !revealed;

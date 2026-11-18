@@ -25,7 +25,20 @@ interface InspectorShellProps {
   resetKey?: string;
   scroll?: InspectorScroll;
   selectRequest?: { tabId: string; seq: number } | null;
+  /**
+   * Report that the request has been taken. A request is for the shell that
+   * was mounted when it was made: one mounted later starts on the first tab
+   * rather than replaying a selection nobody asked for again.
+   */
+  onSelectRequestTaken?: (seq: number) => void;
   onSelect?: (tabId: string) => void;
+  /**
+   * The selection, when the host has to know it during render — the pane's
+   * wide width depends on the tab, so an effect would paint a frame at the
+   * wrong width. Omitted, the shell keeps it itself.
+   */
+  activeId?: string;
+  onActiveIdChange?: (tabId: string) => void;
 }
 
 export function InspectorShell({
@@ -34,7 +47,10 @@ export function InspectorShell({
   resetKey,
   scroll = "panel",
   selectRequest = null,
+  onSelectRequestTaken,
   onSelect,
+  activeId: controlledId,
+  onActiveIdChange,
 }: InspectorShellProps) {
   const t = useTranslations("inspector");
   // Only a listed tab can be selected. An unlisted one is mounted so it
@@ -42,7 +58,16 @@ export function InspectorShell({
   // own entry has just said is empty.
   const listed = listedTabs(tabs);
   const firstId = listed[0]?.id ?? "info";
-  const [activeId, setActiveId] = useState<string>(firstId);
+  const [internalId, setInternalId] = useState<string>(firstId);
+  const controlled = controlledId !== undefined;
+  const activeId = controlled ? controlledId : internalId;
+  const setActiveId = useCallback(
+    (id: string) => {
+      if (controlled) onActiveIdChange?.(id);
+      else setInternalId(id);
+    },
+    [controlled, onActiveIdChange],
+  );
   const tabRefs = useRef(new Map<string, HTMLButtonElement>());
 
   useEffect(() => {
@@ -59,10 +84,18 @@ export function InspectorShell({
   // in state, a dead id springs back the moment its tab returns.
   useEffect(() => {
     if (active && active.id !== activeId) setActiveId(active.id);
-  }, [active, activeId]);
+  }, [active, activeId, setActiveId]);
+
+  const takenRef = useRef(onSelectRequestTaken);
+  useEffect(() => {
+    takenRef.current = onSelectRequestTaken;
+  });
 
   useEffect(() => {
     if (!selectRequest) return;
+    // Taking the request retires it, so a shell mounted later — the pane
+    // reopening, the sheet after a resize — starts on the first tab.
+    takenRef.current?.(selectRequest.seq);
     if (listed.some((tab) => tab.id === selectRequest.tabId)) {
       setActiveId(selectRequest.tabId);
     }
@@ -90,7 +123,7 @@ export function InspectorShell({
       setActiveId(next.id);
       tabRefs.current.get(next.id)?.focus();
     },
-    [listed, active?.id],
+    [listed, active?.id, setActiveId],
   );
 
   const column = scroll === "column";

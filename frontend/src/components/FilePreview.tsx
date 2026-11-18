@@ -82,6 +82,8 @@ interface FilePreviewProps {
    * scroll container here; document-scroll hosts can omit it.
    */
   miniPlayerRoot?: Element | null;
+  /** The viewer takes the file page's canvas height. */
+  fillCanvas?: boolean;
 }
 
 export function FilePreview({
@@ -101,6 +103,7 @@ export function FilePreview({
   markdownReloadKey,
   onMarkdownTagsSaved,
   miniPlayerRoot,
+  fillCanvas,
 }: FilePreviewProps) {
   const t = useTranslations("file");
   const tc = useTranslations("common");
@@ -215,6 +218,7 @@ export function FilePreview({
         onDocumentCaptureController={onDocumentCaptureController}
         onPdfController={onPdfController}
         onDocumentController={onDocumentController}
+        fillCanvas={fillCanvas}
         documentSlotProps={{
           fileId: file.id,
           drive: file.drive,
@@ -242,6 +246,7 @@ export function FilePreview({
       <ArchivePreview
         fileId={file.id}
         onArchiveController={onArchiveController}
+        fillCanvas={fillCanvas}
       />
     );
   }

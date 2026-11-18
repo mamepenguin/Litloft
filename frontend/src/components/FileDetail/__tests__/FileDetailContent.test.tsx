@@ -7,6 +7,7 @@ import * as api from "@/lib/api";
 import type { DocumentCaptureController } from "@/lib/documentCapture";
 import {
   editableTagChipsCalls,
+  claimSlot,
   publishedCapture,
   loaded,
   makeFile,
@@ -16,6 +17,7 @@ import {
   measureRow,
   setApiResponses,
   setViewport,
+  slotMocks,
   usePolicyMock,
 } from "./harness";
 
@@ -107,6 +109,8 @@ describe("FileDetailContent", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     editableTagChipsCalls.length = 0;
+    slotMocks.occupied.clear();
+    slotMocks.entries.clear();
     usePolicyMock.mockReturnValue({ enabled: true, isLoading: false });
     // Title, action row and tags live in the inspector, and jsdom's
     // 1024px would leave it collapsed.
@@ -214,7 +218,9 @@ describe("FileDetailContent", () => {
     render(<FileDetailContent fileId="f1" drive="main" />);
     await loaded();
     const slots = document.querySelectorAll("[data-has-capture]");
-    expect(slots).toHaveLength(4);
+    // Info's sections, the preview actions and the player-adjacent slots;
+    // the canvas no longer draws a summary slot of its own.
+    expect(slots).toHaveLength(3);
     for (const slot of slots) {
       expect(slot).toHaveAttribute("data-has-capture", "true");
     }
@@ -563,6 +569,14 @@ describe("FileDetailContent", () => {
   });
 
   it("puts a video on the shell, not on the Markdown wrapper", async () => {
+    claimSlot("player-side", [
+      {
+        id: "detailed-summary",
+        label: "Detailed summary",
+        priority: 30,
+        addonName: "some-addon",
+      },
+    ]);
     setApiResponses(
       makeFile({
         file_type: "video",
@@ -624,6 +638,16 @@ describe("FileDetailContent", () => {
 
   it("drops the editor but keeps the shell when usePolicy reports it disabled", async () => {
     usePolicyMock.mockReturnValue({ enabled: false, isLoading: false });
+    // A Markdown file shown without the editor is a file without a player:
+    // its summaries are `document-side` tabs, never a canvas slot.
+    claimSlot("document-side", [
+      {
+        id: "detailed-summary",
+        label: "Detailed summary",
+        priority: 30,
+        addonName: "some-addon",
+      },
+    ]);
     setApiResponses(
       makeFile({
         file_type: "document",
@@ -633,12 +657,14 @@ describe("FileDetailContent", () => {
     );
     render(<FileDetailContent fileId="f1" drive="work" />);
     await loaded();
-    // The summaries land in the canvas in the first frame the row is measured.
-    await waitFor(() =>
-      expect(
-        screen.queryByTestId("addon-slot-include:detailed-summary"),
-      ).not.toBeNull(),
-    );
+    expect(
+      screen.queryByTestId("addon-slot-include:detailed-summary"),
+    ).toBeNull();
+    expect(
+      screen.getByTestId("addon-slot-exclude:detailed-summary"),
+    ).toBeInTheDocument();
+    const entry = screen.getByTestId("slot-entry-detailed-summary");
+    expect(entry.closest(".media-detail-host")).toBeNull();
     expect(
       screen.queryByTestId("markdown-document-layout"),
     ).not.toBeInTheDocument();

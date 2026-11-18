@@ -28,6 +28,7 @@ import { scenesFrames, scenesVisualIndex } from "./scenesSectionData";
 const DRIVE = "fixture";
 export const VIDEO_ID = "video0000001";
 export const PDF_ID = "pdf000000001";
+export const ARCHIVE_ID = "zip000000001";
 
 /**
  * A 3-second 16×16 VP8 clip: a `<video>` reports no metadata for anything
@@ -79,6 +80,12 @@ const SCENES_RATIO = FIXTURE_QUERY.get("ratio") === "4:3" ? 4 / 3 : 16 / 9;
 const SCENES_VI = FIXTURE_QUERY.get("vi") ?? "card";
 const SCENES_VI_DELAY_MS = Number(FIXTURE_QUERY.get("vi-delay") ?? 0);
 
+/**
+ * `docside=1` registers two `document-side` entries: a wide one standing in
+ * for the detailed summary and a plain one.
+ */
+const DOCSIDE = FIXTURE_QUERY.get("docside") === "1";
+
 const VIDEO = fileJson({
   id: VIDEO_ID,
   filename: "clip.webm",
@@ -99,9 +106,34 @@ const PDF = fileJson({
   tags: ["design"],
 });
 
+const ARCHIVE = fileJson({
+  id: ARCHIVE_ID,
+  filename: "letters.zip",
+  title: "Fixture letters",
+  description: "A box of letters.",
+  file_type: "archive",
+  mime_type: "application/zip",
+});
+
+/** Plain-text entries only: an image entry would ask for a picture `file://` cannot load. */
+const ARCHIVE_LISTING = {
+  entries: Array.from({ length: 6 }, (_, index) => ({
+    path: `letter-${index + 1}.txt`,
+    filename: `letter-${index + 1}.txt`,
+    file_size: 1024,
+    compressed_size: 512,
+    file_type: "other",
+    mime_type: "text/plain",
+    is_dir: false,
+  })),
+  total_entries: 6,
+  total_size: 6144,
+};
+
 const FILES: Record<string, FileItem> = {
   [VIDEO_ID]: VIDEO,
   [PDF_ID]: PDF,
+  [ARCHIVE_ID]: ARCHIVE,
 };
 
 const PDF_BYTES = buildPdf(["Quarterly report", "Second page", "Third page"]);
@@ -158,6 +190,27 @@ const ADDONS_STATUS = {
           ]
         : []),
     ],
+    ...(DOCSIDE
+      ? {
+          "document-side": [
+            {
+              id: "fixture-doc-summary",
+              label: "Detailed summary",
+              i18n_key: "intelligence.slots.detailedSummary",
+              priority: 30,
+              addonName: "intelligence",
+              wide: true,
+            },
+            {
+              id: "fixture-doc-plain",
+              label: "Scenes",
+              i18n_key: "intelligence.slots.scenes",
+              priority: 40,
+              addonName: "intelligence",
+            },
+          ],
+        }
+      : {}),
     // `actions=1` gives the player one preview action, so the row's
     // trailing end has something visible beside the panel controls.
     ...(FIXTURE_QUERY.get("actions") === "1"
@@ -228,6 +281,9 @@ export function installFetch(): void {
         );
       }
       if (rest === "/relations") return Promise.resolve(json({ relations: [] }));
+      if (rest === "/archive" && file?.id === ARCHIVE_ID) {
+        return Promise.resolve(json(ARCHIVE_LISTING));
+      }
       if (rest === "/comments") {
         return Promise.resolve(json({ comments: [], total: 0 }));
       }
@@ -439,9 +495,9 @@ export function installMedia(): void {
   });
 }
 
-type Messages = { [key: string]: string | Messages };
+export type Messages = { [key: string]: string | Messages };
 
-function deepMerge(base: Messages, extra: Messages): Messages {
+export function deepMerge(base: Messages, extra: Messages): Messages {
   const merged: Messages = { ...base };
   for (const [key, value] of Object.entries(extra)) {
     const current = merged[key];
@@ -464,7 +520,7 @@ function Providers({ children }: { children: ReactElement }): ReactElement {
   return (
     <NextIntlClientProvider
       locale="en"
-      messages={SCENES ? withIntelligence(enMessages) : enMessages}
+      messages={SCENES || DOCSIDE ? withIntelligence(enMessages) : enMessages}
     >
       <CurrentDriveProvider>
         <SidebarProvider>
@@ -515,6 +571,27 @@ export function InspectorVideoSidebarArrangement(): ReactElement {
         />
         <FilePage fileId={VIDEO_ID} />
       </div>
+    </Providers>
+  );
+}
+
+export function InspectorArchiveArrangement(): ReactElement {
+  installFetch();
+  installMedia();
+  return (
+    <Providers>
+      <FilePage fileId={ARCHIVE_ID} />
+    </Providers>
+  );
+}
+
+/** The collection playback surface around a PDF. */
+export function InspectorPdfCollectionArrangement(): ReactElement {
+  installFetch();
+  installMedia();
+  return (
+    <Providers>
+      <FileDetailContent fileId={PDF_ID} drive={DRIVE} surface="collection" />
     </Providers>
   );
 }

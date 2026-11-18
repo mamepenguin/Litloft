@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "MEDIUM",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1",
+      "status": "confirmed",
+      "note": "ToolbarMenu.tsx:149 declares `valueClassName?: string`, :169 destructures it, and :241-253 builds the value span's className with `[...].filter(Boolean).join(\" \") || undefined`. Grep for valueClassName under frontend/ finds it only in ToolbarMenu.tsx and at PdfPreview.tsx:611. docs/process/reviews/fix-pdf-toolbar-narrow/ has decisions.md, r1/ and r5-shots/ but no invariants.md. The class composition keeps the earlier behaviour: with valueClassName undefined, the output equals the old ternary (`undefined` when neither showLabel nor truncateValue is set)."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F2",
+      "status": "confirmed",
+      "note": "PdfPreview.tsx:564 puts `@container w-full overflow-hidden rounded-xl bg-bg-card` on the data-viewer-frame root that wraps the toolbar and the page canvas. In PdfPreview.tsx, Grep for `@container|@max-` matches only :564 and :611. FilePreview.tsx:214 renders PdfPreview. globals.css:1519-1521 sets only `border-radius: 0` on `[data-viewer-frame]`. The frame is w-full, so inline-size containment is unlikely to change its width in practice. I did not check this in a browser."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F3",
+      "status": "confirmed",
+      "note": "PdfPreview.tsx:611 holds `@max-[38rem]:-ml-1.5`. pdf-toolbar-row-desktop.spec.ts measures only the following: the row count from the vertical middles of the bar's children (:53-66, :115-119), whether the value span's width is greater than 1px (:64, :122), the bar height (:123), and the aria-label (:82-86). Nothing reads the svg icon's position or the button's padding symmetry. Grep finds no `ml-1.5` or `@max` in any spec or test file. decisions.md:9 records the 13px/13px inset from a manual R-5 run only. Removing the compensation would make the button 6px wider; I did not run the suite to see whether that changes any row-count assertion."
+    }
+  ],
+  "specification_compliance": [
+    "No invariants.md exists for fix-pdf-toolbar-narrow, so no touch-point list could be checked."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "Inline-size containment on the PDF viewer frame (PdfPreview.tsx:564) could change sizing if the frame is ever placed in a shrink-to-fit parent."
+  ],
+  "regression_risks": [
+    "Changing ToolbarMenu's value-span class composition affects every ToolbarMenu caller. For callers that do not pass valueClassName, the output looked equivalent when I read the code."
+  ],
+  "test_coverage": [
+    "pdf-toolbar-row-desktop.spec.ts covers the row count, whether the value is shown, a constant bar height across widths, and the aria-label. It does not cover where the icon sits inside the button."
+  ],
+  "not_verified": [
+    "Did not run the Playwright or unit suites. I cannot execute commands.",
+    "Did not check in a browser whether removing or flipping -ml-1.5 changes any row-count assertion.",
+    "Did not open the R-5 screenshots.",
+    "Did not confirm that the working tree matches commit 3b7cf6c0e beyond r1/head.txt naming that SHA."
+  ],
+  "confidence": 88
+}

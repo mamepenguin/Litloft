@@ -15,6 +15,7 @@ interface MediaCanvasProps
     | "framed"
     | "bleed"
     | "showPreviewActions"
+    | "fillCanvas"
   > {
   file: FileItem;
   metrics: CompanionMetrics;
@@ -30,11 +31,6 @@ interface MediaCanvasProps
   split?: boolean;
   splitColumnWidth?: number | null;
   showPreviewActions: boolean;
-  /**
-   * Detailed summary and the active-summary host, on a file without a
-   * player. A player file draws them through the workbench instead.
-   */
-  heavySummaries: ReactNode;
 }
 
 /**
@@ -55,7 +51,6 @@ export function MediaCanvas({
   split = false,
   splitColumnWidth,
   showPreviewActions,
-  heavySummaries,
   addonSlotProps,
   miniPlayerRoot,
   ...playerProps
@@ -78,16 +73,10 @@ export function MediaCanvas({
         bleed={isDocumentViewer(file.mime_type)}
         showPreviewActions={showPreviewActions}
         showMetadataAside={false}
+        fillCanvas
       />
 
       {workbench}
-
-      {/* `empty:hidden` because both occupants render nothing until the
-          file has a summary, and an empty bordered strip above the
-          bottom of the canvas is a rule with nothing under it. */}
-      <div className="space-y-6 border-t border-bg-border pt-6 empty:hidden">
-        {heavySummaries}
-      </div>
     </div>
   );
 }

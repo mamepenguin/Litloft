@@ -17,6 +17,18 @@ export interface BuildInspectorTabsInput {
   info: { label: string; content: ReactNode };
   coreTabs?: Array<{ id: string; label: string; content: ReactNode | null }>;
   /**
+   * A file without a player's `document-side` tabs: after the core tabs and
+   * before anything that belongs to a panel. Only an explicit `true` gives
+   * one a button, and the id carries its slot so it can never take a core
+   * tab's.
+   */
+  documentTabs?: Array<{
+    entry: SlotEntry;
+    label: string;
+    content: ReactNode;
+    available?: boolean;
+  }>;
+  /**
    * `available` undefined means the entry has not answered, and an
    * unanswered tab is listed. Only an explicit `false` unlists it.
    */
@@ -51,6 +63,7 @@ export interface BuildInspectorTabsInput {
 export function buildInspectorTabs({
   info,
   coreTabs = [],
+  documentTabs = [],
   addonTabs = [],
   postAddonTabs = [],
   inspectorTabs = [],
@@ -68,6 +81,14 @@ export function buildInspectorTabs({
         content: tab.content,
         listed: true,
       })),
+    ...sortSlotEntries(
+      documentTabs.map((tab) => ({ ...tab, priority: tab.entry.priority })),
+    ).map((tab) => ({
+      id: `document-side:${tab.entry.id}`,
+      label: tab.label,
+      content: tab.content,
+      listed: tab.available === true,
+    })),
     // Sorted here rather than by the caller: `getSlotEntries` hands
     // back the catalogue's raw order.
     ...sortSlotEntries(
