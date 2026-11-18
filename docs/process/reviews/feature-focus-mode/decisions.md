@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: ship (Yuichi Senga, 2026-11-18, on r8 HUMAN_REVIEW_REQUIRED: "ship")
 ran_in_app: yes
 at: c3aa19f2ecf959e03f711f5ab2075987df7d1abc
 by: agent
