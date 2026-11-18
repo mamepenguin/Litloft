@@ -1,5 +1,5 @@
 #!/bin/bash
-# Shipping gate of SPEC-ADDON-122/123 (spec item 10). Run on the host that holds
+# Shipping gate of SPEC-ADDON-133/123 (spec item 10). Run on the host that holds
 # the addon image to be measured:
 #   run.sh <image> <clip_dir> <out_dir>
 # <clip_dir> holds the seven clips under the names below. The container mounts

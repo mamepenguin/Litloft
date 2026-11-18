@@ -1,6 +1,6 @@
 # Video frame text is read every 3 seconds, reusing unchanged text boxes
 
-SPEC-ID: SPEC-ADDON-122
+SPEC-ID: SPEC-ADDON-133
 SPEC-ID: SPEC-ADDON-123
 
 Approval: sha256:ba6a606f7cd9910d178c0e5d6c37a088dabe88824497194733bd1fdbd251d2e8 Yuichi Senga 2026-11-17
@@ -12,7 +12,7 @@ by at least 16 bits and at least 10 seconds passed since the last read. Text tha
 screen for less than that is missed: a cooking video loses 「ごま油 小さじ1」, and on
 seven measured videos the reads catch 0.20–0.79 of the distinct lines an every-second
 read finds. This change, for the owner who searches their videos by on-screen text, does
-two things. SPEC-ADDON-122 reads a frame when its hash moved by at least 8 bits and at
+two things. SPEC-ADDON-133 reads a frame when its hash moved by at least 8 bits and at
 least 3 seconds passed, and re-reads videos already read under the old rule in the
 background. SPEC-ADDON-123 keeps the added reads affordable: a text box whose pixels have
 not changed since its text was recognised takes that text again instead of being
@@ -103,7 +103,7 @@ Reading one video (the frame reader of SPEC-ADDON-066, `index_frame_ocr`):
    nothing written).
 5. Segments and chunks are built as SPEC-ADDON-066 I2 states.
 
-Storing and re-reading (SPEC-ADDON-122):
+Storing and re-reading (SPEC-ADDON-133):
 
 6. A new nullable integer column `indexed_files.frame_ocr_rule` records the selection
    rule a stored read was made under. A read stored under this change writes `2`, and
@@ -333,7 +333,7 @@ in the UI beyond the pending counts of item 1, step 9.
   only; they show what the backend reports.
 - `addons/intelligence/app/models.py`, `app/database.py`: the `frame_ocr_rule` column
   and its migration.
-- `addons/intelligence/tests/`: tests citing SPEC-ADDON-122 and SPEC-ADDON-123, and the
+- `addons/intelligence/tests/`: tests citing SPEC-ADDON-133 and SPEC-ADDON-123, and the
   existing frame-OCR tests that assert the 10 s / 16-bit selection, the pending counts
   or the reindex answer.
 
@@ -379,9 +379,9 @@ I11. A backlog `.loft` download is not held back by a queued or processing nativ
 
 SPEC-ADDON-066 I1. A video is read only at its first decoded frame and at frames whose 256-bit difference hash differs from the last read frame's by at least 8 bits and that come at least 3 seconds after it, so no two read frames of a video are less than 3 seconds apart.
 
-SPEC-ADDON-117 I3. No download starts while another fetch runs, while the queue is paused, at priority -10 while a native `frame_scan` or `frame_ocr` task that is not a re-read of an outdated read (SPEC-ADDON-122) is queued or processing, while the drive's `index` feature is off, when no stage is wanted, when the model or engine a wanted stage needs is unavailable, or when the disk guard fails; a fetch that ends before its stages ran changes nothing but the duration (from NULL after a lookup), the loft source, the failure count, the flags closed for source `other`, the wanted stages closed at the cap, and the candidates, tile files and `clip_indexed` its storyboard step wrote (SPEC-ADDON-121).
+SPEC-ADDON-117 I3. No download starts while another fetch runs, while the queue is paused, at priority -10 while a native `frame_scan` or `frame_ocr` task that is not a re-read of an outdated read (SPEC-ADDON-133) is queued or processing, while the drive's `index` feature is off, when no stage is wanted, when the model or engine a wanted stage needs is unavailable, or when the disk guard fails; a fetch that ends before its stages ran changes nothing but the duration (from NULL after a lookup), the loft source, the failure count, the flags closed for source `other`, the wanted stages closed at the cap, and the candidates, tile files and `clip_indexed` its storyboard step wrote (SPEC-ADDON-121).
 
-SPEC-ADDON-117 I10. On every start, the fetch directory is emptied and every unclassified `.loft` with no scan row and no frame-text row has its three flags opened, both before any `loft_media` task is queued, and no native video's or classified `.loft`'s flags are changed by that step; `/status` counts pipeline videos and unclassified `.loft`s as native videos with the same flags (`pending.frame_ocr` under `on_index` only), except that a native video's outdated read (SPEC-ADDON-122) counts as pending frame OCR and a `.loft` is never outdated, and never counts a `.loft` of source `other`.
+SPEC-ADDON-117 I10. On every start, the fetch directory is emptied and every unclassified `.loft` with no scan row and no frame-text row has its three flags opened, both before any `loft_media` task is queued, and no native video's or classified `.loft`'s flags are changed by that step; `/status` counts pipeline videos and unclassified `.loft`s as native videos with the same flags (`pending.frame_ocr` under `on_index` only), except that a native video's outdated read (SPEC-ADDON-133) counts as pending frame OCR and a `.loft` is never outdated, and never counts a `.loft` of source `other`.
 
 ## Checked, no action
 
