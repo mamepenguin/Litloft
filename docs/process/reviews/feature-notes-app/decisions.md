@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: ship (human, 2026-11-18: "ship"; r1 HUMAN_REVIEW_REQUIRED. F1 accepted until the version history panel is redesigned as a left-right split; F2-F5 accepted as is.)
 ran_in_app: yes
 at: ab876696d00e4b3cb77d01169355fff91d44aaaf
 by: agent
