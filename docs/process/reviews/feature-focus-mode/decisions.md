@@ -14,3 +14,20 @@ evidence: Ran the live stack at http://video-share-focus-mode.localhost:3101 wit
   7. Save error: markdown in edit mode in focus mode, the PUT to the read-only drive returned 500, SaveDot showed "Save failed", `data-needs-attention` appeared and the header revealed by status and stayed revealed with the pointer elsewhere. `t` typed in the editor did not change focus mode.
   FAILED: with the header revealed by pointer on an HTML or EPUB file (an iframe fills the canvas from y=0), moving the pointer from the header down onto the iframe leaves the header revealed for as long as the pointer stays over the iframe (checked for 3s plus more moves, at 1440x900 and 1280x800); it hides only when the pointer reaches non-iframe area (the inspector) or on blur/other events. Steps: open an HTML or EPUB file page at 1440x900, press `T`, move the pointer to y=4 (revealed), move it down to (700,450) over the iframe, wait: header stays revealed. On a video page the same moves hide it within 700ms. Spec 129 step 3: it hides as soon as none of the holds applies.
 pending: Hold by an open header menu: no header control with `aria-expanded` exists on any file kind in this build and data (Capture basket and Profile Setup open a dialog or navigate), so only the keyboard-focus hold was run. Mini player: could not be shown (the player stays in view in every layout tried, including a short window and the transcript panel), so entering and leaving with it was not checked. A scrolled `/files/{id}` where the document itself scrolls was not found (document height equals the viewport on the files used). Real iPad (Safari) touch, real safe area and Dynamic Island, and the dismissing tap on an iframe page were not checked; only emulation was used. Layout and spacing against the design artifact is for the design check that follows.
+
+## Design differences accepted by the human (design-check.md)
+
+Accepted by Yuichi Senga on 2026-11-18, each by its id.
+
+- D-1 accepted: the artboard's collection surface is `/files/{id}` (with "‹ 戻る"); the screenshot compared is the drive's collection route, whose item list is the left pane the spec hides in focus mode.
+- D-2 accepted: same cause as D-1; the drive's collection route has a tree button and no back link.
+- D-3 accepted: the R-5 sample collection holds audio; the video frame width is measured on the folder surface.
+- D-4 accepted: the PDF viewer's `80vh` box predates this work and leaves a band below it in both layouts; filling the canvas height is a separate change with its own spec. The toolbar is the existing one; the artboard drew it simplified.
+- D-5 accepted: the screenshots were taken with the browser in the light theme; the design draws the dark one.
+- D-6 accepted: the handle's colour follows the theme, as D-5; its size and position match.
+- D-7 accepted: 1280x800 and inspector-closed focus were measured in R-5 (decisions.md) rather than shot.
+- D-8 accepted: the touch handle is the same component on every file page; R-5 shot it on the video and markdown pages.
+
+## After R-5
+
+The FAILED item above (a pointer-revealed header stayed revealed over an EPUB or HTML frame) is fixed in 820eee803, with a component test that puts a document frame under the header.
