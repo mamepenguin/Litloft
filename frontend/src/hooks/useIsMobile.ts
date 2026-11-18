@@ -1,28 +1,22 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 
 export const MOBILE_BREAKPOINT = 768;
 
-function getIsMobile(): boolean {
-  if (typeof window === "undefined") return false;
-  return window.innerWidth < MOBILE_BREAKPOINT;
+export function subscribeToResize(onChange: () => void): () => void {
+  window.addEventListener("resize", onChange);
+  return () => window.removeEventListener("resize", onChange);
 }
 
+const isMobileNow = () => window.innerWidth < MOBILE_BREAKPOINT;
+const serverIsMobile = () => false;
+
 /**
- * Initial SSR / first-paint render returns `false` because `window`
- * is unavailable; the value is corrected on mount, so callers should
- * treat the first paint as "desktop and may need a re-layout."
+ * The server render and hydration answer `false`, then the real width takes
+ * over in the commit that follows, so callers should treat the first paint
+ * of a server-rendered page as "desktop and may need a re-layout."
  */
 export function useIsMobile(): boolean {
-  const [isMobile, setIsMobile] = useState<boolean>(getIsMobile);
-  useEffect(() => {
-    function handleResize() {
-      setIsMobile(getIsMobile());
-    }
-    handleResize();
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
-  return isMobile;
+  return useSyncExternalStore(subscribeToResize, isMobileNow, serverIsMobile);
 }
