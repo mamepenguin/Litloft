@@ -282,5 +282,5 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-131 | implemented | docs/specs/notes-app.md | sha256:72a80db466c1c03fd7f70c990d2c1b6655e186508b184f617c0fdae825a0cce7 |
 | SPEC-ADDON-132 | implemented | docs/specs/notes-app.md | sha256:72a80db466c1c03fd7f70c990d2c1b6655e186508b184f617c0fdae825a0cce7 |
 | SPEC-CORE-130 | implemented | docs/specs/notes-app.md | sha256:72a80db466c1c03fd7f70c990d2c1b6655e186508b184f617c0fdae825a0cce7 |
-| SPEC-CORE-140 | draft | docs/specs/watched-ranges-display.md | |
-| SPEC-CORE-141 | draft | docs/specs/watched-ranges-display.md | |
+| SPEC-CORE-140 | approved | docs/specs/watched-ranges-display.md | sha256:ee0724df65e30e717bcc7975ce649a286583c18c5bb944980c45424673ba9362 |
+| SPEC-CORE-141 | approved | docs/specs/watched-ranges-display.md | sha256:ee0724df65e30e717bcc7975ce649a286583c18c5bb944980c45424673ba9362 |
