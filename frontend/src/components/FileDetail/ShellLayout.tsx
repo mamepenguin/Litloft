@@ -447,7 +447,9 @@ export function ShellLayout({
 
   /**
    * The inspector excludes exactly these, so a section lands in one column
-   * or the other and never in both.
+   * or the other and never in both: a file without a player withholds its
+   * `document-side` ids, and the Markdown layout the two sections it draws
+   * under the text.
    *
    * Do not add a third kind: the general answer is a slot of its own, the
    * way `file-relations` is, not another id core has to know.
