@@ -1,0 +1,3 @@
+frontend/src/components/FileDetail/__tests__/FileDetailHeaderRow.test.tsx
+frontend/src/components/__tests__/AppShell.quickNote.test.tsx
+frontend/src/components/__tests__/MenuButton.test.tsx
