@@ -90,8 +90,9 @@ Terms used below:
 
 #### B. The search passage's line (SPEC-ADDON-136)
 
-4. `SearchPassage` gains two fields, `line_box` (a quad, or null) and `line_frame_url` (a
-   string, or null). Both are null except in step 5.
+4. `SearchPassage` gains three fields: `line_box` (a quad, or null), `line_match` (two
+   numbers, or null) and `line_frame_url` (a string, or null). All three are null except
+   in step 5, where they are set together or not at all.
 5. For a `screen_text` passage with `keyword` true, of a file that is not a `.loft`:
    - Take the segment by the passage's `start` and `end`. If it has no
      `video_frame_lines` row, or its lines are not usable, both fields stay null.
@@ -100,10 +101,13 @@ Terms used below:
      the longer one.
    - The first line, in line order, that this occurrence overlaps gives `line_box`, its
      quad as stored. If it overlaps no line (it lies on a `\n`), both fields stay null.
+   - `line_match` is the part of that line the occurrence covers, as two fractions of the
+     line's length in code points: `[max(a, s_i) - s_i, min(b, s_i + len_i) - s_i]`, each
+     divided by `len_i` and rounded to 4 decimals.
    - `line_frame_url` is the frame route at the segment's start in milliseconds, size
      large: `/api/addons/intelligence/files/{file_id}/frame?t=<start>&size=large`, with
      `<start>` the start rounded to 3 decimals.
-6. The search router passes both fields through. Every other field of the answer, the
+6. The search router passes the three fields through. Every other field of the answer, the
    passages' order and their number are what they would be without this change.
 
 #### C. Find rows (SPEC-ADDON-136)
@@ -120,18 +124,22 @@ Terms used below:
 
 #### D. The search result row (SPEC-CORE-134)
 
-10. A `screen_text` passage with a `line_box` that is eight finite numbers and a
-    `line_frame_url` shows, in the row's picture slot, the large frame cropped to the
+10. A `screen_text` passage with a `line_box` that is eight finite numbers, a `line_match`
+    of two finite numbers with `0 ≤ m0 ≤ m1 ≤ 1`, and a `line_frame_url` shows, in the row's picture slot, the large frame cropped to the
     **crop region**. The slot keeps its size (64×36 on a phone, 88×50 from `sm`).
-11. The **crop region**, in the large frame's pixels (its natural size once loaded):
-    - Let the line's box be the axis-aligned bounding box of its quad.
-    - The region has the slot's aspect ratio.
-    - Its width is the larger of: the box's width plus 20 % of it, the width needed for the
-      box's height plus 150 % of it at that aspect, and a quarter of the frame's width. It
-      is at most the frame's width, and its height at most the frame's height (the width
-      is reduced to keep the aspect when the height is the limit).
-    - It is centred on the box's centre, then moved the least distance needed to lie
-      inside the frame.
+11. The **crop region**, in the large frame's pixels (its natural size once loaded). It
+    is sized by the line's height, not its length, so that the words stay readable in the
+    slot whatever the line's length:
+    - Let the line's box be the axis-aligned bounding box of its quad, of height `h`.
+    - The region has the slot's aspect ratio (88:50). Its height is the larger of `3 × h`
+      and the height a quarter of the frame's width gives at that aspect; it is at most the
+      frame's height, and its width at most the frame's width (the other side is reduced
+      to keep the aspect).
+    - Its centre is, vertically, the box's centre and, horizontally, the point at the
+      middle of `line_match` along the box's width (`x0 + w × (m0 + m1) / 2`). This
+      assumes the line's characters are of even width; it frames the words, it does not
+      mark them.
+    - It is then moved the least distance needed to lie inside the frame.
     The slot draws exactly that region, scaled to fill it.
 12. The time label in the slot's corner (today drawn over the frame) is drawn over the
     crop as well. The locator, file name and excerpt are unchanged.
@@ -340,10 +348,10 @@ drive and access of the requested file before reading its lines (SPEC-ADDON-075 
 
 ## Invariants
 
-I1. A `screen_text` passage has a non-null `line_box` exactly when it is keyword-matched, its file is not a `.loft`, its segment's lines are usable, and the first occurrence (earliest start, then longest) of its folded highlight terms in the folded joined text overlaps a non-empty line; then `line_box` is the stored quad of the first such line and `line_frame_url` is the large frame at the segment's start rounded to 3 decimals; every other passage has both null, and every other field, the order and the number of passages are as without this change.
+I1. A `screen_text` passage has a non-null `line_box` exactly when it is keyword-matched, its file is not a `.loft`, its segment's lines are usable, and the first occurrence (earliest start, then longest) of its folded highlight terms in the folded joined text overlaps a non-empty line; then `line_box` is the stored quad of the first such line, `line_match` the fractions of that line's code points the occurrence covers, and `line_frame_url` the large frame at the segment's start rounded to 3 decimals; every other passage has all three null, and every other field, the order and the number of passages are as without this change.
 I2. A frame-text find row has `boxes` exactly when its segment's lines are usable (chunks rebuild from the joined text, and the merged text equals it) and its occurrence overlaps at least one non-empty line; then `boxes` holds exactly the overlapped lines' quads in line order, never an empty list; `frame_size` is present only on a row with `boxes` and only when both stored sizes are set; every other row, `total`, `truncated`, order, snippets and offsets are as without the lines, and a failure to read the lines returns the answer without `boxes`.
 I3. The store step writes, on every `video_frame_lines` row it writes, the pixel width and height of the image the engine read for the segment's opening frame, and nothing else writes them; the migration can run twice and leaves existing rows' values unchanged.
-I4. A search row with a usable `line_box` and `line_frame_url` draws exactly the crop region of the large frame (slot aspect, containing the line's bounding box with the stated padding, at least a quarter of the frame's width, inside the frame); when the large frame fails or has no size it draws the whole frame, then the thumbnail, then the icon; a row without them renders exactly as before this change.
+I4. A search row with a usable `line_box`, `line_match` and `line_frame_url` draws exactly the crop region of the large frame (slot aspect, height the larger of three line heights and a quarter of the frame's width at that aspect, centred on the middle of `line_match` along the line and on the line vertically, moved inside the frame); when the large frame fails or has no size it draws the whole frame, then the thumbnail, then the icon; a row without them renders exactly as before this change.
 I5. A keyword `screen_text` passage links to `?t=<floor(start)>&find=<its longest highlight term>`; every other passage links exactly as before this change.
 I6. Opening a file with `find` and `t` makes current, on the first hits answer only, the first `scene` row with `boxes` whose `floor(start)` equals `t`, and otherwise no row; opening with `find` alone still makes no place current.
 I7. The player draws outlines only while find has a term, its current row has `boxes`, the media time is in `[start, end)` of that row and not interrupted, and the painted rectangle is known; then it draws the distinct quads of the rows with the current row's `start` and `end`, the current row's in the current style and the rest in the mark style, at their fractions of the contain-fitted rectangle (native: `videoWidth`×`videoHeight`; YouTube `.loft`: `frame_size`, none without it); in every other case it draws nothing.
@@ -385,5 +393,9 @@ SPEC-ADDON-075 I5. A `picture_text` find row has `boxes` exactly when the pictur
   after this change ships.
 - **Outlines in the mini player, Picture in Picture and the iOS native player**: find
   does not run there.
-- **A sharper source than the 1280-px large frame**: the boxes are normalised, and 1280 px
-  is enough for the line to fill an 88-px-wide slot at 2× density.
+- **A sharper source than the 1280-px large frame**: the region is at least 320 px wide
+  in a 1280-px frame, which fills an 88-px slot at more than 2× density.
+- **A wider slot for frame-text rows**: the slot keeps the size every passage row has, so
+  the rows stay aligned; the crop is sized to make the words readable at that size.
+- **Cropping to the whole line**: a long line fitted into 88 px leaves its words about
+  4 px tall; the region follows the line's height instead.
