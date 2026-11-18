@@ -2,6 +2,7 @@ import type { SlotModule } from "../../src/lib/addons";
 
 import ScenesSection from "../../src/addons/intelligence/ScenesSection";
 
+import { DocumentPlainSlot, DocumentSummarySlot } from "./documentSideSlot";
 import { PreviewActionSlot } from "./previewActionSlot";
 import { TranscriptSlot } from "./transcriptSlot";
 
@@ -25,6 +26,8 @@ function module(): SlotModule {
       "fixture-note": TranscriptSlot,
       scenes: ScenesSection,
       "fixture-action": PreviewActionSlot,
+      "fixture-doc-summary": DocumentSummarySlot,
+      "fixture-doc-plain": DocumentPlainSlot,
     },
   } as unknown as SlotModule;
 }

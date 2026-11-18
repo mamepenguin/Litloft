@@ -337,6 +337,8 @@ describe("the component fixture's page", () => {
       "inspector-video",
       "inspector-video-sidebar",
       "inspector-pdf",
+      "inspector-pdf-collection",
+      "inspector-archive",
       "inspector-video-two-pane",
       "inspector-video-collection",
       "header-row-ordinary",
