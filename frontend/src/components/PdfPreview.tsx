@@ -605,7 +605,10 @@ export function PdfPreview({
           icon={Maximize2}
           align="start"
           portalOnPhone
-          valueClassName="@max-[38rem]:sr-only"
+          // Collapsed in place rather than `sr-only`: the value's line box
+          // is what makes this the bar's tallest control, so the bar keeps its
+          // height across the threshold. The name stays in the aria-label.
+          valueClassName="whitespace-nowrap @max-[38rem]:-ml-1.5 @max-[38rem]:w-0 @max-[38rem]:overflow-hidden"
         >
           {(close) => (
             <MenuRadioGroup

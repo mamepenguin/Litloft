@@ -97,10 +97,12 @@ for (const [locale, tabName] of [
   });
 }
 
-test("UNSPEC: at every toolbar width the zoom mode's name is shown only where the row still fits it", async ({
+test("UNSPEC: at every toolbar width the zoom mode's name is shown only where the row still fits it, and the bar keeps one height", async ({
   page,
 }) => {
   await open(page, { width: 1440, height: 900, locale: "ja" });
+  const heights = new Set<number>();
+  const shown = new Set<boolean>();
   for (const mode of ["幅に合わせる", "ページ全体", "実寸"]) {
     const bar = page.getByTestId("pdf-toolbar");
     await bar.locator("button[aria-haspopup='menu']").click();
@@ -115,9 +117,20 @@ test("UNSPEC: at every toolbar width the zoom mode's name is shown only where th
           .filter((r) => r.width > 1)
           .map((r) => r.top + r.height / 2);
         const rows = Math.round((Math.max(...middles) - Math.min(...middles)) / 32) + 1;
-        return { rows, valueShown: value.getBoundingClientRect().width > 1 };
+        return {
+          rows,
+          valueShown: value.getBoundingClientRect().width > 1,
+          height: el.getBoundingClientRect().height,
+        };
       }, width);
       if (row.valueShown) expect({ mode, width, rows: row.rows }).toEqual({ mode, width, rows: 1 });
+      if (row.rows === 1) {
+        heights.add(Math.round(row.height));
+        shown.add(row.valueShown);
+      }
     }
   }
+  // Both forms were seen, and the bar did not change height between them.
+  expect([...shown].sort()).toEqual([false, true]);
+  expect([...heights]).toHaveLength(1);
 });
