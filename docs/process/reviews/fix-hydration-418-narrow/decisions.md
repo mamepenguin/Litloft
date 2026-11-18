@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: ship (Yuichi Senga, 2026-11-18, on r1 HUMAN_REVIEW_REQUIRED: "ship")
 ran_in_app: yes
 at: 429966bbb
 by: author
