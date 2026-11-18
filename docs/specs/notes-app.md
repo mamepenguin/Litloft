@@ -491,10 +491,13 @@ note id when its content read fails.
   `backend/tests/test_origin_conditions.py`.
 - Core frontend: `components/appshell/TargetMenu.tsx` gains the optional
   `defaultTargetExcludeOrigin` prop, passed to the "All notes" count (its test beside it).
-  `components/PageHeader.tsx`: when a header has both `actions` and `scopeEnd`, the
-  actions end the title row after `scopeEnd` from `sm`, and below `sm` they are a
-  full-width row after the tabs; a header with only one of them is drawn as today (its
-  layout test beside it). No other source file is edited. Used as they are: `components/appshell/*`,
+  `components/PageHeader.tsx` and `components/appshell/AppHeader.tsx` gain an optional
+  `primaryAction` slot, separate from `actions`: `actions` stay the view controls of the
+  scope (a sort menu, before the Target, as today), while `primaryAction` is an action
+  that does not depend on the scope. From `sm` it ends the title row after the Target;
+  below `sm` it is a full-width row after the tabs. A header without it is drawn exactly
+  as today (layout tests beside each). Notes passes "New note" as `primaryAction`. No
+  other source file is edited. Used as they are: `components/appshell/*`,
   `lib/appTarget`, `lib/memberTarget`, `lib/appPrefs`
   (`readAppTarget`/`writeAppTarget`), `useLoad`, `useNearEnd`, `PageTabs`,
   `MarkdownPreview`, `TextPreview`, `usePlainTextDocument`, `lib/featureFlags`
