@@ -2606,6 +2606,40 @@ function PageHeaderPrimaryAction(): ReactElement {
   );
 }
 
+function PageHeaderPrimaryOnly(): ReactElement {
+  return (
+    <PageHeaderActionsArrangement
+      header={
+        <PageHeader
+          titleIcon={FolderTree}
+          title="Notes"
+          scope="12 notes"
+          scopeEnd={
+            <button type="button" id="scope-end" className="whitespace-nowrap rounded-lg px-2 py-1.5 text-sm">
+              Target All notes
+            </button>
+          }
+          tabs={
+            <nav id="tabs" className="flex gap-4 text-sm">
+              <a href="#home">Home</a>
+              <a href="#library">Library</a>
+            </nav>
+          }
+          primaryAction={
+            <button
+              type="button"
+              id="header-action"
+              className="whitespace-nowrap rounded-lg border border-border-default px-3 py-1.5 text-sm"
+            >
+              New note
+            </button>
+          }
+        />
+      }
+    />
+  );
+}
+
 function AdminSettingsRows(): ReactElement {
   return (
     <NextIntlClientProvider locale="en" messages={enMessages}>
@@ -2690,6 +2724,7 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "page-header-title-medium-actions": PageHeaderTitleMediumActions,
   "page-header-title-short-action": PageHeaderTitleShortAction,
   "page-header-primary-action": PageHeaderPrimaryAction,
+  "page-header-primary-only": PageHeaderPrimaryOnly,
   "admin-settings-rows": AdminSettingsRows,
   "chrome-buttons": ChromeButtonsArrangement,
   "folder-listing-header-deep": FolderListingHeaderArrangement,

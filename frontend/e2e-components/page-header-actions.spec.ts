@@ -162,3 +162,17 @@ test("page-header-primary-action at 390px: the primary action is a full-width ro
   expect(Math.abs(m.action.right - (390 - 16))).toBeLessThanOrEqual(1);
   expect(m.scrollWidth).toBeLessThanOrEqual(390);
 });
+
+test("page-header-primary-only at 390px: the primary action is 12px below the tabs, full width", async ({
+  page,
+}) => {
+  await open(page, "page-header-primary-only", 390);
+  const m = await page.evaluate(() => {
+    const box = (selector: string) => document.querySelector(selector)!.getBoundingClientRect();
+    return { tabs: box("#tabs"), action: box("#header-action") };
+  });
+
+  expect(Math.abs(m.action.top - m.tabs.bottom - 12)).toBeLessThanOrEqual(1);
+  expect(Math.abs(m.action.left - 16)).toBeLessThanOrEqual(1);
+  expect(Math.abs(m.action.right - (390 - 16))).toBeLessThanOrEqual(1);
+});
