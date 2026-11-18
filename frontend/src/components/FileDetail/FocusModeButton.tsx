@@ -14,7 +14,7 @@ export function FocusModeButton() {
   return (
     <button
       type="button"
-      onClick={toggleFocusMode}
+      onClick={() => toggleFocusMode()}
       aria-pressed={pressed}
       aria-label={label}
       title={label}

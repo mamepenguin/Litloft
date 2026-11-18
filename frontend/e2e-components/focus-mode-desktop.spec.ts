@@ -885,6 +885,49 @@ test("SPEC-CORE-128 §1.3 / I2: the content at the top of the scrolled pane keep
   await expect.poll(drift).toBeLessThanOrEqual(1);
 });
 
+test("SPEC-CORE-128 I2 / §1.3: T below 768px leaves no reading anchor behind, so widening later keeps the place the reader scrolled to, not the one at the press", async ({
+  page,
+}) => {
+  await open(page, { query: `file=${PDF}`, width: 700, height: 700 });
+  await ready(page, "pdf");
+  await page.waitForTimeout(1000);
+
+  const root = () =>
+    page.evaluate(() => {
+      const w = window as unknown as { __scroller?: HTMLElement };
+      if (!w.__scroller) {
+        const candidates = [...document.querySelectorAll('[data-testid="page-content"] *')].filter(
+          (el) => {
+            const s = getComputedStyle(el);
+            return /(auto|scroll)/.test(s.overflowY) && el.scrollHeight > el.clientHeight + 200;
+          },
+        );
+        w.__scroller = candidates.sort((a, b) => b.scrollHeight - a.scrollHeight)[0] as
+          | HTMLElement
+          | undefined;
+      }
+      return w.__scroller ? Math.round(w.__scroller.scrollTop) : -1;
+    });
+  const scrollTo = (top: number) =>
+    page.evaluate((value) => {
+      const w = window as unknown as { __scroller?: HTMLElement };
+      if (w.__scroller) w.__scroller.scrollTop = value;
+      return w.__scroller ? Math.round(w.__scroller.scrollTop) : -1;
+    }, top);
+
+  expect(await root()).toBe(0);
+  expect(await scrollTo(100)).toBe(100);
+  await pressT(page);
+  await page.waitForTimeout(200);
+  expect((await chrome(page)).headerInert).toBe(false);
+
+  expect(await scrollTo(200)).toBe(200);
+  await page.setViewportSize({ width: 1280, height: 700 });
+  await expectFocusLayout(page);
+  await page.waitForTimeout(600);
+  expect(Math.abs((await root()) - 200)).toBeLessThanOrEqual(4);
+});
+
 test("SPEC-CORE-128 I3 / §10: entering, revealing, hiding and leaving keep the video, the header, the tree pane and the inspector mounted, and the playback position and play state", async ({
   page,
 }) => {

@@ -98,8 +98,12 @@ export function useFocusLayout(): boolean {
  * Both ways the reader turns it on or off come through here: the chrome is
  * about to take or give back the space around the content, and the reader's
  * place in that content has to survive it.
+ *
+ * Below 768px the state moves and the layout does not, so an anchor taken
+ * there would be spent by whatever resize applies the layout later, on a
+ * position the reader has long since left.
  */
-export function toggleFocusMode(): void {
-  rememberReadingAnchor();
+export function toggleFocusMode(layoutChanges = true): void {
+  if (layoutChanges) rememberReadingAnchor();
   focusModeStore.toggle();
 }
