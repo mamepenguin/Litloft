@@ -1439,6 +1439,20 @@ const targetProps: TargetMenuProps = {
 | `SmartFolder` | `@/types/smartFolder` |
 | `FileKind` | `@/types` |
 
+`AppHeader` takes two optional slots beside the Target:
+
+- `actions`: view controls. From `sm` they sit before the Target; below `sm`
+  they are a row after the tabs.
+- `primaryAction`: the page's one main action (a "New" button, for example).
+  From `sm` it follows the Target on the title row; below `sm` it is a
+  full-width row after the tabs and after `actions`. It is drawn only when the
+  header has a Target.
+
+`TargetMenuProps.defaultTargetExcludeOrigin` is optional. When set, the default
+target's count in the menu leaves out files of that `origin`; when absent, every
+origin is counted. Pass the same origin the page's own listing excludes, so the
+menu and the page agree.
+
 ### The app key and its storage keys
 
 `TargetMenuProps.app` and the target helpers take an `AppKey`: a built-in app
@@ -1509,6 +1523,12 @@ backend, `filtered_drive_files` (see [Core API surface for in-process
 addons](#core-api-surface-for-in-process-addons)) answers as
 `GET /api/drives/{drive}/files` does for the same parameters; narrow your own
 query to the ids it selects.
+
+For per-folder counts under the same filters, call
+`GET /api/drives/{drive}/folder-counts` or
+`POST /api/drives/{drive}/folder-counts/query` with the member ids, passing the
+target's `params`; each `count` is the `total` the listing answers for the same
+parameters plus `path=<that path>`.
 
 ### Members, the collection list and their states
 

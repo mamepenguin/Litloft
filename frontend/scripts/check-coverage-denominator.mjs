@@ -26,6 +26,7 @@ const SUMMARY = join(FRONTEND, "coverage", "coverage-summary.json");
 const NO_INSTRUMENTABLE_CODE = [
   "src/addons/cloud-sync/CloudSyncSettings/index.ts",
   "src/addons/intelligence/ScenesSection/index.ts",
+  "src/addons/knowledge/editorSaveHandle.ts",
   "src/components/FileDetail/find/types.ts",
   "src/components/inbox/index.ts",
   "src/components/loft/types.ts",

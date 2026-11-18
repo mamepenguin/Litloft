@@ -1,0 +1,134 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "F1",
+      "origin": "reviewer",
+      "claim": "The diff adds a new module-level helper `_normalised_quad` in frame_ocr.py, which the touch-point list does not name; the list names only `_Segment`, `_read_video`, `_chunks_for_segments`, `_store_read`, the callers and `FRAME_OCR_RULE`.",
+      "impact": "No user impact. The helper is called only from `_read_video` when a segment opens, and it implements item 1.2/I2 (dividing by the size of `ocr_image`, clamping, rounding to 4 places, None for a size other than 8 or a non-finite value). It sits inside a touch-point file and serves a planned behaviour, so it is an unnamed sub-place, not an unplanned area.",
+      "evidence": "addons/intelligence/app/workers/frame_ocr.py:166-177 defines `_normalised_quad`; its only caller is frame_ocr.py:454-456 inside `_read_video`. The `_read_boxes` call site was also split into `ocr_image = _ocr_image(image)` (frame_ocr.py:426-427), still inside `_read_video`, so `_read_boxes` itself is unchanged as the touch points require.",
+      "repro": "not_reproduced; found by comparing the diff against the touch-point list.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariant is broken. The helper is an unnamed part of the planned `_read_video` change.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    },
+    {
+      "id": "F2",
+      "origin": "reviewer",
+      "claim": "The diff renames test functions from 'rule two' to 'current rule' and rewrites module docstrings in test_spec_addon_133_frame_ocr_reread_text.py and test_spec_addon_133_loft_read_rule.py. The touch-point list allows renaming only in the three named files (outdated, reread, worker_reread). For these two files it covers only the 2→3 expectation change ('existing tests that assert a stored or kept read writes 2 now expect 3').",
+      "impact": "No user impact. Test IDs change in two files outside the explicitly listed rename scope, so a history or CI filter on the old names would no longer match. Every assertion is the same apart from the planned 2→3 change.",
+      "evidence": "tests/test_spec_addon_133_frame_ocr_reread_text.py: the module docstring at line 1, the section comment at line ~104, `test_spec_addon_133_i6_a_first_read_is_stored_under_the_current_rule` and `test_spec_addon_133_failure_a_first_read_that_ended_early_keeps_its_frames_under_the_current_rule` are renamed. In tests/test_spec_addon_133_loft_read_rule.py, the module docstring and `test_spec_addon_133_section_3_a_loft_read_is_stored_under_the_current_rule` are renamed.",
+      "repro": "not_reproduced; found by comparing the diff against the touch-point list.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Test names are outside the touch-point wording. No invariant is affected.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    }
+  ],
+  "specification_compliance": [
+    "Every product file in the diff (frame_ocr.py, models.py, database.py, indexer.py) is in the touch-point list. Core-repo changes (docs/addons/intelligence.md, the gitlink, the INDEX.md row and the spec file) are listed or implicit.",
+    "`_store_read` now receives segments and, in one session, deletes `video_frame_lines` for the file next to `video_frame_texts`, then adds the rows and writes FRAME_OCR_RULE (3). The first-read Unreadable path `_store_read(file_id, [])` therefore deletes the rows (I1, I6, item 1.4).",
+    "Segment rows are skipped with one warning naming file_id and segment.start when any line has quad None (I4). segment_index comes from enumerate over all segments, so a skipped segment leaves a gap (item 1.4).",
+    "Lines are taken from the frame that opens the segment, filtered by `box.line is not None` in the same order as the text join, so the joined lines equal segment.text (I1, I5). Reused boxes carry this frame's detected quad, because `_Box.quad` is set from this frame's detect_boxes in `_read_boxes` (I2).",
+    "A non-finite quad still fails the frame inside `_read_boxes` (`_box_rect` raises on int(round(nan)) inside the try), which agrees with the clarification. The isfinite check in `_normalised_quad` is defensive.",
+    "The migration uses CREATE TABLE/INDEX IF NOT EXISTS in `_migrate_frame_page_ocr_columns`, the same startup path as the frame OCR column migration. The model has a matching unique constraint and index name.",
+    "`_purge_file` probes for and deletes `video_frame_lines`. The only other purge callers (indexer.py:688, 3030, purge.py:61) go through `_purge_file` (I7).",
+    "`_build_rows`, `_keep_earlier_read` and `frame_read_is_outdated` are unchanged apart from the constant, so `rule < 3` is now outdated."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "`_normalised_quad` is called outside the try block in `_read_video`. If a quad that `_box_rect` accepted made `np.asarray(..., dtype=float)` raise, the whole read would abort instead of failing one frame. With the current detect_boxes outputs I see no input that does this."
+  ],
+  "regression_risks": [
+    "The rule bump makes every native video read at rule 2 outdated under on_index, so a large background re-read starts. This is intended (item 7) and production stays on manual until it ships.",
+    "The store deletes and re-inserts `video_frame_lines` in the same transaction as the texts. If a lines insert fails (for example the UNIQUE constraint), the whole store rolls back and the file stays pending. segment_index values are unique by construction."
+  ],
+  "test_coverage": [
+    "The new 134 tests cover: one row per segment that matches its chunks; lines_json shape and non-ASCII text; join order; a segment split into several chunks; quad normalisation, corner order and clamping; dropped boxes; a reused box getting this frame's quad; a continuing frame; failed-frame numbering; three/five-point quads giving no row and one warning with unchanged text/search/flags; NaN/inf failing the frame; the store deleting stale rows; an empty read and an Unreadable first read; re-reads below rule 3; the build, rebuild-only, reindex and failed-store paths leaving rows; incomplete re-reads; the migration run twice; purging with and without the table; queue, status, details and prioritize at rule 2 versus 3; and a .loft read.",
+    "The touch point 'existing tests that seed outdated rules (NULL) also cover 2 as outdated, as an added case' is applied only in test_spec_addon_133_frame_ocr_outdated.py (the 'two' video in the not-outdated test). The NULL-seeded incomplete re-read tests in test_spec_addon_133_frame_ocr_reread.py are not parametrised with 2. test_spec_addon_134_frame_lines_kept.py covers rule 2 for 'cannot reach the file' and the running re-read, but not for the incomplete outcomes (those seed NULL)."
+  ],
+  "not_verified": [
+    "I ran no tests. Whether the tests pass, or whether a mutation (for example dropping the `video_frame_lines` delete in `_store_read`) would be killed, was judged by reading only.",
+    "I did not open the modified test files on disk; for those I read only the diff hunks.",
+    "I did not check the content of the gitlink target commit beyond the submodule diff shown.",
+    "I did not verify the docs/addons/intelligence.md wording against the code."
+  ],
+  "coverage": [
+    {
+      "path": "addons/intelligence/app/database.py",
+      "read": "full",
+      "reason": "Read the whole enclosing function `_migrate_frame_page_ocr_columns` (lines 1250-1312) containing the changed hunk."
+    },
+    {
+      "path": "addons/intelligence/app/indexer.py",
+      "read": "full",
+      "reason": "Read all of `_purge_file` (lines 3034-3179), which contains the changed hunk, and grepped its callers."
+    },
+    {
+      "path": "addons/intelligence/app/models.py",
+      "read": "full",
+      "reason": "Read lines 850-900, covering VideoFrameText and the new VideoFrameLines class."
+    },
+    {
+      "path": "addons/intelligence/app/workers/frame_ocr.py",
+      "read": "full",
+      "reason": "Read the whole file (lines 1-846)."
+    },
+    {
+      "path": "addons/intelligence/tests/frame_line_doubles.py",
+      "read": "full",
+      "reason": "New file; the diff shows its whole content."
+    },
+    {
+      "path": "addons/intelligence/tests/test_frame_ocr_worker_reread.py",
+      "read": "partial",
+      "reason": "Only the diff hunk around line 138."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_133_frame_ocr_outdated.py",
+      "read": "partial",
+      "reason": "Only the diff hunks (lines ~189-380)."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_133_frame_ocr_reread.py",
+      "read": "partial",
+      "reason": "Only the diff hunks (lines ~193-307)."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_133_frame_ocr_reread_text.py",
+      "read": "partial",
+      "reason": "Only the diff hunks (docstring and lines ~101-271)."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_133_loft_read_rule.py",
+      "read": "partial",
+      "reason": "Only the diff hunks (docstring and lines 25-43)."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_134_frame_lines_kept.py",
+      "read": "full",
+      "reason": "New file; the diff shows its whole content."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_134_frame_lines_schema.py",
+      "read": "full",
+      "reason": "New file; the diff shows its whole content."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_134_frame_lines_store.py",
+      "read": "full",
+      "reason": "New file; the diff shows its whole content."
+    }
+  ],
+  "confidence": 80
+}

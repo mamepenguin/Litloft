@@ -223,7 +223,7 @@ While editing a note:
 | `Cmd/Ctrl+Shift+K` | Code block |
 | `Cmd/Ctrl+Shift+\` | Switch between Edit, Split and Preview (on a `.txt` file: between Edit and Preview) |
 
-Notes save automatically. `Cmd/Ctrl+S` marks the current text as a version to keep. In the editor `Cmd/Ctrl+K` inserts a link instead of opening search.
+Notes save automatically. `Cmd/Ctrl+S` marks the current text as a version to keep. In the editor `Cmd/Ctrl+K` inserts a link instead of opening search. In the editor beside the list in the [Notes Library](notes.md#the-note-beside-the-list), `Cmd/Ctrl+Shift+\` does nothing: that editor has no Split or Preview.
 
 ### Connections graph (Knowledge addon)
 

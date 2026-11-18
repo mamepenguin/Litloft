@@ -8,7 +8,7 @@ from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
-from sqlalchemy import Integer, case, cast, func, not_, or_
+from sqlalchemy import Integer, case, cast, distinct, func, not_, or_
 from sqlalchemy.orm import Session
 
 import app.config as config
@@ -1229,23 +1229,60 @@ def list_folder_counts(
     drive_name: str,
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
-    type: FileKindParam | None = None,
-    origin: Annotated[str | None, Query(min_length=1, max_length=32)] = None,
-    exclude_origin: Annotated[str | None, Query(min_length=1, max_length=32)] = None,
+    params: Annotated[FileFiltersQuery, Query()],
 ):
-    """Active files per exact ``folder_path``, optionally of one kind."""
-    _validate_drive(drive_name, unlocked_groups)
-    query = db.query(File.folder_path, func.count(File.id)).filter(
-        File.drive == drive_name, active_file_filter()
+    """Active files per exact ``folder_path`` under the listing's filters."""
+    return _folder_counts(db, drive_name, unlocked_groups, params)
+
+
+@router.post(
+    "/{drive_name}/folder-counts/query", response_model=list[FolderCountResponse]
+)
+def query_folder_counts(
+    drive_name: str,
+    db: Annotated[Session, Depends(get_db)],
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
+    params: Annotated[FileFiltersQuery, Query()],
+    body: FileIdsQuery,
+):
+    """The folder counts, with the body's ids joining `collection` in the `in:` condition."""
+    return _folder_counts(
+        db, drive_name, unlocked_groups, params, file_ids=body.file_ids
     )
-    query = _apply_kind_filter(query, _normalize_kind(type))
-    if origin is not None:
-        query = query.filter(File.md_origin == origin)
-    if exclude_origin is not None:
-        query = query.filter(
-            or_(File.md_origin.is_(None), File.md_origin != exclude_origin)
-        )
-    rows = query.group_by(File.folder_path).order_by(File.folder_path).all()
+
+
+def _folder_counts(
+    db: Session,
+    drive_name: str,
+    unlocked_groups: list[str],
+    params: FileFiltersQuery,
+    *,
+    file_ids: list[str] | None = None,
+) -> list[FolderCountResponse]:
+    _validate_drive(drive_name, unlocked_groups)
+    query, _ = filtered_drive_files(
+        db,
+        drive_name,
+        search=params.search,
+        favorite=params.favorite,
+        liked=params.liked,
+        tag=params.tag,
+        type=params.type,
+        folder=params.folder,
+        collection=params.collection,
+        size=params.size,
+        duration=params.duration,
+        trust=params.trust,
+        origin=params.origin,
+        exclude_origin=params.exclude_origin,
+        file_ids=file_ids,
+    )
+    rows = (
+        query.with_entities(File.folder_path, func.count(distinct(File.id)))
+        .group_by(File.folder_path)
+        .order_by(File.folder_path)
+        .all()
+    )
     return [FolderCountResponse(path=path, count=count) for path, count in rows]
 
 
