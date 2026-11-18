@@ -5,7 +5,7 @@ SPEC-ID: SPEC-ADDON-137
 SPEC-ID: SPEC-CORE-134
 SPEC-ID: SPEC-CORE-135
 
-Approval:
+Approval: sha256:748ee1228d9a5ef58b45811ed4b7c8e432c9f7cb29f4345119c35ac5b3047fd9 Yuichi Senga 2026-11-18
 
 <!--
 Leave the Approval line empty. After a human approves this spec, the approval step
