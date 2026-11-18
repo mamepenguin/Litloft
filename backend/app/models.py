@@ -91,6 +91,9 @@ class File(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC)
     )
+    modified_at: Mapped[datetime | None] = mapped_column(
+        DateTime, nullable=True, default=None
+    )
     deleted_at: Mapped[datetime | None] = mapped_column(
         DateTime, nullable=True, default=None
     )

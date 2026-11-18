@@ -1,11 +1,13 @@
 import asyncio
 import json
 import logging
+import os
 import time
 import unicodedata
 from datetime import UTC, datetime
 from pathlib import Path
 
+from sqlalchemy import update
 from sqlalchemy.orm import Session
 
 import app.config as config
@@ -33,6 +35,7 @@ from app.services.tagops import cleanup_orphan_tags, project_frontmatter_tags
 from app.services.origin import project_frontmatter_origin
 from app.services.image_dimensions import read_image_dimensions
 from app.services.markdown_images import project_markdown_thumbnail
+from app.services.mtime import modified_at_from_stat, read_modified_at
 from app.services.maintenance import (
     MaintenanceBusyError,
     _lock as _scan_lock,
@@ -114,6 +117,19 @@ def _refresh_file_identity(
     if content_changed:
         file_record.chapters_probed_at = None
     return True
+
+
+def _write_modified_at_only(
+    db: Session, file_record: File, value: datetime
+) -> None:
+    # ``updated_at`` is written with its own current value: the ORM's
+    # ``onupdate`` would otherwise move it for this column alone.
+    db.execute(
+        update(File)
+        .where(File.id == file_record.id)
+        .values(modified_at=value, updated_at=File.updated_at)
+        .execution_options(synchronize_session="fetch")
+    )
 
 
 def get_scan_status(drive_name: str) -> dict:
@@ -287,6 +303,15 @@ def _ensure_md_id_for_new_file(
         new_content = compose_frontmatter(new_meta, parsed.body)
         try:
             replace_file_contents(file_path, new_content.encode("utf-8"))
+        except OSError:
+            return
+        # The stamp is not a modification, so a note keeps the times it
+        # arrived with; a failure here leaves the write standing.
+        try:
+            os.utime(file_path, ns=(stat.st_atime_ns, stat.st_mtime_ns))
+        except OSError:
+            pass
+        try:
             file_record.file_size = file_path.stat().st_size
         except OSError:
             return
@@ -373,6 +398,9 @@ def register_single_file(db: Session, drive_name: str, file_path: Path) -> str:
         probe_file_chapters(db, file_record, file_path)
 
         _ensure_md_id_for_new_file(db, file_record, file_path)
+        modified_at = read_modified_at(file_path)
+        if modified_at is not None:
+            _write_modified_at_only(db, file_record, modified_at)
 
         if mime_type == "text/markdown" or nfc_name.lower().endswith(".md"):
             try:
@@ -554,6 +582,13 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
                 if exif is not None:
                     db.merge(FileExif(file_id=file_record.id, **exif))
 
+            modified_at = read_modified_at(item)
+            if modified_at is not None and modified_at != file_record.modified_at:
+                if needs_update:
+                    file_record.modified_at = modified_at
+                else:
+                    _write_modified_at_only(db, file_record, modified_at)
+
             if needs_update:
                 updated += 1
                 logger.info("Updated file: %s (folder: %s)", relative_path, folder_path)
@@ -619,13 +654,16 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
             st = item.stat()
             size = st.st_size
             mtime = datetime.fromtimestamp(st.st_mtime, UTC)
+            modified_at = modified_at_from_stat(st)
         except OSError:
             size = None
             mtime = None
+            modified_at = None
         h = compute_file_hash(item) if size is not None else None
         entry["file_size"] = size
         entry["file_hash"] = h
         entry["mtime"] = mtime
+        entry["modified_at"] = modified_at
         if h is not None and size is not None:
             key = (h, size)
             entry["match_key"] = key
@@ -647,6 +685,7 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
         file_hash = entry["file_hash"]
         file_size = entry["file_size"]
         mtime = entry["mtime"]
+        modified_at = entry["modified_at"]
 
         candidate: File | None = None
         if (
@@ -666,6 +705,8 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
             candidate.file_type = file_type
             candidate.mime_type = mime_type
             candidate.missing_since = None
+            if modified_at is not None:
+                candidate.modified_at = modified_at
 
             if (
                 candidate.deleted_at is None
@@ -749,6 +790,9 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
         probe_file_chapters(db, file_record, item)
 
         _ensure_md_id_for_new_file(db, file_record, item)
+        modified_at = read_modified_at(item)
+        if modified_at is not None:
+            _write_modified_at_only(db, file_record, modified_at)
 
         if file_type == "image":
             dimensions = read_image_dimensions(item)

@@ -22,6 +22,7 @@ from app.services.filetype import (
     refine_classification_with_probe,
 )
 from app.services.image_dimensions import read_image_dimensions
+from app.services.mtime import read_modified_at
 from app.services.scanner import _MD_READ_MAX_BYTES
 from app.schemas import SubtitleUploadResponse
 from app.services.tagops import cleanup_orphan_tags, project_frontmatter_tags
@@ -289,6 +290,7 @@ def complete_upload(
     duration = None
     if is_probeable_media(file_type, mime_type):
         duration = get_video_duration(str(target_full))
+    modified_at = read_modified_at(target_full)
 
     # Reconcile any DB record already holding this file_path so the UNIQUE
     # constraint can't blow up at commit.
@@ -358,6 +360,8 @@ def complete_upload(
             existing.image_height = dimensions[1] if dimensions else None
             existing.file_hash = None
             existing.chapters_probed_at = None
+            if modified_at is not None:
+                existing.modified_at = modified_at
             # An earlier verification was about content this upload just
             # replaced, so it cannot carry over: new material would inherit
             # a person's vouch and start grounding Ask answers under it.
@@ -379,6 +383,7 @@ def complete_upload(
                 duration=duration,
                 image_width=dimensions[0] if dimensions else None,
                 image_height=dimensions[1] if dimensions else None,
+                modified_at=modified_at,
             )
             db.add(file_record)
         db.flush()

@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.models import File
 from app.services.atomic_write import replace_file_contents
 from app.services.hash import compute_file_hash
+from app.services.mtime import read_modified_at
 
 logger = logging.getLogger(__name__)
 
@@ -68,6 +69,9 @@ def write_text_content(
 
     file.file_size = len(body)
     file.file_hash = compute_file_hash(file_path)
+    modified_at = read_modified_at(file_path)
+    if modified_at is not None:
+        file.modified_at = modified_at
     version_action: str | None = None
     try:
         from app.services import file_versions

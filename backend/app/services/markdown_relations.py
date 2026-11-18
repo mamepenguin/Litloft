@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session
 import app.config as config
 from app.services.atomic_write import replace_file_contents
 from app.services.diskpath import resolve_on_disk
+from app.services.mtime import read_modified_at
 from app.models import File, FileRelation, active_file_filter
 
 logger = logging.getLogger(__name__)
@@ -633,6 +634,9 @@ def rewrite_basename_in_drive(
             continue
 
         row.file_size = new_size
+        modified_at = read_modified_at(on_disk)
+        if modified_at is not None:
+            row.modified_at = modified_at
         db.flush()
         files_changed += 1
         total_occurrences += count
