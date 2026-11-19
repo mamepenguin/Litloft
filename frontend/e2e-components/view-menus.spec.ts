@@ -55,3 +55,14 @@ for (const app of APPS) {
     });
   }
 }
+
+for (const app of APPS) {
+  test(`SPEC-CORE-146 I12 ${app} ja at 390px: a view menu whose value is cut keeps its icon at 16px`, async ({ page }) => {
+    const { group, sort } = await openLibrary(page, app, 390, "ja");
+    for (const menu of [group, sort]) {
+      const icon = (await menu.locator("svg").first().boundingBox())!;
+      expect(icon.width).toBeCloseTo(16, 0);
+      expect(icon.height).toBeCloseTo(16, 0);
+    }
+  });
+}

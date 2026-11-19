@@ -241,7 +241,9 @@ export function ToolbarMenu({
           </>
         ) : (
           <>
-            <Icon size={16} />
+            <span className="flex-shrink-0">
+              <Icon size={16} />
+            </span>
             {showLabel && <span className="flex-shrink-0 whitespace-nowrap">{label}</span>}
             <span
               className={
