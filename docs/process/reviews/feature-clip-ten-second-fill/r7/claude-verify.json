@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F2",
+      "status": "confirmed",
+      "note": "Confirmed by reading the code. loft_media.py:368 sets `deadline = time.monotonic() + EMBED_BUDGET_SECONDS` once, before the batch loop. Lines 372-374 wait with `while is_paused(): time.sleep(...)` at the start of each batch. Line 376 raises `_CandidatesFailure(\"BudgetExceeded\")` once monotonic time reaches the deadline, so time spent paused counts against the 600 s budget. _candidates_stage maps that exception to \"failed\" (478-481). In _fetch, a candidates-only fetch then writes `loft_candidates_done: True` (740-742) and reports success. A fetch that also wants the scan or OCR instead reaches _count_failure with close_candidates (749-755), so a pause there costs one counted failure. Pausing the queue is normal use. The fetch-level pause at 691-694 runs before the stage starts and does not cover this window."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F3",
+      "status": "confirmed",
+      "note": "Confirmed by reading the code. indexer.py:1429-1449 queues FRAME_OCR at 100 only when `rebuild_only and not wants_candidates`; otherwise it queues only LOFT_MEDIA at 100. The earlier FRAME_OCR branch (1403-1411) does not cover a .loft, because VIDEO_TYPES (clip.py:95) excludes LOFT_MIME. Inside the fetch, _stages_wanted (loft_media.py:514-518) wants OCR only when `not state.frame_ocr_read`, so a read-but-unindexed .loft gets no text rebuild. After the fetch, the loft worker (indexer.py:2155-2170) requeues only LOFT_MEDIA or the Visual Index hook, never FRAME_OCR. The only remaining rebuild path is the -10 FRAME_OCR enqueue in _resume_incomplete (indexer.py:1221-1226, reached via line 709), so the rebuild still happens, but at backlog priority rather than the 100 a user request asked for. Spec I8 requires the fetch at 100 in this case but says nothing about dropping the FRAME_OCR task. I could not run git, so I did not check whether the earlier code queued FRAME_OCR here unconditionally."
+    }
+  ],
+  "specification_compliance": [
+    "I8 (prioritize queues a fetch at priority 100 for a read-but-unindexed YouTube .loft with candidates wanted) is met by indexer.py:1440-1449. The same branch drops the FRAME_OCR rebuild (F3).",
+    "SPEC-ADDON-117 I6 (a candidates-only fetch never moves the failure count) holds on the paths I read: _failed_result at 562-564, the no-rendition path at 645-647 and the post-stage path at 740-744 write only loft_candidates_done."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "The spec does not say whether paused time counts toward the candidates stage's embedding budget (EMBED_BUDGET_SECONDS). The code counts it (F2).",
+    "The spec does not say what priority the text rebuild of a read-but-unindexed YouTube .loft gets when prioritize queues a fetch instead (F3)."
+  ],
+  "regression_risks": [
+    "A queue pause during a candidates-only fetch can permanently mark loft_candidates_done true with no candidates built. After that, only a CLIP regenerate reopens it.",
+    "A user-prioritized .loft whose frame text needs rebuilding waits behind the -10 backlog for that rebuild."
+  ],
+  "test_coverage": [
+    "I did not find or read a test that pauses the queue during _embed_frames.",
+    "I did not find or read a test for prioritize's rebuild_only plus wants_candidates branch."
+  ],
+  "not_verified": [
+    "I could not run git diff or tests, so I did not check whether the FRAME_OCR enqueue in prioritize existed before this change.",
+    "I did not read the EMBED_BUDGET_SECONDS value or settings.workers.clip_frame_batch_size.",
+    "I did not check how often reconcile/_resume_incomplete runs after start-up.",
+    "I did not verify the other invariants (I1-I7, I9-I13) beyond the paths relevant to F2 and F3."
+  ],
+  "confidence": 85
+}
