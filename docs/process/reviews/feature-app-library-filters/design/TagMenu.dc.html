@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>タグの絞り込みメニュー</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+.fl{display:inline-flex;align-items:center;gap:6px;border:1px solid rgba(145,145,140,.2);background:#fff;border-radius:16px;padding:8px 12px;font-size:14px;color:#62625b;white-space:nowrap;font-family:inherit}
+.fl b{font-weight:400;color:#211922;max-width:12rem;overflow:hidden;text-overflow:ellipsis}
+.fl svg{width:16px;height:16px;flex-shrink:0}
+.row{display:flex;align-items:center;gap:8px;width:100%;border:0;background:transparent;text-align:left;font-size:14px;color:#211922;padding:8px 12px;font-family:inherit;cursor:pointer}
+.row:hover{background:#f6f6f3}
+.row .n{margin-left:auto;font-size:12px;color:#62625b;font-variant-numeric:tabular-nums}
+.ck{width:16px;height:16px;flex-shrink:0}
+</style>
+</helmet>
+<div style="width:640px;height:620px;box-sizing:border-box;padding:32px;background:#ffffff;color:#211922;font-family:-apple-system,system-ui,'Segoe UI',Roboto,sans-serif;display:flex;flex-direction:column;gap:8px">
+<div style="display:flex;gap:8px">
+<span class="fl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"></path><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"></circle></svg>タグ <b>{{value}}</b><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></span>
+</div>
+<div role="menu" aria-label="タグ" style="width:300px;background:#fff;border:1px solid rgba(145,145,140,.2);border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,.12);padding:8px 0;display:flex;flex-direction:column">
+<div style="padding:4px 10px 8px">
+<label style="display:flex;align-items:center;gap:8px;height:36px;border:1px solid rgba(145,145,140,.3);border-radius:10px;padding:0 10px">
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#62625b" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>
+<input type="text" aria-label="タグを検索" placeholder="タグを検索" value="{{q}}" onInput="{{onQ}}" style="border:0;outline:0;flex:1;font-size:14px;font-family:inherit;color:#211922;background:transparent;min-width:0">
+</label>
+</div>
+<button class="row" type="button" onClick="{{clear}}"><span class="ck"><sc-if value="{{none}}" hint-placeholder-val="{{ false }}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#211922" stroke-width="2" aria-hidden="true"><path d="M20 6 9 17l-5-5"></path></svg></sc-if></span>指定なし</button>
+<div style="height:1px;background:rgba(145,145,140,.2);margin:4px 0"></div>
+<div style="max-height:320px;overflow-y:auto;display:flex;flex-direction:column">
+<sc-for list="{{tags}}" as="g" hint-placeholder-count="8">
+<button class="row" type="button" role="menuitemcheckbox" aria-checked="{{g.on}}" onClick="{{g.toggle}}"><span class="ck"><sc-if value="{{g.on}}" hint-placeholder-val="{{ false }}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#211922" stroke-width="2" aria-hidden="true"><path d="M20 6 9 17l-5-5"></path></svg></sc-if></span><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{g.name}}</span><span class="n">{{g.count}}</span></button>
+</sc-for>
+<sc-if value="{{empty}}" hint-placeholder-val="{{ false }}">
+<div style="padding:8px 12px;font-size:14px;color:#62625b">一致するタグはありません</div>
+</sc-if>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":640,"height":620}}'>
+class Component extends DCLogic {
+constructor(props) {
+super(props);
+this.state = { q: '', sel: ['鶏肉'] };
+}
+renderVals() {
+const all = [['鶏肉', 12], ['パスタ', 9], ['作り置き', 8], ['和食', 8], ['時短', 7], ['豚肉', 6], ['魚', 5], ['スープ', 5], ['お弁当', 4], ['麺', 4], ['中華', 3], ['デザート', 3], ['パン', 2], ['発酵', 2], ['鍋', 1]];
+const st = this.state;
+const toggle = (name) => () => this.setState({ sel: st.sel.includes(name) ? st.sel.filter((x) => x !== name) : st.sel.concat([name]) });
+const q = st.q.trim();
+const shown = all.filter((x) => q === '' || x[0].includes(q));
+const ordered = shown.filter((x) => st.sel.includes(x[0])).concat(shown.filter((x) => !st.sel.includes(x[0])));
+return {
+q: st.q,
+onQ: (e) => this.setState({ q: e.target.value }),
+clear: () => this.setState({ sel: [] }),
+none: st.sel.length === 0,
+value: st.sel.length === 0 ? '指定なし' : st.sel.join(', '),
+tags: ordered.map((x) => ({ name: x[0], count: String(x[1]), on: st.sel.includes(x[0]), toggle: toggle(x[0]) })),
+empty: shown.length === 0
+};
+}
+}
+</script>
+</body>
+</html>
