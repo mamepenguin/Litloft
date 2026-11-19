@@ -97,6 +97,10 @@ for (const locale of ["ja", "en"] as const) {
         expect(await entries.count(), "the entries follow the menu").toBeGreaterThanOrEqual(2);
         const box = (await menu.boundingBox())!;
         const first = (await entries.first().boundingBox())!;
+        const railBox = (await rail.locator("nav").boundingBox())!;
+        expect(box.width, "the 分類 menu hugs its value instead of filling the rail").toBeLessThan(
+          railBox.width - 24,
+        );
         expect(first.y, "the entries are below the menu").toBeGreaterThanOrEqual(
           box.y + box.height - 0.5,
         );
