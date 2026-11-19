@@ -179,6 +179,19 @@ export type ShelfPageProvider = (args: {
   restrict: (ids: string[]) => Promise<string[]>;
 }) => Promise<ShelfPageAnswer>;
 
+export interface ShelfItemAction {
+  id: string;
+  label: string;
+  icon?: ComponentType<{ size?: number }>;
+  run: (fileId: string) => Promise<{ message: string; undo?: () => Promise<void> }>;
+}
+
+export type ShelfItemActions = (args: {
+  drive: string;
+  locale: string;
+  t: (key: string) => string;
+}) => ShelfItemAction[];
+
 export type SlotModule = {
   slotComponents?: Record<
     string,
@@ -186,6 +199,7 @@ export type SlotModule = {
   >;
   slotProviders?: Record<string, ShelfProvider>;
   slotPageProviders?: Record<string, ShelfPageProvider>;
+  slotItemActions?: Record<string, ShelfItemActions>;
 };
 
 // Shared with `SlotEntryRenderer`, so a provider resolves from a module the
@@ -246,6 +260,53 @@ export async function loadSlotPageProvider(entry: SlotEntry): Promise<ShelfPageP
   } catch {
     return null;
   }
+}
+
+/**
+ * The item actions an entry attaches to its cards, or `[]` when the module,
+ * `slotItemActions` or the entry's factory is missing, throws or answers with
+ * anything but an array. Unusable elements and repeated ids are dropped one
+ * by one; the rest of the list survives.
+ */
+export async function loadSlotItemActions(
+  entry: SlotEntry,
+  args: { drive: string; locale: string; t: (key: string) => string },
+): Promise<ShelfItemAction[]> {
+  if (!entry.addonName) return [];
+  let raw: unknown;
+  try {
+    const mod = await loadAddonSlotModule(entry.addonName);
+    const factory = mod.slotItemActions?.[entry.id];
+    if (typeof factory !== "function") return [];
+    raw = factory(args);
+  } catch {
+    return [];
+  }
+  if (!Array.isArray(raw)) return [];
+
+  const seen = new Set<string>();
+  const actions: ShelfItemAction[] = [];
+  for (const candidate of raw) {
+    if (candidate === null || typeof candidate !== "object") continue;
+    const { id, label, icon, run } = candidate as {
+      id?: unknown;
+      label?: unknown;
+      icon?: unknown;
+      run?: unknown;
+    };
+    if (typeof id !== "string" || typeof label !== "string" || typeof run !== "function") continue;
+    if (seen.has(id)) continue;
+    seen.add(id);
+    actions.push({
+      id,
+      label,
+      icon: typeof icon === "function" || (typeof icon === "object" && icon !== null)
+        ? (icon as ShelfItemAction["icon"])
+        : undefined,
+      run: run as ShelfItemAction["run"],
+    });
+  }
+  return actions;
 }
 
 /**

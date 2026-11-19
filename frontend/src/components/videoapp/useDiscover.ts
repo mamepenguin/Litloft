@@ -5,9 +5,11 @@ import { useLocale, useTranslations } from "next-intl";
 
 import type { ShelfItem } from "@/lib/api";
 import {
+  loadSlotItemActions,
   loadSlotPageProvider,
   loadSlotProvider,
   sortSlotEntries,
+  type ShelfItemAction,
   type ShelfPageProvider,
   type ShelfProvider,
   type SlotEntry,
@@ -24,6 +26,7 @@ import {
   localDate,
   readCachedItems,
   stableJson,
+  withoutRemovedItems,
   writeCachedItems,
   type CachedItem,
 } from "./discoverCache";
@@ -44,6 +47,10 @@ export interface DrawnShelf {
   href?: string;
   state: ShelfView<ShelfItem>;
   bylines?: ReadonlyMap<string, string>;
+  /** Rows an item action adds to the cards of a `video-discover-recommended` shelf. */
+  itemActions?: ShelfItemAction[];
+  /** The cache key the shelf's stored ids live under; Recommended only. */
+  cacheKey?: string;
   retry: () => void;
 }
 
@@ -96,6 +103,8 @@ interface ProviderRuntime {
   status: ProviderStatus;
   items: ShelfItem[];
   bylines: Map<string, string>;
+  itemActions: ShelfItemAction[];
+  cacheKey: string;
 }
 
 interface VisitEntries {
@@ -235,6 +244,8 @@ export function useDiscover({
   liveVisit.current = current;
   const onRejected = useRef(onViewerRejected);
   onRejected.current = onViewerRejected;
+  const tGlobalRef = useRef(tGlobal);
+  tGlobalRef.current = tGlobal;
   const mounted = useRef(true);
   useEffect(() => {
     mounted.current = true;
@@ -336,7 +347,13 @@ export function useDiscover({
     ) => {
       if (entries.length === 0) {
         commit(() => {
-          visit.states.set(id, { status: "absent", items: [], bylines: new Map() });
+          visit.states.set(id, {
+            status: "absent",
+            items: [],
+            bylines: new Map(),
+            itemActions: [],
+            cacheKey,
+          });
         });
         return;
       }
@@ -344,6 +361,8 @@ export function useDiscover({
         status: visit.deadline ? "dropped" : "loading",
         items: [],
         bylines: new Map(),
+        itemActions: [],
+        cacheKey,
       };
       visit.states.set(id, runtime);
       const settled = () => runtime.status !== "loading";
@@ -405,13 +424,30 @@ export function useDiscover({
           })();
         }
 
+        if (options.recommended) {
+          const chosen = providerEntry ?? pageEntry;
+          if (chosen) {
+            void (async () => {
+              const actions = await loadSlotItemActions(chosen, {
+                drive: visit.drive,
+                locale,
+                t: tGlobalRef.current,
+              });
+              commit(() => {
+                runtime.itemActions = actions;
+              });
+            })();
+          }
+        }
+
         const stored =
           requests.fileIds === null ? readCachedItems(cacheKey) : undefined;
         if (stored !== undefined && stored.length > 0) {
+          const kept = withoutRemovedItems(cacheKey, stored);
           void (async () => {
             try {
-              await restrict(stored.map((item) => item.id));
-              const rebuilt = buildShelf(stored, accepted, DISCOVER_SHELF_SIZE);
+              await restrict(kept.map((item) => item.id));
+              const rebuilt = buildShelf(kept, accepted, DISCOVER_SHELF_SIZE);
               if (rebuilt.items.length === 0) return;
               commit(() => {
                 if (settled()) return;
@@ -458,7 +494,9 @@ export function useDiscover({
             const byline = drawn.bylines.get(item.id);
             return byline === undefined ? { id: item.id } : { id: item.id, byline };
           });
-          if (requests.fileIds === null) writeCachedItems(cacheKey, cached);
+          if (requests.fileIds === null) {
+            writeCachedItems(cacheKey, withoutRemovedItems(cacheKey, cached));
+          }
           commit(() => {
             if (settled()) return;
             runtime.status = "loaded";
@@ -563,6 +601,9 @@ export function useDiscover({
       title: position.title,
       ...(position.href ? { href: position.href } : {}),
       ...(runtime.bylines.size > 0 ? { bylines: runtime.bylines } : {}),
+      ...(position.id === "recommended" && runtime.itemActions.length > 0
+        ? { itemActions: runtime.itemActions, cacheKey: runtime.cacheKey }
+        : {}),
       state: { status: "loaded", items: runtime.items },
       retry: noRetry,
     });
