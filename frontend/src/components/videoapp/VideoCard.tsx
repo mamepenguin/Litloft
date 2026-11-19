@@ -3,19 +3,14 @@
 import Link from "next/link";
 
 import { FileTypeIcon } from "@/components/FileTypeIcon";
+import { CardProgress } from "@/components/CardProgress";
 import { getThumbnailUrl, type ShelfItem } from "@/lib/api";
 import { fileLinkHref } from "@/lib/canonicalFileUrl";
 import { formatDuration } from "@/lib/format";
 import { hasKnownLength } from "@/lib/primaryMeta";
 
-function progressPercent(item: ShelfItem): number | null {
-  const progress = item.watch_progress;
-  if (!progress || !(progress.duration > 0)) return null;
-  return Math.min(100, Math.max(0, (progress.position / progress.duration) * 100));
-}
-
 export function VideoCard({ item, byline }: { item: ShelfItem; byline?: string }) {
-  const percent = progressPercent(item);
+  const progress = item.watch_progress;
   return (
     <Link
       href={fileLinkHref(item)}
@@ -40,14 +35,14 @@ export function VideoCard({ item, byline }: { item: ShelfItem; byline?: string }
             {formatDuration(item.duration)}
           </span>
         )}
-        {percent !== null && (
-          <div className="absolute inset-x-0 bottom-0 h-1 bg-black/50">
-            <div
-              data-testid="progress-fill"
-              className="h-full bg-white"
-              style={{ width: `${percent}%` }}
-            />
-          </div>
+        {progress && progress.duration > 0 && (
+          <CardProgress
+            position={progress.position}
+            duration={progress.duration}
+            ranges={item.watched_ranges}
+            trackClassName="h-1 bg-black/50"
+            fillClassName="bg-white"
+          />
         )}
       </div>
       <span className="mt-3 line-clamp-2 text-base/[1.375rem] font-medium text-text-primary">

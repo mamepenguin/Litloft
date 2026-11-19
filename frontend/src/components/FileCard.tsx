@@ -1,9 +1,10 @@
 import { useRelativeDate } from "@/hooks/useRelativeDate";
 import { memo, type ReactNode } from "react";
-import type { FileItem, WatchProgress } from "@/types";
+import type { FileItem, WatchProgress, WatchedRange } from "@/types";
 import { formatDuration } from "@/lib/format";
 import { getThumbnailUrl } from "@/lib/api";
 import { useFileCardLink } from "@/hooks/useFileCardLink";
+import { CardProgress } from "./CardProgress";
 import { useClipboard } from "./ClipboardProvider";
 import { FavoriteButton } from "./FavoriteButton";
 import { TagList } from "./TagList";
@@ -32,6 +33,7 @@ function FileCardImpl({
   onDragStart,
   onDragEnd,
   watchProgress,
+  watchedRanges,
   matchOverlay,
 }: {
   file: FileItem;
@@ -57,6 +59,7 @@ function FileCardImpl({
   onDragStart?: (e: React.DragEvent, file: FileItem) => void;
   onDragEnd?: (e: React.DragEvent) => void;
   watchProgress?: WatchProgress;
+  watchedRanges?: WatchedRange[];
   matchOverlay?: ReactNode;
 }) {
   const formatRelativeDate = useRelativeDate();
@@ -154,12 +157,13 @@ function FileCardImpl({
             </div>
           )}
           {watchProgress && watchProgress.duration > 0 && (
-            <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-white/20">
-              <div
-                className="h-full bg-accent"
-                style={{ width: `${Math.min((watchProgress.position / watchProgress.duration) * 100, 100)}%` }}
-              />
-            </div>
+            <CardProgress
+              position={watchProgress.position}
+              duration={watchProgress.duration}
+              ranges={watchedRanges}
+              trackClassName="h-[3px] bg-white/20"
+              fillClassName="bg-accent"
+            />
           )}
         </div>
         <div className="p-3">

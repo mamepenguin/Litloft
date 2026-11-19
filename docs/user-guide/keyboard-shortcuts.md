@@ -266,7 +266,7 @@ In the question field on a file page's Ask tab and on the Ask page.
 | Gesture | Action |
 |---|---|
 | Tap | Show / hide the controls |
-| Double-tap the left or right half | Back / forward 10 s |
+| Double-tap the left or right half | Back / forward 10 s, and show the seek bar with its watched band |
 | Keep tapping the same side | Skip further (20 s, 30 s …) |
 | Press and hold | Play at 2x until you let go |
 | Swipe up or down, or pinch | Enter / leave full screen |

@@ -357,6 +357,21 @@ export interface WatchProgress {
   duration: number;
 }
 
+export interface WatchedRange {
+  start: number;
+  end: number;
+}
+
+export interface PlayedSegmentItem {
+  index: number;
+  played_seconds: number;
+}
+
+export interface PlayedSegmentsResponse {
+  segment_seconds: number;
+  segments: PlayedSegmentItem[];
+}
+
 export interface Highlight {
   id: string;
   page: number | null;
@@ -375,6 +390,7 @@ export interface HighlightInput {
 
 export interface WatchHistoryItem extends FileItem {
   watch_progress: WatchProgress;
+  watched_ranges?: WatchedRange[];
 }
 
 export interface BatchRenameRequest {

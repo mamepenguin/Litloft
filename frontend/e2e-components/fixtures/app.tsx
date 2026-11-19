@@ -100,6 +100,7 @@ import {
   HeaderRowVideoArrangement,
 } from "./fileHeaderRow";
 import { PlayedRangesArrangement } from "./playedRanges";
+import { WatchedBandArrangement, WatchedRangeCardsArrangement } from "./watchedRanges";
 import { TextResumeArrangement } from "./textResume";
 import { HomeAppEntriesArrangement } from "./homeAppEntries";
 import { DiscoverPrefixArrangement } from "./discoverPrefix";
@@ -2829,6 +2830,8 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "epub-bar-loading": EpubBarLoading,
   "markdown-tables": MarkdownTables,
   "played-ranges": PlayedRangesArrangement,
+  "watched-band": WatchedBandArrangement,
+  "watched-range-cards": WatchedRangeCardsArrangement,
   "text-resume": TextResumeArrangement,
   "home-app-entries": HomeAppEntriesArrangement,
   "clips-page": ClipsPageArrangement,

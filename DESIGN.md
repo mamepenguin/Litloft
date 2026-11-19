@@ -685,6 +685,15 @@ with a **border in the accent colour**, never a fill.
   hover, and never use `scale()`.**
 - **A card's name clamps to two lines where it clamps at all.** A one-line
   `truncate` is also fine; a third number is not.
+- **A media card's progress bar fills only the watched ranges**, on the bar's
+  existing track and fill colour (video shelf 4px, black 50 % track, white
+  fill; continue-watching 3px, white 20 % track, accent fill). An empty range
+  list keeps the old fill from the start to the resume point.
+- **The resume tick** is a 3px by 10px white bar with 2px rounded top corners
+  and a 1px black 50 % outline, rising from the thumbnail's bottom edge and
+  centred on the resume point. It is drawn only when the ranges are (so the
+  resume point is where opening the file starts), and only when that point
+  sits more than 5 seconds from either end.
 - **A video card's title is 16/22 medium and sits 12px under the thumbnail; its
   byline is 14/20 muted, one truncated line, 4px under the title.**
 - **A text file's stand-in thumbnail** — its title over a shrunken cast of the
@@ -1021,6 +1030,21 @@ exception. Full-screen image and archive viewers follow the same rules.
   (ad, end screen).
 - Track fills `bg-white/25` empty and `bg-white/40` buffered; the volume
   slider's played range is `bg-accent`.
+- **The watched band sits above the seek line**: a 3px strip spanning the
+  line's own box, its bottom edge 8px above the visible 4px line (4px above
+  the knob's top), with no track of its own. Levels are white at 35 %, 60 %
+  and 90 %. It appears only while a mouse or pen is over the seek row, while
+  the bar is scrubbed, for 2 seconds after a skip, and while the touch chrome
+  is bottom-only — not for focus, a pause, or any other reveal. The line, its
+  buffered and played fills, and the knob are unchanged.
+- **On touch a skip shows the bottom bar alone**: time, full-screen and the
+  seek bar with its band, beside the half-disc skip feedback, and not the
+  centre transport, the top-right buttons or the hairline. It holds for 2
+  seconds after the last skip, scrub end or full-screen press, then hides
+  while playing and returns whole while paused; a single tap, a pause or
+  resume, focus entering the chrome, or the settings sheet also ends it. With
+  a mouse or pen a skip reveals the whole bar, as any other control press
+  does.
 - **The seek indicator follows the theme**: `--player-indicator` — coral in
   light, white in dark — fills the played range and the knob alike, in the
   control bar and in the hairline that stays behind once the bar fades. Dark

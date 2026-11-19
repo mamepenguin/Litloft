@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R1",
+      "status": "confirmed",
+      "note": "frontend/src/components/CardProgress.tsx:1-64 exists in the worktree but not in the main checkout (/Users/libre/Sources/video_share), so it is a new file. FileCard.tsx:7,160 and videoapp/VideoCard.tsx:6,39 import and render it. CardProgress.tsx:2 imports RESUME_THRESHOLD, which playbackProgress.ts:24 exports as `export const RESUME_THRESHOLD = 5`. In the main checkout, playbackProgress.ts:23 has `const RESUME_THRESHOLD = 5`, which is not exported. The touch-point list does not name CardProgress.tsx. The file does follow I8 as written: it fills the ranges when they are non-empty, shows the tick only when 5 < position < duration-5, and falls back to a 0..position bar otherwise."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R2",
+      "status": "confirmed",
+      "note": "backend/app/routers/shelves.py:513-548 merges the base's two branches, `if params.by == \"all\"` and `if params.key is not None` (main checkout shelves.py:496-519), into one `if params.by == \"all\" or params.key is not None` branch. It builds one `response` and calls `_attach_watched_ranges(db, viewer_id, response.shelves)` at line 547, after the try/except. `_attach_watched_ranges` is a new function at lines 420-434. `_item` (186-192), `_keyed_shelf` (279-306) and `_unkeyed_shelves` (309-373) show no edits. Behaviour is the same as before: the old by=all branch already passed `key=\"all\" if params.key is None else params.key`, and the old keyed branch passed params.key, which the merged expression also gives when key is set. One side effect: an exception raised inside `_attach_watched_ranges` is not logged by the 'Shelves failed' handler."
+    }
+  ],
+  "specification_compliance": [
+    "R1: the touch-point list does not name CardProgress.tsx, a new shared component, or the newly exported RESUME_THRESHOLD in playbackProgress.ts.",
+    "R2: the touch-point list names `_item` and the item builders, but the edit is in `_shelves` dispatch plus a new `_attach_watched_ranges` helper. The output is the same."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "_attach_watched_ranges runs outside the try/except in _shelves (shelves.py:547), so a failure while building watched_ranges skips the 'Shelves failed' log line. The request still fails with an error."
+  ],
+  "regression_risks": [
+    "The merged dispatch in _shelves preserves key selection: key=\"all\" when by=all and key is None, and params.key otherwise. I compared it with the main checkout and found no change in which shelves are returned."
+  ],
+  "test_coverage": [
+    "I did not check which tests cover CardProgress or _attach_watched_ranges."
+  ],
+  "not_verified": [
+    "I used the main checkout at /Users/libre/Sources/video_share as the base. I could not confirm that it matches origin/develop, because I cannot run git.",
+    "watched_ranges_by_file in backend/app/services was not read.",
+    "Did not run any tests."
+  ],
+  "confidence": 85
+}

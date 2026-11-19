@@ -33,6 +33,8 @@ export function CompactControlsPresenter({
   onScrubChange,
   onScrubEnd,
   onToggleMute,
+  watchedPieces,
+  bandVisible,
 }: MediaControlsPresenterProps) {
   const t = useTranslations("player");
 
@@ -109,6 +111,8 @@ export function CompactControlsPresenter({
           onScrubStart={onScrubStart}
           onScrubChange={onScrubChange}
           onScrubEnd={onScrubEnd}
+          watchedPieces={watchedPieces}
+          bandVisible={bandVisible}
         />
       </div>
 

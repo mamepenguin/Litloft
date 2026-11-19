@@ -18,6 +18,7 @@ import { usePlaybackRatePreference } from "./hooks/usePlaybackRatePreference";
 import { useCaptionsPreference } from "./hooks/useCaptionsPreference";
 import { BOOST_RATE, usePlayerGestures } from "./hooks/usePlayerGestures";
 import { usePointerMode } from "../hooks/usePointerMode";
+import { useWatchedPieces, watchedRangesStore } from "@/lib/watchedRangesStore";
 
 export interface MediaControlsContainerProps {
   mc: MediaController | null;
@@ -64,19 +65,37 @@ export default function MediaControlsContainer({
   settingsToggles,
 }: MediaControlsContainerProps) {
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const pointerMode = usePointerMode();
   const state = useMediaControlsState({
     mc,
     durationHint,
     autoHideMs,
+    touch: pointerMode === "coarse",
     holdVisible: settingsOpen,
   });
   const [preferredRate, setPreferredRate] = usePlaybackRatePreference();
   const [captionsPreferred, setCaptionsPreferred] = useCaptionsPreference();
   const [nativeFullscreen, setNativeFullscreen] = useState(false);
   const [frameWidth, setFrameWidth] = useState<number | null>(null);
-  const pointerMode = usePointerMode();
+  const watchedPieces = useWatchedPieces(mc, state.duration);
 
-  const { revealControls, hideControls, controlsVisible } = state;
+  const {
+    revealControls,
+    hideControls,
+    controlsVisible,
+    bottomOnly,
+    noteSkip,
+    restartSkipWindow,
+  } = state;
+
+  // Every skip -- the gesture layer's taps, the buttons and the
+  // arrow-key shortcuts -- travels through the store, so one
+  // subscription catches all of them. The callback is stable, so this
+  // does not resubscribe on ticks.
+  useEffect(() => {
+    if (!mc) return;
+    return watchedRangesStore.subscribeSkip(mc, noteSkip);
+  }, [mc, noteSkip]);
 
   // Guarded because a controller can outlive its player by a moment:
   // whoever owns the frame may tear the backend down in the same commit
@@ -149,15 +168,19 @@ export default function MediaControlsContainer({
     [revealControls],
   );
 
+  const reportSkip = useCallback(() => {
+    if (mc) watchedRangesStore.reportSkip(mc);
+  }, [mc]);
+
   const handleSkip = useCallback(
     (seconds: number) => {
       if (!mc) return;
       // Seek from the controller's live position, not the rendered
       // one: the rendered value can be up to a poll interval stale.
       mc.seek(mc.getCurrentTime() + seconds);
-      revealControls();
+      watchedRangesStore.reportSkip(mc);
     },
-    [mc, revealControls],
+    [mc],
   );
 
   // Goes through the state hook rather than straight to the controller:
@@ -183,8 +206,11 @@ export default function MediaControlsContainer({
   const handleToggleFullscreen = useCallback(() => {
     if (fullscreen) fullscreen.toggle();
     else mc?.toggleFullscreen();
-    revealControls();
-  }, [fullscreen, mc, revealControls]);
+    // In bottom-only the bar stays as it is; the press only buys the
+    // viewer another skip window's worth of it.
+    if (bottomOnly) restartSkipWindow();
+    else revealControls();
+  }, [fullscreen, mc, bottomOnly, restartSkipWindow, revealControls]);
 
   // The switch is drawn from what the player reports, so a press can ask
   // for the value already stored. Recording the preference alone would
@@ -204,9 +230,9 @@ export default function MediaControlsContainer({
   );
 
   const toggleControls = useCallback(() => {
-    if (controlsVisible) hideControls();
-    else revealControls();
-  }, [controlsVisible, hideControls, revealControls]);
+    if (bottomOnly || !controlsVisible) revealControls();
+    else hideControls();
+  }, [bottomOnly, controlsVisible, hideControls, revealControls]);
 
   const gestures = usePlayerGestures({
     mc,
@@ -216,7 +242,7 @@ export default function MediaControlsContainer({
     duration: state.duration,
     preferredRate,
     onToggleControls: toggleControls,
-    onHideControls: hideControls,
+    onSkipTap: reportSkip,
     onTogglePlay: withReveal(() => mc?.togglePlay()),
     onToggleFullscreen: handleToggleFullscreen,
   });
@@ -273,6 +299,10 @@ export default function MediaControlsContainer({
         playbackRate={state.playbackRate}
         interrupted={state.interrupted}
         visible={state.controlsVisible}
+        bottomOnly={state.bottomOnly}
+        watchedPieces={watchedPieces}
+        bandVisible={state.bandVisible}
+        onChromeFocus={revealControls}
         isFullscreen={fullscreen ? fullscreen.isFullscreen : nativeFullscreen}
         isPseudoFullscreen={isPseudoFullscreen}
         // The same condition that stands the gestures down: what makes

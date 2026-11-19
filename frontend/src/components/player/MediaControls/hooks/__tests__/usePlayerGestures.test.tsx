@@ -62,7 +62,7 @@ function makeMc(overrides: Partial<MediaController> = {}): MediaController {
 
 const callbacks = {
   onToggleControls: vi.fn(),
-  onHideControls: vi.fn(),
+  onSkipTap: vi.fn(),
   onTogglePlay: vi.fn(),
   onToggleFullscreen: vi.fn(),
 };
@@ -295,14 +295,14 @@ describe("usePlayerGestures double tap", () => {
     expect(mc.seek).toHaveBeenCalledWith(51);
   });
 
-  it("gets the bar out of the way once a skip takes over", () => {
+  it("reports the skip so the bar can show the band", () => {
     const { overlay } = setup();
     tap(overlay, RIGHT_X);
     act(() => {
       vi.advanceTimersByTime(WITHIN);
     });
     tap(overlay, RIGHT_X);
-    expect(callbacks.onHideControls).toHaveBeenCalled();
+    expect(callbacks.onSkipTap).toHaveBeenCalled();
   });
 
   it("shows the skip feedback and clears it after the window closes", () => {

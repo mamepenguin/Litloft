@@ -16,11 +16,12 @@ import {
   type PlayedRangeCapture,
 } from "./playedRanges";
 import { getSavedProgress, saveProgress } from "./recentlyPlayed";
+import { watchedRangesStore } from "./watchedRangesStore";
 import { useProfile } from "@/components/ProfileProvider";
 
 const SAVE_INTERVAL = 5;
 /** Dead zone at both ends of the timeline where resume is skipped. */
-const RESUME_THRESHOLD = 5;
+export const RESUME_THRESHOLD = 5;
 const TEARDOWN_MIN_DELTA = 1;
 
 export interface UsePlaybackProgressOptions {
@@ -104,6 +105,15 @@ export function usePlaybackProgress({
     write(usable(currentTime) ? currentTime : duration, duration);
   }, [mc, write]);
 
+  // Declared before the capture effect so a teardown closes the
+  // registration before the final send starts: that send belongs to a
+  // file the store no longer holds, and must not reach the next band.
+  useEffect(() => {
+    if (!mc) return;
+    watchedRangesStore.register(mc, fileId, nickname);
+    return () => watchedRangesStore.unregister(mc);
+  }, [mc, fileId, nickname]);
+
   useEffect(() => {
     if (!mc) return;
 
@@ -183,7 +193,15 @@ export function usePlaybackProgress({
       write(currentTime, duration);
     };
 
-    const capture = createPlayedRangeCapture(fileId, sendPlayedRanges);
+    const capture = createPlayedRangeCapture(fileId, (id, ranges) => {
+      const token = watchedRangesStore.beginSend(mc, id);
+      return sendPlayedRanges(id, ranges).then((status) => {
+        if (status >= 200 && status < 300) {
+          watchedRangesStore.commitSend(mc, token, ranges);
+        }
+        return status;
+      });
+    });
     captureRef.current = capture;
     const flushCapture = (final = false) => {
       try {

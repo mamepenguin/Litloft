@@ -296,3 +296,5 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-141 | implemented | docs/specs/ytdlp-node-runtime.md | sha256:1eac24c6f5e6733faf454fc9bcc13b8bb176ed4af68f3cab80bb4698fe89edbd |
 | SPEC-ADDON-142 | implemented | docs/specs/ytdlp-node-runtime.md | sha256:1eac24c6f5e6733faf454fc9bcc13b8bb176ed4af68f3cab80bb4698fe89edbd |
 | SPEC-CORE-139 | implemented | docs/specs/ytdlp-node-runtime.md | sha256:1eac24c6f5e6733faf454fc9bcc13b8bb176ed4af68f3cab80bb4698fe89edbd |
+| SPEC-CORE-140 | implemented | docs/specs/watched-ranges-display.md | sha256:ee0724df65e30e717bcc7975ce649a286583c18c5bb944980c45424673ba9362 |
+| SPEC-CORE-141 | implemented | docs/specs/watched-ranges-display.md | sha256:ee0724df65e30e717bcc7975ce649a286583c18c5bb944980c45424673ba9362 |

@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import type { CaptionsState } from "@/lib/mediaController";
+import type { WatchedPiece } from "@/lib/watchedRangesStore";
 
 export interface MediaControlsPresenterProps {
   /** Playhead, or the drag position while the user is scrubbing. */
@@ -13,6 +14,14 @@ export interface MediaControlsPresenterProps {
   /** An ad (or similar) is playing, so file-scoped controls are meaningless. */
   interrupted: boolean;
   visible: boolean;
+  /** Touch layout only: the seek bar alone, after a skip. */
+  bottomOnly?: boolean;
+  /** Runs of watched segments to draw above the seek line. */
+  watchedPieces?: WatchedPiece[];
+  /** Whether a skip or scrub is showing the band, independently of hover. */
+  bandVisible?: boolean;
+  /** Keyboard focus reached the chrome; it is no longer bottom-only. */
+  onChromeFocus?: () => void;
   isFullscreen: boolean;
   /**
    * True while the frame fakes fullscreen with position: fixed. The bar
