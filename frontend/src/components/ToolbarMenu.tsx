@@ -220,7 +220,7 @@ export function ToolbarMenu({
             ? `flex max-w-full min-w-0 items-center gap-1 rounded-xl px-2 py-1 text-sm text-text-muted hover:bg-bg-elevated pointer-coarse:min-h-11${open ? " bg-bg-elevated" : ""}`
             : filled
               ? "flex max-w-full items-center gap-1.5 rounded-2xl bg-sand px-4 py-2 text-sm text-text-muted transition-colors hover:bg-sand-hover pointer-coarse:min-h-11"
-              : `flex items-center gap-1.5 rounded-2xl border border-bg-border bg-bg-card px-3 py-2 text-sm text-text-muted transition-colors hover:text-text-primary pointer-coarse:min-h-11${showLabel || truncateValue ? " max-w-full" : ""}${fullWidth ? " w-full" : ""}`
+              : `flex items-center gap-1.5 rounded-2xl border border-bg-border bg-bg-card px-3 py-2 text-sm text-text-muted transition-colors hover:text-text-primary pointer-coarse:min-h-11 [&>svg]:flex-shrink-0${showLabel || truncateValue ? " max-w-full" : ""}${fullWidth ? " w-full" : ""}`
         }
       >
         {quiet ? (
@@ -241,9 +241,7 @@ export function ToolbarMenu({
           </>
         ) : (
           <>
-            <span className="flex-shrink-0">
-              <Icon size={16} />
-            </span>
+            <Icon size={16} />
             {showLabel && <span className="flex-shrink-0 whitespace-nowrap">{label}</span>}
             <span
               className={
