@@ -5,6 +5,9 @@ Reads .github/workflows/ci.yml and frontend/pnpm-lock.yaml; nothing runs.
 from __future__ import annotations
 
 import re
+import shutil
+import subprocess
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 import pytest
@@ -13,6 +16,7 @@ import yaml
 ROOT = Path(__file__).resolve().parent.parent
 CI = ROOT / ".github" / "workflows" / "ci.yml"
 LOCKFILE = ROOT / "frontend" / "pnpm-lock.yaml"
+FONTS_CONF = ROOT / ".github" / "playwright-fonts.conf"
 
 COMPONENTS = "frontend-components"
 LAYOUT_EPUB = "frontend-layout-epub"
@@ -121,7 +125,7 @@ def test_browser_job_tests_on_node_20(job_id: str) -> None:
     assert setup["with"]["cache-dependency-path"] == "frontend/pnpm-lock.yaml"
 
 
-# SPEC-CORE-149 item 3 (step order), I5
+# SPEC-CORE-149 item 3 (step order), I5, I12
 @pytest.mark.parametrize("job_id", BROWSER_JOBS)
 def test_browser_job_step_order(job_id: str) -> None:
     job = _job(job_id)
@@ -134,12 +138,13 @@ def test_browser_job_step_order(job_id: str) -> None:
         steps, lambda s: _run(s) == "pnpm install --frozen-lockfile", "installs dependencies"
     )
     browsers = _index(steps, lambda s: s.get("id") == "browsers", "has id browsers")
+    fonts = _index(steps, lambda s: s.get("id") == "fonts", "has id fonts")
     tests = [i for i, s in enumerate(steps) if _is_test_step(s)]
 
     assert steps[checkout]["with"]["submodules"] == "recursive"
     assert _workdir(job, steps[install]) == "frontend"
     assert tests, "no test step"
-    assert checkout < addons < pnpm < node < install < browsers < min(tests)
+    assert checkout < addons < pnpm < node < install < browsers < fonts < min(tests)
 
 
 # SPEC-CORE-149 item 3: no translation merge step in a browser job
@@ -228,3 +233,73 @@ def test_bootstrap_installs_pyyaml_and_runs_tests() -> None:
     runs = [_run(s) for s in job["steps"]]
     assert "pip install pytest PyYAML==6.0.2" in runs
     assert any(r.startswith("python -m pytest tests") for r in runs)
+
+
+def _fonts_step(job_id: str) -> tuple[dict, dict]:
+    job = _job(job_id)
+    steps = job["steps"]
+    return job, steps[_index(steps, lambda s: s.get("id") == "fonts", "has id fonts")]
+
+
+# SPEC-CORE-149 I12, item 3: the fonts step installs the repository's file as the
+# fontconfig user configuration, and nothing lets a test step run without it
+@pytest.mark.parametrize("job_id", BROWSER_JOBS)
+def test_fonts_step_installs_the_user_fontconfig(job_id: str, tmp_path: Path) -> None:
+    job, step = _fonts_step(job_id)
+    assert "if" not in step
+    assert "continue-on-error" not in step
+    assert "run" in step, "the fonts step is expected to be a shell step"
+
+    home = tmp_path / "home"
+    home.mkdir()
+    workdir = _workdir(job, step)
+    cwd = ROOT / workdir if workdir else ROOT
+    env = {"HOME": str(home), "GITHUB_WORKSPACE": str(ROOT), "PATH": "/usr/bin:/bin"}
+    # Bash with -e, as Actions runs a `run:` step whose shell is not set.
+    shell = shutil.which("bash") or "/bin/bash"
+    subprocess.run([shell, "-e", "-c", step["run"]], cwd=cwd, env=env, check=True)
+
+    installed = home / ".config" / "fontconfig" / "fonts.conf"
+    assert installed.is_file()
+    assert installed.read_bytes() == FONTS_CONF.read_bytes()
+
+
+def _first_family(element: ET.Element | None) -> str | None:
+    if element is None:
+        return None
+    family = element.find("family")
+    if family is None:
+        family = element.find("string")
+    return family.text.strip() if family is not None and family.text else None
+
+
+def _prefers_liberation_sans(root: ET.Element, generic: str) -> bool:
+    for alias in root.iter("alias"):
+        if _first_family(alias) == generic and _first_family(alias.find("prefer")) == "Liberation Sans":
+            return True
+    for match in root.iter("match"):
+        if match.get("target", "pattern") != "pattern":
+            continue
+        tests = [
+            t for t in match.findall("test")
+            if t.get("name") == "family" and t.get("compare", "eq") == "eq"
+        ]
+        if not any(_first_family(t) == generic for t in tests):
+            continue
+        for edit in match.findall("edit"):
+            if (
+                edit.get("name") == "family"
+                and edit.get("mode") in {"prepend", "prepend_first", "assign", "assign_replace"}
+                and _first_family(edit) == "Liberation Sans"
+            ):
+                return True
+    return False
+
+
+# SPEC-CORE-149 I12: the file makes sans-serif and system-ui prefer Liberation Sans
+@pytest.mark.parametrize("generic", ["sans-serif", "system-ui"])
+def test_fonts_conf_prefers_liberation_sans(generic: str) -> None:
+    assert FONTS_CONF.is_file(), f"{FONTS_CONF} does not exist"
+    root = ET.fromstring(FONTS_CONF.read_bytes())
+    assert root.tag == "fontconfig"
+    assert _prefers_liberation_sans(root, generic)
