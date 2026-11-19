@@ -2,7 +2,7 @@
 
 SPEC-ID: SPEC-CORE-149
 
-Approval: sha256:5935774b703f05bc88ca8de864138cc64b0ad3f96ab6a6675312000d4a2ce809 Yuichi Senga 2026-11-19
+Approval:
 
 ## Summary
 
@@ -52,8 +52,12 @@ run and then a core CI run.
 4. The browser check is `node scripts/check-playwright-browsers.mjs <names…>` in
    `frontend/`. The names per job are fixed: `chromium chromium-headless-shell` in the
    component jobs, `chromium chromium-headless-shell webkit` in the layout-and-EPUB job.
-   - It reads `browsers.json` from the path in `--browsers-json <path>`, default
-     `node_modules/playwright-core/browsers.json` (the test passes a temporary file).
+   - It reads `browsers.json` from the path in `--browsers-json <path>` (the test passes
+     a temporary file). Without the flag, it finds the installed `playwright-core` by
+     module resolution from `frontend/`: `@playwright/test`'s `package.json`, then
+     `playwright`'s from there, then `playwright-core`'s from there, and reads the
+     `browsers.json` beside it. pnpm keeps `playwright-core` out of the top level of
+     `node_modules/`, so a fixed path would not find it. The CI command passes no flag.
    - For each name, it finds the entry whose `name` equals it and takes its `revision`,
      replaced by `revisionOverrides["ubuntu24.04-x64"]` when that key exists (the image
      is Ubuntu 24.04 on x64; other platform keys are ignored).
