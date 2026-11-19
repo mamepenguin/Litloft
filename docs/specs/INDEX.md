@@ -304,3 +304,5 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-149 | implemented | docs/specs/pickup-coverage.md | sha256:d3bc6dc01ac9e71a4db340786e5caa0253003b9847f7f9b2ca20909347013d73 |
 | SPEC-ADDON-150 | implemented | docs/specs/pickup-coverage.md | sha256:d3bc6dc01ac9e71a4db340786e5caa0253003b9847f7f9b2ca20909347013d73 |
 | SPEC-CORE-142 | implemented | docs/specs/pickup-coverage.md | sha256:d3bc6dc01ac9e71a4db340786e5caa0253003b9847f7f9b2ca20909347013d73 |
+| SPEC-ADDON-154 | draft | docs/specs/pickup-not-interested.md | |
+| SPEC-CORE-150 | draft | docs/specs/pickup-not-interested.md | |
