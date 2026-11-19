@@ -1,0 +1,289 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "TP-1",
+      "origin": "reviewer",
+      "claim": "The diff adds four end-to-end test files, frontend/e2e-components/scenes-scroll-list.cases.ts, scenes-scroll-list.spec.ts, scenes-scroll-list-desktop.spec.ts and scenes-scroll-list-scrollbar-desktop.spec.ts. None of them matches the declared touch point `scenes-section*.ts` or any other entry in the touch-point list.",
+      "impact": "A reviewer or a CI rule scoped to the declared touch points would not expect or check these files. They carry most of the real-browser measurement for SPEC-ADDON-152/153 (I1, I2, I3, I5, I8, I9, I10), so the touch-point list understates where the invariants are tested. The product itself is not affected.",
+      "evidence": "In the diff, new files frontend/e2e-components/scenes-scroll-list*.ts are registered in projects.ts:29-30 and spec-viewport.spec.ts (AT_THE_PHONE_WIDTH and AT_THE_DESKTOP_WIDTH). The touch-point list names `frontend/e2e-components/: scenes-section*.ts, projects.ts, spec-viewport.spec.ts, fixtures/...` only.",
+      "repro": "Compare the diff's file list with the Touch points section of docs/specs/scenes-scroll-list.md: the scenes-scroll-list* paths match no entry.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "A gap in the declared touch-point list. It breaks no invariant.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Add `frontend/e2e-components/scenes-scroll-list*.ts` to the spec's touch-point list."
+    },
+    {
+      "id": "TP-2",
+      "origin": "reviewer",
+      "claim": "usePlaybackClock.ts no longer reads the core shared clock (`@/lib/mediaClock`, `subscribeMediaClock`/`getMediaClockSnapshot`). It now runs its own 250 ms setInterval on the controller. When a controller getter throws, its catch returns IDLE_PLAYBACK, which is time 0 and duration 0, instead of keeping the last good reading as the shared clock does.",
+      "impact": "Each shown Scenes section adds a second poller per controller, running at 250 ms even while paused, where the shared clock idles at 1000 ms. If a controller getter throws in a sample, the time reads as 0 for that sample: the playing outline moves to tile 0, and while following the list scrolls to row 0 and then back on the next sample. The old path could not produce time 0 this way, because getMediaClockSnapshot never throws and holds the last good snapshot. No test covers a controller that throws. The touch-point list says only 'hooks; a follow hook added' and does not mention the clock source changing.",
+      "evidence": "addons/intelligence/frontend/ScenesSection/hooks/usePlaybackClock.ts:40-50 (readSnapshot calls controller getters directly, and catch returns IDLE_PLAYBACK) and :96-101 (setInterval 250). frontend/src/lib/mediaClock.ts:1-8 says to poll 'exactly once per controller, here, instead of once per consumer'. mediaClock.ts:115-125 holds the last good reading on a throw ('The YouTube player throws while it swaps media'). The revised SPEC-ADDON-089 I2 says the marker and outline 'follow the shared media clock'.",
+      "repro": "not_reproduced. I could not confirm that a controller getter throws in normal use: YouTubeEmbed.tsx shows no explicit throw. The only evidence is the comment in mediaClock.ts.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "In normal operation the polled values match the shared clock's values, so a user-visible breach of SPEC-ADDON-089 I2 depends on a getter throw I could not confirm. The finding is mainly that the code departs from the documented single-poller design and the clock is not named among the touch points.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Keep subscribing to the shared clock, and add a separate check for paused seeks if needed, or hold the last good reading on a throw instead of returning IDLE_PLAYBACK."
+    },
+    {
+      "id": "F-1",
+      "origin": "reviewer",
+      "claim": "In flow form the card box (cardBoxRef) is always rendered while expanded, with padding and an opaque background. viewportOf therefore ends the visible area at the card box's top whenever the box has any height, including when neither the card nor the placeholder is drawn.",
+      "impact": "On the phone sheet with no Visual Index (policy off, 404, not eligible, or no labelled scene), an empty opaque strip of about 0.875rem + 0.5rem + the safe-area inset stays pinned at the bottom of the scroller and covers tiles. The visible area, and with it following, wholly-visible checks, the band, the top row and picture requests, ends above the scroller's bottom. The flow-form tests all use a Visual Index with a card, so no test would fail.",
+      "evidence": "ScenesSectionPresenter.tsx:371-381 renders the cardBoxRef div whenever view === \"expanded\", with `sticky ... pt-3.5 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] bg-bg-card` in flow form, whatever the children are. sceneList.ts viewportOf: `bottom = card && card.height > 0 ? card.top : scroller bottom`. The padding keeps card.height above 0 when the box is empty. The flow e2e fixture (ScenesFlowArrangement) always serves SCENES_LONG_VISUAL_INDEX with a scene, and scenes-scroll-list.spec.ts uses the default vi.",
+      "repro": "not_reproduced. Mentally: open #scenes-flow with policy off or the visual-index stub returning 404. The cardBox renders empty with padding, so getBoundingClientRect().height > 0 and viewportOf.bottom = cardBox.top, which is above the scroller's client bottom.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "A",
+        "reason": "I11 (acceptance) requires that in flow form, when neither the card nor the placeholder is drawn, the visible area ends at the scroller's bottom.",
+        "invariant_ref": "I11"
+      },
+      "severity": "MEDIUM",
+      "proposed_fix": "Render the sticky card box in flow form only when the placeholder or a scene card is drawn, or have viewportOf ignore the box when it has no card or placeholder child."
+    }
+  ],
+  "specification_compliance": [
+    "The touch points are reached as declared for ScenesSection/ (Container, Presenter, scenesModel.ts, hooks, the new sceneList.ts, browseLifetime.ts removed), messages en/ja, projects.ts, spec-viewport.spec.ts, fixtures/app.tsx, fixtures/scenesSection.tsx, fixtures/scenesSectionData.ts, the user guide pages, INDEX.md and the submodule pointer.",
+    "Unlisted places reached: the four frontend/e2e-components/scenes-scroll-list*.ts files (TP-1).",
+    "fixtures/inspectorResponsive.tsx is listed as a touch point but the diff does not change it. The e2e cases rely on its existing scenes/frames/ratio/vi query parameters, which the deleted scenes-section-rows cases already used.",
+    "frontend/scripts/check-coverage-denominator.mjs lists only ScenesSection/index.ts. No code-free file was added or removed under ScenesSection/ (scrollListLayout.tsx is a test helper), so leaving it unchanged is consistent.",
+    "No core component under frontend/src is changed, and no remaining reference to the removed useSceneRows, windowStartFor, sceneRows, browseLifetime or useWindowPictures exists outside docs."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "The Container's reset layout effect depends on `mediaController != null`, and useSceneList's show effect depends on `hasPlayback`. A controller appearing while the section is shown therefore removes the ruler point and sets following again, even after a reader's scroll. The spec lists the controller appearing only as a placement event, not as an event that sets following or removes the ruler point.",
+    "A mouse press with the right button (button 2) on the ruler sets the ruler point. Only the middle button is excluded.",
+    "usePlaybackClock still computes isJump and calls an onJump the Container now passes as a noop: dead logic."
+  ],
+  "regression_risks": [
+    "The section's own 250 ms poller replaces the shared media clock (TP-2), changing the timing and the behaviour on a getter throw.",
+    "In flow form with no Visual Index, an empty pinned strip at the sheet's bottom shrinks the visible area (F-1).",
+    "Every tile is mounted (up to max_frames). Clock ticks rely on SceneTile memoisation with stable callbacks."
+  ],
+  "test_coverage": [
+    "The jsdom suites (ScenesSectionScrollList, RulerMap, Reload) cover following, the chip, the ruler point's lifetime, the band, the 150 ms picture settle and pointercancel restore on a stubbed layout.",
+    "The e2e flow-form cases always have a scene card, so I11's no-card visible-area clause is untested (F-1).",
+    "No test makes a controller getter throw or checks that the section uses the shared media clock (TP-2)."
+  ],
+  "not_verified": [
+    "I did not run any test, unit or e2e; the review is reading only.",
+    "Whether a MediaController getter (for example YouTube during a media swap) throws in normal use.",
+    "The iOS sheet behaviour (sticky card above the home indicator, touch scrolling).",
+    "The exact rendered height of the empty flow-form card box in a real browser.",
+    "The full text of fixtures/inspectorResponsive.tsx query handling beyond what the e2e cases use."
+  ],
+  "confidence": 74,
+  "coverage": [
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/ScenesSectionContainer.tsx",
+      "read": "full",
+      "reason": "Opened lines 100-439; the remainder read through every changed hunk in the supplied diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/ScenesSectionPresenter.tsx",
+      "read": "full",
+      "reason": "Opened lines 280-449; every other changed hunk (props, tiles, Ruler, SceneCard, SceneTile, LoadingSkeleton) read in the supplied diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/browseLifetime.ts",
+      "read": "full",
+      "reason": "Deleted file; its whole content read in the diff. Grep confirms no remaining reference."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/hooks/usePlaybackClock.ts",
+      "read": "full",
+      "reason": "Opened the whole file."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/hooks/useSceneList.ts",
+      "read": "full",
+      "reason": "New file; whole content read in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/hooks/useScenePictures.ts",
+      "read": "full",
+      "reason": "New file; whole content read in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/hooks/useSceneRows.ts",
+      "read": "full",
+      "reason": "Deleted file; whole content read in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/hooks/useWindowPictures.ts",
+      "read": "full",
+      "reason": "Deleted file; whole content read in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/sceneList.ts",
+      "read": "full",
+      "reason": "New file; whole content read in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/scenesModel.ts",
+      "read": "full",
+      "reason": "The only hunk (removal of sceneRows, scaledTileHeight, windowStartFor, MIN_ROWS) read in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/messages/en.json",
+      "read": "full",
+      "reason": "The single added key read in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/messages/ja.json",
+      "read": "full",
+      "reason": "The single added key read in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/app.tsx",
+      "read": "full",
+      "reason": "Changed hunks (imports, scenes routes) read in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/scenesSection.tsx",
+      "read": "full",
+      "reason": "All changed hunks and the new arrangements read in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/scenesSectionData.ts",
+      "read": "full",
+      "reason": "The changed hunk read in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/projects.ts",
+      "read": "full",
+      "reason": "The changed hunk read in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/scenes-scroll-list-desktop.spec.ts",
+      "read": "full",
+      "reason": "New file; whole content read in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/scenes-scroll-list-scrollbar-desktop.spec.ts",
+      "read": "full",
+      "reason": "New file; whole content read in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/scenes-scroll-list.cases.ts",
+      "read": "full",
+      "reason": "New file; whole content read in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/scenes-scroll-list.spec.ts",
+      "read": "full",
+      "reason": "New file; whole content read in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/scenes-section-desktop.spec.ts",
+      "read": "full",
+      "reason": "Whole new content read in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/scenes-section-rows-desktop.spec.ts",
+      "read": "full",
+      "reason": "Deleted file; content read in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/scenes-section-rows-scrollbar-desktop.spec.ts",
+      "read": "full",
+      "reason": "Deleted file; content read in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/scenes-section-rows.cases.ts",
+      "read": "full",
+      "reason": "Deleted file; content read in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/scenes-section-rows.spec.ts",
+      "read": "full",
+      "reason": "Deleted file; content read in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/scenes-section.cases.ts",
+      "read": "full",
+      "reason": "Every changed hunk, including the new placement cases, read in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/scenes-section.spec.ts",
+      "read": "full",
+      "reason": "Whole new content read in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/spec-viewport.spec.ts",
+      "read": "full",
+      "reason": "The changed hunks read in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/__tests__/ScenesSectionKeyboard.test.tsx",
+      "read": "partial",
+      "reason": "Changed hunks only, read in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/__tests__/ScenesSectionOneList.test.tsx",
+      "read": "partial",
+      "reason": "Changed hunks only, read in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/__tests__/ScenesSectionReload.test.tsx",
+      "read": "full",
+      "reason": "New file; whole content read in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/__tests__/ScenesSectionRequests.test.tsx",
+      "read": "partial",
+      "reason": "Changed hunk only, read in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/__tests__/ScenesSectionRows.test.ts",
+      "read": "full",
+      "reason": "Deleted file; content read in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/__tests__/ScenesSectionRulerMap.test.tsx",
+      "read": "full",
+      "reason": "New file; whole content read in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/__tests__/ScenesSectionScrollList.test.tsx",
+      "read": "full",
+      "reason": "New file; whole content read in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/__tests__/ScenesSectionSeek.test.tsx",
+      "read": "partial",
+      "reason": "Changed hunks only, read in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/__tests__/ScenesSectionTimeline.test.tsx",
+      "read": "partial",
+      "reason": "Changed hunks only, read in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/__tests__/ScenesSectionVisualIndex.test.tsx",
+      "read": "partial",
+      "reason": "Changed hunk only, read in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/__tests__/ScenesSectionWidth.test.tsx",
+      "read": "partial",
+      "reason": "Changed hunks only, read in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/__tests__/scrollListLayout.tsx",
+      "read": "full",
+      "reason": "New file; whole content read in the diff."
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+addons/intelligence/frontend/ScenesSection/__tests__/ScenesSectionKeyboard.test.tsx
+addons/intelligence/frontend/ScenesSection/__tests__/ScenesSectionOneList.test.tsx
+addons/intelligence/frontend/ScenesSection/__tests__/ScenesSectionReload.test.tsx
+addons/intelligence/frontend/ScenesSection/__tests__/ScenesSectionRequests.test.tsx
+addons/intelligence/frontend/ScenesSection/__tests__/ScenesSectionRows.test.ts
+addons/intelligence/frontend/ScenesSection/__tests__/ScenesSectionRulerMap.test.tsx
+addons/intelligence/frontend/ScenesSection/__tests__/ScenesSectionScrollList.test.tsx
+addons/intelligence/frontend/ScenesSection/__tests__/ScenesSectionSeek.test.tsx
+addons/intelligence/frontend/ScenesSection/__tests__/ScenesSectionTimeline.test.tsx
+addons/intelligence/frontend/ScenesSection/__tests__/ScenesSectionVisualIndex.test.tsx
+addons/intelligence/frontend/ScenesSection/__tests__/ScenesSectionWidth.test.tsx
+addons/intelligence/frontend/ScenesSection/__tests__/scrollListLayout.tsx
