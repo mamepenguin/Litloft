@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>Clips フォルダ棚のページ</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+.tb{display:inline-flex;align-items:center;gap:6px;border:1px solid rgba(145,145,140,.2);background:#fff;border-radius:16px;padding:8px 12px;font-size:14px;color:#62625b;white-space:nowrap;font-family:inherit}
+.tb b{font-weight:400;color:#211922}
+.tb svg{width:16px;height:16px;flex-shrink:0}
+.card{display:flex;flex-direction:column;gap:6px}
+.cover{height:150px;border-radius:12px;background:#f6f6f3}
+.ct{font-size:13px;line-height:1.35;color:#211922}
+.cs{font-size:12px;color:#62625b}
+</style>
+</helmet>
+<div style="width:1280px;height:820px;box-sizing:border-box;padding:32px 40px;background:#ffffff;color:#211922;font-family:-apple-system,system-ui,'Segoe UI',Roboto,sans-serif;display:flex;flex-direction:column;gap:20px">
+<div style="display:flex;align-items:center;gap:12px">
+<div style="width:36px;height:36px;border-radius:10px;background:#f6f6f3"></div>
+<h1 style="margin:0;font-size:24px;font-weight:700">Clips</h1>
+<span style="font-size:14px;color:#62625b">27 件</span>
+<div style="flex:1"></div>
+<span style="font-size:14px;color:#62625b">レシピ ▾</span>
+</div>
+<div style="display:flex;gap:24px;border-bottom:1px solid rgba(145,145,140,.2)">
+<span style="font-size:14px;color:#62625b;padding:8px 0">ホーム</span>
+<span style="font-size:14px;font-weight:600;padding:8px 0;border-bottom:2px solid #211922">ライブラリ</span>
+</div>
+<div style="display:flex;align-items:center;gap:12px">
+<a href="ClipsFolder.dc.html" style="font-size:14px;color:#62625b;text-decoration:none">‹ ライブラリ</a>
+</div>
+<div style="display:flex;align-items:center;gap:10px">
+<h2 style="margin:0;font-size:22px;font-weight:700">レシピ</h2>
+<span class="cs" style="font-size:14px">15</span>
+<div style="flex:1"></div>
+<span class="tb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 16 4 4 4-4"></path><path d="M7 20V4"></path><path d="m21 8-4-4-4 4"></path><path d="M17 4v16"></path></svg>並び順 <b>追加日（新しい順）</b><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></span>
+</div>
+<div style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:20px">
+<div class="card"><div class="cover"></div><div class="ct">鶏むね肉の塩レモン焼き</div><div class="cs">cookpad.com</div></div>
+<div class="card"><div class="cover"></div><div class="ct">和風きのこパスタ</div><div class="cs">kurashiru.com</div></div>
+<div class="card"><div class="cover"></div><div class="ct">週末の作り置き 5 品</div><div class="cs">delishkitchen.tv</div></div>
+<div class="card"><div class="cover"></div><div class="ct">15 分でできる麻婆豆腐</div><div class="cs">nhk.or.jp</div></div>
+<div class="card"><div class="cover"></div><div class="ct">トマト煮込みハンバーグ</div><div class="cs">cookpad.com</div></div>
+<div class="card"><div class="cover"></div><div class="ct">鯖の味噌煮</div><div class="cs">kurashiru.com</div></div>
+<div class="card"><div class="cover"></div><div class="ct">春キャベツのコールスロー</div><div class="cs">delishkitchen.tv</div></div>
+<div class="card"><div class="cover"></div><div class="ct">豚汁</div><div class="cs">nhk.or.jp</div></div>
+<div class="card"><div class="cover"></div><div class="ct">ガパオライス</div><div class="cs">cookpad.com</div></div>
+<div class="card"><div class="cover"></div><div class="ct">だし巻き卵</div><div class="cs">kurashiru.com</div></div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":820}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

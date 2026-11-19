@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>ノート ライブラリ</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+.tb{display:inline-flex;align-items:center;gap:6px;border:1px solid rgba(145,145,140,.2);background:#fff;border-radius:16px;padding:8px 12px;font-size:14px;color:#62625b;white-space:nowrap;font-family:inherit}
+.tb b{font-weight:400;color:#211922}
+.tb svg{width:16px;height:16px;flex-shrink:0}
+.ent{display:flex;align-items:center;gap:10px;height:34px;padding:0 10px;border-radius:10px;font-size:14px;color:#211922}
+.ent svg{width:14px;height:14px;flex-shrink:0}
+.ent .n{margin-left:auto;font-size:12px;color:#62625b}
+.note{padding:12px 14px;border-radius:12px;display:flex;flex-direction:column;gap:4px}
+.cs{font-size:12px;color:#62625b}
+</style>
+</helmet>
+<div style="width:1280px;height:760px;box-sizing:border-box;padding:32px 40px;background:#ffffff;color:#211922;font-family:-apple-system,system-ui,'Segoe UI',Roboto,sans-serif;display:flex;flex-direction:column;gap:20px">
+<div style="display:flex;align-items:center;gap:12px">
+<div style="width:36px;height:36px;border-radius:10px;background:#f6f6f3"></div>
+<h1 style="margin:0;font-size:24px;font-weight:700">ノート</h1>
+<span style="font-size:14px;color:#62625b">184 件</span>
+<div style="flex:1"></div>
+<span style="font-size:14px;color:#62625b">すべてのノート ▾</span>
+</div>
+<div style="display:flex;gap:24px;border-bottom:1px solid rgba(145,145,140,.2)">
+<span style="font-size:14px;color:#62625b;padding:8px 0">ホーム</span>
+<span style="font-size:14px;font-weight:600;padding:8px 0;border-bottom:2px solid #211922">ライブラリ</span>
+<span style="font-size:14px;color:#62625b;padding:8px 0">つながり</span>
+</div>
+<div style="display:flex;gap:24px;flex:1;min-height:0">
+<nav aria-label="ライブラリの絞り込み" style="width:220px;flex-shrink:0;display:flex;flex-direction:column;gap:12px">
+<span class="tb" style="align-self:flex-start"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="7" height="7" x="3" y="3" rx="1"></rect><rect width="7" height="7" x="3" y="14" rx="1"></rect><path d="M14 4h7"></path><path d="M14 9h7"></path><path d="M14 15h7"></path><path d="M14 20h7"></path></svg>分類 <b>フォルダ</b><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></span>
+<div style="display:flex;flex-direction:column;gap:2px">
+<div class="ent" style="background:#f6f6f3;font-weight:600"><svg viewBox="0 0 24 24" fill="none" stroke="#91918c" stroke-width="1.8" aria-hidden="true"><path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"></path><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"></path><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"></path></svg>すべて<span class="n">184</span></div>
+<div class="ent"><svg viewBox="0 0 24 24" fill="none" stroke="#91918c" stroke-width="1.8" aria-hidden="true"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"></path></svg>日記<span class="n">96</span></div>
+<div class="ent"><svg viewBox="0 0 24 24" fill="none" stroke="#91918c" stroke-width="1.8" aria-hidden="true"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"></path></svg>仕事<span class="n">51</span></div>
+<div class="ent"><svg viewBox="0 0 24 24" fill="none" stroke="#91918c" stroke-width="1.8" aria-hidden="true"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"></path></svg>読書メモ<span class="n">37</span></div>
+</div>
+</nav>
+<div style="width:360px;flex-shrink:0;display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;gap:8px;align-items:center">
+<div style="flex:1;height:36px;border:1px solid rgba(145,145,140,.2);border-radius:12px;padding:0 12px;display:flex;align-items:center;font-size:14px;color:#62625b">ノートを検索</div>
+<span class="tb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 16 4 4 4-4"></path><path d="M7 20V4"></path><path d="m21 8-4-4-4 4"></path><path d="M17 4v16"></path></svg>並び順 <b>変更日</b><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></span>
+</div>
+<div class="note" style="background:#f6f6f3"><span style="font-size:14px;font-weight:600">11 月の振り返り</span><span class="cs">日記 ・ 11月18日</span></div>
+<div class="note"><span style="font-size:14px;font-weight:600">打ち合わせメモ</span><span class="cs">仕事 ・ 11月17日</span></div>
+<div class="note"><span style="font-size:14px;font-weight:600">『センスの哲学』</span><span class="cs">読書メモ ・ 11月15日</span></div>
+<div class="note"><span style="font-size:14px;font-weight:600">買い物リスト</span><span class="cs">日記 ・ 11月14日</span></div>
+</div>
+<div style="flex:1;min-width:0;border-left:1px solid rgba(145,145,140,.2);padding-left:24px;display:flex;flex-direction:column;gap:10px">
+<span style="font-size:20px;font-weight:700">11 月の振り返り</span>
+<span class="cs">日記 ・ 11月18日</span>
+<div style="height:10px;width:90%;background:#f6f6f3;border-radius:5px"></div>
+<div style="height:10px;width:80%;background:#f6f6f3;border-radius:5px"></div>
+<div style="height:10px;width:85%;background:#f6f6f3;border-radius:5px"></div>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":760}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>
