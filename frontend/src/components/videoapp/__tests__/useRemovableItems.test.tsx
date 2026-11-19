@@ -22,6 +22,18 @@ describe("SPEC-CORE-150 rule 5: Discover's removals belong to the visit, not to 
     expect(ids(second.result.current.items)).toEqual(["a", "b", "c"]);
   });
 
+  it("an undo through the unmounted shelf's restore reaches the shelf mounted since", () => {
+    const first = renderHook(() => useRemovableItems(SUPPLIED, "visit-stale-undo"));
+    act(() => first.result.current.remove("b"));
+    const staleRestore = first.result.current.restore;
+    first.unmount();
+
+    const second = renderHook(() => useRemovableItems(SUPPLIED, "visit-stale-undo"));
+    expect(ids(second.result.current.items)).toEqual(["a", "c"]);
+    act(() => staleRestore("b"));
+    expect(ids(second.result.current.items)).toEqual(["a", "b", "c"]);
+  });
+
   it("another visit key does not see the removal", () => {
     const first = renderHook(() => useRemovableItems(SUPPLIED, "visit-one"));
     act(() => first.result.current.remove("a"));
