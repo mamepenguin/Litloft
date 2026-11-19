@@ -1,7 +1,7 @@
 /**
  * SPEC-CORE-081: the shelf page with `entry` and `slot=recommended` pages through the
- * `video-discover-recommended` entry's page provider under the app's target and
- * `watch=unwatched`, titled Recommended, and only with a profile.
+ * `video-discover-recommended` entry's page provider under the app's target, titled
+ * Recommended, and only with a profile.
  *
  * The addon modules are stubbed under their real ids because the slot loader resolves
  * `@/addons/<name>/slots.ts` by globbing the linked directory. The knowledge module's stub
@@ -318,7 +318,7 @@ describe("SPEC-CORE-081 the shelf page in Recommended mode: drawing", () => {
   );
 
   it.runIf(addonsLinked)(
-    "SPEC-CORE-081 I3 every restrict asks for unwatched videos under the app's target, at most 60 ids a request",
+    "SPEC-CORE-081 I3 SPEC-CORE-142 I6 every restrict asks for videos under the app's target with no watch condition, at most 60 ids a request",
     async () => {
       getSmartFolders.mockResolvedValue([TRIPS]);
       writeAppPrefs(DRIVE, { target: "sf-trips" });
@@ -332,7 +332,8 @@ describe("SPEC-CORE-081 the shelf page in Recommended mode: drawing", () => {
       expect(calls.length).toBeGreaterThan(0);
       expect(calls.length).toBeLessThanOrEqual(5);
       for (const p of calls) {
-        expect(p).toMatchObject({ type: ["video"], watch: "unwatched" });
+        expect(p).toMatchObject({ type: ["video"] });
+        expect(p.watch).toBeUndefined();
         expect([p.tag].flat()).toContain("Trip");
         expect((p.ids as string[]).length).toBeLessThanOrEqual(60);
       }
@@ -789,7 +790,8 @@ describe("SPEC-CORE-081 I9 switching between Recommended mode and plain entry mo
       const view = renderPage(recommendedPage());
       await waitFor(() => expect(recommended).toHaveBeenCalledTimes(1));
       expect(heading(RECOMMENDED)).toBeInTheDocument();
-      expect(restrictCalls().every((p) => p.watch === "unwatched")).toBe(true);
+      expect(restrictCalls().length).toBeGreaterThan(0);
+      expect(restrictCalls().every((p) => p.watch === undefined)).toBe(true);
       const before = restrictCalls().length;
 
       view.rerender(pageElement({ entry: "pickup", slot: plainSlot }));
@@ -805,7 +807,7 @@ describe("SPEC-CORE-081 I9 switching between Recommended mode and plain entry mo
   );
 
   it.runIf(addonsLinked)(
-    "SPEC-CORE-081 I3 I9 from plain entry mode to Recommended, with the same entry, nothing accepted without watch=unwatched survives",
+    "SPEC-CORE-081 I3 I9 from plain entry mode to Recommended, with the same entry, nothing accepted by the plain entry's restrict survives",
     async () => {
       const shelf = answering(["s1"]);
       const recommended = vi.fn<PageProvider>(async ({ restrict }) => {
