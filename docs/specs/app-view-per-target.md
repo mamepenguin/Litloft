@@ -35,17 +35,19 @@ It is for the single viewer of a personal library.
 
 What each SPEC-ID promises:
 
-- **SPEC-CORE-145**: the per-Target view store in `frontend/src/lib/appPrefs.ts`, and Video
-  and Reading using it for their classification/group and their Library sort.
-- **SPEC-CORE-146**: the wording of the Video and Reading menus.
+- **SPEC-CORE-145**: the per-Target view store in `frontend/src/lib/appPrefs.ts`; Video
+  and Reading using it for their classification/group and their Library sort; Video's
+  なし grid; Reading's Folder and Date Added groupings and their shelf pages.
+- **SPEC-CORE-146**: the wording of the Video and Reading menus, and the core view-menu
+  part `ViewMenus` with its look (icons, labels, order, phone row) in every app.
 - **SPEC-ADDON-147**: Clips. A 分類 menu with Tag, Folder, Date Added and None, its shelf
   pages, the per-Target view and its wording.
 - **SPEC-ADDON-148**: Notes. The rail's 分類 menu, the per-Target view (segment and sort)
   and its wording.
 
-No new shared UI component is added. The menus are already the core `ToolbarMenu` and
-`MenuRadioGroup` in every app, and each app keeps the list of groupings it offers. The
-only new shared code is the store in `appPrefs.ts`.
+The new shared code is the store in `appPrefs.ts` and the view-menu part
+`components/appshell/ViewMenus.tsx`. Every app, the knowledge addon included, imports
+both from core. Each app keeps the list of groupings it offers.
 
 ## Required items
 
@@ -126,9 +128,10 @@ force, and writes nothing.
 value already shown:
 
 - calls `writeTargetView` for the Target in force with that field only;
-- in Notes and Clips, pushes the URL with the value when it differs from the URL's
-  (Notes' segment choice clears `folder`, `tag` and `note`, as today, and carries no
-  segment in the URL).
+- in Notes and Clips, pushes the URL with the value when it differs from the URL's.
+  Notes' segment choice of a different segment clears `folder`, `tag` and `note` and
+  pushes, as today, carrying no segment in the URL. Choosing the segment already shown
+  only writes the view: there is no push, and the selection is kept.
 
 Nothing else writes the view. Opening a URL does not write. Neither does a sort change on
 a See all / shelf page, a fallback to a default, or reading an old per-drive value. The old
@@ -160,7 +163,10 @@ Notes' existing drop of `note` keeps its current trigger. On a Target change:
 
 - The Library's 分類 menu and 並び順 menu read and write the view as above. The sort
   options are unchanged.
-- Video's 分類 gains なし / None (`all`). It is listed last: フォルダ, タグ, 追加日, 長さ,
+- Video's 分類 gains なし / None (`all`). Under なし the Library body is the same grid, cards,
+  columns and states as Video's See all page (`VideoShelfPage` for `by=all&key=all`):
+  `by=all&key=all`, `per_shelf=60`, `page=n`, under the Target and the sort in force,
+  appended on scrolling. It is listed last: フォルダ, タグ, 追加日, 長さ,
   視聴状態, なし. Under なし, Video lists `by=all` as one grid, 60 per page, appended on
   scrolling, as Reading's None does. 視聴状態 stays in this spec. SPEC-CORE-147 moves it to
   a filter.
@@ -255,14 +261,22 @@ Notes' existing drop of `note` keeps its current trigger. On a Target change:
 | Notes `created` | 作成順 / Created | 作成日 / Date Created |
 
 **One core part for the view menus.** `frontend/src/components/appshell/ViewMenus.tsx`
-holds the 分類 and 並び順 menus. Each app passes its option list and value. All four apps
-draw their view menus through it, so a later change to how these menus look is made in
-one place. They are drawn as today's outlined `ToolbarMenu` with the label shown; this
+exports three parts:
+
+- `GroupMenu` (分類) and `SortMenu` (並び順), which can be placed apart. Each app passes
+  its option list and value.
+- `LibraryControlRow`, the row container. SPEC-CORE-147's filters go into it too.
+
+The Library control rows of Video, Reading and Clips use the row. Notes places `GroupMenu`
+at the top of its rail at 1280px and wider, and `SortMenu` after its list's search field.
+A later change to how these menus look is therefore made in one place. They are drawn as today's outlined `ToolbarMenu` with the label shown; this
 change does not redesign them. Reading's tag and state menus (filters) keep their look
 until SPEC-CORE-147.
 
-Below 640px the two view menus sit on one row at equal widths, and a long value is cut
-with an ellipsis (design artboard Phone, row 2).
+Below 640px, in Video, Reading and Clips, `LibraryControlRow` puts the two view menus on
+one row at equal widths and cuts a long value with an ellipsis (design artboard Phone,
+row 2). Reading's tag and state menus sit on the row above them. Notes' phone layout is
+unchanged.
 
 **The menus' look.** This applies to the Library control row, and to the Notes rail at
 1280px and wider. Below 1280px the Notes rail stays the one `LibraryRailMenu`, with only
@@ -275,11 +289,20 @@ order is 分類 first, then 並び順. Today Reading uses `Layers`, Clips `Tags`
 design is https://claude.ai/artifact/B2vcc6DPrGHjDkDhjPzrxe, saved in
 `docs/process/reviews/feature-app-view-per-target/design/`. Its artboards:
 
-- Main: every app's control row, before and after;
-- PerTarget: per-Target memory in Clips, interactive;
-- ClipsFolder: Clips grouped by Folder with the 分類 menu open;
-- ClipsShelf: a folder shelf page;
+- Main: every app's control row, before and after. This spec binds the view menus and
+  the wording. The filter menus drawn before them are SPEC-CORE-147.
+- PerTarget: per-Target memory in Clips, interactive. It explains behaviour and is not a
+  layout to match.
+- ClipsFolder: Clips grouped by Folder with the 分類 menu open.
+- ClipsShelf: a folder shelf page.
 - NotesRail: the Notes rail menu at 1280px.
+- Phone: Video at 390px (案A, chosen). Row 2 binds this spec, row 1 SPEC-CORE-147.
+- TagMenu: SPEC-CORE-147.
+
+案B (PhoneB, one 表示 button and a sheet) was rejected and is not saved in the repository.
+
+Clips cards and grids keep today's metrics (`lib/cardGrid`: 200px minimum, 20px gap) at
+every width.
 
 Checkable lines from the design, at 1280px:
 
@@ -296,7 +319,6 @@ Checkable lines from the design, at 1280px:
 - Notes Library: rail, list and pane. The rail's first element is the 分類 menu, with the
   entries below it. The list's search field is followed by the 並び順 menu (NotesRail).
 
-PerTarget is an explanation of the behaviour, not a layout to match.
 
 Unchanged: フォルダ / Folder, タグ / Tag, 長さ / Length, タイトル / Title, サイズ / Size.
 The column says "タイトル", not Finder's "名前", because the value sorted is the file's
@@ -313,8 +335,8 @@ title, not its filename.
   the next write the key is replaced by an object holding only the new entry. The views
   of other Targets on that drive are lost, which is only a reset to defaults. This is the
   one case where a write changes other Targets' entries (they were unreadable already).
-- **A stored value the app does not offer.** Examples: a removed option, `watch` without a
-  profile, a value from another app's key written by hand. It is skipped, and the next
+- **A stored value the app does not offer.** Examples: a removed option, or a value from
+  another app's key written by hand (`watch` without a profile is step 2's exception). It is skipped, and the next
   step of the order applies. It is not removed from storage and is never sent to the
   backend.
 - **The Target is still loading** (its list or members are not ready). The view is
@@ -324,6 +346,12 @@ title, not its filename.
 - **Clips Folder / Date Added shelves request fails.** Same as By tag today: the Library
   shows its failed state with Try again, and a failed "more shelves" page shows Try again
   at the end.
+- **Reading Folder / Date Added shelves fail, or Video's なし grid fails.** On the first
+  page, the Library's existing failed state with Try again. On a later page, Try again at
+  the end, as By tag does.
+- **A Reading shelf page with `by=month` and a key that is not `YYYY-MM`.** `keyValid`
+  rejects it and the page behaves as it does today for an invalid key. A folder or month
+  that no longer has books shows the page's existing empty state.
 - **A Clips shelf page with an unknown `folder:` / `month:` key** (folder gone, month with
   no clips) shows "No clips here", like an empty tag shelf.
 
@@ -338,7 +366,9 @@ Per app, drive and Target, a view field is either *unset* (resolved by steps 3 a
   included, stores it explicitly.
 
 The view in force is derived from the URL, the stored view and the value chosen in this
-mount (held in memory, so a failed write still shows the choice). It is recomputed on mount, on a drive
+mount. The value chosen in this mount sits at step 2, in place of the stored value for
+its Target, so a failed write still shows the choice. A URL value still wins over it. It
+is cleared on mount, on a drive change and on a Target change. It is recomputed on mount, on a drive
 change while mounted, on a Target change, on a URL change in Notes and Clips, and on a
 profile change (Video's `watch`). It is resolved synchronously from localStorage before
 the first request for the new drive or Target, so nothing of the previous drive's or
@@ -382,18 +412,28 @@ shelves route applies the same drive access checks for `by=folder|month` as for
   Home's links to the Library, and for the Library tab.
 - Clips `readClipsView` / `needsRewrite` accept `group=folder|month` and the
   `folder:` / `month:` shelf ids. An absent or unknown `group` / `sort` is rewritten to
-  the resolved view, not to the app default.
+  the resolved view, not to the app default, once the Library body is drawn. In the
+  looking-up and empty states the URL is left as it is. An unknown `view` or shelf id
+  still goes to Home at once, as today.
+- Notes Home's Recently updated "See all" links to `?view=all&sort=updated`, so it keeps
+  the order its title promises whatever the Target's stored sort.
 - Clips' Target change on a shelf page now drops `sort` (replace, no history entry).
   Before, a Target change wrote storage only.
 - The Video and Reading See all pages, including the Continue shelf page, show the new
   sort labels through the shared message keys.
 - Landing order:
-  1. A core PR with the store, Video, Reading, the wording and the docs.
-  2. After it merges, the knowledge PR. It imports `readTargetView` / `writeTargetView`
-     from core develop, which then has them.
-  3. A core PR that bumps the knowledge pointer, updates `toolbarMenuHome.test.ts`'s
-     list if a new knowledge file imports `ToolbarMenu`, and updates
-     `docs/addons/knowledge.md` and `docs/user-guide/notes.md`.
+  1. A core PR with the store, `ViewMenus`, Video, Reading, the wording and the docs.
+  2. After it merges, the knowledge PR. It imports `readTargetView`, `writeTargetView`
+     and `ViewMenus` from core develop, which then has them.
+  3. A core PR that does four things together:
+     - bumps the knowledge pointer;
+     - updates `toolbarMenuHome.test.ts`'s exact list to match the files that import
+       `ToolbarMenu` at the new pin;
+     - updates the core `e2e-components` Notes and Clips specs and fixtures;
+     - updates `docs/addons/knowledge.md` and `docs/user-guide/notes.md`.
+
+  Core CI runs against the pinned knowledge commit, so it stays green between steps 2
+  and 3. Step 3 changes the pin and its tests together.
 - The TargetMenu, the shown set, `parseAppTargetId` and the target resolvers are
   unchanged.
 - Photo Diary uses `appPrefs` for its Target only and is unaffected.
@@ -444,8 +484,17 @@ requests reuse the Library's existing failed state and Try again. Nothing is log
   `knowledge.notesLibrary.*`.
 - `addons/knowledge/frontend/clipsapp/useShelfData.ts` (folder/month shelf pages) and
   `notesapp/useNotesTarget.ts` (Target in force).
+- `frontend/src/components/readingapp/ReadingShelfPage.tsx`: `GROUPINGS` gains `month`;
+  `keyValid` and the title handle month; folder keys pass through.
+- `frontend/src/components/videoapp/VideoShelfPage.tsx`: sort wording, and the なし grid it
+  shares.
+- `addons/knowledge/frontend/notesapp/RecentlyUpdatedSection.tsx`: its See all carries
+  `sort=updated`.
 - Tests:
   - `frontend/src/lib/__tests__/appPrefs*` and the video and reading app tests;
+  - `videoapp/__tests__/VideoShelfPage.continueOrder.test.tsx`,
+    `readingapp/__tests__/ReadingShelfPage.continueOrder.test.tsx` and
+    `readingapp/__tests__/ReadingShelfPage.test.tsx`;
   - `frontend/src/components/__tests__/readingVideoLayoutFixtureParity.test.tsx`;
   - `frontend/src/components/__tests__/toolbarMenuHome.test.ts`;
   - the knowledge `clipsapp/__tests__`, `library/__tests__`, `__tests__/notesLibrary.test.tsx`,
@@ -478,7 +527,7 @@ requests reuse the Library's existing failed state and Try again. Nothing is log
 I1. Choosing a value in a Library's 分類 or 並び順 menu writes that value under `<prefix>.view.<drive>` for the Target in force only; every other Target's entry (unless the key held unparsable JSON), every other app's keys and every other drive's keys are byte-for-byte unchanged.
 I2. No path writes the old per-drive keys (`litloft.videoApp.classification.*`, `litloft.readingApp.group.*`, `litloft.addon.knowledge.classification.*`); and opening any app page, following any link, a URL rewrite, changing the sort on a See all / shelf page, switching Target or drive, and falling back to a default write nothing under `<prefix>.view.<drive>`.
 I3. The view shown is: the URL parameter when present and readable (Clips `group`/`sort`, Notes `sort`, and Notes `folder`/`tag` implying the segment), else the Target's stored value when the app offers it in the current state (Video's `watch` without a profile shows Folder), else, for the `default` Target only, the old per-drive value, else the app default; a value the app does not offer is never sent to the backend and never shown.
-I4. After choosing view A on Target X and view B on Target Y, switching to X shows A and switching back to Y shows B, in every app, with no URL parameter of the view left over from the previous Target (history navigation excepted: an entry made under X shows its own URL values); in Notes `folder`, `tag` and `q` survive the switch.
+I4. After choosing view A on Target X and view B on Target Y, switching to X shows A and switching back to Y shows B, in every app, with no URL parameter of the view left over from the previous Target (history navigation excepted: an entry made under X shows its own URL values); in Notes `folder`, `tag` and `q` survive the switch, and while one of `folder` / `tag` is present the segment it implies is shown instead of the stored one.
 I5. With localStorage throwing on every call, or holding unparsable JSON under `<prefix>.view.<drive>`, every app renders its Library with the defaults and no error screen.
 I6. When the saved Target is gone or unusable (and in Notes and Clips also `tooLarge` or `failed`), the view read and written is the `default` Target's, and the saved Target id stays stored.
 I7. In Clips under Folder and Date Added, every clip of the Target is in exactly one shelf, each shelf's count equals the number of cards its shelf page reaches over all its pages (the root and a trailing-slash key included), and every card shown has `md_origin` `webclip` and `type=text` under the Target in force.
@@ -488,8 +537,10 @@ I10. At 1280px and wider the Notes rail draws a `ToolbarMenu` named 分類 in pl
 I11. Once the Library body is drawn, the Clips URL names the `group` and `sort` shown and the Notes URL names the `sort` shown, so Back after a Clips menu choice or a Notes sort choice shows the previous value; a Clips `tag:`/`untagged`/`folder:`/`month:` shelf page's back link is `?view=all&group=<tags|folder|month>&sort=<the page's sort>`.
 
 I12. In the Library control rows of Video, Reading, Notes and Clips, and in the Notes rail at 1280px and wider, the grouping menu draws the `LayoutList` icon and the 分類 label, and the sort menu draws the `ArrowDownUp` icon and the 並び順 label, grouping before sort.
-I13. In Notes and Clips, the URL fill-in and the Target-change rewrite add no history entry; opening a Library or shelf URL that already has its view parameters replaces nothing; a fallback to `default` or the first resolution on load leaves the URL's `group` and `sort` as they were.
-I15. Every 分類 and 並び順 menu in the four apps is drawn by `ViewMenus`; Video offers フォルダ, タグ, 追加日, 長さ, 視聴状態 (with a profile) and なし, and Reading and Clips offer タグ, フォルダ, 追加日 and なし; below 640px the two view menus are equal in width and on one row.
+I13. In Notes and Clips, the `group` / `sort` fill-in and the Target-change rewrite add no history entry; the fill-in changes nothing in a URL that already has readable `group` / `sort` (Clips) or `sort` (Notes); a fallback to `default`, the first resolution on load and a member re-evaluation leave the URL's `group` and `sort` as they were.
+I16. Video's なし sends `by=all&key=all` with `per_shelf=60` and pages 1, 2, … under the Target and sort in force, and shows the same cards and columns as Video's See all page for `by=all&key=all`.
+I17. Notes Home's Recently updated See all opens the Library sorted by 変更日 whatever the Target's stored sort.
+I15. Every Library control-row 分類 and 並び順 menu in Video, Reading and Clips, and Notes' rail 分類 menu at 1280px and wider and its list 並び順 menu, is drawn by `ViewMenus`; Video offers フォルダ, タグ, 追加日, 長さ, 視聴状態 (with a profile) and なし, and Reading and Clips offer タグ, フォルダ, 追加日 and なし; below 640px, in Video, Reading and Clips, the two view menus are equal in width and on one row.
 I14. A Clips folder shelf is titled with its key's last segment (the drive name for the root key `""`), a month shelf with its `YYYY-MM` formatted like Video's month shelves, and its shelf page carries the same heading; "See all ›" of every Clips Library shelf carries the Library's `sort`.
 
 ## Revises
@@ -499,8 +550,12 @@ SPEC-CORE-063 I16. The face and target of Reading are saved per drive under the 
 SPEC-CORE-063 I16b. The folder chip is never stored; it resets to All on a fresh open and on a target change. The Library sort is stored per Target.
 SPEC-CORE-063 I19. Group None lists books by `all`, Tag by `tag` with `no_tag` last, Folder by `folder` and Date Added by `month` in the server's order, and Sort orders the books inside every shelf and the flat grid.
 SPEC-CORE-072 I1. In both apps, the shelf page for `by=watch&key=continue` opened without a recognised `sort` in the URL requests the shelf with `sort=last_played&order=desc` and shows 最後に開いた日 / Date Last Opened as the selected sort.
+SPEC-CORE-072 I2. On that page the sort menu offers 最後に開いた日 / Date Last Opened followed by the four existing choices, and choosing any of them re-requests the shelf with that choice's `sort` and `order`.
+SPEC-CORE-072 I6. When `by` or `key` changes while the shelf page stays mounted, the selected sort and the request follow the new page's offered choices and default, so a page other than the Continue shelf page never requests `sort=last_played` and never shows Date Last Opened.
 SPEC-CORE-072 I3. On that page a URL `sort` naming one of the four existing choices opens on that choice with its pair from the table in item 1; `sort=played` or an unknown value opens on Date Last Opened.
 SPEC-CORE-072 I4. Every other shelf page (any other `by`, or `by=watch` with another key) and Library offer exactly the four existing choices and never request `sort=last_played`; a shelf page without a recognised `sort`, or with `sort=played`, opens on Date Added (Newest First); Library opens on the Target's view in force (SPEC-CORE-145); Library's See all links never carry `sort=played`.
+SPEC-ADDON-131 I8. `?view=all` with `folder`, `tag`, `sort` and `q` opens the Library with that selection, sort and search, and a missing `sort` is filled in by replace with the Target's sort in force; `?q=<x>` without `view` lands on `?view=all&q=<x>` (then filled in with `sort`); `?edit=<id>` reaches the file page in edit mode exactly when the inline editor flag is on and the file is Markdown or text, and otherwise lands on Home without `edit`; `?prefill=…` lands on the Clips page with the same query string; `/connections?focus=<id>` draws the graph centred on that note.
+SPEC-ADDON-138 I10. The Notes pages' saved target, `note-openings`, and the `TargetMenu` count of every caller that does not pass `defaultTargetOrigin` behave exactly as before; the Notes Library's menus, wording and per-Target view change only as SPEC-ADDON-148 states.
 SPEC-ADDON-131 I9. Choosing a Target writes `litloft.addon.knowledge.target.<drive>` and no other app's key; a saved Target that is gone, cannot be resolved, `tooLarge` or `failed` puts the default Target in force and leaves the saved id stored. Choosing a rail segment writes it for the Target in force under `litloft.addon.knowledge.view.<drive>`. The segment shown is the one `folder` or `tag` in the URL implies; else the Target's stored segment; else, for the default Target only, `litloft.addon.knowledge.classification.<drive>`; else Folders.
 SPEC-ADDON-139 I3. Every clip in the Target is reachable from the Library: None reaches it over its pages; Tag, through the shelf page of one of its tags or of "Untagged"; Folder and Date Added, through the shelf page of the one shelf it is in. The Unverified shelf page reaches every clip still unverified over its pages, however many were marked verified on the way.
 SPEC-ADDON-100 I29. Clips `?view=all` is the Library: grouped by tag, folder, month added or ungrouped, sorted by the URL's `sort`, else the Target's stored sort, else newest added first, 60 cards per page when ungrouped, as cover cards without age groups.
