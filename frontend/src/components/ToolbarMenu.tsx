@@ -145,6 +145,8 @@ interface ToolbarMenuProps {
   quiet?: boolean;
   /** Lets a long value shorten with an ellipsis where the bar is tight. */
   truncateValue?: boolean;
+  /** Fills its container, for a row of menus that share the width equally. */
+  fullWidth?: boolean;
   /** Added to the visible value, for example to hide it where the bar is narrow. */
   valueClassName?: string;
   children: (close: () => void) => ReactNode;
@@ -166,6 +168,7 @@ export function ToolbarMenu({
   filled = false,
   quiet = false,
   truncateValue = false,
+  fullWidth = false,
   valueClassName,
   children,
 }: ToolbarMenuProps) {
@@ -217,7 +220,7 @@ export function ToolbarMenu({
             ? `flex max-w-full min-w-0 items-center gap-1 rounded-xl px-2 py-1 text-sm text-text-muted hover:bg-bg-elevated pointer-coarse:min-h-11${open ? " bg-bg-elevated" : ""}`
             : filled
               ? "flex max-w-full items-center gap-1.5 rounded-2xl bg-sand px-4 py-2 text-sm text-text-muted transition-colors hover:bg-sand-hover pointer-coarse:min-h-11"
-              : `flex items-center gap-1.5 rounded-2xl border border-bg-border bg-bg-card px-3 py-2 text-sm text-text-muted transition-colors hover:text-text-primary pointer-coarse:min-h-11${showLabel || truncateValue ? " max-w-full" : ""}`
+              : `flex items-center gap-1.5 rounded-2xl border border-bg-border bg-bg-card px-3 py-2 text-sm text-text-muted transition-colors hover:text-text-primary pointer-coarse:min-h-11${showLabel || truncateValue ? " max-w-full" : ""}${fullWidth ? " w-full" : ""}`
         }
       >
         {quiet ? (
@@ -225,7 +228,9 @@ export function ToolbarMenu({
             <span className="flex-shrink-0">
               <Icon size={14} />
             </span>
-            <span className="min-w-[2.5em] truncate">{value}</span>
+            <span className={truncateValue ? "whitespace-nowrap" : "min-w-[2.5em] truncate"}>
+              {value}
+            </span>
             <ChevronDown size={14} className="flex-shrink-0" aria-hidden="true" />
           </>
         ) : filled ? (
@@ -237,12 +242,12 @@ export function ToolbarMenu({
         ) : (
           <>
             <Icon size={16} />
-            {showLabel && <span>{label}</span>}
+            {showLabel && <span className="flex-shrink-0 whitespace-nowrap">{label}</span>}
             <span
               className={
                 [
                   showLabel
-                    ? "max-w-[12rem] truncate text-text-primary"
+                    ? "max-w-[12rem] min-w-0 truncate text-text-primary"
                     : truncateValue
                       ? "truncate"
                       : undefined,
