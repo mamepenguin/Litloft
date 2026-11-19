@@ -24,10 +24,10 @@ const COLUMNS = 4;
  */
 const APP_DRIVES = 4;
 const APP_FEATURES_PER_DRIVE = 2;
-const APP_TABLE_HEIGHT = 548;
+const APP_TABLE_HEIGHT = 560;
 
 /**
- * `70vh` against the app's table means the wrapper scrolls below a 783px
+ * `70vh` against the app's table means the wrapper scrolls below an 800px
  * viewport and not above it, so the answer is declared per height.
  */
 const HEIGHTS: { height: number; label: string; innerScroll: boolean }[] = [
