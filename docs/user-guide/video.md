@@ -21,11 +21,13 @@ nothing above it moves.
 - **Continue**: videos you started and have not finished, played within the last two weeks,
   most recently played first. A file set aside from **Continue** on Home does not appear
   here. A bar along the bottom of the thumbnail shows how far you got.
-- **Recommended**: up to 12 videos you have not watched, ranked by your history in
-  the drive. It needs a profile and the Intelligence addon with a Pickup feed, and
-  it is absent when there is no suggestion for the current target. It is not a
-  random sample. Among videos that match equally, newer ones come first, and the
-  picks can change during the day while new videos are being added.
+- **Recommended**: up to 12 videos you have not watched yet, ranked by your history
+  in the drive. Here a video counts as watched once you have played at least half
+  of it, or liked it or marked it as a favourite, so a video you only glanced at
+  can still be recommended. It needs a profile and the Intelligence addon with a
+  Pickup feed, and it is absent when there is no suggestion for the current target.
+  It is not a random sample. Among videos that match equally, newer ones come
+  first, and the picks can change during the day while new videos are being added.
 - **Addon shelves**: Media Import adds **よく見るソース** / **Regular sources** and
   **購読の新着** / **New from subscriptions**, for the subscriptions you chose to show.
 - **New**: the most recently added videos.
@@ -41,7 +43,7 @@ same tab that day.
 addon offers one. An addon shelf whose addon supplies a page provider opens a page in the
 video app instead, under the same target (type and Smart Collection) as Discover, and more
 videos load as you scroll. **Recommended**'s **See all** opens a page in the video app
-under the same target, listing your unwatched recommended videos. The shelf page shows 60
+under the same target, listing the recommended videos you have not watched yet. The shelf page shows 60
 videos at a time, except Recommended's, which shows all of them at once. **Continue**'s
 page opens most recently played first, with **最後に開いた日** /
 **Date Last Opened** in its sort menu.

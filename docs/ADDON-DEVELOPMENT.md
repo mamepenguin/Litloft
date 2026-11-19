@@ -837,7 +837,7 @@ trustReviewedAt, onFileChange }` plus what its row lists.
 | `header-actions` | App header | `{ drive }` |
 | `active-summary-view` | File detail, with the summaries | `{ fileId, drive, summaryNote }`. Drawn only when `GET /api/addons/knowledge/file_active_summary/{id}/note` reports an active summary; without an entry the core draws the note itself |
 | `drive-home-sections` | Drive home, between **Continue** and **Recently Viewed** | `{ drive }` |
-| `video-discover-recommended` | Video app, **Discover** face, the **Recommended** shelf | A provider slot; see [Frontend slot providers](#frontend-slot-providers). The first entry by `priority` whose `slotProviders` has a function under its `id` supplies Recommended. Called only with a profile; its `restrict` adds `watch=unwatched`. **See all** opens the core page `/drive/{drive}/apps/video/shelf?entry={id}&slot=recommended` when that entry also has a page provider (below), and is absent otherwise |
+| `video-discover-recommended` | Video app, **Discover** face, the **Recommended** shelf | A provider slot; see [Frontend slot providers](#frontend-slot-providers). The first entry by `priority` whose `slotProviders` has a function under its `id` supplies Recommended. Called only with a profile; its `restrict` narrows to the target only and adds no watch condition, so the provider decides which videos the viewer has watched. **See all** opens the core page `/drive/{drive}/apps/video/shelf?entry={id}&slot=recommended` when that entry also has a page provider (below), and is absent otherwise |
 | `video-discover-shelves` | Video app, **Discover** face, one shelf per entry between Recommended and New | A provider slot, with or without a profile. Each entry's provider supplies one shelf, in `priority` order. `i18n_key` (or `label`) titles it. **See all** opens the core page `/drive/{drive}/apps/video/shelf?entry={id}` when the entry has a page provider (below), otherwise the entry's `href` relative to `/drive/{drive}/`, and is absent when it has neither |
 | `sidebar-sections` | Sidebar, end of the library section | No props |
 | `dashboard-widgets` | Admin dashboard (`/admin`) | No props. Cards |
@@ -1260,8 +1260,8 @@ that addon's `slots.ts` → `slotPageProviders[entry.id]`. For
 `video-discover-shelves` it is consulted on Discover and by the core page. For
 `video-discover-recommended` it is consulted only by the core page that **See
 all** opens, `/drive/{drive}/apps/video/shelf?entry={id}&slot=recommended`,
-which asks with the same target and `watch=unwatched` restrict as Discover;
-Discover itself never calls it. A list provider receives no `locale`. On
+which asks with the same target-only restrict as Discover, without a watch
+condition; Discover itself never calls it. A list provider receives no `locale`. On
 Discover a page provider is called with `cursor: null` and `limit: 12`, and its
 cursor is not followed. The entry's **See all** opens the core page; a module
 that fails to import counts as having no page provider, and for
@@ -1818,6 +1818,7 @@ Adding a slot, a prop, a field or an endpoint is not breaking and gets no row.
 
 | Date | What changed | What an addon does instead |
 |---|---|---|
+| 2026-11-19 | Recommended's `restrict` no longer carries `watch=unwatched`; it narrows only to the app's target | A `video-discover-recommended` provider must leave out the videos the viewer has watched itself |
 | 2026-11-18 | A new `document-side` slot; on the file page of a file without a player, an id that is a `document-side` entry is drawn only as that slot's tab and no longer from `file-detail-sections`, and the canvas no longer draws `detailed-summary` or the summary note for such a file | Register a document tab in `document-side` with an `i18n_key` and report its availability; do not expect `file-detail-sections` to draw it on those files |
 | 2026-11-12 | `player-side` entries are panels under the player on the wide forms, not tabs beside it; the core chooses the placement, passes `active`, and no longer mounts an entry whose id collides with a core panel or tab id | Treat one entry as one panel, read `active` where it changes what you do, and rename any id that collides with `active-summary`, `chapters`, `info`, `find`, `pages` or `related` |
 | 2026-11-12 | On the wide forms of a player file, `file-preview-actions` entries move from the player box to the trailing end of the panel-toggle row under the player | Draw inline buttons as before; do not position them relative to the player box |

@@ -1,0 +1,157 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [],
+  "specification_compliance": [
+    "Every path the diff reaches is on the declared touch-point list or is an implicit touch point. Core: the addons/intelligence submodule pointer, docs/ADDON-DEVELOPMENT.md (the slot row, the See all paragraph and the Extension-point changes row), docs/addons/intelligence.md, docs/user-guide/video.md (the hunks around lines 24 and 44), useDiscover.ts, useProviderShelfPage.ts and the three named core tests. Implicit: docs/specs/pickup-coverage.md and docs/specs/INDEX.md. Addon: profile.py, workers/pickup.py, routers/pickup.py, evaluate.py, messages ja/en (only pickup.description) and tests under addons/intelligence/tests.",
+    "In listed files, some symbols are new or changed without being named in the list. evaluate.py: `_read_history` now groups segment rows and calls `watch_state`, and the new `_excluded_before` sits next to `_opened_before`. profile.py: new `WatchRow`, `WatchState`, `watch_rows`, `watch_state`, `playback_coverage`, `_version_4_engagement` and `signature_exclusions`, a `version_4` kwarg on `profile_history`, and the public `engagement` is removed. All of these implement named touch points: `_HISTORY_SQL`, the targets, `_rank_configs`, `engagement`, `watch_signature`, `watched_file_ids` and `profile_history`. A grep found no caller of the removed `engagement` outside these files.",
+    "routers/pickup.py now reads the core DB via `profile_mod.watched_file_ids` (get_litloft_db, opened with mode=ro at app/database.py:2384/2421). This is 'the serving filter' touch point, and it stays inside the read-only rule in design-decisions.",
+    "restrict.ts keeps its `watch` option (frontend/src/components/videoapp/restrict.ts:20) as the spec requires. Recommended no longer passes it in useDiscover.ts:351-358 or useProviderShelfPage.ts:230-237. Addon shelves never passed it.",
+    "I5 holds by construction. `_stale_work` (workers/pickup.py:279-282) and `watched_file_ids` (profile.py:614) both derive the set from `signature_exclusions(watch_signature(...))`, and the router calls `watched_file_ids`. PROFILE_VERSION is 5.",
+    "I4: routers/pickup.py:88-100 loads every stored id in rank order, removes the excluded ids, and slices the kept list by offset/limit, or for daily takes the first min(40, len(kept)) and shuffles them with the existing seed. total is len(kept)."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "Every feed read now loads the whole stored feed (up to 300 rows) and the viewer's full watch history joined with played_segments from the core DB. The spec accepts this cost (Non-functional), but the home Pickup row and Discover now pay it on each request.",
+    "The signature now stores the parsed `played_at` (str of a naive datetime) where it used to store the raw text. Two unparseable `last_played_at` values both map to \"\", so a change from one unparseable string to another no longer moves the checkpoint. I found no case where that changes the feed, because unparseable rows are excluded and never seed."
+  ],
+  "regression_risks": [
+    "The removed public `profile.engagement` would break any out-of-tree caller. A grep of addons/intelligence found none.",
+    "The router now depends on the core DB being reachable. If that read fails, the whole feed request fails, which the spec's failure table accepts and test_z_pickup_coverage_endpoint pins.",
+    "The core frontend change must ship together with the submodule bump. If it shipped against an addon without the serving filter, watched videos would reach Recommended until the next sweep."
+  ],
+  "test_coverage": [
+    "test_z_pickup_coverage_profile.py tests coverage arithmetic (the 99 s and 20 s edges, segments past the duration, other viewers, non-finite durations), the short-video rule, the legacy boundary at R including offset timestamps, and the state transitions.",
+    "test_z_pickup_coverage_endpoint.py tests filtering, paging, the daily window against an oracle feed that never held the removed ids, and per-viewer and per-drive isolation, and checks that a failed exclusion read fails the request.",
+    "test_z_pickup_coverage_worker.py tests that the three readers agree (I5), that a checkpoint moves exactly once for each signature field, and that the previous feed is kept when history cannot be read.",
+    "test_z_pickup_engagement.py is unchanged. It uses NOW 2026-06-15 (legacy), so it still pins version 4's engagement and exclusion under I3.",
+    "The core tests now assert `watch` is undefined on every Recommended restrict, both on Discover (including the rebuild from stored ids) and on the See all page."
+  ],
+  "not_verified": [
+    "I did not run any test suite (Python or vitest). Pass or fail is not observed.",
+    "I did not inspect the submodule commit history to confirm that f8ceff36 is exactly the addon diff shown.",
+    "I read the unchanged parts of the modified existing test files only around the diff hunks.",
+    "I did not check docs/user-guide/video.md line numbers beyond the diff hunks.",
+    "I did not trace `_checkpoint`'s full body beyond its docstring to confirm that the date and version are hashed."
+  ],
+  "coverage": [
+    {
+      "path": "addons/intelligence/app/pickup/evaluate.py",
+      "read": "full",
+      "reason": "Read lines 56-61 and 85-524, which cover every changed hunk with its enclosing function (_HistoryRow, _HISTORY_SQL, _read_history, _opened_before, _excluded_before, _targets, _rank_configs)."
+    },
+    {
+      "path": "addons/intelligence/app/pickup/profile.py",
+      "read": "full",
+      "reason": "Read lines 260-719 (WatchRow through profile_history). The top-of-file docstring and constant hunks were read in the diff."
+    },
+    {
+      "path": "addons/intelligence/app/routers/pickup.py",
+      "read": "full",
+      "reason": "Read the whole file."
+    },
+    {
+      "path": "addons/intelligence/app/workers/pickup.py",
+      "read": "full",
+      "reason": "Read lines 1-340, which hold every changed hunk (the module docstring and _stale_work), and grepped _checkpoint."
+    },
+    {
+      "path": "addons/intelligence/frontend/messages/en.json",
+      "read": "full",
+      "reason": "The single changed hunk (pickup.description) was read in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/messages/ja.json",
+      "read": "full",
+      "reason": "The single changed hunk (pickup.description) was read in the diff."
+    },
+    {
+      "path": "frontend/src/components/videoapp/useDiscover.ts",
+      "read": "full",
+      "reason": "Read lines 300-519, which hold both changed hunks inside the start() closure."
+    },
+    {
+      "path": "frontend/src/components/videoapp/useProviderShelfPage.ts",
+      "read": "full",
+      "reason": "Read lines 190-269, which hold the changed createRestrict call."
+    },
+    {
+      "path": "addons/intelligence/tests/test_z_pickup_accuracy_worker.py",
+      "read": "partial",
+      "reason": "Read only the diff hunks."
+    },
+    {
+      "path": "addons/intelligence/tests/test_z_pickup_coverage_endpoint.py",
+      "read": "full",
+      "reason": "New file, read in full in the diff."
+    },
+    {
+      "path": "addons/intelligence/tests/test_z_pickup_coverage_evaluate.py",
+      "read": "full",
+      "reason": "New file, read in full in the diff."
+    },
+    {
+      "path": "addons/intelligence/tests/test_z_pickup_coverage_profile.py",
+      "read": "full",
+      "reason": "New file, read in full in the diff."
+    },
+    {
+      "path": "addons/intelligence/tests/test_z_pickup_coverage_worker.py",
+      "read": "full",
+      "reason": "New file, read in full in the diff."
+    },
+    {
+      "path": "addons/intelligence/tests/test_z_pickup_endpoint.py",
+      "read": "partial",
+      "reason": "Read only the diff hunks (the fixture patch)."
+    },
+    {
+      "path": "addons/intelligence/tests/test_z_pickup_evaluate.py",
+      "read": "partial",
+      "reason": "Read only the diff hunks."
+    },
+    {
+      "path": "addons/intelligence/tests/test_z_pickup_evaluate_after.py",
+      "read": "partial",
+      "reason": "Read only the diff hunks."
+    },
+    {
+      "path": "addons/intelligence/tests/test_z_pickup_profile.py",
+      "read": "partial",
+      "reason": "Read the diff hunks and the grep hits for watched_file_ids/profile_history."
+    },
+    {
+      "path": "addons/intelligence/tests/test_z_pickup_recency_replay.py",
+      "read": "partial",
+      "reason": "Read only the diff hunks."
+    },
+    {
+      "path": "addons/intelligence/tests/test_z_pickup_recency_worker.py",
+      "read": "partial",
+      "reason": "Read only the diff hunks."
+    },
+    {
+      "path": "addons/intelligence/tests/test_z_pickup_worker.py",
+      "read": "partial",
+      "reason": "Read the diff hunk (the stub signature tuple) and the grep hits at lines 76-79."
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoApp.discoverCache.test.tsx",
+      "read": "partial",
+      "reason": "Read only the diff hunks."
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoApp.discoverProviders.test.tsx",
+      "read": "partial",
+      "reason": "Read only the diff hunks."
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoShelfPage.recommended.test.tsx",
+      "read": "partial",
+      "reason": "Read the diff hunks and lines 770-849."
+    }
+  ],
+  "confidence": 80
+}

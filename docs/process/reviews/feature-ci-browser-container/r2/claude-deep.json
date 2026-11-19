@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-deep",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [],
+  "specification_compliance": [
+    "Commit 29a43fe3a changes only docs/developer-guide/testing.md § The bootstrap script (lines 78-84). It replaces 'with only pytest installed' and `python3 -m pip install pytest` with 'pytest and PyYAML installed' and `python3 -m pip install pytest PyYAML==6.0.2`. That is the fix r1 CD-1 proposed.",
+    "The documented local install line (testing.md:83) now equals the CI bootstrap install line byte for byte (ci.yml:494 `pip install pytest PyYAML==6.0.2`), and tests/test_ci_browser_jobs.py:229 pins that CI line. A developer who follows the doc can collect tests/test_ci_browser_jobs.py, which imports yaml unconditionally, so the existing bootstrap tests run locally again.",
+    "A grep for `pip install pytest` and `only pytest` outside the review records finds no other stale instruction: the only hits are ci.yml:494, testing.md:83, the spec and the pytest assertion.",
+    "The commit touches no product or test file. ci.yml, check-playwright-browsers.mjs and both new tests are unchanged by it. I re-read them in the working tree to confirm that the state r1 reviewed still holds, and I found no new defect in them.",
+    "Spec §7 says the rest of testing.md stays unchanged except the Core jobs table. This commit edits another section, so prose and doc now disagree. That is not a code defect, and the edit removes a wrong instruction, so I report nothing."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "r1 CD-2 (the new vitest test runs in addon repositories' frontend CI and in core's vitest jobs) is not addressed by this commit. That is expected: r1 rated it INFO, and the fix only targets CD-1. The finding stays open for the human."
+  ],
+  "regression_risks": [
+    "None from this commit: it is a two-line documentation edit with no executable effect. The PyYAML pin in the doc and the pin in ci.yml are separate literals, so a later bump of one can leave the other stale. Only the CI literal is asserted by a test."
+  ],
+  "test_coverage": [
+    "No test checks that the install line in testing.md matches the bootstrap job's install line in ci.yml. The fix is doc-only, and the repository does not test prose, so no test is expected.",
+    "tests/test_ci_browser_jobs.py:225-230 still pins the CI install line `pip install pytest PyYAML==6.0.2` and the bootstrap job name. A mutation that drops PyYAML from ci.yml would be caught there, and the bootstrap job would also fail at collection."
+  ],
+  "not_verified": [
+    "I did not run pytest locally, with or without PyYAML. That the documented command now collects cleanly is inferred from the code.",
+    "I did not use git to confirm that commit 29a43fe3a contains only the quoted testing.md hunk. I relied on the supplied diff and checked the result in the working tree at testing.md:78-85.",
+    "I did not re-verify branch protection on develop (I7) or how the container jobs behave at runtime.",
+    "I did not read the addon repositories' workflows, so r1 CD-2's reach is still unverified."
+  ],
+  "coverage": [
+    {
+      "path": ".github/workflows/ci.yml",
+      "read": "full",
+      "reason": "Read the whole file (lines 1-549) in the working tree, including the browser jobs (295-393) and the bootstrap install step (493-494). Commit 29a43fe3a does not change it."
+    },
+    {
+      "path": "frontend/scripts/check-playwright-browsers.mjs",
+      "read": "full",
+      "reason": "Read the whole file (lines 1-88) in the working tree. Commit 29a43fe3a does not change it."
+    },
+    {
+      "path": "frontend/src/__tests__/check-playwright-browsers.test.ts",
+      "read": "full",
+      "reason": "Read the full content from the supplied diff (256 lines) and checked lines 1-40 in the working tree. Commit 29a43fe3a does not change it."
+    },
+    {
+      "path": "tests/test_ci_browser_jobs.py",
+      "read": "full",
+      "reason": "Read the full content from the supplied diff (230 lines) and checked lines 215-230 (the bootstrap assertion) in the working tree. Commit 29a43fe3a does not change it."
+    }
+  ],
+  "confidence": 88,
+  "perspectives": [
+    {
+      "name": "scope",
+      "notes": "The fix commit touches only testing.md § The bootstrap script, which is the section r1 CD-1 named. It does not reach any product, test or CI file."
+    },
+    {
+      "name": "submodules",
+      "notes": "No change. The browser jobs still check out with submodules: recursive and run setup-addons.sh before installing (ci.yml:313-320, 354-359). The bootstrap section still says a checkout without submodules is enough, which matches the bootstrap job (ci.yml:484)."
+    },
+    {
+      "name": "persistence",
+      "notes": "No state, cache or data is affected by a documentation edit."
+    },
+    {
+      "name": "concurrency",
+      "notes": "Not applicable to this commit. The browser-job matrix (fail-fast: false) and the EPUB `!cancelled()` gate are unchanged."
+    }
+  ],
+  "trajectory": "There is one fix round (29a43fe3a). It adds no branch, state or prediction. It changes no code at all: it corrects a stale local-install instruction so that it matches the CI install line that r1 already reviewed. It removes the wrong 'only pytest installed' claim and introduces no new mechanism. The design is not being patched. r1 CD-2 is left unaddressed."
+}

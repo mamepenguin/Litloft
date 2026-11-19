@@ -1,0 +1,11 @@
+addons/intelligence/app/config.py
+addons/intelligence/app/database.py
+addons/intelligence/app/indexer.py
+addons/intelligence/app/main.py
+addons/intelligence/app/models.py
+addons/intelligence/app/routers/files.py
+addons/intelligence/app/workers/change_frames.py
+addons/intelligence/app/workers/clip.py
+addons/intelligence/app/workers/frame_scan.py
+addons/intelligence/app/workers/loft_media.py
+addons/intelligence/search-config.yml.example

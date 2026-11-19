@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "CRITICAL",
+  "findings": [],
+  "verification": [],
+  "specification_compliance": [
+    "I1: In ci.yml:344 the components job runs `pnpm exec playwright test --config=playwright-components.config.ts --shard=${{ matrix.shard }}/2` with matrix shard [1, 2] (ci.yml:311). The layout and EPUB steps run `pnpm test:e2e:layout` and `pnpm test:e2e:epub` with no extra arguments (ci.yml:381, 392). No browser test command carries --project, --grep, --grep-invert or --pass-with-no-tests.",
+    "I2: The component matrix has fail-fast: false (ci.yml:309). No browser step has continue-on-error and no test command is piped.",
+    "I3: No step in either browser job runs apt-get or playwright install.",
+    "I4: The check-playwright-browsers.mjs step (id browsers) has no `if`, so it runs by default. When it exits 1 (missing build, unreadable browsers.json, PLAYWRIGHT_BROWSERS_PATH unset), the layout step is skipped by the implicit success() condition, and the EPUB step is skipped by `steps.browsers.outcome == 'success'`. The browser lists match the configured projects: components and layout use chromium, EPUB uses chromium and webkit.",
+    "I5: Both browser jobs check out with submodules: recursive and run ./setup-addons.sh before pnpm install.",
+    "I8: The EPUB step has `if: !cancelled() && steps.browsers.outcome == 'success'`, so it runs after a layout failure.",
+    "I9: Both jobs use the image mcr.microsoft.com/playwright:v1.58.2-noble and node-version 20. The lockfile pins @playwright/test@1.58.2.",
+    "I10: bootstrap installs `pytest PyYAML==6.0.2` and runs `python -m pytest tests -v` (ci.yml:494-497). tests/test_ci_browser_jobs.py has no skip markers.",
+    "I11: The Core jobs table in testing.md:339-340 names the three browser checks with their suites and browsers."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "check-playwright-browsers.mjs applies only the ubuntu24.04-x64 revisionOverrides. If the image's platform ever changed, it would compare against a different revision; this has no effect today because the image is noble x64."
+  ],
+  "regression_risks": [
+    "When the Playwright version is bumped, the lockfile and the image tag must be changed together. The pytest test detects a mismatch."
+  ],
+  "test_coverage": [
+    "tests/test_ci_browser_jobs.py checks the CI shape for I1-I5, I8, I9 and I10 statically.",
+    "frontend/src/__tests__/check-playwright-browsers.test.ts exists. I did not review its contents in detail."
+  ],
+  "not_verified": [
+    "I7: the required status checks in develop's branch protection (a GitHub setting I cannot see from the repository)",
+    "I6: whether existing tests, configurations or package.json scripts are unchanged (I did not see the diff)",
+    "Whether the browser directory names in the actual image (/ms-playwright/chromium_headless_shell-<rev>, etc.) match what the script expects",
+    "The detailed contents of the vitest test"
+  ],
+  "confidence": 80,
+  "coverage": [
+    {
+      "path": ".github/workflows/ci.yml",
+      "read": "partial",
+      "reason": "Read the browser jobs (lines 295-394) in full and checked the bootstrap job by grep"
+    },
+    {
+      "path": "frontend/scripts/check-playwright-browsers.mjs",
+      "read": "full",
+      "reason": "New script"
+    },
+    {
+      "path": "tests/test_ci_browser_jobs.py",
+      "read": "full",
+      "reason": "New test"
+    },
+    {
+      "path": "docs/developer-guide/testing.md",
+      "read": "partial",
+      "reason": "Checked the Core jobs table by grep"
+    }
+  ]
+}

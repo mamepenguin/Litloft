@@ -1,0 +1,44 @@
+{
+  "risk": "CRITICAL",
+  "score": 13,
+  "base": 3,
+  "zone_max": "CRITICAL",
+  "modifiers": [],
+  "promotions": [],
+  "zones_touched": [
+    {
+      "path": ".github/workflows/ci.yml",
+      "level": "CRITICAL"
+    },
+    {
+      "path": "docs/developer-guide/testing.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/INDEX.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/ci-browser-container.md",
+      "level": "LOW"
+    },
+    {
+      "path": "frontend/scripts/check-playwright-browsers.mjs",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/__tests__/check-playwright-browsers.test.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "tests/test_ci_browser_jobs.py",
+      "level": "MEDIUM"
+    }
+  ],
+  "human_zones_touched": [],
+  "protected_paths_touched": [],
+  "docs_only": false,
+  "reasons": [
+    "highest zone CRITICAL (10 points)"
+  ]
+}

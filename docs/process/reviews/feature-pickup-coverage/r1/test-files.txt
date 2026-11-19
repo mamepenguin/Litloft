@@ -1,0 +1,15 @@
+addons/intelligence/tests/test_z_pickup_accuracy_worker.py
+addons/intelligence/tests/test_z_pickup_coverage_endpoint.py
+addons/intelligence/tests/test_z_pickup_coverage_evaluate.py
+addons/intelligence/tests/test_z_pickup_coverage_profile.py
+addons/intelligence/tests/test_z_pickup_coverage_worker.py
+addons/intelligence/tests/test_z_pickup_endpoint.py
+addons/intelligence/tests/test_z_pickup_evaluate.py
+addons/intelligence/tests/test_z_pickup_evaluate_after.py
+addons/intelligence/tests/test_z_pickup_profile.py
+addons/intelligence/tests/test_z_pickup_recency_replay.py
+addons/intelligence/tests/test_z_pickup_recency_worker.py
+addons/intelligence/tests/test_z_pickup_worker.py
+frontend/src/components/videoapp/__tests__/VideoApp.discoverCache.test.tsx
+frontend/src/components/videoapp/__tests__/VideoApp.discoverProviders.test.tsx
+frontend/src/components/videoapp/__tests__/VideoShelfPage.recommended.test.tsx

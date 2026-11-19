@@ -298,6 +298,13 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-CORE-139 | implemented | docs/specs/ytdlp-node-runtime.md | sha256:1eac24c6f5e6733faf454fc9bcc13b8bb176ed4af68f3cab80bb4698fe89edbd |
 | SPEC-CORE-140 | implemented | docs/specs/watched-ranges-display.md | sha256:ee0724df65e30e717bcc7975ce649a286583c18c5bb944980c45424673ba9362 |
 | SPEC-CORE-141 | implemented | docs/specs/watched-ranges-display.md | sha256:ee0724df65e30e717bcc7975ce649a286583c18c5bb944980c45424673ba9362 |
+| SPEC-ADDON-144 | implemented | docs/specs/scene-frames-ten-second-fill.md | sha256:b8f691c32fc88fc84869d121b1c2945d83df8d78b4267924e12bca7a92bedda1 |
+| SPEC-ADDON-145 | implemented | docs/specs/scene-frames-ten-second-fill.md | sha256:b8f691c32fc88fc84869d121b1c2945d83df8d78b4267924e12bca7a92bedda1 |
+| SPEC-ADDON-146 | implemented | docs/specs/scene-frames-ten-second-fill.md | sha256:b8f691c32fc88fc84869d121b1c2945d83df8d78b4267924e12bca7a92bedda1 |
+| SPEC-ADDON-149 | implemented | docs/specs/pickup-coverage.md | sha256:d3bc6dc01ac9e71a4db340786e5caa0253003b9847f7f9b2ca20909347013d73 |
+| SPEC-ADDON-150 | implemented | docs/specs/pickup-coverage.md | sha256:d3bc6dc01ac9e71a4db340786e5caa0253003b9847f7f9b2ca20909347013d73 |
+| SPEC-CORE-142 | implemented | docs/specs/pickup-coverage.md | sha256:d3bc6dc01ac9e71a4db340786e5caa0253003b9847f7f9b2ca20909347013d73 |
+| SPEC-CORE-149 | implemented | docs/specs/ci-browser-container.md | sha256:f57295929c9e8a4c02f7e011575865e6ae46bfe6ee148b957e2776667b83d5c2 |
 | SPEC-CORE-145 | implemented | docs/specs/app-view-per-target.md | sha256:926ef39f97e4137c1499212982a2f5dab80c44f41cb1cb75ea7c2f65552200d6 |
 | SPEC-CORE-146 | implemented | docs/specs/app-view-per-target.md | sha256:926ef39f97e4137c1499212982a2f5dab80c44f41cb1cb75ea7c2f65552200d6 |
 | SPEC-ADDON-147 | implemented | docs/specs/app-view-per-target.md | sha256:926ef39f97e4137c1499212982a2f5dab80c44f41cb1cb75ea7c2f65552200d6 |

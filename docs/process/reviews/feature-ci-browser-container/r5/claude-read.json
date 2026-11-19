@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [],
+  "specification_compliance": [
+    "Commit 72a6773f2 changes only a comment in tests/test_ci_browser_jobs.py (lines 244-245). It deletes the clause 'and nothing lets a test step run without it'. That is the second option r4 CR4-1 and CD-1 proposed. The comment now says only what test_fonts_step_installs_the_user_fontconfig checks: the step has no `if` or `continue-on-error`, and running it copies the file byte for byte to $HOME/.config/fontconfig/fonts.conf (lines 247-264).",
+    "The commit does not change any product file. In the working tree, ci.yml:343-347 and 390-394 (the fonts steps), ci.yml:407 (the EPUB `if`, still gated only on `steps.browsers.outcome`), .github/playwright-fonts.conf (6 lines) and check-playwright-browsers.mjs (88 lines) still match the reviewed branch diff.",
+    "Because the behaviour is unchanged, the r4 state still holds. If the fonts step fails, the EPUB step still runs, without the user fontconfig. The job is already red from the failed fonts step, so nothing passes silently. I12 as written still holds: the fonts step comes before every test step. The test comment no longer claims more than that. The ci.yml comment at 403-405 describes only the browser-check gate, and that description is accurate.",
+    "No existing test, config, retry count or package.json script is touched (I6 r4). The edited file is new to this change."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The behaviour behind r4 CR4-1/CD-1 is unchanged, and this round removed only the prose that contradicted it. When the fonts step fails and the browser check passed, the EPUB suite runs under the image's default fallback font. The job is red because of the fonts step."
+  ],
+  "regression_risks": [
+    "None from this commit: it edits only a comment, and no test, workflow or script changes.",
+    "r4 CD-2 is still open: test_fonts_conf_prefers_liberation_sans (tests/test_ci_browser_jobs.py:276-279) does not check `binding=\"strong\"`, so a weakened binding would pass the pytest. Only the layout suite's exact-height assertion would catch it, and it would fail loudly."
+  ],
+  "test_coverage": [
+    "The edited comment now matches what test_fonts_step_installs_the_user_fontconfig asserts. That test kills these mutations: the fonts step moved after a test step (through test_browser_job_step_order), a wrong source or destination path, and an added `if` or `continue-on-error`.",
+    "No test asserts that the EPUB step is gated on the fonts step. EPUB_IF pins the string without that condition. That matches the spec and is now stated honestly.",
+    "Since the commit changes no code, there is no product code to mutate."
+  ],
+  "not_verified": [
+    "I ran no commands (pytest, vitest, Playwright, fc-match).",
+    "I did not inspect git objects to confirm that 72a6773f2 contains only the quoted comment hunk. I compared the hunk with the working tree at tests/test_ci_browser_jobs.py:244-245.",
+    "Branch protection on develop (I7) is not visible in the repository.",
+    "I did not check whether the user fontconfig actually takes effect in mcr.microsoft.com/playwright:v1.58.2-noble, or whether /github/home is writable by uid 1001.",
+    "I did not reopen frontend/src/__tests__/check-playwright-browsers.test.ts in the working tree. I read it from the quoted branch diff."
+  ],
+  "coverage": [
+    {
+      "path": ".github/playwright-fonts.conf",
+      "read": "full",
+      "reason": "Read the whole file (6 lines) in the working tree. This commit does not change it."
+    },
+    {
+      "path": ".github/workflows/ci.yml",
+      "read": "partial",
+      "reason": "Read lines 290-519 in the working tree. That range covers both browser jobs (295-409), with the fonts steps and the EPUB gate, and the bootstrap job (496-513), so every hunk of the branch diff is included. This commit does not change the file."
+    },
+    {
+      "path": "frontend/scripts/check-playwright-browsers.mjs",
+      "read": "full",
+      "reason": "Read the whole file (lines 1-88) in the working tree. This commit does not change it."
+    },
+    {
+      "path": "frontend/src/__tests__/check-playwright-browsers.test.ts",
+      "read": "full",
+      "reason": "Read the entire file as quoted in the branch diff. I did not open it in the working tree. This commit does not change it."
+    },
+    {
+      "path": "tests/test_ci_browser_jobs.py",
+      "read": "full",
+      "reason": "Read the entire file from the branch diff, and read lines 230-306 in the working tree. That range includes the changed comment at 244-245 and its enclosing test."
+    }
+  ],
+  "confidence": 88,
+  "trajectory": "The rounds so far:\n- r1→r2: a documentation fix (the PyYAML install line).\n- r2→r3: added a prediction. APP_TABLE_HEIGHT became 560, which encoded the CJK fallback font in a test.\n- r3→r4: removed that prediction and added a new mechanism instead: a fontconfig file, a `fonts` step per job, I12 and its tests.\n- r4→r5 (72a6773f2): adds no branch, state or prediction. It removes a claim, the comment clause saying no test step can run without the fonts step. It neither repeats r4's addition nor extends the EPUB gate.\n\nThe design is not being patched in layers. The r4 gap is now documented truthfully rather than closed: the EPUB step still runs after a failed fonts step, and the job is red. CD-2 (the binding is not checked) remains unaddressed."
+}
