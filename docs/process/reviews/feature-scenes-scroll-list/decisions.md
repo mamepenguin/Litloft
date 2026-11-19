@@ -162,3 +162,12 @@ did not drop the card. The theme was set the way the app's switch stores it:
     cols = max(3, floor((506−28+8)/120)) = 4.
   - So the column count matches the design (4). The app's panel is 642 px high against the
     design's 738, because the app's player and header are taller at this width.
+
+## Design differences accepted by the human (2026-11-19)
+
+From design-check.md at 0d1479603:
+- D-1, the scene card's surface matching the workbench panel: accepted. The card's colour is unchanged from develop.
+- D-2, the divider under the panel header: accepted. The core host draws it.
+- D-3, the stale note between the card and the action row: accepted. The spec requires it, and the R-5 video's Visual Index was stale.
+- D-7, fewer columns beside the inspector: accepted. The column count follows the formula from the panel width; see the D2 revision in invariants.md for the 1024px panel.
+- D-4, D-5 and D-6 were states with no screenshot. The human asked for them to be taken (the rerun2 shots) and checked again.
