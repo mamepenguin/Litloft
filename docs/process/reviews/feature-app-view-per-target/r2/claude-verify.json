@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R1",
+      "status": "confirmed",
+      "note": "Traced by reading. NotesPage.tsx:165-168 calls setSwitchingFor(id) synchronously and then runGated(() => notesTarget.choose(id)). NotesLibrary.tsx:167-171 always registers a gate. When gateRef.current is set by NotePaneContainer.tsx:180-185 and the mode is editing, NotePaneContainer.tsx:161-167 calls proceed only after `await flush()`, so choose(id) is deferred. In the commit after the click, targetId is still X and switchingFor is Y. The effect at NotesPage.tsx:50-74 re-runs because switchingFor is in its deps: line 60 is false, line 67 clears switchingFor, and line 68 is false because previous === targetId. Once flush resolves, choose(Y) runs; while the Target is looked up targetId is null (line 40) and the effect returns at line 51. When Y becomes ready, previous=X !== Y, inLibrary, and `note` is still in the URL (the edited note; NotesLibrary is unmounted while the Target is looked up, so nothing removes it). Line 68 therefore replaces the URL keeping `isLibrarySort(raw) ? raw`, which is X's sort. ignoreUrlSort (line 128) is false because switchingFor is null, so NotesLibrary.tsx:77-78 shows X's URL sort under Y. This violates I4."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R2",
+      "status": "confirmed",
+      "note": "Traced by reading. clips.tsx:195-201 sets switchTo=id on any Target choice. switchHref (205-208) requires view.view !== \"home\", and switchedAway (209-210) is false once targetId === switchTo, so on Home neither branch of the effect at 211-219 clears switchTo. Only a drive change (135-138) or reaching a non-home view clears it. While switchTo is set, effectiveParams (151-158) drops `group`/`sort`, readClipsView (clipsUrl.ts:89-105) then uses the resolved stored view, and the effect at 216-217 router.replace()s the URL with that view. The fill-in at 254-257 is also suppressed. Concrete path: choose a Target on Home, then press Back/Forward to an earlier `?view=all&group=…&sort=…` entry, or open a bookmarked Library or shelf URL. The URL's group/sort are ignored and overwritten once. This contradicts I4's history exception and I13 (a readable group/sort is not to be changed). 'Indefinitely' overstates it: the state is cleared on the first non-home view, so the effect is one-shot. Home's own See all links (clipsapp/Home.tsx:62,121) point at shelves for which followsSort is false, so they are not affected."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R3",
+      "status": "confirmed",
+      "note": "The r1 defect (r1/claude-read.json:12) was the quiet branch using `truncateValue ? \"whitespace-nowrap\" : \"min-w-[2.5em] truncate\"`. The only quiet+truncateValue callers are the shelf-page sort menus via SortChoiceMenu (videoapp/LibraryControls.tsx:24-31, VideoShelfPage.tsx:196-201) and the Reading equivalent. TargetMenu (TargetMenu.tsx:221) is quiet without truncateValue. A grep for `2.5em|truncateValue` under frontend/ matches only source files, no test. The e2e-components app-header.spec.ts shelf-page tests (196-228) render only the short value 'Date Added (Newest First)' at 375px and check scrollWidth and right-edge alignment, which a non-truncating value also passes. The long-value tests (62-152) exercise only TargetMenu, which the conditional revert does not touch. The video-app.html quietMenuValue (`min-w-0 truncate`) is a hand-written fixture. Reintroducing the r1 conditional would therefore fail no test I could find. An unconditional `whitespace-nowrap` for every quiet value would be caught by the TargetMenu long-name tests (app-header.spec.ts:62-79)."
+    }
+  ],
+  "specification_compliance": [
+    "R1 shows I4 failing in Notes when a Target is switched while a note is being edited: the previous Target's URL sort survives.",
+    "R2 shows I4's history exception and I13 failing in Clips for one navigation after a Target is chosen on Home.",
+    "I20's second clause (quiet menus keep their truncating value) holds in the source at ToolbarMenu.tsx:231, but no test protects it."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "When a Notes save fails and the viewer discards through navigationGuard (NotePaneContainer.tsx:172-175), proceed is also deferred, so the R1 path applies there too."
+  ],
+  "regression_risks": [
+    "The quiet+truncateValue value class in ToolbarMenu can regress without any test failing (R3).",
+    "Target-switch URL handling in Notes and Clips relies on transient state (switchingFor / switchTo) that is cleared on paths the authors did not anticipate."
+  ],
+  "test_coverage": [
+    "No test found for a Notes Target switch while the editor is in editing mode with a deferred gate.",
+    "No test found for a Clips Target choice on Home followed by navigation to a Library URL that carries group/sort.",
+    "No test pins the quiet+truncateValue value class or renders a shelf-page sort menu with a value too long for its container."
+  ],
+  "not_verified": [
+    "No tests or e2e suites were run; all three findings were traced by reading only.",
+    "I did not confirm whether useNotesTarget.choose moves through `lookingUp` or becomes ready synchronously; R1 holds either way, because line 68 fires on the first ready commit with the new id.",
+    "I did not check the Reading shelf page sort menu's exact props (ReadingShelfPage.tsx:228) beyond the r1 note.",
+    "I did not check whether the Tailwind build for e2e-components emits min-w-[2.5em]."
+  ],
+  "confidence": 85
+}

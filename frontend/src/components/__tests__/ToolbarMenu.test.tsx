@@ -131,6 +131,24 @@ describe("ToolbarMenu", () => {
     expect(screen.getByText("Date Added (Newest First)")).toHaveClass("truncate");
   });
 
+  it("draws a quiet menu's whole value when asked to", () => {
+    render(
+      <ToolbarMenu
+        label="Sort"
+        value="Date Added (Newest First)"
+        icon={Filter}
+        quiet
+        truncateValue
+        fullValue
+      >
+        {rows}
+      </ToolbarMenu>,
+    );
+    const value = screen.getByText("Date Added (Newest First)");
+    expect(value).toHaveClass("whitespace-nowrap");
+    expect(value).not.toHaveClass("truncate");
+  });
+
   it("keeps the popover's recipe, which is what keeps it on screen", () => {
     // A literal, not the string `useMenuSurface` builds. Comparing the
     // element's class to the recipe it is set from compares the recipe to

@@ -1,0 +1,492 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "trajectory": "Only one fix round, 510de1aba, since r1. It removed things and added nothing. In ToolbarMenu's quiet branch it dropped the `truncateValue ? \"whitespace-nowrap\" : ...` ternary, so the quiet value is always `min-w-[2.5em] truncate` again (ToolbarMenu.tsx:231). It also deleted docs/specs/app-library-filters.md and its three INDEX rows. No new branch, state or prediction was added, so this round does not look like patching the design. The two defects reported below (Notes `switchingFor`, Clips `switchTo`) come from the original per-Target state machinery, not from this round.",
+  "findings": [
+    {
+      "id": "R1",
+      "origin": "reviewer",
+      "claim": "In Notes, a Target change made while a note is being edited loses its `sort` replacement: the URL keeps the previous Target's sort under the new Target.",
+      "impact": "While editing a note in the Library pane (1280px+ or 1024–1279px), the user picks another Target in the Target menu. The editor saves, and the Target switches. The list and the 並び順 menu then show the previous Target's sort (taken from the URL), not the new Target's stored sort. Switching back and forth no longer shows each Target's own sort (I4).",
+      "evidence": "NotesPage.tsx:165-169: `setSwitchingFor(id)` runs at once, but `runGated(() => notesTarget.choose(id))` is deferred. NotesLibrary always registers a gate (NotesLibrary.tsx:167-171). While editing, NotePaneContainer.tsx:154-176 runs `proceed` only after `await flush()`. In the commit that follows the click, targetId is still the old id. The effect at NotesPage.tsx:50-74 therefore reaches line 67 (`switchingFor !== null && switchingFor !== targetId`) and clears `switchingFor` before the Target changes. When `choose(id)` finally runs, the effect takes the line 68 branch (`previous !== targetId && inLibrary && current.has(\"note\")`, and `note` is present because a note is being edited). It replaces the URL with `isLibrarySort(raw) ? raw : sortOf(targetId)`, which keeps the old Target's readable `sort`. `ignoreUrlSort` is false because `switchingFor` is null, so NotesLibrary.tsx:77-78 shows the URL's old sort.",
+      "repro": "not_reproduced. Traced: store {\"sf-trip\":{\"sort\":\"title\"}}. Open `?view=all&folder=Journal&note=n1&sort=created` under default, press Edit, then choose Target Trip with the save resolving \"saved\". Expected `sort=title`; by the trace the URL keeps `sort=created`. notesViewPerTarget.test.tsx's I4 Target-change test runs without an editor open, so it does not cover this path.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "A",
+        "reason": "After switching Target, the view shown carries a URL view parameter left over from the previous Target. The spec also says the replacement waits behind the save gate.",
+        "invariant_ref": "I4"
+      },
+      "severity": "MEDIUM",
+      "proposed_fix": "Set `switchingFor` inside the gated callback, right before `notesTarget.choose(id)`, or do not clear a pending `switchingFor` while the gate is still holding the change."
+    },
+    {
+      "id": "R2",
+      "origin": "reviewer",
+      "claim": "In Clips, choosing a Target on Home leaves `switchTo` set indefinitely. While it is set, `group`/`sort` in any Library or shelf URL are ignored, and the URL is replaced with the new Target's view, including on history navigation.",
+      "impact": "The user is on the Library under Target X (e.g. `group=folder&sort=title`), goes to Home, chooses Target Y, then presses Back. The Library entry made under X shows Y's resolved view instead of its own URL values, and the history entry is rewritten by replace. Any link carrying an explicit `group`/`sort` followed before the next Library visit is also overridden.",
+      "evidence": "clips.tsx:205-219: `switchHref` is null when `view.view === \"home\"`, and `switchedAway` is false once `targetId === switchTo`. Neither clears `switchTo` on Home. While `switchTo !== null`, clips.tsx:151-158 deletes `group` and `sort` from `effectiveParams`, so `readClipsView` uses the resolved view. When a non-home URL arrives, `switchHref` becomes non-null and `router.replace(clipsHref(pathname, view))` rewrites it with that resolved view. The fill-in at :254-257 is also suppressed while `switchTo` is set.",
+      "repro": "not_reproduced. Traced: `?view=all&group=folder&sort=title` under default, then the Home tab (push), then choose Work (stored {\"sf-work\":{\"group\":\"none\"}}), then Back. By the trace the Library draws `none`/`newest` and the URL is replaced with `group=none&sort=newest`. No test in clipsViewPerTarget.test.tsx chooses a Target on Home and then navigates.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "A",
+        "reason": "I4 excepts history navigation: an entry made under X shows its own URL values. I3 says a readable URL parameter wins. Here both are overridden.",
+        "invariant_ref": "I4"
+      },
+      "severity": "LOW",
+      "proposed_fix": "Clear `switchTo` once the new Target is ready, whatever the view, and only rewrite when the view at that moment is the Library or a shelf page."
+    },
+    {
+      "id": "R3",
+      "origin": "reviewer",
+      "claim": "No test or fixture pins the quiet ToolbarMenu value class, so undoing this round's fix (the quiet value going back to `whitespace-nowrap`) would fail nothing.",
+      "impact": "I20's clause \"the quiet menus keep their truncating value\" can regress silently, and the Video/Reading shelf-page sort menus would stop ellipsizing again.",
+      "evidence": "A grep for `min-w-\\[2.5em\\]` under frontend/ matches only frontend/src/components/ToolbarMenu.tsx. readingVideoLayoutFixtureParity.test.tsx renders only the showLabel/filled/fullWidth variants. In video-app.html, `quietMenuValue` is `min-w-0 truncate`, which models TargetMenu and not the shared class. The r1 verifier confirmed no parity test covers the quiet+truncateValue branch.",
+      "repro": "Mutation by reading: change ToolbarMenu.tsx:231 to `truncateValue ? \"whitespace-nowrap\" : \"min-w-[2.5em] truncate\"`. No test, fixture or parity check references that class, so it would survive.",
+      "introduced": "pre-existing",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is a test-coverage gap for I20's quiet-menu clause. The code currently holds the invariant.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add a unit or parity check that a quiet ToolbarMenu with truncateValue renders its value with `truncate`, or a narrow-width app-header e2e assertion that the shelf-page sort value ellipsizes."
+    }
+  ],
+  "specification_compliance": [
+    "The fix commit does what it says. ToolbarMenu.tsx:231 is back to `min-w-[2.5em] truncate` for every quiet menu, and docs/specs/app-library-filters.md and its INDEX rows are gone. r1's R1 (quiet menus) and R4 (filters spec) are resolved. R2 (すべて見る) is now covered by the revised I9.",
+    "I20 holds for the outlined branch. The `flex-shrink-0 whitespace-nowrap` label and the `min-w-0` value apply only when `showLabel` is set, and the only outlined callers with `showLabel` are the new GroupMenu/SortMenu. readingapp StateMenu passes `showLabel` but is `filled`. Other outlined callers get only `[&>svg]:flex-shrink-0`, which keeps the icon at 16px.",
+    "docs/specs/app-view-per-target.md still names SPEC-CORE-147 in seven places (lines 173, 278, 286, 305, 311, 312, 323), and no spec in the repository defines that ID any more. This is prose only and would not lead to a code change.",
+    "Reading's root folder shelf See all works: `keyValid` accepts any key for `by=folder` (ReadingShelfPage.tsx:90-91).",
+    "Clips folder/month shelf pages follow the sort: useShelfData's scope includes `sort`, and requests.ts:137 uses `followsSort`."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "In Clips, a Target choice that lands on a tooLarge/failed member Target puts `default` in force with `switchTo` set to the chosen id. The `switchedAway` branch then clears `switchTo` without a rewrite, so the URL keeps the previous Target's `group`/`sort`. The spec treats a fallback to default as leaving the URL alone, so this may be intended."
+  ],
+  "regression_risks": [
+    "The per-Target view state in Notes (`switchingFor`) and Clips (`switchTo`) is held in page-level flags whose clearing depends on effect ordering relative to the save gate and the current tab. Edge paths (editor open, Home tab, Back) are untested.",
+    "Nothing protects the quiet ToolbarMenu class against regression (R3)."
+  ],
+  "test_coverage": [
+    "notesViewPerTarget.test.tsx covers the save gate only for a segment choice, not for a Target change while editing (R1).",
+    "clipsViewPerTarget.test.tsx covers Target changes on the Library and on a shelf page, but not on Home followed by navigation (R2).",
+    "No test pins the quiet ToolbarMenu value class (R3).",
+    "The e2e view-menus specs cover the Library control rows at 390/1024/1280/1440 in ja and en."
+  ],
+  "not_verified": [
+    "I ran no tests or e2e suites. R1 and R2 are traced by reading, not reproduced.",
+    "I did not check whether useNotesTarget's `choose` moves a non-member smart folder straight to `ready` or through `lookingUp`. Either path still reaches the line 68 branch in R1.",
+    "I read most changed product files through the supplied diff hunks, not in full in the repository.",
+    "I did not check the backend shelves route's handling of the root key for `by=folder`/`by=month`."
+  ],
+  "coverage": [
+    {
+      "path": "addons/knowledge/frontend/NotesPage.tsx",
+      "read": "full",
+      "reason": "read whole file in repository"
+    },
+    {
+      "path": "addons/knowledge/frontend/clipsapp/Library.tsx",
+      "read": "partial",
+      "reason": "changed hunks in the supplied diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/clipsapp/ShelfPage.tsx",
+      "read": "partial",
+      "reason": "changed hunks in the supplied diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/clipsapp/clipsUrl.ts",
+      "read": "partial",
+      "reason": "changed hunks in the supplied diff (most of the file) plus grep of followsSort/isTaggedShelf"
+    },
+    {
+      "path": "addons/knowledge/frontend/clipsapp/requests.ts",
+      "read": "partial",
+      "reason": "changed hunks in the supplied diff plus grep line 137"
+    },
+    {
+      "path": "addons/knowledge/frontend/clipsapp/useGroupedShelves.ts",
+      "read": "partial",
+      "reason": "rename diff hunks"
+    },
+    {
+      "path": "addons/knowledge/frontend/library/LibraryList.tsx",
+      "read": "partial",
+      "reason": "changed hunks in the supplied diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/library/LibraryRail.tsx",
+      "read": "partial",
+      "reason": "changed hunks in the supplied diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/library/NotesLibrary.tsx",
+      "read": "full",
+      "reason": "read whole file in repository"
+    },
+    {
+      "path": "addons/knowledge/frontend/library/libraryUrl.ts",
+      "read": "partial",
+      "reason": "changed hunks in the supplied diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/messages/en.json",
+      "read": "partial",
+      "reason": "changed hunks in the supplied diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/messages/ja.json",
+      "read": "partial",
+      "reason": "changed hunks in the supplied diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/notesapp/RecentlyUpdatedSection.tsx",
+      "read": "partial",
+      "reason": "changed hunk"
+    },
+    {
+      "path": "addons/knowledge/frontend/pages/clips.tsx",
+      "read": "full",
+      "reason": "read whole file in repository"
+    },
+    {
+      "path": "frontend/e2e-components/app-header-desktop.spec.ts",
+      "read": "partial",
+      "reason": "changed hunk"
+    },
+    {
+      "path": "frontend/e2e-components/app-header.measure.ts",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "frontend/e2e-components/app-header.spec.ts",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "frontend/e2e-components/clips-primary-action-desktop.spec.ts",
+      "read": "partial",
+      "reason": "changed hunk"
+    },
+    {
+      "path": "frontend/e2e-components/clips-primary-action.spec.ts",
+      "read": "partial",
+      "reason": "changed hunk"
+    },
+    {
+      "path": "frontend/e2e-components/clips-view-menus-desktop.spec.ts",
+      "read": "full",
+      "reason": "new file, whole content in diff"
+    },
+    {
+      "path": "frontend/e2e-components/clips-view-menus.spec.ts",
+      "read": "full",
+      "reason": "new file, whole content in diff"
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/appHeader.tsx",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/clipsPage.tsx",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/notesLibrary.tsx",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/videoCardSpacing.tsx",
+      "read": "partial",
+      "reason": "changed hunk"
+    },
+    {
+      "path": "frontend/e2e-components/notes-view-menus-desktop.spec.ts",
+      "read": "full",
+      "reason": "new file, whole content in diff"
+    },
+    {
+      "path": "frontend/e2e-components/notes-view-menus.spec.ts",
+      "read": "full",
+      "reason": "new file, whole content in diff"
+    },
+    {
+      "path": "frontend/e2e-components/projects.ts",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "frontend/e2e-components/spec-viewport.spec.ts",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "frontend/e2e-components/view-menus-desktop.spec.ts",
+      "read": "full",
+      "reason": "new file, whole content in diff"
+    },
+    {
+      "path": "frontend/e2e-components/view-menus.spec.ts",
+      "read": "full",
+      "reason": "new file, whole content in diff"
+    },
+    {
+      "path": "frontend/e2e-layout/fixtures/reading-video-faces.html",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "frontend/e2e-layout/fixtures/toolbar-menu.html",
+      "read": "partial",
+      "reason": "changed hunk"
+    },
+    {
+      "path": "frontend/e2e-layout/fixtures/video-app.html",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "frontend/e2e-layout/reading-video-faces.spec.ts",
+      "read": "partial",
+      "reason": "changed hunk"
+    },
+    {
+      "path": "frontend/src/components/ToolbarMenu.tsx",
+      "read": "partial",
+      "reason": "read lines 140-269 covering all changed hunks, including the fix at line 231"
+    },
+    {
+      "path": "frontend/src/components/appshell/ViewMenus.tsx",
+      "read": "full",
+      "reason": "new file, whole content in diff"
+    },
+    {
+      "path": "frontend/src/components/readingapp/LibraryControls.tsx",
+      "read": "partial",
+      "reason": "read lines 20-169 plus diff hunks"
+    },
+    {
+      "path": "frontend/src/components/readingapp/LibraryFace.tsx",
+      "read": "partial",
+      "reason": "changed hunks in the supplied diff"
+    },
+    {
+      "path": "frontend/src/components/readingapp/ReadingApp.tsx",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "frontend/src/components/readingapp/ReadingShelfPage.tsx",
+      "read": "partial",
+      "reason": "changed hunks plus lines 84-175 via grep context"
+    },
+    {
+      "path": "frontend/src/components/readingapp/labels.ts",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "frontend/src/components/readingapp/useReadingApp.ts",
+      "read": "partial",
+      "reason": "changed hunks plus lines 207-265 via grep context"
+    },
+    {
+      "path": "frontend/src/components/videoapp/LibraryControls.tsx",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "frontend/src/components/videoapp/LibraryFace.tsx",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "frontend/src/components/videoapp/VideoApp.tsx",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "frontend/src/components/videoapp/VideoPagedGrid.tsx",
+      "read": "full",
+      "reason": "new file, whole content in diff"
+    },
+    {
+      "path": "frontend/src/components/videoapp/VideoShelfPage.tsx",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "frontend/src/components/videoapp/labels.ts",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "frontend/src/components/videoapp/useVideoApp.ts",
+      "read": "partial",
+      "reason": "changed hunks plus lines 210-265 via grep context"
+    },
+    {
+      "path": "frontend/src/lib/appPrefs.ts",
+      "read": "partial",
+      "reason": "changed hunks (all new store functions)"
+    },
+    {
+      "path": "frontend/src/lib/formatMonth.ts",
+      "read": "full",
+      "reason": "new file, whole content in diff"
+    },
+    {
+      "path": "frontend/src/messages-core/en.json",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "frontend/src/messages-core/ja.json",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/clipsAppHarness.tsx",
+      "read": "partial",
+      "reason": "changed hunk"
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/clipsFrame.test.tsx",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/clipsLibrary.test.tsx",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/clipsPage.test.tsx",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/clipsViewPerTarget.test.tsx",
+      "read": "partial",
+      "reason": "new file in diff, read for Target-change cases"
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/notesApp.home.test.tsx",
+      "read": "partial",
+      "reason": "changed hunk"
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/notesFrame.test.tsx",
+      "read": "partial",
+      "reason": "changed hunk"
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/notesLibrary.test.tsx",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/notesViewPerTarget.test.tsx",
+      "read": "partial",
+      "reason": "new file in diff, read for gate and Target-change cases"
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/viewMenusJa.test.tsx",
+      "read": "partial",
+      "reason": "new file in diff, skimmed"
+    },
+    {
+      "path": "addons/knowledge/frontend/clipsapp/__tests__/clipsUrl.test.ts",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "addons/knowledge/frontend/clipsapp/__tests__/requests.test.ts",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "addons/knowledge/frontend/library/__tests__/NotesLibrary.test.tsx",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "addons/knowledge/frontend/library/__tests__/libraryUrl.test.ts",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "frontend/src/components/__tests__/readingVideoLayoutFixtureParity.test.tsx",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "frontend/src/components/__tests__/toolbarMenuHome.test.ts",
+      "read": "partial",
+      "reason": "changed hunk"
+    },
+    {
+      "path": "frontend/src/components/__tests__/viewMenus.wording.test.tsx",
+      "read": "partial",
+      "reason": "new file in diff, skimmed"
+    },
+    {
+      "path": "frontend/src/components/readingapp/__tests__/ReadingApp.library.test.tsx",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "frontend/src/components/readingapp/__tests__/ReadingApp.targetView.test.tsx",
+      "read": "partial",
+      "reason": "new file in diff, skimmed"
+    },
+    {
+      "path": "frontend/src/components/readingapp/__tests__/ReadingShelfPage.continueOrder.test.tsx",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoApp.states.test.tsx",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoApp.targetView.test.tsx",
+      "read": "partial",
+      "reason": "new file in diff, skimmed"
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoApp.test.tsx",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoApp.viewResolution.test.tsx",
+      "read": "partial",
+      "reason": "new file in diff, skimmed"
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoShelfPage.continueOrder.test.tsx",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "frontend/src/lib/__tests__/appPrefs.targetView.test.ts",
+      "read": "partial",
+      "reason": "new file in diff, skimmed"
+    },
+    {
+      "path": "frontend/src/lib/__tests__/appPrefs.test.ts",
+      "read": "partial",
+      "reason": "changed hunks"
+    }
+  ],
+  "confidence": 75
+}

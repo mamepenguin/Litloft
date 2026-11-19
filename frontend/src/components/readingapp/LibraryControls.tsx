@@ -152,6 +152,7 @@ export function ReadingSortMenu<Id extends string>({
       truncateValue
       filled={filled}
       quiet={quiet}
+      fullValue={quiet}
       className="min-w-0"
       align="end"
     >

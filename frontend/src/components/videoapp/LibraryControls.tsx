@@ -27,6 +27,7 @@ export function SortChoiceMenu<Id extends string>({
       icon={ArrowDownUp}
       truncateValue
       quiet={quiet}
+      fullValue={quiet}
       className="min-w-0"
       align="end"
     >

@@ -147,6 +147,8 @@ interface ToolbarMenuProps {
   truncateValue?: boolean;
   /** Fills its container, for a row of menus that share the width equally. */
   fullWidth?: boolean;
+  /** Draws a quiet menu's whole value, for a value the viewer must read in full. */
+  fullValue?: boolean;
   /** Added to the visible value, for example to hide it where the bar is narrow. */
   valueClassName?: string;
   children: (close: () => void) => ReactNode;
@@ -169,6 +171,7 @@ export function ToolbarMenu({
   quiet = false,
   truncateValue = false,
   fullWidth = false,
+  fullValue = false,
   valueClassName,
   children,
 }: ToolbarMenuProps) {
@@ -228,7 +231,9 @@ export function ToolbarMenu({
             <span className="flex-shrink-0">
               <Icon size={14} />
             </span>
-            <span className="min-w-[2.5em] truncate">{value}</span>
+            <span className={fullValue ? "whitespace-nowrap" : "min-w-[2.5em] truncate"}>
+              {value}
+            </span>
             <ChevronDown size={14} className="flex-shrink-0" aria-hidden="true" />
           </>
         ) : filled ? (
