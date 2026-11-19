@@ -3,7 +3,8 @@ import { pathToFileURL } from "node:url";
 
 import { PAGE } from "./build-bundle";
 import {
-  SCENES_FRAME_STEP,
+  SCENES_FRAMES,
+  SCENES_LONG_FRAMES,
   SCENES_LONG_LABEL,
   SCENES_LONG_TEXT,
   SCENES_SHORT_LABEL,
@@ -19,7 +20,10 @@ const MIN_TILE_WIDTH = 112;
 type Pointer = "mouse" | "touch";
 
 export interface ScenesCase {
+  /** The fixture route's id. */
+  route: string;
   hostWidth: number;
+  hostHeight: number;
   pointer: Pointer;
   /** Columns the spec's measurement table gives this host. */
   columns: number;
@@ -27,22 +31,10 @@ export interface ScenesCase {
   long?: boolean;
 }
 
-function timeLabel(seconds: number): string {
-  const minutes = Math.floor(seconds / 60);
-  const rest = seconds % 60;
-  return `${minutes}:${String(rest).padStart(2, "0")}`;
-}
-
-async function open(
-  page: Page,
-  { hostWidth, pointer, long = false }: ScenesCase,
-): Promise<void> {
-  const arrangement = `${long ? "scenes-long" : "scenes"}-${hostWidth}`;
-  await page.goto(`${FIXTURE}#${arrangement}`);
-  await expect(page.locator("body")).toHaveAttribute(
-    "data-arrangement",
-    arrangement,
-  );
+async function open(page: Page, scenesCase: ScenesCase): Promise<void> {
+  const { route, pointer } = scenesCase;
+  await page.goto(`${FIXTURE}#${route}`);
+  await expect(page.locator("body")).toHaveAttribute("data-arrangement", route);
   expect(
     await page.evaluate(
       (expected) => matchMedia(`(pointer: ${expected})`).matches,
@@ -58,14 +50,8 @@ async function open(
     page.locator(`${HOST} button[aria-label^="Play from"]`).first(),
   ).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "Regenerate scenes" }),
+    page.getByRole("button", { name: /^(Regenerate|Create) scenes$/ }),
   ).toBeVisible();
-}
-
-async function sectionHeight(page: Page): Promise<number> {
-  const box = await page.locator(SECTION).boundingBox();
-  expect(box).not.toBeNull();
-  return box!.height;
 }
 
 /** The section's border box against its host's content box. */
@@ -82,9 +68,7 @@ async function drawnColumns(page: Page): Promise<number> {
     (section) =>
       new Set(
         Array.from(
-          section.querySelectorAll<HTMLElement>(
-            'button[aria-label^="Play from"]',
-          ),
+          section.querySelectorAll<HTMLElement>('button[aria-label^="Play from"]'),
         ).map((tile) => Math.round(tile.getBoundingClientRect().left)),
       ).size,
   );
@@ -98,61 +82,53 @@ async function drawnTileWidths(page: Page): Promise<number[]> {
   );
 }
 
-/** The rows that must span the section: the header's chevron and its buttons. */
-async function rightEdges(
-  page: Page,
-): Promise<{ host: number; chevron: number; action: number }> {
+/** The list's own scroll box, as the browser laid it out. */
+async function listReading(page: Page): Promise<{
+  overflowY: string;
+  gutter: string;
+  clientWidth: number;
+  scrollWidth: number;
+  clientHeight: number;
+  scrollHeight: number;
+  hostScrollTop: number;
+  sectionScrollWidth: number;
+  sectionClientWidth: number;
+}> {
   return page.locator(SECTION).evaluate((section) => {
+    const list = section.querySelector<HTMLElement>("[data-scene-list]")!;
     const host = section.parentElement as HTMLElement;
-    const header = section.querySelector<HTMLElement>("button[aria-expanded]");
-    if (!header) throw new Error("no header is drawn");
-    const chevron = header.lastElementChild as HTMLElement;
-    const action = Array.from(
-      section.querySelectorAll<HTMLElement>("button"),
-    ).find((button) => (button.textContent ?? "").trim() === "Regenerate scenes");
-    if (!action) throw new Error("no action row button is drawn");
     return {
-      host: host.getBoundingClientRect().right,
-      chevron: chevron.getBoundingClientRect().right,
-      action: action.getBoundingClientRect().right,
+      overflowY: getComputedStyle(list).overflowY,
+      gutter: getComputedStyle(list).scrollbarGutter,
+      clientWidth: list.clientWidth,
+      scrollWidth: list.scrollWidth,
+      clientHeight: list.clientHeight,
+      scrollHeight: list.scrollHeight,
+      hostScrollTop: host.scrollTop,
+      sectionScrollWidth: section.scrollWidth,
+      sectionClientWidth: section.clientWidth,
     };
   });
 }
 
-/** Every element in the section that has more content than its box. */
-async function overflowing(page: Page): Promise<string[]> {
-  return page.locator(SECTION).evaluate((root) => {
-    const nodes: HTMLElement[] = [root as HTMLElement];
-    nodes.push(...Array.from(root.querySelectorAll<HTMLElement>("*")));
-    return nodes
-      .filter((node) => {
-        const { overflowX, overflowY } = getComputedStyle(node);
-        return (
-          overflowX === "auto" ||
-          overflowX === "scroll" ||
-          overflowY === "auto" ||
-          overflowY === "scroll"
-        );
-      })
-      .filter(
-        (node) =>
-          node.scrollWidth > node.clientWidth ||
-          node.scrollHeight > node.clientHeight,
-      )
-      .map((node) => `${node.tagName.toLowerCase()}.${node.className}`);
-  });
+/** Ticks drawn on the ruler's single path. */
+async function tickCount(page: Page): Promise<number> {
+  return page.locator(`${SECTION} [role="slider"] path`).evaluate(
+    (path) => ((path.getAttribute("d") ?? "").match(/M/g) ?? []).length,
+  );
 }
 
 interface CardReading {
   label: string;
   text: string;
+  height: number;
   /** Lines the label shows before the clamp cuts it. */
   labelLines: number;
   /** True when the label's text needs more lines than the clamp shows. */
   labelClipped: boolean;
 }
 
-/** The card under the grid, read as the browser laid it out. */
+/** The scene card under the list, read as the browser laid it out. */
 async function card(page: Page): Promise<CardReading> {
   return page.locator(SECTION).evaluate((root) => {
     const button = root.querySelector<HTMLElement>("button.rounded-xl");
@@ -160,10 +136,20 @@ async function card(page: Page): Promise<CardReading> {
     const [label, text] = Array.from(
       button.querySelectorAll<HTMLElement>(".line-clamp-2"),
     );
+    if (!label) {
+      return {
+        label: button.textContent ?? "",
+        text: "",
+        height: button.getBoundingClientRect().height,
+        labelLines: 1,
+        labelClipped: false,
+      };
+    }
     const lineHeight = Number.parseFloat(getComputedStyle(label).lineHeight);
     return {
       label: label.textContent ?? "",
       text: text?.textContent ?? "",
+      height: button.getBoundingClientRect().height,
       labelLines: Math.round(label.clientHeight / lineHeight),
       labelClipped: label.scrollHeight > label.clientHeight,
     };
@@ -171,10 +157,10 @@ async function card(page: Page): Promise<CardReading> {
 }
 
 /**
- * Moves the point being looked at to `fraction` of the ruler's width. A mouse
- * hovers; a finger taps, which is the only browse a touch environment has.
+ * Moves the ruler point to `fraction` of the ruler's width. A mouse presses;
+ * a finger taps. Neither seeks.
  */
-async function browse(
+async function pointAt(
   page: Page,
   { pointer }: ScenesCase,
   fraction: number,
@@ -186,39 +172,22 @@ async function browse(
   const x = box!.x + box!.width * fraction;
   const y = box!.y + box!.height / 2;
   if (pointer === "touch") await page.touchscreen.tap(x, y);
-  else await page.mouse.move(x, y);
-  // A tap seeks as well, and the playback marker and the card are read from
-  // the shared clock's next sample rather than from the event.
-  await page.clock.runFor(1_000);
-}
-
-/**
- * Takes the mouse off the section. A mouse browse point survives a playback
- * jump while the pointer is inside, so a window move under the pointer is only
- * a window move once browsing has ended; a finger has no hover, and its point
- * ends with the jump itself.
- */
-async function stopBrowsing(page: Page, { pointer }: ScenesCase): Promise<void> {
-  if (pointer === "touch") return;
-  const host = await page.locator(HOST).boundingBox();
-  expect(host).not.toBeNull();
-  await page.mouse.move(host!.x + host!.width / 2, host!.y + host!.height + 40);
+  else await page.mouse.click(x, y);
+  await page.waitForTimeout(100);
 }
 
 export function scenesSectionCases(cases: ScenesCase[]): void {
-  test.describe("SPEC-ADDON-089 I5 — the Scenes section never scrolls and keeps its height", () => {
+  test.describe("SPEC-ADDON-152 I1 — every frame in one list", () => {
     for (const scenesCase of cases) {
-      const { hostWidth, pointer, columns } = scenesCase;
-      test(`${hostWidth}px host, ${pointer}, ${columns} columns`, async ({
+      const { hostWidth, hostHeight, pointer, columns, long = false } = scenesCase;
+      test(`${hostWidth}×${hostHeight} host, ${pointer}, ${columns} columns`, async ({
         page,
       }) => {
-        // Fake timers, so the clock sample that moves the window happens when
-        // this case says it does.
-        await page.clock.install();
         await open(page, scenesCase);
 
+        const frames = long ? SCENES_LONG_FRAMES : SCENES_FRAMES;
         const tiles = page.locator(`${HOST} button[aria-label^="Play from"]`);
-        await expect(tiles).toHaveCount(3 * columns);
+        await expect(tiles).toHaveCount(frames);
 
         const width = await fill(page);
         expect(width.section).toBeCloseTo(width.host, 0);
@@ -230,61 +199,62 @@ export function scenesSectionCases(cases: ScenesCase[]): void {
             );
           }
         }
-        expect(await overflowing(page)).toEqual([]);
 
-        // Frame 0 holds the scene with no `visible_text`.
-        const opened = await sectionHeight(page);
-        const first = await card(page);
-        expect(first.label).toBe(SCENES_SHORT_LABEL);
-        expect(first.text).toBe("");
-        // The card reserves its height as a whole, so a one-line label takes
-        // one line and the text follows it directly.
-        expect(first.labelLines).toBe(1);
-
-        // Frame 5: still the same window, another scene in the card.
-        await browse(page, scenesCase, 0.09);
-        const browsed = await sectionHeight(page);
-        const second = await card(page);
-        expect(second.label).toBe(SCENES_LONG_LABEL);
-        expect(second.text).toBe(SCENES_LONG_TEXT);
-        expect(second.labelLines).toBe(2);
-        expect(second.labelClipped).toBe(true);
-
-        // Back to frame 0, still on the same window.
-        await browse(page, scenesCase, 0.005);
-        const again = await sectionHeight(page);
-        expect((await card(page)).label).toBe(SCENES_SHORT_LABEL);
-
-        await stopBrowsing(page, scenesCase);
-
-        // The first frame of the third row moves the window by two rows.
-        const moveFrame = 3 * columns;
-        await page.evaluate((time) => {
-          window.__scenesPlayback.time = time;
-        }, moveFrame * SCENES_FRAME_STEP);
-        await page.clock.runFor(1_000);
-        await expect(tiles.first()).toHaveAttribute(
-          "aria-label",
-          `Play from ${timeLabel(2 * columns * SCENES_FRAME_STEP)}`,
+        const reading = await listReading(page);
+        expect(reading.overflowY).toMatch(/auto|scroll/);
+        expect(reading.gutter).toContain("stable");
+        expect(reading.scrollWidth).toBeLessThanOrEqual(
+          reading.clientWidth + 1,
         );
-        // The window's pictures arrive after the section's settle delay.
-        await page.clock.runFor(500);
-        await expect(tiles.locator("img")).toHaveCount(3 * columns);
-        const moved = await sectionHeight(page);
+        expect(reading.sectionScrollWidth).toBeLessThanOrEqual(
+          reading.sectionClientWidth + 1,
+        );
+        expect(reading.hostScrollTop, "the host starts unscrolled").toBe(0);
+        expect(reading.clientHeight).toBeGreaterThan(0);
 
-        expect(await overflowing(page)).toEqual([]);
+        expect(await tickCount(page)).toBe(frames);
+      });
+    }
+  });
+}
 
-        for (const height of [browsed, again, moved]) {
-          expect(height).toBeCloseTo(opened, 0);
+export interface ScenesCardCase extends ScenesCase {
+  oneLine: boolean;
+}
+
+export function scenesCardCases(cases: ScenesCardCase[]): void {
+  test.describe("SPEC-ADDON-152 I5 — the card's form and the ruler's point", () => {
+    for (const scenesCase of cases) {
+      const { hostWidth, hostHeight, pointer, oneLine } = scenesCase;
+      test(`${hostWidth}×${hostHeight} host, ${pointer}, ${oneLine ? "one line" : "full"}`, async ({
+        page,
+      }) => {
+        await open(page, scenesCase);
+
+        const opened = await card(page);
+        expect(opened.label).toContain(SCENES_SHORT_LABEL);
+        expect(opened.text).toBe("");
+        if (oneLine) {
+          expect(opened.height).toBeLessThan((7.6 * 16) / 2);
+        } else {
+          expect(opened.labelLines).toBe(1);
+          expect(opened.height).toBeGreaterThanOrEqual(7.6 * 16 - 0.5);
         }
 
-        const edges = await rightEdges(page);
-        expect(Math.abs(edges.host - edges.chevron)).toBeLessThanOrEqual(
-          TOLERANCE,
-        );
-        expect(Math.abs(edges.host - edges.action)).toBeLessThanOrEqual(
-          TOLERANCE,
-        );
+        await pointAt(page, scenesCase, 0.09);
+        const browsed = await card(page);
+        expect(browsed.label).toContain(SCENES_LONG_LABEL.slice(0, 24));
+        if (oneLine) {
+          expect(browsed.text).toBe("");
+          expect(browsed.height).toBeLessThan((7.6 * 16) / 2);
+        } else {
+          expect(browsed.text).toBe(SCENES_LONG_TEXT);
+          expect(browsed.labelLines).toBe(2);
+          expect(browsed.labelClipped).toBe(true);
+        }
+
+        await pointAt(page, scenesCase, 0.005);
+        expect((await card(page)).label).toContain(SCENES_SHORT_LABEL);
       });
     }
   });
@@ -330,9 +300,8 @@ async function timeLabelBoxes(page: Page): Promise<LabelReading> {
 export function scenesTimeLabelCases(cases: ScenesCase[]): void {
   test.describe("I11 — the drawn time labels leave 4 px between boxes", () => {
     for (const scenesCase of cases) {
-      const { hostWidth, pointer } = scenesCase;
-      test(`${hostWidth}px host, ${pointer}`, async ({ page }) => {
-        await page.clock.install();
+      const { hostWidth, hostHeight, pointer } = scenesCase;
+      test(`${hostWidth}×${hostHeight} host, ${pointer}`, async ({ page }) => {
         await open(page, scenesCase);
 
         const reading = await timeLabelBoxes(page);

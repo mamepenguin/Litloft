@@ -2845,22 +2845,25 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "video-card-spacing": VideoCardSpacingArrangement,
   "app-header": AppHeaderArrangement,
   "persistent-highlights": PersistentHighlightsArrangement,
-  "scenes-351": () => <ScenesSectionArrangement hostWidth={351} />,
-  "scenes-384": () => <ScenesSectionArrangement hostWidth={384} />,
-  "scenes-390": () => <ScenesSectionArrangement hostWidth={390} />,
-  "scenes-688": () => <ScenesSectionArrangement hostWidth={688} />,
-  "scenes-900": () => <ScenesSectionArrangement hostWidth={900} />,
+  "scenes-351": () => <ScenesSectionArrangement hostWidth={351} hostHeight={900} />,
+  "scenes-384": () => <ScenesSectionArrangement hostWidth={384} hostHeight={1400} />,
+  "scenes-390": () => <ScenesSectionArrangement hostWidth={390} hostHeight={844} />,
+  "scenes-688": () => <ScenesSectionArrangement hostWidth={688} hostHeight={844} />,
+  "scenes-900": () => <ScenesSectionArrangement hostWidth={900} hostHeight={900} />,
   "scenes-long-351": () => (
-    <ScenesSectionArrangement hostWidth={351} long />
+    <ScenesSectionArrangement hostWidth={351} hostHeight={900} long />
   ),
   "scenes-long-384": () => (
-    <ScenesSectionArrangement hostWidth={384} long />
+    <ScenesSectionArrangement hostWidth={384} hostHeight={1400} long />
   ),
   "scenes-long-390": () => (
-    <ScenesSectionArrangement hostWidth={390} long />
+    <ScenesSectionArrangement hostWidth={390} hostHeight={844} long />
   ),
   "scenes-bounded-1024": () => (
     <ScenesBoundedArrangement hostWidth={1024} hostHeight={600} />
+  ),
+  "scenes-short-688": () => (
+    <ScenesSectionArrangement hostWidth={688} hostHeight={360} />
   ),
   "scenes-bounded-short": () => (
     <ScenesBoundedArrangement hostWidth={1024} hostHeight={260} />

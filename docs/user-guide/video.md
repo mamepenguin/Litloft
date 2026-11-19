@@ -114,9 +114,13 @@ drive cannot be opened at `/drive/<drive>/apps`, in the same way as a root folde
 
 ## Watching a video
 
-On a video's own page, the ruler in the **Scenes** panel shows the video's frames along
-its length. Hovering the ruler, or touching it on a phone, shows the frames there without
-moving the video. A click on the ruler, or a tap on a frame, plays from that point.
+On a video's own page, the **Scenes** panel draws every frame in one scrolling list. The
+ruler above it is the list's map: the band shows the part of the video the list is showing,
+hovering draws a line without moving anything, and a click, tap or drag on it scrolls the
+list to that time without playing. A tile or the scene card plays from its time.
+
+While a video plays, the list follows the playing frame. After you scroll the list, the
+**Back to current position** button at its top returns to the playing frame.
 
 The thin band above the seek bar, and the bars on Continue and Recently viewed cards, fill
 the parts you have already watched; only continuous playing of 10 seconds or more is

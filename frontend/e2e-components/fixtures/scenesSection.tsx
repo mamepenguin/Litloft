@@ -120,12 +120,14 @@ function stubIntelligenceApi(data: ScenesDataset): void {
   };
 }
 
-/** The real Scenes section in a host of the given width. */
+/** The real Scenes section in a host of the given width and height. */
 export function ScenesSectionArrangement({
   hostWidth,
+  hostHeight = 900,
   long = false,
 }: {
   hostWidth: number;
+  hostHeight?: number;
   long?: boolean;
 }): ReactElement {
   const data = long ? LONG : SHORT;
@@ -136,7 +138,11 @@ export function ScenesSectionArrangement({
   );
 
   return (
-    <div id="scenes-host" className="bg-bg-primary" style={{ width: hostWidth }}>
+    <div
+      id="scenes-host"
+      className="bg-bg-primary flex min-h-0 flex-col overflow-y-auto"
+      style={{ width: hostWidth, height: hostHeight }}
+    >
       <NextIntlClientProvider
         locale="en"
         messages={{ ...enMessages, ...intelligenceEn }}
