@@ -7,14 +7,22 @@ import { useLocale, useTranslations } from "next-intl";
 import { EmptyState } from "@/components/EmptyState";
 import { RetryButton } from "@/components/appshell/RetryButton";
 import { ShelfBlock } from "@/components/appshell/ShelfBlock";
+import { GroupMenu, LibraryControlRow, SortMenu } from "@/components/appshell/ViewMenus";
 import { useNearEnd } from "@/components/appshell/useNearEnd";
 import { usePaged } from "@/components/appshell/usePaged";
 import { type Shelf, type ShelfItem, type ShelfWatchState } from "@/lib/api";
-import type { ReadingGroup } from "@/lib/appPrefs";
 import type { AppRequests } from "@/lib/memberTarget";
 import type { ReadingTargetParams } from "@/lib/readingAppTarget";
-import { folderLabel, shelfTitle, sortChoiceOf, type SortChoice } from "./labels";
-import { GroupMenu, ReadingSortMenu, StateMenu, TagMenu, type ReadingState } from "./LibraryControls";
+import {
+  READING_GROUPS,
+  SORT_CHOICES,
+  folderLabel,
+  shelfTitle,
+  sortChoiceOf,
+  type ReadingGroup,
+  type SortId,
+} from "./labels";
+import { StateMenu, TagMenu, type ReadingState } from "./LibraryControls";
 import { ReadingCard } from "./ReadingCard";
 import { ReadingGrid } from "./ReadingGrid";
 import { narrowFolders, normalizeFolder } from "./folders";
@@ -82,9 +90,9 @@ export function LibraryFace({
   empty: boolean;
   hasProfile: boolean;
   group: ReadingGroup;
-  sortId: SortChoice["id"];
+  sortId: SortId;
   onGroup: (value: ReadingGroup) => void;
-  onSort: (value: SortChoice["id"]) => void;
+  onSort: (value: SortId) => void;
   onViewerRejected: () => void;
 }) {
   const t = useTranslations("readingApp");
@@ -155,15 +163,17 @@ export function LibraryFace({
     [drive, query, requests, blocked, sort.sort, sort.order, onViewerRejected],
   );
 
+  const groupedBy = group === "none" ? null : group;
+
   const fetchGrouped = useMemo(
     () =>
-      query === null || blocked
+      query === null || blocked || groupedBy === null
         ? null
         : (page: number) =>
             requests
               .shelves(drive, {
                 ...query,
-                by: "tag",
+                by: groupedBy,
                 sort: sort.sort,
                 order: sort.order,
                 per_shelf: LIBRARY_TAG_ITEMS,
@@ -177,11 +187,11 @@ export function LibraryFace({
                   throw error;
                 },
               ),
-    [drive, query, requests, blocked, sort.sort, sort.order, onViewerRejected],
+    [drive, query, requests, blocked, groupedBy, sort.sort, sort.order, onViewerRejected],
   );
 
-  const flat = usePaged<ShelfItem>(group === "none" ? fetchFlat : null);
-  const grouped = usePaged<Shelf>(group === "tag" ? fetchGrouped : null);
+  const flat = usePaged<ShelfItem>(groupedBy === null ? fetchFlat : null);
+  const grouped = usePaged<Shelf>(groupedBy === null ? null : fetchGrouped);
   const flatSentinel = useNearEnd(flat.hasMore && flat.more === "idle", flat.loadMore);
   const groupedSentinel = useNearEnd(
     grouped.hasMore && grouped.more === "idle",
@@ -223,19 +233,30 @@ export function LibraryFace({
     </div>
   );
 
+  const groupOptions = READING_GROUPS.map((candidate) => ({
+    value: candidate,
+    label: t(`group.${candidate}`),
+  }));
+  const sortOptions = SORT_CHOICES.map((choice) => ({
+    value: choice.id,
+    label: t(choice.labelKey),
+  }));
+
   const controls = (
-    <div className="flex flex-wrap items-center gap-2">
-      <TagMenu drive={drive} selected={tags} onToggle={toggleTag} />
-      {hasProfile && <StateMenu value={state} onChange={setState} />}
-      <GroupMenu value={group} onChange={onGroup} />
-      <ReadingSortMenu value={sortId} onChange={onSort} filled />
-    </div>
+    <LibraryControlRow>
+      <div className="col-span-2 flex min-w-0 flex-wrap items-center gap-2 sm:col-span-1 sm:flex-nowrap">
+        <TagMenu drive={drive} selected={tags} onToggle={toggleTag} />
+        {hasProfile && <StateMenu value={state} onChange={setState} />}
+      </div>
+      <GroupMenu options={groupOptions} value={group} onChange={onGroup} />
+      <SortMenu options={sortOptions} value={sortId} onChange={onSort} />
+    </LibraryControlRow>
   );
 
   let body: ReactNode;
   if (blocked) {
     body = <EmptyState icon={BookOpen} title={t("noBooks")} />;
-  } else if (group === "none") {
+  } else if (groupedBy === null) {
     if (flat.phase === "failed") {
       body = <RetryButton onRetry={flat.retry} />;
     } else if (flat.phase === "ready") {
@@ -290,9 +311,9 @@ export function LibraryFace({
             {grouped.items.map((shelf) => (
               <ShelfBlock
                 key={shelf.key}
-                title={shelfTitle({ by: "tag", key: shelf.key, drive, t: (key) => t(key) })}
+                title={shelfTitle({ by: groupedBy, key: shelf.key, drive, locale, t: (key) => t(key) })}
                 count={number.format(shelf.count)}
-                seeAllHref={readingShelfHref(drive, "tag", shelf.key, sortId, conditions, "library")}
+                seeAllHref={readingShelfHref(drive, groupedBy, shelf.key, sortId, conditions, "library")}
                 view={{ status: "loaded", items: shelf.items }}
                 onRetry={grouped.retry}
                 book

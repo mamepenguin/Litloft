@@ -8,7 +8,22 @@ import {
   collectionTargetId,
   parseAppTargetId,
 } from "@/lib/appTarget";
-import { readAppPrefs, writeAppPrefs, type AppPrefs } from "@/lib/appPrefs";
+import {
+  readAppPrefs,
+  readLegacyGroup,
+  readTargetView,
+  writeAppPrefs,
+  writeTargetView,
+  type AppPrefs,
+  type TargetView,
+} from "@/lib/appPrefs";
+import {
+  DEFAULT_VIDEO_GROUP,
+  isSortId,
+  isVideoGroup,
+  type SortId,
+  type VideoGroup,
+} from "./labels";
 import { appRequests, type AppRequests, type MemberTarget } from "@/lib/memberTarget";
 import {
   resolveVideoCollectionTarget,
@@ -33,6 +48,10 @@ export interface VideoAppState {
   /** `null` until the stored values are read, so no request goes out for a default. */
   prefs: AppPrefs | null;
   updatePrefs: (changes: Partial<AppPrefs>) => void;
+  /** The grouping and the sort in force for the target shown. */
+  view: { group: VideoGroup; sort: SortId };
+  setGroup: (group: VideoGroup) => void;
+  setSort: (sort: SortId) => void;
   /** The profile's name, or `null` when none is set. */
   nickname: string | null;
   /** The profile exists and the server has not turned it away. */
@@ -77,13 +96,31 @@ interface Resolution {
   member: MemberTarget | null;
 }
 
+interface ChosenView {
+  drive: string;
+  targetId: string;
+  view: TargetView;
+}
+
+function pickVideoGroup(
+  held: string | undefined,
+  legacy: string | null,
+  hasProfile: boolean,
+): VideoGroup {
+  if (isVideoGroup(held)) return held === "watch" && !hasProfile ? "folder" : held;
+  if (isVideoGroup(legacy)) return legacy === "watch" && !hasProfile ? "folder" : legacy;
+  return DEFAULT_VIDEO_GROUP;
+}
+
 export function useVideoApp(drive: string): VideoAppState {
   const { nickname } = useProfile();
   const [prefs, setPrefs] = useState<AppPrefs | null>(null);
+  const [chosen, setChosen] = useState<ChosenView | null>(null);
   const [rejectedFor, setRejectedFor] = useState<string | null>(null);
 
   useEffect(() => {
     setPrefs(readAppPrefs(drive));
+    setChosen(null);
   }, [drive]);
 
   const updatePrefs = useCallback(
@@ -181,12 +218,72 @@ export function useVideoApp(drive: string): VideoAppState {
   const targetName = resolved.collection?.name ?? resolved.folder?.name ?? null;
 
   const hasProfile = nickname !== null && rejectedFor !== nickname;
+
+  const storedView = useMemo(
+    () => readTargetView("video", drive, targetId),
+    [drive, targetId],
+  );
+  const view = useMemo(() => {
+    const held =
+      chosen !== null && chosen.drive === drive && chosen.targetId === targetId
+        ? { ...storedView, ...chosen.view }
+        : storedView;
+    const legacy = targetId === "default" ? readLegacyGroup(drive, "video") : null;
+    return {
+      group: pickVideoGroup(held.group, legacy, hasProfile),
+      sort: isSortId(held.sort) ? held.sort : "newest",
+    };
+  }, [chosen, drive, targetId, storedView, hasProfile]);
+
+  const setGroup = useCallback(
+    (group: VideoGroup) => {
+      writeTargetView("video", drive, targetId, { group });
+      setChosen((held) => ({
+        drive,
+        targetId,
+        view: {
+          ...(held !== null && held.drive === drive && held.targetId === targetId
+            ? held.view
+            : {}),
+          group,
+        },
+      }));
+    },
+    [drive, targetId],
+  );
+  const setSort = useCallback(
+    (sort: SortId) => {
+      writeTargetView("video", drive, targetId, { sort });
+      setChosen((held) => ({
+        drive,
+        targetId,
+        view: {
+          ...(held !== null && held.drive === drive && held.targetId === targetId
+            ? held.view
+            : {}),
+          sort,
+        },
+      }));
+    },
+    [drive, targetId],
+  );
+
   const rejectViewer = useCallback(() => setRejectedFor(nickname), [nickname]);
-  const chooseTarget = useCallback((id: string) => updatePrefs({ target: id }), [updatePrefs]);
+  const chooseTarget = useCallback(
+    (id: string) => {
+      if (id === targetId) return;
+      setChosen(null);
+      updatePrefs({ target: id });
+    },
+    [targetId, updatePrefs],
+  );
 
   return {
     prefs,
     updatePrefs,
+    view,
+    setGroup,
+    setSort,
     nickname,
     hasProfile,
     rejectViewer,

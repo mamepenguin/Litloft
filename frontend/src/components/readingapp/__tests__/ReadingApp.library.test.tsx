@@ -7,11 +7,10 @@ import { useState } from "react";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { readReadingGroup, writeAppPrefs } from "@/lib/appPrefs";
-import type { ReadingGroup } from "@/lib/appPrefs";
+import { readTargetView, writeAppPrefs } from "@/lib/appPrefs";
 import { appRequests } from "@/lib/memberTarget";
 import { LibraryFace } from "../LibraryFace";
-import type { SortChoice } from "../labels";
+import type { ReadingGroup, SortChoice } from "../labels";
 import { ReadingApp } from "../ReadingApp";
 
 const DRIVE = "main";
@@ -310,14 +309,14 @@ describe("I19 grouping and sort", () => {
     await screen.findByText("Flat one");
 
     fireEvent.click(screen.getByRole("button", { name: /Group/ }));
-    fireEvent.click(screen.getByRole("menuitemradio", { name: "By tag" }));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "Tag" }));
 
     await screen.findByText("Trip one");
     const call = shelfCalls({ by: "tag" })[0][1] as Params;
     expect(call).toMatchObject({ per_shelf: 12, shelf_limit: 12, sort: "created_at", order: "desc" });
     const headings = screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent);
     expect(headings.slice(-2)).toEqual(["Trip", "No tag"]);
-    expect(readReadingGroup(DRIVE)).toBe("tag");
+    expect(readTargetView("reading", DRIVE, "default").group).toBe("tag");
   });
 
   it("orders the flat grid and every shelf by the chosen sort", async () => {
@@ -333,7 +332,7 @@ describe("I19 grouping and sort", () => {
     });
 
     fireEvent.click(screen.getByRole("button", { name: /Group/ }));
-    fireEvent.click(screen.getByRole("menuitemradio", { name: "By tag" }));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "Tag" }));
     await screen.findByText("Trip one");
     expect(shelfCalls({ by: "tag", sort: "file_size", order: "desc" }).length).toBeGreaterThan(0);
   });
@@ -350,7 +349,7 @@ describe("I19 grouping and sort", () => {
     fireEvent.click(screen.getByText("Size"));
 
     fireEvent.click(screen.getByRole("button", { name: /Group/ }));
-    fireEvent.click(screen.getByRole("menuitemradio", { name: "By tag" }));
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "Tag" }));
 
     const link = await screen.findByRole("link", { name: "See all: Trip" });
     const url = new URL(link.getAttribute("href") ?? "", "http://localhost");

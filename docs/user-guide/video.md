@@ -47,24 +47,33 @@ video app instead, under the same target (type and Smart Collection) as Discover
 videos load as you scroll. **Recommended**'s **See all** opens a page in the video app
 under the same target, listing the recommended videos you have not watched yet. The shelf page shows 60
 videos at a time, except Recommended's, which shows all of them at once. **Continue**'s
-page opens most recently played first, with **最後に開いた順** /
-**Last opened** in its sort menu.
+page opens most recently played first, with **最後に開いた日** /
+**Date Last Opened** in its sort menu.
 
 ## Library
 
-**Classification** chooses how the drive's videos are grouped into shelves, and the sort
-menu next to it orders the videos inside each shelf: added newest first (the default),
-added oldest first, title, or size. Each shelf shows its name, how many videos it holds and
-its first five; **See all** opens that shelf as a grid, 60 videos at a time, with the same
-target and sort. More shelves load as you scroll.
+**分類** / **Group By** chooses how the drive's videos are grouped into shelves, and
+**並び順** / **Sort By** next to it orders the videos inside each shelf or grid: **追加日
+（新しい順）** / **Date Added (Newest First)** (the default), **追加日（古い順）** /
+**Date Added (Oldest First)**, **タイトル** / **Title**, or **サイズ** / **Size**. Each
+shelf shows its name, how many videos it holds and its first five; **See all** opens that
+shelf as a grid, 60 videos at a time, with the same target and sort. More shelves load as
+you scroll.
 
-| Classification | Shelves |
+| Grouping | Shelves |
 |---|---|
-| **Folder** (default) | One per top-level folder. Videos at the root of the drive are under the drive's name. |
-| **Tag** | One per tag, most videos first. A video with several tags is in each of them. Videos with no tag are in **No tag**. |
-| **Month added** | One per month, newest first. Months are counted in UTC, so a video added late in the evening can land in the next month. |
-| **Length** | Under 10 min, 10 to 30 min, 30 min or more. A video whose length is unknown is in none of them. |
-| **Watch state** | In progress, Unwatched, Finished. |
+| **フォルダ** / **Folder** (default) | One per top-level folder. Videos at the root of the drive are under the drive's name. |
+| **タグ** / **Tag** | One per tag, most videos first. A video with several tags is in each of them. Videos with no tag are in **タグなし** / **No tag**. |
+| **追加日** / **Date Added** | One per month, newest first. Months are counted in UTC, so a video added late in the evening can land in the next month. |
+| **長さ** / **Length** | Under 10 min, 10 to 30 min, 30 min or more. A video whose length is unknown is in none of them. |
+| **視聴状態** / **Watch State** | In progress, Unwatched, Finished. |
+| **なし** / **None** | One grid of every video under the target, 60 at a time, loading as you scroll. |
+
+The grouping and the sort are remembered for each target in this browser, so a Smart
+Collection can open grouped by tag while **All videos** opens grouped by folder. A target
+you have not configured opens on Folder and Date Added (newest first). **All videos**
+opens on the grouping the drive used before this change, so upgrading shows the same
+shelves as before.
 
 ## Target
 
@@ -105,7 +114,7 @@ With no profile set:
 - **Continue** is not shown, because there is no history to read.
 - **Recommended** is not shown: it needs a profile to know what you have watched.
 - The addon shelves still appear, because they do not need a profile.
-- **Watch state** is not offered under **Classification**. If you had chosen it earlier,
+- **Watch State** is not offered under **Group By**. If you had chosen it earlier,
   the page shows Folder meanwhile and it comes back when you set a profile.
 
 Setting or clearing a profile takes effect on the page without a reload.

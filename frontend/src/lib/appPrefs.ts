@@ -7,26 +7,22 @@ export type AppId = (typeof APP_IDS)[number];
 /** A built-in app, or an addon by the name the addon loader accepted for it. */
 export type AppKey = AppId | { addon: string };
 
-export const APP_CLASSIFICATIONS = ["folder", "tag", "month", "duration", "watch"] as const;
-export type AppClassification = (typeof APP_CLASSIFICATIONS)[number];
-
 export interface AppPrefs {
   face: AppFace;
-  classification: AppClassification;
   /** `default` or a smart folder id; checked against the drive's list by the caller. */
   target: string;
 }
 
-export const READING_GROUPS = ["none", "tag"] as const;
-export type ReadingGroup = (typeof READING_GROUPS)[number];
-
-export const DEFAULT_READING_GROUP: ReadingGroup = "none";
-
 export const DEFAULT_APP_PREFS: AppPrefs = {
   face: "discover",
-  classification: "folder",
   target: "default",
 };
+
+/** The grouping and the sort the viewer last chose for one Target. */
+export interface TargetView {
+  group?: string;
+  sort?: string;
+}
 
 /** Encoded, so one drive's name can never be the prefix of another's key. */
 function keyPrefix(app: AppKey): string {
@@ -39,6 +35,10 @@ function keyFor(app: AppKey, field: keyof AppPrefs, drive: string): string {
 
 function shownKeyFor(app: AppKey, drive: string): string {
   return `${keyPrefix(app)}.targets.${encodeURIComponent(drive)}`;
+}
+
+function viewKeyFor(app: AppKey, drive: string): string {
+  return `${keyPrefix(app)}.view.${encodeURIComponent(drive)}`;
 }
 
 /** Distinct for `video` and `{ addon: "video" }`, which are different keys. */
@@ -65,11 +65,6 @@ function oneOf<T extends string>(allowed: readonly T[], value: string | null, fa
 export function readAppPrefs(drive: string, app: AppId = "video"): AppPrefs {
   return {
     face: oneOf(APP_FACES, read(app, "face", drive), DEFAULT_APP_PREFS.face),
-    classification: oneOf(
-      APP_CLASSIFICATIONS,
-      read(app, "classification", drive),
-      DEFAULT_APP_PREFS.classification,
-    ),
     target: readAppTarget(drive, app),
   };
 }
@@ -79,7 +74,7 @@ export function writeAppPrefs(
   changes: Partial<AppPrefs>,
   app: AppId = "video",
 ): void {
-  for (const field of ["face", "classification", "target"] as const) {
+  for (const field of ["face", "target"] as const) {
     const value = changes[field];
     if (value === undefined) continue;
     try {
@@ -148,24 +143,72 @@ export function writeShownTargets(
   }
 }
 
-function readingGroupKey(drive: string): string {
-  return `litloft.readingApp.group.${encodeURIComponent(drive)}`;
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-export function readReadingGroup(drive: string): ReadingGroup {
-  let raw: string | null;
+/** Every Target's entry on one app and drive, or `{}` when the key is unusable. */
+function readViewMap(app: AppKey, drive: string): Record<string, unknown> {
   try {
-    raw = localStorage.getItem(readingGroupKey(drive));
+    const raw = localStorage.getItem(viewKeyFor(app, drive));
+    if (raw === null) return {};
+    const parsed: unknown = JSON.parse(raw);
+    return isRecord(parsed) ? parsed : {};
   } catch {
-    return DEFAULT_READING_GROUP;
+    return {};
   }
-  return oneOf(READING_GROUPS, raw, DEFAULT_READING_GROUP);
 }
 
-export function writeReadingGroup(drive: string, group: ReadingGroup): void {
+function sanitizeView(value: unknown): TargetView {
+  if (!isRecord(value)) return {};
+  const view: TargetView = {};
+  if (typeof value.group === "string") view.group = value.group;
+  if (typeof value.sort === "string") view.sort = value.sort;
+  return view;
+}
+
+/** The stored view of one Target; `{}` when it was never written or cannot be read. */
+export function readTargetView(app: AppKey, drive: string, targetId: string): TargetView {
+  return sanitizeView(readViewMap(app, drive)[targetId]);
+}
+
+/**
+ * Merges `change` into one Target's entry and leaves every other Target alone.
+ * A key holding unreadable JSON is replaced by an object of the new entry only,
+ * which loses the other entries because they were unreadable already.
+ */
+export function writeTargetView(
+  app: AppKey,
+  drive: string,
+  targetId: string,
+  change: TargetView,
+): void {
+  const next = readViewMap(app, drive);
+  const held = isRecord(next[targetId]) ? next[targetId] : {};
+  const entry: Record<string, string> = {};
+  for (const [field, value] of Object.entries(held)) {
+    if (typeof value === "string") entry[field] = value;
+  }
+  for (const [field, value] of Object.entries(change)) {
+    if (typeof value === "string") entry[field] = value;
+  }
+  next[targetId] = entry;
   try {
-    localStorage.setItem(readingGroupKey(drive), group);
+    localStorage.setItem(viewKeyFor(app, drive), JSON.stringify(next));
   } catch {
-    // Losing the choice only returns the face to None on the next visit.
+    // The open page keeps the choice; the next mount reads its default.
+  }
+}
+
+/**
+ * The app's per-drive grouping from before views were kept per Target. Only
+ * the default Target falls back to it, and nothing writes it any more.
+ */
+export function readLegacyGroup(drive: string, app: AppKey): string | null {
+  const field = app === "reading" ? "group" : "classification";
+  try {
+    return localStorage.getItem(`${keyPrefix(app)}.${field}.${encodeURIComponent(drive)}`);
+  } catch {
+    return null;
   }
 }

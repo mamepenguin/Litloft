@@ -29,7 +29,8 @@
         "scopeDetail": "flex-shrink-0 whitespace-nowrap",
         "targetCell": "max-w-[40%] flex-shrink-0 sm:col-start-4 row-start-1 sm:max-w-none",
         "tabCell": "col-span-3 row-start-3 min-w-0 sm:col-span-4",
-        "menuButton": "flex max-w-full items-center gap-1.5 rounded-2xl border border-bg-border bg-bg-card px-3 py-2 text-sm text-text-muted transition-colors hover:text-text-primary pointer-coarse:min-h-11",
+        "menuButton": "flex max-w-full w-full items-center gap-1.5 rounded-2xl border border-bg-border bg-bg-card px-3 py-2 text-sm text-text-muted transition-colors hover:text-text-primary pointer-coarse:min-h-11",
+        "menuLabel": "flex-shrink-0 whitespace-nowrap",
         "quietMenuButton": "flex max-w-full min-w-0 items-center gap-1 rounded-xl px-2 py-1 text-sm text-text-muted hover:bg-bg-elevated pointer-coarse:min-h-11",
         "quietMenuValue": "min-w-0 truncate",
         "menuValue": "max-w-[12rem] truncate text-text-primary",
@@ -38,7 +39,7 @@
         "tabSelected": "border-accent font-semibold text-text-primary",
         "tabIdle": "border-transparent text-text-muted",
         "panel": "px-4 pb-6 pt-4 sm:pb-8",
-        "toolbar": "flex items-center gap-2",
+        "toolbar": "grid grid-cols-2 items-center gap-2 sm:flex sm:flex-wrap",
         "menuWrapper": "relative min-w-0",
         "truncate": "truncate",
         "faceStack": "space-y-8",
@@ -77,10 +78,8 @@
 
       const menuButton = (label, value, name) => {
         const button = el("button", SPEC.menuButton, undefined, { "data-menu": name, type: "button" });
-        const valueClass = name === "sort" ? SPEC.truncate : SPEC.menuValue;
-        const showLabel = name !== "sort";
-        if (showLabel) button.append(el("span", undefined, label));
-        button.append(el("span", valueClass, value));
+        button.append(el("span", SPEC.menuLabel, label));
+        button.append(el("span", SPEC.menuValue, value));
         const wrapper = el("div", SPEC.menuWrapper);
         wrapper.append(button);
         return wrapper;
@@ -190,8 +189,8 @@
           const stack = el("div", SPEC.toolbarStack);
           const toolbar = el("div", SPEC.toolbar, undefined, { "data-toolbar": "" });
           toolbar.append(
-            menuButton("Classification", "Month added", "classification"),
-            menuButton("Sort", "Added (newest first)", "sort"),
+            menuButton("Group By", "Folder", "classification"),
+            menuButton("Sort By", "Date Added (Newest First)", "sort"),
           );
           const shelves = el("div", SPEC.faceStack);
           shelves.append(shelf("Movies", "1,200", 5), shelf("A folder with a very long name that must truncate", "34", 5));

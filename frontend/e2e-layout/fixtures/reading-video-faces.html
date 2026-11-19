@@ -193,18 +193,24 @@
         "readingControls": {
           "source": "ReadingLibraryFace",
           "tag": "div",
-          "class": "flex flex-wrap items-center gap-2",
+          "class": "grid grid-cols-2 items-center gap-2 sm:flex sm:flex-wrap",
           "children": [
-            { "ref": "menuButtonFilled" },
-            { "ref": "menuButtonFilled" },
-            { "ref": "menuButtonFilledEnd" },
-            { "ref": "menuButtonFilled" }
+            {
+              "tag": "div",
+              "class": "col-span-2 flex min-w-0 flex-wrap items-center gap-2 sm:col-span-1 sm:flex-nowrap",
+              "children": [
+                { "ref": "menuButtonFilled" },
+                { "ref": "menuButtonFilled" }
+              ]
+            },
+            { "ref": "menuButton" },
+            { "ref": "menuButton" }
           ]
         },
         "videoControls": {
           "source": "VideoLibraryFace",
           "tag": "div",
-          "class": "flex items-center gap-2",
+          "class": "grid grid-cols-2 items-center gap-2 sm:flex sm:flex-wrap",
           "children": [{ "ref": "menuButton" }, { "ref": "menuButton" }]
         },
         "menuButton": {
@@ -214,7 +220,7 @@
           "children": [
             {
               "tag": "button",
-              "class": "flex items-center gap-1.5 rounded-2xl border border-bg-border bg-bg-card px-3 py-2 text-sm text-text-muted transition-colors hover:text-text-primary pointer-coarse:min-h-11 max-w-full",
+              "class": "flex items-center gap-1.5 [&>svg]:flex-shrink-0 rounded-2xl border border-bg-border bg-bg-card px-3 py-2 text-sm text-text-muted transition-colors hover:text-text-primary pointer-coarse:min-h-11 max-w-full w-full",
               "attrs": {
                 "aria-haspopup": "menu",
                 "aria-expanded": "false",
@@ -227,22 +233,6 @@
           "source": "ToolbarMenu",
           "tag": "div",
           "class": "relative min-w-0",
-          "children": [
-            {
-              "tag": "button",
-              "class": "flex max-w-full items-center gap-1.5 rounded-2xl bg-sand px-4 py-2 text-sm text-text-muted transition-colors hover:bg-sand-hover pointer-coarse:min-h-11",
-              "attrs": {
-                "aria-haspopup": "menu",
-                "aria-expanded": "false",
-                "aria-label": "*"
-              }
-            }
-          ]
-        },
-        "menuButtonFilledEnd": {
-          "source": "ToolbarMenu",
-          "tag": "div",
-          "class": "relative min-w-0 ml-auto",
           "children": [
             {
               "tag": "button",
@@ -425,11 +415,12 @@
         const labels = [
           ["Tag", "Tag"],
           ["State", "In progress"],
-          ["Group", "By tag"],
-          ["Sort", "Added (newest first)"],
+          ["Group By", "Tag"],
+          ["Sort By", "Date Added (Newest First)"],
         ];
-        controls.querySelectorAll(":scope > div").forEach((wrapper, i) => {
-          menu(wrapper, labels[i][0], labels[i][1]);
+        controls.querySelectorAll("button").forEach((button, i) => {
+          button.setAttribute("aria-label", labels[i][0] + ": " + labels[i][1]);
+          button.textContent = labels[i][0] + " " + labels[i][1];
         });
 
         stack.append(chips, controls, shelf("reading", "Novels", "34"));
@@ -445,8 +436,8 @@
         controls.querySelectorAll(":scope > div").forEach((wrapper, i) => {
           menu(
             wrapper,
-            i === 0 ? "Classification" : "Sort",
-            i === 0 ? "Folder" : "Added (newest first)",
+            i === 0 ? "Group By" : "Sort By",
+            i === 0 ? "Folder" : "Date Added (Newest First)",
           );
         });
 

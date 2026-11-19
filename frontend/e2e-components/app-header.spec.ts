@@ -204,7 +204,7 @@ for (const app of SHELF_PAGES) {
     const above = [m.h1, m.count, m.target, ...(m.tabs ? [m.tabs] : [])];
     for (const b of above) expect(sort.top).toBeGreaterThanOrEqual(b.bottom - 1);
     expect(Math.abs(sort.svgs[sort.svgs.length - 1].right - m.contentRight)).toBeLessThanOrEqual(1);
-    expect(sort.text).toContain("Added (newest first)");
+    expect(sort.text).toContain("Date Added (Newest First)");
     expect(m.scrollWidth).toBeLessThanOrEqual(PHONE);
   });
 
@@ -215,7 +215,7 @@ for (const app of SHELF_PAGES) {
     const muted = await colourOf(page, "muted");
     const elevated = await colourOf(page, "elevated");
 
-    const rest = await lookOf(sortButton(page), "Added (newest first)");
+    const rest = await lookOf(sortButton(page), "Date Added (Newest First)");
     expect(rest.background).toBe(TRANSPARENT);
     expect(rest.borderWidths).toEqual(["0px", "0px", "0px", "0px"]);
     expect(rest.color).toBe(muted);
@@ -224,7 +224,7 @@ for (const app of SHELF_PAGES) {
 
     await sortButton(page).click();
     await expect(sortButton(page)).toHaveAttribute("aria-expanded", "true");
-    expect((await lookOf(sortButton(page), "Added (newest first)")).background).toBe(elevated);
+    expect((await lookOf(sortButton(page), "Date Added (Newest First)")).background).toBe(elevated);
   });
 
   test(`SPEC-CORE-099 I14 ${app} at 375px: a long title is one line, cut with an ellipsis, with nothing beside it`, async ({

@@ -12,7 +12,6 @@ import { usePaged } from "@/components/appshell/usePaged";
 import { VideoGrid } from "@/components/appshell/VideoGrid";
 import { PageFrame } from "@/components/PageFrame";
 import { builtinApps } from "@/lib/builtinApps";
-import { MIN_CARD_COLUMNS } from "@/lib/cardGrid";
 import { loadSlotItemActions, type ShelfItemAction } from "@/lib/addons";
 import { type ShelfGrouping, type ShelfItem } from "@/lib/api";
 import { slotEntryLabel } from "@/lib/slotLabel";
@@ -29,6 +28,7 @@ import { useRemovableItems } from "./useRemovableItems";
 import { isViewerRequired, useVideoApp } from "./useVideoApp";
 import { VideoAppHeader } from "./VideoAppHeader";
 import { VideoCard, type VideoCardMenu } from "./VideoCard";
+import { SkeletonGrid, VideoPagedGrid } from "./VideoPagedGrid";
 
 export const SHELF_PAGE_SIZE = 60;
 
@@ -36,27 +36,6 @@ const GROUPINGS: readonly ShelfGrouping[] = ["all", "folder", "tag", "month", "d
 
 export function parseGrouping(raw: string | null): ShelfGrouping | null {
   return GROUPINGS.find((grouping) => grouping === raw) ?? null;
-}
-
-function SkeletonCard() {
-  return (
-    <li className="animate-pulse" aria-hidden="true">
-      <div className="aspect-video rounded-2xl bg-bg-elevated" />
-      <div className="mt-3 h-[1.375rem] w-3/4 rounded-lg bg-bg-elevated" />
-    </li>
-  );
-}
-
-function SkeletonGrid({ rows }: { rows: number }) {
-  return (
-    <VideoGrid>
-      {(columns) =>
-        Array.from({
-          length: rows * (columns > 0 ? columns : MIN_CARD_COLUMNS),
-        }).map((_, i) => <SkeletonCard key={i} />)
-      }
-    </VideoGrid>
-  );
 }
 
 /** One shelf of the Library, as a grid paged 60 at a time. */
@@ -185,10 +164,7 @@ export function VideoShelfPage({
           onRestored,
         }
       : undefined;
-  const sentinel = useNearEnd(
-    entryMode ? provider.hasMore : paged.hasMore && paged.more === "idle",
-    entryMode ? provider.loadMore : paged.loadMore,
-  );
+  const sentinel = useNearEnd(entryMode && provider.hasMore, provider.loadMore);
 
   const title = entryMode
     ? recommendedMode
@@ -244,35 +220,8 @@ export function VideoShelfPage({
     ) : (
       <SkeletonGrid rows={2} />
     )
-  ) : by === null || state.empty || watchBlocked || (paged.phase === "ready" && paged.items.length === 0) ? (
-    <EmptyState variant="no-files" />
-  ) : paged.phase === "failed" ? (
-    <RetryButton onRetry={paged.retry} />
-  ) : paged.phase === "ready" ? (
-    <>
-      <VideoGrid>
-        {() =>
-          paged.items.map((item) => (
-            <li key={item.id} className="min-w-0">
-              <VideoCard item={item} />
-            </li>
-          ))
-        }
-      </VideoGrid>
-      <div ref={sentinel} aria-hidden="true" className="h-px" />
-      {paged.more === "loading" && (
-        <div className="mt-8">
-          <SkeletonGrid rows={1} />
-        </div>
-      )}
-      {paged.more === "failed" && (
-        <div className="mt-8">
-          <RetryButton onRetry={paged.loadMore} />
-        </div>
-      )}
-    </>
   ) : (
-    <SkeletonGrid rows={2} />
+    <VideoPagedGrid paged={paged} empty={by === null || state.empty || watchBlocked} />
   );
 
   return (

@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>Clips ライブラリ フォルダ別</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+.tb{display:inline-flex;align-items:center;gap:6px;border:1px solid rgba(145,145,140,.2);background:#fff;border-radius:16px;padding:8px 12px;font-size:14px;color:#62625b;white-space:nowrap;font-family:inherit}
+.tb b{font-weight:400;color:#211922}
+.tb svg{width:16px;height:16px;flex-shrink:0}
+.card{width:200px;display:flex;flex-direction:column;gap:6px}
+.cover{width:200px;height:150px;border-radius:12px;background:#f6f6f3}
+.ct{font-size:13px;line-height:1.35;color:#211922}
+.cs{font-size:12px;color:#62625b}
+.row{display:flex;align-items:center;gap:8px;font-size:14px;color:#211922;padding:8px 10px;border-radius:10px}
+.ck{width:16px;height:16px;flex-shrink:0}
+</style>
+</helmet>
+<div style="width:1280px;height:820px;box-sizing:border-box;padding:32px 40px;background:#ffffff;color:#211922;font-family:-apple-system,system-ui,'Segoe UI',Roboto,sans-serif;display:flex;flex-direction:column;gap:20px;position:relative">
+<div style="display:flex;align-items:center;gap:12px">
+<div style="width:36px;height:36px;border-radius:10px;background:#f6f6f3"></div>
+<h1 style="margin:0;font-size:24px;font-weight:700">Clips</h1>
+<span style="font-size:14px;color:#62625b">27 件</span>
+<div style="flex:1"></div>
+<span style="font-size:14px;color:#62625b">レシピ ▾</span>
+</div>
+<div style="display:flex;gap:24px;border-bottom:1px solid rgba(145,145,140,.2)">
+<span style="font-size:14px;color:#62625b;padding:8px 0">ホーム</span>
+<span style="font-size:14px;font-weight:600;padding:8px 0;border-bottom:2px solid #211922">ライブラリ</span>
+</div>
+<div style="display:flex;gap:8px;position:relative">
+<span class="tb" style="background:#f6f6f3"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="7" height="7" x="3" y="3" rx="1"></rect><rect width="7" height="7" x="3" y="14" rx="1"></rect><path d="M14 4h7"></path><path d="M14 9h7"></path><path d="M14 15h7"></path><path d="M14 20h7"></path></svg>分類 <b>フォルダ</b><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></span>
+<span class="tb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 16 4 4 4-4"></path><path d="M7 20V4"></path><path d="m21 8-4-4-4 4"></path><path d="M17 4v16"></path></svg>並び順 <b>追加日（新しい順）</b><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></span>
+<div style="position:absolute;top:46px;left:0;z-index:5;width:220px;background:#fff;border:1px solid rgba(145,145,140,.2);border-radius:14px;box-shadow:0 8px 24px rgba(0,0,0,.12);padding:6px;display:flex;flex-direction:column">
+<div style="font-size:12px;color:#62625b;padding:6px 10px">分類</div>
+<div class="row"><span class="ck"></span>タグ</div>
+<div class="row" style="background:#f6f6f3"><svg class="ck" viewBox="0 0 24 24" fill="none" stroke="#211922" stroke-width="2" aria-hidden="true"><path d="M20 6 9 17l-5-5"></path></svg>フォルダ</div>
+<div class="row"><span class="ck"></span>追加日</div>
+<div class="row"><span class="ck"></span>なし</div>
+</div>
+</div>
+<div style="display:flex;flex-direction:column;gap:28px">
+<div style="display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;align-items:baseline;gap:8px"><span style="font-size:17px;font-weight:600">レシピ</span><span class="cs">15</span><div style="flex:1"></div><span class="cs">すべて見る ›</span></div>
+<div style="display:flex;gap:20px">
+<div class="card"><div class="cover"></div><div class="ct">鶏むね肉の塩レモン焼き</div><div class="cs">cookpad.com</div></div>
+<div class="card"><div class="cover"></div><div class="ct">和風きのこパスタ</div><div class="cs">kurashiru.com</div></div>
+<div class="card"><div class="cover"></div><div class="ct">週末の作り置き 5 品</div><div class="cs">delishkitchen.tv</div></div>
+<div class="card"><div class="cover"></div><div class="ct">15 分でできる麻婆豆腐</div><div class="cs">nhk.or.jp</div></div>
+</div>
+</div>
+<div style="display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;align-items:baseline;gap:8px"><span style="font-size:17px;font-weight:600">記事</span><span class="cs">5</span><div style="flex:1"></div><span class="cs">すべて見る ›</span></div>
+<div style="display:flex;gap:20px">
+<div class="card"><div class="cover"></div><div class="ct">発酵食品の基本</div><div class="cs">example.org</div></div>
+<div class="card"><div class="cover"></div><div class="ct">包丁の研ぎ方</div><div class="cs">example.com</div></div>
+<div class="card"><div class="cover"></div><div class="ct">旬の野菜カレンダー</div><div class="cs">example.net</div></div>
+</div>
+</div>
+<div style="display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;align-items:baseline;gap:8px"><span style="font-size:17px;font-weight:600">main</span><span class="cs">2</span><div style="flex:1"></div><span class="cs">すべて見る ›</span></div>
+<div style="display:flex;gap:20px">
+<div class="card"><div class="cover"></div><div class="ct">読みたい記事メモ</div><div class="cs">example.org</div></div>
+<div class="card"><div class="cover"></div><div class="ct">ブックマーク整理</div><div class="cs">example.com</div></div>
+</div>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":820}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

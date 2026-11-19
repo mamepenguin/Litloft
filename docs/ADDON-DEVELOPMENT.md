@@ -1529,6 +1529,9 @@ const targetProps: TargetMenuProps = {
 | `AppHeader`, `AppHeaderProps` | `@/components/appshell/AppHeader` |
 | `TargetMenuProps` | `@/components/appshell/TargetMenu` |
 | `AppKey`, `readAppTarget`, `writeAppTarget` | `@/lib/appPrefs` |
+| `readTargetView`, `writeTargetView`, `readLegacyGroup`, `TargetView` | `@/lib/appPrefs` |
+| `GroupMenu`, `SortMenu`, `LibraryControlRow`, `ViewMenuOption` | `@/components/appshell/ViewMenus` |
+| `formatMonth`, `isMonthKey` | `@/lib/formatMonth` |
 | `resolveAppTarget`, `resolveCollectionTarget`, `parseAppTargetId`, `collectionTargetId`, `AppTarget`, `AppTargetParams` | `@/lib/appTarget` |
 | `useLoad`, `LoadState` | `@/components/appshell/useLoad` |
 | `getSmartFolders`, `getCollections` | `@/lib/api` |
@@ -1578,6 +1581,31 @@ choice. Both use the keys below, with `<d>` = `encodeURIComponent(drive)`:
 - The saved id is not checked against the drive's folders. Fall back to the
   default target when the folder is gone or unusable and keep the saved id, as
   the built-in apps do.
+
+### Remembering the view per Target
+
+An app that has a grouping and a sort keeps them per Target with the same store the
+built-in apps use. `readTargetView(app, drive, targetId)` answers `{ group?, sort? }`,
+and `writeTargetView(app, drive, targetId, change)` merges one field into that Target's
+entry and leaves every other entry alone. Both use one JSON object from target id to
+view, under `litloft.<app>.view.<encodeURIComponent(drive)>` — or
+`litloft.addon.<name>.view.<d>` for an addon. The target id is the one in force, not the
+saved one: a saved Target that is gone or unusable reads and writes `default` while the
+saved id stays stored. A key that cannot be parsed reads as `{}`, and the next write
+replaces it with an object holding only the new entry.
+
+Resolve the view in this order: a URL parameter where the page has one; the Target's
+stored value if the app offers it in the current state; only for the default Target, the
+app's old per-drive grouping from `readLegacyGroup(drive, app)` (read only, never
+written); then the app's default. Keep the value chosen in this mount beside the stored
+one so a failed write still shows the choice, and clear it on a drive or Target change.
+Resolve it synchronously, before the page's first listing request.
+
+`GroupMenu`, `SortMenu` and `LibraryControlRow` describe the shared controls: the menu
+labels come from the `appView.groupBy` / `appView.sortBy` keys in the merged messages,
+and each app passes its own options as `{ value, label }`. `SortMenu` takes `showLabel`,
+default true. `formatMonth(key, locale)` formats a `YYYY-MM` month shelf title, and
+`isMonthKey(key)` validates one.
 
 ### Resolving the chosen folder
 

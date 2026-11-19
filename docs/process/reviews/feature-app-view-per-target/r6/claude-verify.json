@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R1",
+      "status": "confirmed",
+      "note": "Confirmed. A grep for `deferNavigation` across the repository finds the switch defined at notesAppHarness.tsx:72 and re-exported at clipsAppHarness.tsx:20. Only one call passes `true`: notesTargetChangeWhileEditing.test.tsx:170, the single case that switches to All notes from `?view=all&note=n1&sort=created`. clipsTargetChangeOnHome.test.tsx imports it (line 9) but only calls `deferNavigation(false)`, in afterEach at line 92. No Clips test runs with deferred navigation. NotesPage.tsx:173-176 now replaces only when `next.toString() !== current.toString()`, which is the r5 R2 fix. Every Notes Target-change test chooses the Target on a Library URL that holds `sort`, or `note`, or both. Those tests are notesViewPerTarget.test.tsx:238, 270, 273 and 351, notesLibrary.test.tsx:769 and 1050, and notesTargetChangeWhileEditing.test.tsx:139, 154 and 171. The remaining Target-choice tests either choose on Home (notesFrame.test.tsx:304) or open at 1440px, where the fill-in has already added `sort`. So none of these tests takes the branch where nothing differs and the replace is skipped, under either harness mode. This was confirmed by reading only; no tests were run."
+    }
+  ],
+  "specification_compliance": [
+    "I13 (r4) and I4 assume that the router's replace lands after the Target state commits. Only one Notes test models that ordering, and no Clips test does."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "A regression in the Clips Target-change ordering, or in the Notes path that skips the replace, under real App Router transition semantics would not be caught by vitest."
+  ],
+  "test_coverage": [
+    "deferNavigation(true) is used once, at notesTargetChangeWhileEditing.test.tsx:170.",
+    "No test covers a Notes Target choice from a Library URL that has neither `sort` nor `note`, for example on an empty previous Target or at the phone layout.",
+    "No Clips test chooses a Target with deferred navigation."
+  ],
+  "not_verified": [
+    "No tests were run; every conclusion comes from reading the code.",
+    "I did not read clipsViewPerTarget.test.tsx, clipsLibrary.test.tsx, clipsPage.test.tsx or clipsFrame.test.tsx in full. The grep shows none of them calls deferNavigation(true), but I did not check whether any of them takes Clips' no-op-replace path under the synchronous harness.",
+    "I did not trace pages/clips.tsx to confirm that the r5 R2 guard there matches the Notes one."
+  ],
+  "confidence": 88
+}

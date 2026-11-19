@@ -1453,6 +1453,10 @@
     "browseUp": "1 つ上へ",
     "suggestions": "候補"
   },
+  "appView": {
+    "groupBy": "分類",
+    "sortBy": "並び順"
+  },
   "videoApp": {
     "title": "動画",
     "tabsLabel": "動画の表示",
@@ -1463,13 +1467,13 @@
     "allVideos": "すべての動画",
     "targetUnavailable": "対象にできません",
     "targetUnusable": "この対象は使えません",
-    "classification": "分類",
     "classifications": {
       "folder": "フォルダ",
       "tag": "タグ",
-      "month": "追加した月",
+      "month": "追加日",
       "duration": "長さ",
-      "watch": "視聴状態"
+      "watch": "視聴状態",
+      "all": "なし"
     },
     "shelves": {
       "continue": "続きから",
@@ -1488,8 +1492,8 @@
       "30m_plus": "30分以上"
     },
     "sort": {
-      "label": "並べ替え",
-      "lastOpened": "最後に開いた順",
+      "label": "並び順",
+      "lastOpened": "最後に開いた日",
       "addedNewest": "追加日（新しい順）",
       "addedOldest": "追加日（古い順）",
       "title": "タイトル",
@@ -1518,9 +1522,10 @@
     },
     "all": "すべて",
     "group": {
-      "label": "まとめ方",
-      "none": "なし",
-      "byTag": "タグ別"
+      "tag": "タグ",
+      "folder": "フォルダ",
+      "month": "追加日",
+      "none": "なし"
     },
     "state": {
       "label": "状態",
@@ -1535,7 +1540,7 @@
     "noTag": "タグなし",
     "sort": {
       "label": "並び順",
-      "lastOpened": "最後に開いた順",
+      "lastOpened": "最後に開いた日",
       "addedNewest": "追加日（新しい順）",
       "addedOldest": "追加日（古い順）",
       "title": "タイトル",

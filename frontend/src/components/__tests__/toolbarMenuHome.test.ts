@@ -84,6 +84,7 @@ describe("the shared toolbar menu has one home", () => {
       "frontend/src/components/__tests__/readingVideoLayoutFixtureParity.test.tsx",
       "frontend/src/components/__tests__/toolbarMenuFixtureParity.test.tsx",
       "frontend/src/components/appshell/TargetMenu.tsx",
+      "frontend/src/components/appshell/ViewMenus.tsx",
       "frontend/src/components/archive/ArchiveToolbar.tsx",
       "frontend/src/components/archive/ArchiveToolbar.tsx",
       "frontend/src/components/folder/FilterMenu.tsx",

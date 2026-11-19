@@ -78,6 +78,7 @@ const AT_THE_PHONE_WIDTH = [
   "discover-prefix.spec.ts",
   "video-card-byline.spec.ts",
   "video-card-spacing.spec.ts",
+  "view-menus.spec.ts",
   "clips-primary-action.spec.ts",
   "clips-row.spec.ts",
   "name-in-use.spec.ts",
@@ -93,6 +94,7 @@ const AT_THE_PHONE_WIDTH = [
 
 const AT_THE_DESKTOP_WIDTH = [
   "frame-crop-desktop.spec.ts",
+  "view-menus-desktop.spec.ts",
   "frame-outline-desktop.spec.ts",
   "add-menu-desktop.spec.ts",
   "condition-menu-desktop.spec.ts",
