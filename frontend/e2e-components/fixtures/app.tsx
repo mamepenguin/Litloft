@@ -110,6 +110,8 @@ import { AppHeaderArrangement } from "./appHeader";
 import { PersistentHighlightsArrangement } from "./persistentHighlights";
 import {
   ScenesBoundedArrangement,
+  ScenesFlowArrangement,
+  ScenesPendingVisualArrangement,
   ScenesSectionArrangement,
 } from "./scenesSection";
 import { ClipsPageArrangement, clipsPageResponse } from "./clipsPage";
@@ -2867,6 +2869,16 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   ),
   "scenes-bounded-short": () => (
     <ScenesBoundedArrangement hostWidth={1024} hostHeight={260} />
+  ),
+  "scenes-bounded-pending": () => (
+    <ScenesPendingVisualArrangement hostWidth={1024} hostHeight={400} />
+  ),
+  "scenes-flow": () => (
+    <ScenesFlowArrangement
+      hostWidth={390}
+      scrollerHeight={420}
+      scrollerPaddingBottom={16}
+    />
   ),
   "inspector-video": InspectorVideoArrangement,
   "inspector-video-sidebar": InspectorVideoSidebarArrangement,

@@ -6,6 +6,7 @@
 
 import {
   scenesCardCases,
+  scenesPlacementCases,
   scenesSectionCases,
   scenesTimeLabelCases,
 } from "./scenes-section.cases";
@@ -52,3 +53,5 @@ scenesTimeLabelCases([
     long: true,
   },
 ]);
+
+scenesPlacementCases();

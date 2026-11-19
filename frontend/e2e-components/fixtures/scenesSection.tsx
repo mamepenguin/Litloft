@@ -82,8 +82,16 @@ function jsonResponse(body: unknown): Response {
   });
 }
 
+interface StubOptions {
+  /** Leaves the `visual-index` answer outstanding, as a slow backend would. */
+  pendingVisual?: boolean;
+}
+
 /** Nothing here reaches a server: the fixture runs from `file://`. */
-function stubIntelligenceApi(data: ScenesDataset): void {
+function stubIntelligenceApi(
+  data: ScenesDataset,
+  options: StubOptions = {},
+): void {
   window.__scenesPlayback = SCENES_PLAYBACK;
   window.fetch = (input: RequestInfo | URL) => {
     const url =
@@ -114,7 +122,9 @@ function stubIntelligenceApi(data: ScenesDataset): void {
       );
     }
     if (url.includes(`/files/${data.file}/visual-index`)) {
-      return Promise.resolve(jsonResponse(data.visualIndex));
+      return options.pendingVisual
+        ? new Promise<Response>(() => {})
+        : Promise.resolve(jsonResponse(data.visualIndex));
     }
     return Promise.resolve(new Response("", { status: 404 }));
   };
@@ -198,6 +208,98 @@ export function ScenesBoundedArrangement({
           active
         />
       </NextIntlClientProvider>
+    </div>
+  );
+}
+
+/** The bounded form with the Visual Index answer never arriving. */
+export function ScenesPendingVisualArrangement({
+  hostWidth,
+  hostHeight,
+}: {
+  hostWidth: number;
+  hostHeight: number;
+}): ReactElement {
+  const data = LONG;
+  stubIntelligenceApi(data, { pendingVisual: true });
+  const mediaController = useMemo(
+    () => makeController(data.duration),
+    [data.duration],
+  );
+
+  return (
+    <div
+      id="scenes-host"
+      className="bg-bg-primary flex min-h-0 flex-col overflow-y-auto"
+      style={{ width: hostWidth, height: hostHeight }}
+    >
+      <NextIntlClientProvider
+        locale="en"
+        messages={{ ...enMessages, ...intelligenceEn }}
+      >
+        <ScenesSection
+          fileId={data.file}
+          drive={SCENES_DRIVE}
+          fileType="video"
+          mediaController={mediaController}
+          labelledByHost
+          active
+        />
+      </NextIntlClientProvider>
+    </div>
+  );
+}
+
+/**
+ * The flow form: the section inside an ancestor marked `data-inspector-scroller`,
+ * as the phone sheet gives it, with a scroller whose bottom padding can stand in
+ * for the sheet's safe-area strip.
+ */
+export function ScenesFlowArrangement({
+  hostWidth,
+  scrollerHeight,
+  scrollerPaddingBottom = 0,
+}: {
+  hostWidth: number;
+  scrollerHeight: number;
+  scrollerPaddingBottom?: number;
+}): ReactElement {
+  const data = LONG;
+  stubIntelligenceApi(data);
+  const mediaController = useMemo(
+    () => makeController(data.duration),
+    [data.duration],
+  );
+
+  return (
+    <div
+      id="scenes-host"
+      className="bg-bg-primary flex min-h-0 flex-col"
+      style={{ width: hostWidth }}
+    >
+      <div
+        data-inspector-scroller=""
+        data-testid="scenes-flow-scroller"
+        className="min-h-0 overflow-auto overscroll-contain"
+        style={{
+          height: scrollerHeight,
+          paddingBottom: scrollerPaddingBottom,
+        }}
+      >
+        <NextIntlClientProvider
+          locale="en"
+          messages={{ ...enMessages, ...intelligenceEn }}
+        >
+          <ScenesSection
+            fileId={data.file}
+            drive={SCENES_DRIVE}
+            fileType="video"
+            mediaController={mediaController}
+            labelledByHost
+            active
+          />
+        </NextIntlClientProvider>
+      </div>
     </div>
   );
 }

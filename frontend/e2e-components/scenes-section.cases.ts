@@ -9,6 +9,11 @@ import {
   SCENES_LONG_TEXT,
   SCENES_SHORT_LABEL,
 } from "./fixtures/scenesSectionData";
+import {
+  BOUNDED_STEP,
+  settled,
+  type ListReading,
+} from "./scenes-scroll-list.cases";
 
 const FIXTURE = pathToFileURL(PAGE).href;
 const HOST = "#scenes-host";
@@ -321,4 +326,239 @@ export function scenesTimeLabelCases(cases: ScenesCase[]): void {
       });
     }
   });
+}
+
+const TILE = 'button[aria-label^="Play from"]';
+const SHARED = "[data-inspector-scroller]";
+const PLACEHOLDER = '[data-testid="scenes-visual-placeholder"]';
+
+let navigation = 0;
+
+async function recordFrameRequests(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    const store = window as unknown as { __frameRequests: number[] };
+    store.__frameRequests = [];
+    const remember = (node: Node) => {
+      if (!(node instanceof HTMLImageElement)) return;
+      const match = /[?&]t=(\d+)/.exec(node.getAttribute("src") ?? "");
+      if (match) store.__frameRequests.push(Number(match[1]));
+    };
+    // `document`, not `documentElement`: this runs before the parser has made one.
+    new MutationObserver((records) => {
+      for (const record of records) record.addedNodes.forEach(remember);
+    }).observe(document, { childList: true, subtree: true });
+  });
+}
+
+async function frameRequests(page: Page): Promise<number[]> {
+  return page.evaluate(
+    () =>
+      (window as unknown as { __frameRequests: number[] }).__frameRequests.slice(),
+  );
+}
+
+function bandOf(reading: ListReading, step: number): { left: number; right: number } {
+  const firstRow = reading.visibleRows[0];
+  const lastRow = reading.visibleRows[reading.visibleRows.length - 1];
+  const from = (reading.rowFirstFrame[firstRow] * step) / reading.rulerMax;
+  const nextRow = reading.rowFirstFrame[lastRow + 1];
+  const to = nextRow === undefined ? 1 : (nextRow * step) / reading.rulerMax;
+  return { left: from * 100, right: to * 100 };
+}
+
+function expectBandCoversVisible(
+  reading: ListReading,
+  step: number,
+  at: string,
+): void {
+  expect(reading.band, `${at}: no band is drawn`).not.toBeNull();
+  const expected = bandOf(reading, step);
+  expect(reading.band!.left, `${at}: band start`).toBeCloseTo(expected.left, 0);
+  expect(reading.band!.right, `${at}: band end`).toBeCloseTo(expected.right, 0);
+}
+
+function unrequestedRows(
+  reading: ListReading,
+  step: number,
+  requested: number[],
+): number[] {
+  return reading.visibleRows.filter(
+    (row) => !requested.includes(reading.rowFirstFrame[row] * step),
+  );
+}
+
+async function openFlow(page: Page): Promise<void> {
+  await page.setViewportSize({ width: 390, height: 800 });
+  await page.goto(`${FIXTURE}?run=${++navigation}#scenes-flow`);
+  await expect(page.locator("body")).toHaveAttribute(
+    "data-arrangement",
+    "scenes-flow",
+  );
+  await expect(page.locator(TILE).first()).toBeVisible();
+}
+
+async function openPending(page: Page): Promise<void> {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto(`${FIXTURE}?run=${++navigation}#scenes-bounded-pending`);
+  await expect(page.locator("body")).toHaveAttribute(
+    "data-arrangement",
+    "scenes-bounded-pending",
+  );
+  await expect(page.locator(TILE).first()).toBeVisible();
+  await expect(page.locator(PLACEHOLDER)).toBeVisible();
+}
+
+async function placeholderHeights(page: Page, ms: number): Promise<number[]> {
+  return page.evaluate(
+    (duration) =>
+      new Promise<number[]>((resolve) => {
+        const seen: number[] = [];
+        const start = performance.now();
+        const tick = () => {
+          const placeholder = document.querySelector<HTMLElement>(
+            '[data-testid="scenes-visual-placeholder"]',
+          );
+          if (placeholder) {
+            seen.push(
+              Math.round(placeholder.getBoundingClientRect().height * 100) / 100,
+            );
+          }
+          if (performance.now() - start < duration) requestAnimationFrame(tick);
+          else resolve(seen);
+        };
+        requestAnimationFrame(tick);
+      }),
+    ms,
+  );
+}
+
+export function scenesPlacementCases(): void {
+  test("SPEC-ADDON-152 I8, SPEC-ADDON-153 I6 — growing a bounded host without a scroll shows the new rows in the band and asks for their pictures", async ({
+    page,
+  }) => {
+    await recordFrameRequests(page);
+    await page.goto(`${FIXTURE}?run=${++navigation}#scenes-bounded-1024`);
+    await expect(page.locator(TILE).first()).toBeVisible();
+    const before = await settled(page, BOUNDED_STEP);
+    expect(before.visibleRows.length).toBeGreaterThan(1);
+
+    await page.evaluate(() => {
+      document.getElementById("scenes-host")!.style.height = "1400px";
+    });
+    const after = await settled(page, BOUNDED_STEP);
+    await page.waitForTimeout(300);
+
+    expect(after.visibleRows.length).toBeGreaterThan(before.visibleRows.length);
+    expect(after.list!.scrollTop, "the resize scrolled the list").toBe(
+      before.list!.scrollTop,
+    );
+    expectBandCoversVisible(after, BOUNDED_STEP, "after the bounded host grew");
+
+    const requested = await frameRequests(page);
+    const newlyVisible = after.visibleRows.filter(
+      (row) => !before.visibleRows.includes(row),
+    );
+    expect(newlyVisible.length).toBeGreaterThan(0);
+    expect(unrequestedRows(after, BOUNDED_STEP, requested)).toEqual([]);
+  });
+
+  test("SPEC-ADDON-153 I6, SPEC-ADDON-152 I8 — growing the flow scroller without a scroll shows the new rows in the band and asks for their pictures", async ({
+    page,
+  }) => {
+    await recordFrameRequests(page);
+    await openFlow(page);
+    const before = await settled(page, BOUNDED_STEP);
+    expect(before.form).toBe("flow");
+    expect(before.visibleRows.length).toBeGreaterThan(0);
+
+    await page.evaluate(
+      ([selector]) => {
+        (document.querySelector(selector) as HTMLElement).style.height = "700px";
+      },
+      [SHARED] as const,
+    );
+    const after = await settled(page, BOUNDED_STEP);
+    await page.waitForTimeout(300);
+
+    expect(after.visibleRows.length).toBeGreaterThan(before.visibleRows.length);
+    expect(after.host.scrollTop, "the resize scrolled the section").toBe(
+      before.host.scrollTop,
+    );
+    expectBandCoversVisible(after, BOUNDED_STEP, "after the flow scroller grew");
+
+    const requested = await frameRequests(page);
+    const newlyVisible = after.visibleRows.filter(
+      (row) => !before.visibleRows.includes(row),
+    );
+    expect(newlyVisible.length).toBeGreaterThan(0);
+    expect(unrequestedRows(after, BOUNDED_STEP, requested)).toEqual([]);
+  });
+
+  test("SPEC-ADDON-152 I5 — the placeholder never changes form while the Visual Index answer is outstanding", async ({
+    page,
+  }) => {
+    await openPending(page);
+
+    for (const height of [320, 360, 400, 440, 480, 520]) {
+      await page.evaluate((value) => {
+        document.getElementById("scenes-host")!.style.height = `${value}px`;
+      }, height);
+      await page.waitForTimeout(200);
+      const heights = await placeholderHeights(page, 600);
+      expect(heights.length, `host ${height}px: no frame drew it`).toBeGreaterThan(
+        20,
+      );
+      expect(
+        Array.from(new Set(heights)),
+        `host ${height}px: the placeholder changes form`,
+      ).toHaveLength(1);
+    }
+  });
+
+  test("SPEC-ADDON-152 I10 — in flow form the pinned card's box reaches the scroller's bottom edge", async ({
+    page,
+  }) => {
+    await openFlow(page);
+    await expect(page.locator(PLACEHOLDER)).toHaveCount(0);
+    await expect(page.locator(`${SHARED} button.rounded-xl`).first()).toBeVisible();
+
+    await page.evaluate(([selector]) => {
+      const scroller = document.querySelector<HTMLElement>(selector)!;
+      scroller.scrollTop = Math.floor(
+        (scroller.scrollHeight - scroller.clientHeight) / 2,
+      );
+    }, [SHARED] as const);
+    await page.waitForTimeout(200);
+
+    const reading = await page.evaluate(
+      ([selector]) => {
+        const scroller = document.querySelector<HTMLElement>(selector)!;
+        const button = Array.from(
+          scroller.querySelectorAll<HTMLElement>("button.rounded-xl"),
+        ).find((el) => el.getBoundingClientRect().height > 0);
+        if (!button) throw new Error("no scene card is drawn");
+        const cardBox = button.parentElement as HTMLElement;
+        return {
+          paddingBottom: Number.parseFloat(
+            getComputedStyle(scroller).paddingBottom,
+          ),
+          cardBoxBottom: cardBox.getBoundingClientRect().bottom,
+          scrollerBottom:
+            scroller.getBoundingClientRect().top +
+            scroller.clientTop +
+            scroller.clientHeight,
+          scrolled: scroller.scrollTop,
+        };
+      },
+      [SHARED] as const,
+    );
+
+    expect(reading.paddingBottom, "the scroller has no bottom strip").toBe(16);
+    expect(reading.scrolled, "the scroller did not move").toBeGreaterThan(0);
+    expect(
+      Math.abs(reading.cardBoxBottom - reading.scrollerBottom),
+      "the card's box ends above the scroller's bottom",
+    ).toBeLessThanOrEqual(1);
+  });
+
 }
