@@ -6,6 +6,8 @@
 
 import { test, expect, type Page } from "@playwright/test";
 
+import { MEDIA_CLOCK_IDLE_MS } from "../src/lib/mediaClock";
+
 import {
   BOUNDED_SHORT,
   BOUNDED_STEP,
@@ -394,7 +396,9 @@ test.describe("SPEC-ADDON-152 I2 — following the playing frame", () => {
     await page.evaluate((time) => {
       (window as unknown as { __scenesPlayback: { time: number } }).__scenesPlayback.time = time;
     }, seconds);
-    await page.waitForTimeout(400);
+    // The fixture's player is paused, and the shared clock reads a paused
+    // player once per idle beat.
+    await page.waitForTimeout(MEDIA_CLOCK_IDLE_MS + 300);
     return settled(page, BOUNDED_STEP);
   }
 
