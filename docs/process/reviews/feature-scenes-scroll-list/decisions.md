@@ -2,9 +2,38 @@
 
 decision:
 ran_in_app: yes
-at: 0ef326bd02e9ec6588e8b0587ebb8b1b706f6af7
+at: 38f9de2f6da10ed8a3f71a3567c3e4a586bd7f0b
 by: agent
 evidence: |
+  Re-run 5 (2026-11-20), the R7-2/I5 card-form check only, against the I5 line that replaces the
+  r7 one. Core 38f9de2f6, which pins addons/intelligence at ebfa52b. Stack started with
+  `r5_stack.py clone` and `up` (port 3101), then `down` and `destroy`. Same video XN1lPMKvrM7S, in
+  the workbench at 1400 wide, driven by Playwright Chromium.
+  - Method: the real `visual-index` answer was held behind a route until released. For 3 s the
+    placeholder was sampled every 100 ms; then the answer was released and the card read. This was
+    done twice: with the answer as served (`stale: true`, so the stale note is drawn), and with the
+    same answer but `stale: false`.
+  - Heights: 1040 to 1112 in 4 px steps, plus 1053–1055 in 1 px steps around the threshold.
+  - Result: PASS. At every height, in both variants, the placeholder's form while pending (always a
+    single form) equals the card's form after the answer:
+    - one line up to 1054: placeholder 80 px, card 44 px;
+    - full from 1055: placeholder 160 px, card 122 px.
+    The threshold is the same with and without the stale note. The two runs measured 49 heights
+    each way; two page loads timed out on the busy addon and were retried.
+  - What H measures:
+    - H measured from the list to the bottom of the last part, minus 7.6 rem: 214.4 pending and
+      213.4 answered (stale) at 1056; 212.4 pending and 212.4 answered at 1054. Two row steps =
+      212.
+    - When the answer arrives, the list gives the stale note and action row their room: at 1068 it
+      goes 188 → 145 with the stale note, and 188 → 176 without.
+    - The 1 px difference in the stale case did not change the form at any height tried.
+  - Screenshots:
+    - r5/rerun5-stale-h1068-pending.jpg and rerun5-stale-h1068-answered.jpg (full, stale note
+      drawn);
+    - r5/rerun5-notstale-h1068-* (full, no note);
+    - r5/rerun5-stale-h1054-* (one line at the boundary).
+  Earlier runs follow.
+
   Re-run 4 (2026-11-20), on the review r7 fixes only. Core 0ef326bd0, which pins addons/intelligence
   at 2faa21f. Stack started with `r5_stack.py clone` and `up` (port 3101), then `down` and
   `destroy`. Same video XN1lPMKvrM7S, whose Visual Index is stale, so the stale note is drawn.
