@@ -129,3 +129,36 @@ evidence: |
   touch. Not exercised: the collection surface's panel, the `.loft` / no-frames case, classic
   scrollbars, 4:3 pictures, a mouse middle-button or scrollbar press, and the ja locale.
 pending: iOS on a real device (touch scrolling in the sheet, the pinned ruler and card, the card above the home indicator, the sheet's pull-to-collapse) is agent_cannot_verify and out of scope for this run. The human checks it on the phone after deploy.
+
+## Design-check screenshots (rerun2)
+
+Taken 2026-11-19 at core 0d1479603 + 475deff8f, addon 2ee8d4f, same video and stack procedure.
+Playwright Chromium. The real `visual-index` answer was served through a route, so the busy addon
+did not drop the card. The theme was set the way the app's switch stores it:
+`localStorage['theme-preference'] = 'dark'`, which `preferenceInitScript` resolves to
+`html[data-theme="dark"]` (body background rgb(19,19,18)). This run's `clip-timestamps` answer had
+500 frames, the last at 4:09:30; the earlier runs had 958.
+
+- `r5/rerun2-dark-wb-1400x1400.jpg`: dark, workbench, one Scenes panel. Panel 744x834; section
+  716x772; 5 columns (list content 701 px); list 477 px high; full card 122 px at y=1168; action
+  row at y=1333.
+- `r5/rerun2-dark-wb-1400x1050.jpg`: dark, workbench at the requested 1400x1050. Here the card is
+  one line, not full: panel 744x484, list 205 px, card 44 px. This is the expected form, since H is
+  under two row steps. The full card in dark is the 1400x1400 shot above.
+- `r5/rerun2-dark-phone-full.jpg`: dark, phone sheet at 390x844, full snap. 3 columns; scroller
+  657 px high (top 187); ruler pinned; one-line card 778–844.
+- `r5/rerun2-phone-full-end.jpg`: light, phone sheet, full snap, scrolled to the end (scrollTop
+  15491 of 16148/657). The last tile (4:09:30) is followed by the one-line card (665–731), the stale
+  note and the "Regenerate scenes" action row (y=775, 37 px), all above the sheet's bottom. The
+  last rows' pictures were still blank 3 s after the jump.
+- `r5/rerun2-wb-two-panels.jpg`: light, two panels (Transcript, then Scenes) at a 1740x1400
+  viewport: the width at which the Scenes section is 508 px wide.
+  - Workbench panels: Transcript 536x642 and Scenes 536x642, side by side.
+  - Scenes section: 508x580; list content width 493 px.
+  - Columns: 4, steady over 2 s. List 286 px high, full card 122 px.
+  - For comparison, at 1700 the section is 488 px and has 3 columns.
+  - Design `Main.dc.html` with two panels in its 1056 px frame (content 1024): panelW =
+    (1024−12)/2 = 506, panelH = 1400−32−576−12−30−12 = 738. `Panel.dc.html` gives
+    cols = max(3, floor((506−28+8)/120)) = 4.
+  - So the column count matches the design (4). The app's panel is 642 px high against the
+    design's 738, because the app's player and header are taller at this width.
