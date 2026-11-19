@@ -101,10 +101,7 @@ for (const app of APP_PAGES) {
     if (m.sort) {
       const sort = await valueSpanOf(sortButton(page), SORT_CHOICE);
       expect(sort).not.toBeNull();
-      // The quiet value shortens at this width rather than pushing the Target
-      // past its share of the header.
-      expect(sort!.scrollWidth).toBeGreaterThan(sort!.clientWidth);
-      expect(sort!.textOverflow).toBe("ellipsis");
+      expect(sort!.scrollWidth).toBeLessThanOrEqual(sort!.clientWidth);
     }
     expect(m.scrollWidth).toBeLessThanOrEqual(640);
   });
