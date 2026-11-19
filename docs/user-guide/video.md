@@ -28,6 +28,8 @@ nothing above it moves.
   Pickup feed, and it is absent when there is no suggestion for the current target.
   It is not a random sample. Among videos that match equally, newer ones come
   first, and the picks can change during the day while new videos are being added.
+  To drop a suggestion you do not want, right-click its card (or long-press it on a
+  touch screen) and choose **Not interested**; **Undo** in the notice brings it back.
 - **Addon shelves**: Media Import adds **よく見るソース** / **Regular sources** and
   **購読の新着** / **New from subscriptions**, for the subscriptions you chose to show.
 - **New**: the most recently added videos.

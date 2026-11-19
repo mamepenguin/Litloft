@@ -1,6 +1,6 @@
 # Decisions
 
-decision: D-1 to D-9 of design-check.md accepted by the human (2026-11-19, "はい"): each is the existing UI around the change drawn simplified in the artboards (the video app shelf's columns and titles, the See all chevron, the Pickup row's gap and heading, the page gutter, the existing toast's offset, the card's date line) or a state R-5 shot but the checker did not open (D-9); the menus, the divider, the toast's text and actions and the pending row match the design.
+decision: D-1 to D-9 of design-check.md accepted by the human (2026-11-19, "はい"): each is the existing UI around the change drawn simplified in the artboards (the video app shelf's columns and titles, the See all chevron, the Pickup row's gap and heading, the page gutter, the existing toast's offset, the card's date line) or a state R-5 shot but the checker did not open (D-9); the menus, the divider, the toast's text and actions and the pending row match the design. r1 Needs a human (2026-11-19), the human said "ok" to: accept the three unspecified behaviours (session-lifetime keyed removal operations in useRemovableItems, no-op vision / video-visual purges visiting mark-only drives, ContextMenu's immediate rows) and ship with claude-read:F3 rejected (a profile can only be changed on /settings, which unmounts the See all page).
 ran_in_app: yes
 at: 690a7c13eb7195deed0ac51dd81c838bb7b4103b
 by: agent
