@@ -414,3 +414,19 @@ class TestFailure:
 
         assert res.status_code == 500
         assert history_rows() == before
+
+    def test_spec_core_141_a_failed_ranges_query_on_shelves_is_logged_like_any_shelves_failure(
+        self, client, caplog
+    ):
+        c, db, *_ = client
+        file = _add_file(db, "f.mp4")
+        _watch(db, file, 40, 100)
+        db.execute(text("DROP TABLE played_segments"))
+        db.commit()
+
+        plain = TestClient(app, raise_server_exceptions=False)
+        with caplog.at_level("ERROR"):
+            res = plain.get(f"/api/drives/{TEST_DRIVE}/shelves?{WATCH_SHELVES}", headers=ALICE)
+
+        assert res.status_code == 500
+        assert any("Shelves failed" in r.getMessage() for r in caplog.records)

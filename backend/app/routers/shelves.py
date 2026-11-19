@@ -541,8 +541,8 @@ def _shelves(
                 total_shelves=total,
                 base=response_base,
             )
+        _attach_watched_ranges(db, viewer_id, response.shelves)
     except Exception:
         logger.exception("Shelves failed: drive=%s by=%s", drive_name, params.by)
         raise
-    _attach_watched_ranges(db, viewer_id, response.shelves)
     return response

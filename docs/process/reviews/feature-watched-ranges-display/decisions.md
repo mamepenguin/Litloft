@@ -1,6 +1,6 @@
 # Decisions
 
-decision: D-1 to D-7 of design-check.md accepted by the human (2026-11-19): each is the existing player or card around the change (full-width touch seek bar, the pointer bar's inset and control row, the skip feedback, FileCard's badge and date line, the shelf without a byline) drawn simplified in the artboards, or a width R-5 did not shoot (D-7); the band, the card fills and the tick match the design.
+decision: D-1 to D-7 of design-check.md accepted by the human (2026-11-19): each is the existing player or card around the change (full-width touch seek bar, the pointer bar's inset and control row, the skip feedback, FileCard's badge and date line, the shelf without a byline) drawn simplified in the artboards, or a width R-5 did not shoot (D-7); the band, the card fills and the tick match the design. r1 Needs a human (2026-11-19), the human said: "1は受け入れ 2は直す" — the touch chrome's focus-within to has-[:focus-visible] change is accepted; the shelves ranges query is moved inside the 'Shelves failed' try and fixed.
 ran_in_app: yes
 at: e4c732356f2244cce9b34636da12fd7d9cbc1cd0
 by: agent
