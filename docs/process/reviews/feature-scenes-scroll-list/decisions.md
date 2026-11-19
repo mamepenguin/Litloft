@@ -2,9 +2,47 @@
 
 decision:
 ran_in_app: yes
-at: 47e75aefa8c346a818aff73db69581218ca82458
+at: 0d147960350b03e9bf1d6c1a3fdd5c7be480c3fd
 by: agent
 evidence: |
+  Re-run 2026-11-19 on the fixed areas only. Core 0d1479603, addons/intelligence working tree at
+  2ee8d4f. Stack started with `r5_stack.py clone` and `up` (port 3101), then `down` and `destroy`.
+  Same video XN1lPMKvrM7S. Driven by Playwright Chromium (frontend/node_modules). The busy addon
+  still answered `visual-index` with 502 at times, so each page was given the real answer, fetched
+  once, through a route with a set delay (or a 502 after a delay). Result: all three earlier
+  failures are fixed, and the revised I2 holds. No new failure.
+  - FAIL-1 (band and pictures when the visible area changes size): FIXED. Each case below was read
+    with no scroll, against the band computed from the rows at least half visible.
+    - 1400x900 → 1400x1400: list 106→477 px; band 0–0.341% → 0–1.602% (expected the same); all 25
+      visible tiles had pictures 3 s later. Back to 900: band 0–0.341% again
+      (r5/rerun-wb-900-to-1400-resize.jpg).
+    - `visual-index` 502 after 6 s: list 520→680 px; band 0–1.602% → 0–1.875% (expected the same);
+      all 35 visible tiles had pictures (r5/rerun-wb-1400-vi502-late.jpg).
+    - Answer delayed 14 s: with the placeholder, list 520, band 0–1.604%; with the card, list 477,
+      band 0–1.602%. Both match the expected band, and no visible tile lacked a picture
+      (r5/rerun-wb-1400-card-after-slow-vi.jpg).
+    - Phone sheet: at half, band 0–0.796%; after the swipe to full with no scroll, the visible
+      area grew (top 420→314) and the band read 0–1.006%. Both match the expected band, and all
+      15 visible tiles had pictures (r5/rerun-phone-half.jpg, rerun-phone-full.jpg).
+  - FAIL-2 (placeholder flipping while the Visual Index loads): FIXED. Sampled every 100 ms while
+    the answer was held for 8 s:
+    - 1184x999: 185/80 for 6.9 s, then the card (list 140, one-line card 44).
+    - 1400x1000: 200/80 for 5.3 s, then list 155 and card 44.
+    - 1400x1050: 250/80 for 7.2 s, then list 205 and card 44 (r5/rerun-wb-1400x1050-card.jpg).
+    No flip in any of them: the placeholder stayed one line and matched the card that replaced it.
+  - FAIL-3 (gap under the pinned card in the sheet): FIXED. At 390x844, half and full, the card's
+    box is 778–844 and the scroller's bottom is 844. After scrolling the sheet by 700 px,
+    elementFromPoint at y=835/840/843 hits the card, not a tile. In the crop no tile label shows
+    under the card (r5/rerun-phone-card-bottom.jpg, rerun-phone-full-scrolled.jpg).
+  - Revised I2 (short host): PASS. At 1184x999 (list 140 px, under two row steps), playing from
+    10:40: the playing tile 10:34 sat as the first row, with a gap of 0 above and 57 px below
+    (scrollTop 386). When playback reached 11:00, the list moved on its own to scrollTop 481, with
+    11:00 first and gaps of 0 and 56. The tile was wholly visible throughout
+    (r5/rerun-wb-1184x999-playing-first-row.jpg).
+  - Not a failure, per the D2 revision: Chromium here has a classic scrollbar gutter.
+  The first run's record follows; its FAIL-1..3 are superseded by the results above.
+
+  First run at core 47e75aefa / addon f309f05:
   Stack: `scripts/dev/r5_stack.py clone` + `up` on this worktree (core 47e75aefa, addons/intelligence
   working tree at f309f05), opened at http://video-share-scenes-scroll.localhost:3102. Video
   XN1lPMKvrM7S (9:46:36, 958 `clip-timestamps` rows, active Visual Index with 24 succeeded scenes,
