@@ -10,7 +10,9 @@ import {
   SCENES_SHORT_LABEL,
 } from "./fixtures/scenesSectionData";
 import {
+  BOUNDED_SHORT,
   BOUNDED_STEP,
+  openBounded,
   settled,
   type ListReading,
 } from "./scenes-scroll-list.cases";
@@ -513,6 +515,26 @@ export function scenesPlacementCases(): void {
         `host ${height}px: the placeholder changes form`,
       ).toHaveLength(1);
     }
+  });
+
+  test("SPEC-ADDON-152 I2 — a visible area under two row steps places the playing row first so its tile is wholly visible", async ({
+    page,
+  }) => {
+    const frame = 200;
+    await openBounded(page, { hash: BOUNDED_SHORT, start: frame * BOUNDED_STEP });
+    const reading = await settled(page, BOUNDED_STEP);
+    const row = Math.floor(frame / reading.columns);
+
+    expect(reading.list, "the list is not a scroll container").not.toBeNull();
+    expect(reading.list!.clientHeight).toBeLessThan(2 * reading.step);
+    expect(reading.list!.clientHeight).toBeGreaterThanOrEqual(reading.step - 1);
+    expect(
+      reading.whollyVisibleRows,
+      "the playing tile is not wholly inside the list's client box",
+    ).toContain(row);
+    expect(reading.visibleRows[0], "the row above is the top row").not.toBe(
+      row - 1,
+    );
   });
 
   test("SPEC-ADDON-152 I10 — in flow form the pinned card's box reaches the scroller's bottom edge", async ({
