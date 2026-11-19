@@ -301,4 +301,4 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-144 | implemented | docs/specs/scene-frames-ten-second-fill.md | sha256:b8f691c32fc88fc84869d121b1c2945d83df8d78b4267924e12bca7a92bedda1 |
 | SPEC-ADDON-145 | implemented | docs/specs/scene-frames-ten-second-fill.md | sha256:b8f691c32fc88fc84869d121b1c2945d83df8d78b4267924e12bca7a92bedda1 |
 | SPEC-ADDON-146 | implemented | docs/specs/scene-frames-ten-second-fill.md | sha256:b8f691c32fc88fc84869d121b1c2945d83df8d78b4267924e12bca7a92bedda1 |
-| SPEC-CORE-149 | draft | docs/specs/ci-browser-container.md | |
+| SPEC-CORE-149 | approved | docs/specs/ci-browser-container.md | sha256:5935774b703f05bc88ca8de864138cc64b0ad3f96ab6a6675312000d4a2ce809 |
