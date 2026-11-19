@@ -6,7 +6,7 @@ from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import Field
-from sqlalchemy import Integer, and_, case, cast, false, func, select, true
+from sqlalchemy import Integer, case, cast, false, func, select, true
 from sqlalchemy.orm import Session
 
 from app.auth import get_unlocked_groups
@@ -27,6 +27,7 @@ from app.schemas import (
     WatchProgressInfo,
     file_to_response,
 )
+from app.services.watch_state import WATCH_KEYS, WatchState, join_watch, watch_bucket
 from app.services.watched_ranges import watched_ranges_by_file
 
 logger = logging.getLogger(__name__)
@@ -36,8 +37,6 @@ ShelfBy = Literal["all", "folder", "tag", "month", "duration", "watch"]
 
 NO_TAG = "no_tag"
 DURATION_KEYS = ("under_10m", "10_to_30m", "30m_plus")
-WatchState = Literal["in_progress", "unwatched", "finished"]
-WATCH_KEYS: tuple[WatchState, ...] = ("in_progress", "unwatched", "finished")
 FIXED_KEYS = {"duration": DURATION_KEYS, "watch": WATCH_KEYS}
 
 _UNDER_10M_SECONDS = 600
@@ -65,33 +64,11 @@ def _duration_bucket():
     )
 
 
-def _watch_bucket():
-    known = WatchHistory.duration > 0
-    # Multiplied out so the 90% boundary involves no float rounding.
-    finished = and_(
-        known, WatchHistory.playback_position * 10 >= WatchHistory.duration * 9
-    )
-    started = and_(known, WatchHistory.playback_position > 0)
-    return case(
-        (finished, "finished"), (started, "in_progress"), else_="unwatched"
-    )
-
-
 def _drive_tag_links(drive: str):
     return (
         select(file_tags.c.file_id)
         .select_from(file_tags.join(Tag, Tag.id == file_tags.c.tag_id))
         .where(Tag.drive == drive)
-    )
-
-
-def _join_watch(query, viewer_id: str):
-    return query.outerjoin(
-        WatchHistory,
-        and_(
-            WatchHistory.file_id == File.id,
-            WatchHistory.viewer_id == viewer_id,
-        ),
     )
 
 
@@ -102,7 +79,7 @@ def _key_expr(by: str):
         return func.strftime("%Y-%m", File.created_at)
     if by == "duration":
         return _duration_bucket()
-    return _watch_bucket()
+    return watch_bucket()
 
 
 def _grouping(query, by: str, drive: str):
@@ -500,16 +477,16 @@ def _shelves(
         base = base.filter(File.id.in_(params.ids))
     if params.opened is not None:
         # A row exists whatever its position, so the join is the whole answer.
-        base = _join_watch(base, viewer_id)
+        base = join_watch(base, viewer_id)
         base = base.filter(
             WatchHistory.file_id.isnot(None)
             if params.opened
             else WatchHistory.file_id.is_(None)
         )
     if params.by == "watch" or params.watch is not None:
-        base = _join_watch(base, viewer_id)
+        base = join_watch(base, viewer_id)
     if params.watch is not None:
-        base = base.filter(_watch_bucket() == params.watch)
+        base = base.filter(watch_bucket() == params.watch)
     try:
         if params.by == "all" or params.key is not None:
             shelf = _keyed_shelf(
