@@ -183,7 +183,7 @@ afterEach(() => {
 });
 
 describe("SPEC-CORE-077 the rebuild on the next visit", () => {
-  it.runIf(addonsLinked)("SPEC-CORE-077 I5 I6 a revisit draws Recommended from one restrict of the stored ids, before its provider answers, and still asks the provider once", async () => {
+  it.runIf(addonsLinked)("SPEC-CORE-077 I5 I6 SPEC-CORE-142 I6 a revisit draws Recommended from one restrict of the stored ids with no watch condition, before its provider answers, and still asks the provider once", async () => {
     declare({ recommended: [PICKUP] });
     await seedRecommended(["r3", "r1", "r2"]);
 
@@ -195,7 +195,8 @@ describe("SPEC-CORE-077 the rebuild on the next visit", () => {
     expect(shelfCards("Recommended")).toEqual([title("r3"), title("r1"), title("r2")]);
     const rebuild = restrictCalls().slice(from);
     expect(rebuild).toHaveLength(1);
-    expect(rebuild[0]).toMatchObject({ drive, by: "all", key: "all", type: ["video"], watch: "unwatched", ids: ["r3", "r1", "r2"] });
+    expect(rebuild[0]).toMatchObject({ drive, by: "all", key: "all", type: ["video"], ids: ["r3", "r1", "r2"] });
+    expect(rebuild[0].watch).toBeUndefined();
     expect(intel.pickup).toHaveBeenCalledTimes(1);
   });
 

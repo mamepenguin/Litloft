@@ -62,14 +62,16 @@ test("SPEC-CORE-140 D1 D2 D3 a double tap shows the bottom bar with the band, an
   await expect(page.locator('[data-testid="watched-piece"]')).toHaveCount(3);
   const m = await measureBand(page);
   expect(m.knob, "the touch seek bar draws its knob").not.toBeNull();
-  const fullScreen = await paintedOpacity(page, FULL_SCREEN);
-  const settings = await paintedOpacity(page, SETTINGS);
-  const centre = await paintedOpacity(page, CENTRE);
-  const hairline = await paintedOpacity(page, HAIRLINE);
-
   expectBandGeometry(m);
-  expect(fullScreen, "the full-screen button is drawn").toBe(1);
-  expect(settings ?? 0, "the top-right buttons are not drawn").toBe(0);
-  expect(centre ?? 0, "the centre play button is not drawn").toBe(0);
-  expect(hairline ?? 0, "the hairline is not drawn").toBe(0);
+  // The chrome fades in over 200 ms after the second tap; read it once the fade has settled.
+  await expect.poll(() => paintedOpacity(page, FULL_SCREEN), "the full-screen button is drawn").toBe(1);
+  await expect
+    .poll(async () => (await paintedOpacity(page, SETTINGS)) ?? 0, "the top-right buttons are not drawn")
+    .toBe(0);
+  await expect
+    .poll(async () => (await paintedOpacity(page, CENTRE)) ?? 0, "the centre play button is not drawn")
+    .toBe(0);
+  await expect
+    .poll(async () => (await paintedOpacity(page, HAIRLINE)) ?? 0, "the hairline is not drawn")
+    .toBe(0);
 });

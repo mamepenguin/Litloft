@@ -231,7 +231,6 @@ export function useProviderShelfPage({
         requests,
         drive,
         target,
-        ...(recommended ? { watch: "unwatched" } : {}),
         accepted,
         isCurrent: () => my === seq.current,
         onViewerRejected: () => onRejected.current(),
