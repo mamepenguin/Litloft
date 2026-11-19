@@ -338,6 +338,14 @@ jobs:
         run: node scripts/check-playwright-browsers.mjs chromium chromium-headless-shell
         working-directory: frontend
 
+      # The image's own fallback is a CJK font whose taller lines move every
+      # text measurement. The file pins the fallback to Liberation Sans.
+      - name: Install the fallback font configuration
+        id: fonts
+        run: |
+          mkdir -p "$HOME/.config/fontconfig"
+          cp .github/playwright-fonts.conf "$HOME/.config/fontconfig/fonts.conf"
+
       # Spelled out rather than through the package script, so the shard flag
       # does not depend on pnpm's argument forwarding.
       - name: Test the components in a browser
@@ -376,6 +384,14 @@ jobs:
         id: browsers
         run: node scripts/check-playwright-browsers.mjs chromium chromium-headless-shell webkit
         working-directory: frontend
+
+      # The image's own fallback is a CJK font whose taller lines move every
+      # text measurement. The file pins the fallback to Liberation Sans.
+      - name: Install the fallback font configuration
+        id: fonts
+        run: |
+          mkdir -p "$HOME/.config/fontconfig"
+          cp .github/playwright-fonts.conf "$HOME/.config/fontconfig/fonts.conf"
 
       - name: Test the layout invariants
         run: pnpm test:e2e:layout
