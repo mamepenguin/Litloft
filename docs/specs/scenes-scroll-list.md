@@ -18,11 +18,11 @@ This change draws every frame in one list that scrolls, the way the transcript d
 
 - **SPEC-ADDON-152, the list.**
   - Every frame is drawn, in `c` columns, in time order.
-  - Under the player (the workbench) the list takes the height the ruler, card and action
-    row leave and scrolls inside itself, so the panel body does not scroll. In an
-    inspector tab (the stacked desktop inspector, the phone sheet) the list scrolls with
-    the tab's scroller, with the ruler pinned at the top and a one-line card pinned at
-    the bottom.
+  - Under the player (the workbench) and in the stacked desktop inspector's tab, the
+    list takes the height the ruler, card and action row leave and scrolls inside
+    itself, so the panel body does not scroll. In the phone sheet the list scrolls with
+    the sheet, with the ruler pinned at the top and a one-line card pinned at the
+    bottom.
   - While playing, the list follows the playing frame, moving only when the playing row
     leaves view. A reader's scroll stops following and shows a **Back to current
     position** chip.
@@ -35,11 +35,6 @@ This change draws every frame in one list that scrolls, the way the transcript d
 
 SPEC-ADDON-104 (rows fill the height) no longer applies: there is no row count. It is
 marked superseded in the ledger.
-
-One core change makes the addon contract true: the stacked desktop inspector's tab panel,
-which is the box that scrolls an inspector tab there, gets the `data-inspector-scroller`
-mark that `docs/ADDON-DEVELOPMENT.md` already promises for a narrow form. Today only the
-phone sheet's scroller carries it.
 
 Agreed design: https://claude.ai/artifact/LQ5pW3HnepkWiJDPuVdnV1, saved in
 `docs/process/reviews/feature-scenes-scroll-list/design/` (`Main.dc.html`,
@@ -70,13 +65,16 @@ The design's visible decisions:
 
 - **List**: the element holding the tiles, with every tile mounted. Its padding leaves
   room for the playing tile's outline, so the outline is not clipped.
-- **Flow form**: the section has an ancestor marked `data-inspector-scroller`: the
-  phone sheet's scroller (`mobile-inspector-content`) and, after this change, the stacked
-  desktop inspector's tab panel (`InspectorShell` in its `panel` form). The list is not a
-  scroll container: it is as tall as its content and the marked ancestor scrolls it.
-- **Bounded form**: no such ancestor: the workbench panel body
-  (`.media-detail-workbench-body`, on the media page and on the collection surface),
-  which stretches the section to its height. The list is a scroll container
+- **Flow form**: the section has an ancestor marked `data-inspector-scroller`, which
+  only the phone sheet's scroller (`mobile-inspector-content`) carries: the inspector's
+  `column` form, shared by every tab (`docs/ADDON-DEVELOPMENT.md`, the contract the
+  transcript also reads). The list is not a scroll container: it is as tall as its
+  content and the marked ancestor scrolls it.
+- **Bounded form**: no such ancestor. The hosts: the workbench panel body
+  (`.media-detail-workbench-body`, on the media page and on the collection surface,
+  one panel or two side by side), which stretches the section to its height, and the
+  stacked desktop inspector's tab, whose `PanelTabBody` (`flex h-full min-h-0 flex-col`)
+  bounds it to the tab panel's height. The list is a scroll container
   (`overflow-y: auto`, `scrollbar-gutter: stable`) that takes the height left after the
   ruler, the card or placeholder, the stale note and the action row, never less than one
   row step.
@@ -85,7 +83,7 @@ The design's visible decisions:
 - **Visible area**: the part of the scroller's client box where tiles can be seen. In
   bounded form, the list's client box. In flow form, from the scroller's top plus
   `--inspector-sticky-top` (read with `getComputedStyle` on the section; 0 when unset)
-  plus the pinned ruler's height, to the scroller's bottom less the pinned card's height.
+  plus the pinned ruler's height, to the top of the pinned card's box.
 - **Row step**: one drawn tile's height (picture and time label) plus the grid's row gap,
   measured from a drawn tile.
 - **Visible row**: a row with at least half of its tile height inside the visible area.
@@ -100,8 +98,8 @@ The design's visible decisions:
   start is at or before the time under the pointer, or the frame a key moved to. It is
   drawn as a thin line on the ruler and the white `outline-text-primary` outline on its
   tile (today's browsed tile).
-- **Shown**: the section is not inside a `[hidden]` ancestor and its host reports it
-  `active`.
+- **Shown**: the section's body is expanded, it is not inside a `[hidden]` ancestor,
+  and its host does not report `active: false` (an absent `active` counts as shown).
 - **Placement events**: show; a file change; the frames arriving (a `.loft` reads them on
   mount and can be shown before they arrive); the controller appearing; following being
   set; a change of the playback time; a change of the visible area's size (a resize, a
@@ -121,8 +119,11 @@ The design's visible decisions:
 2. The section draws, from the top: the ruler with its labels, the list, then the Visual
    Index placeholder or the scene card, the stale note and the action row. In flow form
    the ruler is pinned at `top: var(--inspector-sticky-top, 0px)` and the card or
-   placeholder at `bottom: 0` of the scroller, with a `z-index` below 10; the stale note
-   and the action row come after the list and scroll with it.
+   placeholder at `bottom: 0` of the scroller, both with an opaque background and a
+   `z-index` below 10. The pinned card's box reaches the scrollport's bottom edge and
+   pads its content by `env(safe-area-inset-bottom)`, so on an iPhone the card sits above
+   the home indicator. The stale note and the action row come after the list and scroll
+   with it.
 3. On show, on a file change and when the frames arrive, the list draws all `n` frames in
    `c` columns, following is set and there is no ruler point. With a `mediaController`
    the playing row is placed; without one the scroller is set so the list's top is at the
@@ -140,7 +141,9 @@ The design's visible decisions:
    - a `wheel` or `touchmove` lands on the scroller (in flow form, anywhere on it,
      including a vertical swipe that starts on the pinned ruler or card);
    - a mouse `pointerdown` lands on the scroller itself (its scrollbar);
-   - `PageUp`, `PageDown`, `Home` or `End` is pressed while focus is in the list;
+   - `PageUp`, `PageDown`, `Home` or `End` is pressed while focus is inside the scroller
+     and not on the ruler (which takes `Home` / `End` itself), or on the scroller itself;
+   - a middle-button `pointerdown` lands anywhere in the scroller (autoscroll);
    - focus moves to a tile that is not wholly visible (the browser scrolls it in).
    `Space` and the arrow keys stay the player's page shortcuts while a tile has focus
    (play/pause, seek); their seeks act as step 5. A scroll the section makes itself never
@@ -215,7 +218,9 @@ The design's visible decisions:
   (§1.11–1.13). A pause, a seek from elsewhere, a Visual Index reload or action, a resize
   or a picture's ratio leave it as it is.
 - **Ruler point set / none**: set by §1.11–1.13; removed by a reader's scroll (§1.6), by
-  following being set, and by step 3. Leaving or blurring the ruler does not remove it.
+  a tile, the card, the chip or `Enter`, and by step 3. Playing, leaving or blurring the
+  ruler do not remove it, so when every frame fits, a point set while following stays
+  until one of those.
 - **Card full / one line**: one line in flow form. In bounded form, one line when `H` is
   under two row steps, full otherwise, where `H` is the list's client height plus the
   drawn card's (or placeholder's) height minus the full card's minimum height (7.6rem).
@@ -241,11 +246,7 @@ Unchanged: the same addon routes, with `X-Lit-Drive` and the per-drive policy.
 
 ### 7. Effect on existing features
 
-- `InspectorShell`'s `panel`-form tab panel gets `data-inspector-scroller`. The
-  transcript finds its scroller through that mark (`scrollingBoxOf`), so in the stacked
-  desktop inspector its following and remembered place now scroll the tab panel, which
-  is the box that actually scrolls there; today they scroll the list, which does not.
-  No other reader of the mark exists.
+- No core component changes; the transcript and its scroller are untouched.
 - The other `player-side` panels and inspector tabs are unchanged; the section never
   scrolls a shared scroller while another tab is shown (§1.6).
 - `useSceneRows` and the `R` measurement (SPEC-ADDON-104) are removed, with the tests of
@@ -262,9 +263,11 @@ Unchanged: the same addon routes, with `X-Lit-Drive` and the per-drive policy.
   from the scene-tile route. `ScenesSectionOneList.test.tsx` cites I10 for the order.
 - The full card keeps its `line-clamp` in `ScenesSectionPresenter.tsx`
   (`frontend/src/__tests__/line-clamp-display.test.ts` anchors it).
-- The Scenes cases of `frontend/e2e-layout/no-horizontal-scroll.spec.ts` and its fixture
-  assert that the section never scrolls; they become "never scrolls horizontally; only
-  the list scrolls vertically" (SPEC-CORE-065 I3, I4 as revised).
+- The fixed-width Scenes routes (`scenes-351` … `scenes-long-390` in `fixtures/app.tsx`,
+  `ScenesSectionArrangement`) wrap the section in a bounded box of a stated width and
+  height standing in for the workbench body, and `scenes-section.spec.ts` /
+  `scenes-section-desktop.spec.ts` keep measuring columns at those widths there. The
+  revised SPEC-CORE-065 I3 and I4 clauses are measured in the new real-host suite.
 - The user guide's video page and keyboard-shortcuts page describe hovering and
   clicking the ruler; they are updated in the core PR.
 - A ruler click on a `.loft` with no frames no longer seeks (SPEC-ADDON-129 I4 as
@@ -290,37 +293,43 @@ Unchanged: the same messages for Visual Index actions; nothing new is logged.
 - Pictures: opening the panel requests at most the tiles within one row step of the
   visible area; scrolling requests nothing until the scroller has been still for 150 ms.
 - Measured in a real browser (`frontend/e2e-components/`, the real section in its real
-  hosts): the workbench at 1400 and 900 px high, the workbench with classic scrollbars
-  (columns and scroll position steady over 60 frames), the stacked desktop inspector, and
-  the phone sheet at half and full snap (390 px wide). They measure I1, I2, I5, I8 and
-  I10.
-- The iOS shell (touch scrolling and the pinned ruler and card in the sheet, the sheet's
-  pull-to-collapse) is in `agent_cannot_verify`: the human checks it on the phone after
-  deploy.
+  hosts):
+  - hosts: the media-page workbench at 1400 and 900 px high, one panel and two side by
+    side, turning the second panel on and off; the collection surface's panel; the
+    stacked desktop inspector at 768×1024; the phone sheet at half and full snap,
+    390 px wide;
+  - states: classic scrollbars (columns and scroll position steady over 60 frames), 4:3
+    pictures, Visual Index absent and stale (placeholder, card, note), first paint on
+    opening the panel, toggling a panel and switching tabs, resizing taller and shorter;
+  - invariants: I1, I2, I3 (wheel and touch on the pinned ruler and card in the sheet),
+    I5, I8, I9 (placing a row; `pointercancel` restoring it), I10, and the revised
+    SPEC-CORE-065 I3, I4. I6 (picture timing) and the rest of I9 are tested in jsdom with
+    a measured layout stubbed.
+- The iOS shell (touch scrolling, the pinned ruler and card in the sheet, the card above
+  the home indicator, the sheet's pull-to-collapse) is in `agent_cannot_verify`: the
+  human checks it on the phone after deploy.
+- `max_frames` is a setting with a default of 500; every tile is mounted whatever it is
+  set to.
 
 ## Touch points
 
 - `addons/intelligence/frontend/ScenesSection/` (Container, Presenter, `scenesModel.ts`,
   hooks; `useSceneRows.ts` removed; a follow hook added) and its `__tests__/`.
 - `addons/intelligence/frontend/messages/{ja,en}.json`: the chip's text.
-- `frontend/src/components/FileDetail/inspector/InspectorShell.tsx`: the mark on the
-  `panel`-form tab panel, with its test.
 - `frontend/e2e-components/`: `scenes-section*.ts`, `projects.ts`,
   `spec-viewport.spec.ts`, `fixtures/scenesSection.tsx`, `fixtures/scenesSectionData.ts`,
   `fixtures/inspectorResponsive.tsx`, `fixtures/app.tsx`; the `scenes-section-rows*`
   files removed.
-- `frontend/e2e-layout/no-horizontal-scroll.spec.ts` and
-  `fixtures/no-horizontal-scroll.html`, Scenes part.
 - `frontend/scripts/check-coverage-denominator.mjs`, if a file without code is added or
   removed under `ScenesSection/`.
 - `docs/user-guide/video.md` (Watching a video), `docs/user-guide/keyboard-shortcuts.md`
-  (Scenes timeline), and `docs/ADDON-DEVELOPMENT.md` (the stacked inspector is marked).
+  (Scenes timeline).
 - `docs/specs/INDEX.md`: rows for 152 and 153; SPEC-ADDON-104 → superseded.
 - Rules passed through: `.claude/rules/frontend-conventions.md` (Container/Presenter, the
   design system), `DESIGN.md` (accent chip, radius, touch scrolling), and
   `.claude/rules/design-decisions.md` (Addons: no core-to-addon dependency).
 - Order: the addon change merges in its repository first; the core PR bumps the
-  `addons/intelligence` pointer with the core mark, tests and docs.
+  `addons/intelligence` pointer with the core tests and docs.
 - No protected path is edited.
 
 ## Invariants
@@ -328,13 +337,13 @@ Unchanged: the same messages for Visual Index actions; nothing new is logged.
 Tests of the revised invariants cite the revised spec's id; tests of the lines below cite
 SPEC-ADDON-152 (I1–I7, I10) or SPEC-ADDON-153 (I8, I9).
 
-I1. The list draws one tile for each of the `n` frames, in time order, in `c` columns. Inside the section only the list scrolls, and only vertically. In bounded form the workbench body does not scroll unless it is shorter than the ruler, card, stale note, action row and one row step together.
+I1. The list draws one tile for each of the `n` frames, in time order, in `c` columns. Inside the section only the list scrolls, and only vertically. In bounded form the host's box (the workbench body, the inspector tab panel) does not scroll unless its content box is shorter than the sum of the ruler block, the card or placeholder, the stale note, the action row, the gaps between them and one row step.
 I2. On show, a file change and the frames arriving, the first painted list has the playing row placed with a `mediaController`, or the list's top at the top of the visible area without one. After any other placement event, while following is set, the section is shown and a controller is present, the playing row is wholly visible; `scrollTop` changes only when it was not, and then it is the second row of the visible area (or the first for row 0), clamped to the scroll range.
-I3. Following is set on show, on a file change, when the frames arrive, by a tile, the scene card, the chip and the ruler's `Enter`. It is cleared only by a reader's `wheel`, `touchmove`, mouse `pointerdown` on the scroller itself, `PageUp`/`PageDown`/`Home`/`End` in the list or focus moving to a tile not wholly visible, while the section is shown and the scroller can scroll, and by ruler input while the scroller can scroll; never by a scroll the section makes, a pause, a seek from elsewhere, a Visual Index reload or a resize.
+I3. Following is set on show, on a file change, when the frames arrive, by a tile, the scene card, the chip and the ruler's `Enter`. It is cleared only by a reader's scroll input as §1.6 lists it, while the section is shown and the scroller can scroll, and by ruler input while the scroller can scroll; never by a scroll the section makes, a pause, a seek from elsewhere, a Visual Index reload or a resize.
 I4. The chip **Back to current position** is drawn exactly while following is clear, a `mediaController` is present and the scroller can scroll.
 I5. The scene card is chosen at the ruler point when set, otherwise at the playback time while following with a `mediaController`, otherwise at the start of the first frame of the top row. In flow form the card is one line; in bounded form it is one line exactly when `H` (§3) is under two row steps. The one-line card shows the dot, the seek time and the label, never `visible_text`.
 I6. A tile's picture is requested only after its row has stayed within one row step of the visible area for 150 ms with no scroll in between, at most once while the panel stays shown and the file is the same, and a drawn picture is not removed while the panel stays shown.
-I7. While the section is not shown it writes no scroller's `scrollTop` and no reader input changes following. Showing it again or changing the file sets following and removes the ruler point.
+I7. While the section is not shown it writes no scroller's `scrollTop`, so a shared scroller keeps the position another tab left. Showing it again or changing the file sets following and removes the ruler point.
 I8. The ruler's band runs from the first frame of the first visible row to the start of the frame after the last visible row's last frame, or to `L`, and changes when the list scrolls.
 I9. No ruler input seeks except `Enter` with a ruler point set. A mouse press or drag, a tap or a horizontal drag of at least 8 px sets the ruler point at the start of the frame under it and places its row; mouse movement without a button only draws the hover line. The first `←`/`→` press starts from the ruler point, else the playing frame while following with a controller, else the top row's first frame. A `pointercancel` after a drag has moved 8 px restores the scroll position, following and ruler point it started from.
 I10. From the top the section draws the ruler with its labels, the list, the placeholder or scene card, the stale note and the action row. In flow form the ruler stays below `--inspector-sticky-top` and the card at the scroller's bottom while the list scrolls; in bounded form the ruler, card, stale note and action row keep their positions while the list scrolls.
@@ -381,7 +390,12 @@ SPEC-CORE-065 I4. On a mouse environment, no drawn item is clipped by a wrapper:
 - **The `fillHeight` prop or measured overflow to pick the form**: every host passes
   `fillHeight: true`, and overflow depends on the layout it would choose. The documented
   `data-inspector-scroller` mark is the host's own statement.
-- **Drawing only the tiles near view**: not needed; frames are capped at `max_frames`.
+- **Marking the stacked desktop inspector's tab panel**: considered and dropped. Its tab
+  body is a bounded flex column (`PanelTabBody`), so the list scrolls itself there, as
+  the transcript's does; a mark would point the transcript at a box that does not
+  scroll.
+- **Drawing only the tiles near view**: not needed at the default `max_frames` of 500.
+  A larger setting mounts more tiles; that cost is accepted for a personal tool.
 - **Up to 500 tab stops between the ruler and the card**: accepted; the ruler and its
   keys are the quick way along the list.
 - **The section drawing its own header** (`labelledByHost` false): no host uses it today;
