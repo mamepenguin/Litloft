@@ -1,0 +1,2 @@
+frontend/src/__tests__/check-playwright-browsers.test.ts
+tests/test_ci_browser_jobs.py
