@@ -56,13 +56,16 @@ What each SPEC-ID promises:
   `folder-counts/query` does.
 - Both also accept `watch` (`in_progress` | `unwatched` | `finished`), with the boundary
   and the viewer requirement of the shelves route. `watch` without a viewer identity
-  answers 400 `viewer_required`. The watch join is shared with `shelves.py`, not copied.
+  answers 400 `viewer_required`. The watch join and bucket move from `shelves.py` to a
+  new `backend/app/services/watch_state.py`, used by both routes; `drives.py` does not
+  import `shelves.py`. No other viewer filter is accepted.
 - Both answer `[{ "name": str, "count": int }]`. The rows are the matching files' tags,
   grouped by name folded the way the listing's `tag` filter folds it (Python
   `str.lower`). The grouping takes every Tag row linked to those files, including a row of
   another drive that a moved file still links to.
   - `count` is the number of distinct matching files carrying any row of that group.
-  - `name` is the spelling of this drive's row in the group. If the group has none, it is
+  - `name` is the spelling of this drive's row in the group (the alphabetically first one
+    when this drive holds two spellings). If the group has none, it is
     the alphabetically first spelling.
 - Groups with count 0 are not listed. The order is count descending, then `name`. Paging
   and sort parameters are ignored.
@@ -108,10 +111,48 @@ view menus in `LibraryControlRow` (SPEC-CORE-146), which owns the layout:
 - From 640px up it is one row: the filter group, a 20px gap, then the view group. When
   the row is too narrow, the view group wraps to the next line as a unit.
 
-**Where filter state lives (Video, Reading).** A module-level in-memory store holds the
-filters, keyed by app and drive. Navigation inside the app keeps it (tab switches, See
-all and back). A full page load empties it. A drive change empties it. So does a Target
-chosen in the Target menu. A member re-evaluation does not.
+**Where filter state lives (Video, Reading).** A module-level in-memory store holds one
+entry per app: its drive and its filters.
+
+- Client-side navigation keeps it. That includes tab switches, See all and back, a
+  file page and back, and another app or page and back.
+- A full page load empties it.
+- Opening the app on a drive other than the entry's drive replaces the entry with empty
+  filters, so A→B→A does not bring A's filters back.
+- A Target choice, as SPEC-CORE-145 defines it, empties it. Choosing the Target already in
+  force does not. Neither does a fallback to `default` or a member re-evaluation.
+
+**`FilterMenus` contract.** The caller passes:
+
+- `tags` (the chosen names, in choice order), `onToggle(name)` and `onClear()`;
+- `loadCandidates(signal) => Promise<{name, count}[]>`, the caller's own tag-counts request
+  under its conditions. Video and Reading use `AppRequests.tagCounts`; Clips uses its
+  `requests.ts` with `ReadyNotesTarget.fileIds`;
+- `conditionsKey`, a string that changes whenever the conditions change. A load started
+  under another key is dropped;
+- `excludeTags`, the Target's own `tag` conditions;
+- `state`: `{ options, value, onChange }`, or `null` for no state menu;
+- `onViewerRejected`, called when tag-counts answers `viewer_required`. The caller handles
+  it as its Library requests do.
+
+Tag names are compared folded with `toLowerCase()`, matching the backend's grouping, for
+de-duplication, for the chosen-first list, and for `excludeTags`. The chosen tags are
+listed in choice order.
+
+**Tag menu details.**
+
+- On a failed reload, the rows already drawn stay and Try again is shown under them.
+- The search text is kept across toggles and cleared when the menu closes.
+- The 指定なし row shows a check when no tag is chosen.
+
+Checkable lines from the design:
+
+- TagMenu: the filter button, then the menu. In the menu, top to bottom: the search field,
+  指定なし (checked when none is chosen), a separator, then the rows. Each row has a
+  check, the name, and the count at the right end. The chosen rows come first.
+- Main: in Video, Reading and Clips, タグ then 状態, a gap, then 分類 and 並び順. All four
+  are outlined buttons with icon, label and value.
+- Phone, row 1: タグ and 状態, equal widths, 44px tall, a long value cut with an ellipsis.
 
 **Reading.** `TagMenu` and `StateMenu` are replaced by `FilterMenus`:
 
@@ -132,19 +173,24 @@ chosen in the Target menu. A member re-evaluation does not.
   and the same boundary Reading uses.
 - The See all page (`app/drive/[name]/apps/video/shelf/page.tsx`, `VideoShelfPage.tsx`)
   reads them from its URL and requests with them, as Reading's does. Without a profile, or
-  with an unknown value, `watch` is dropped. Its title and back link are unchanged.
+  with an unknown value, `watch` is left out of the request, and the URL is left as it
+  is. Its title and back link are unchanged.
   Discover's See all links carry no filter.
 - 分類 no longer offers 視聴状態. A stored `watch` view is not offered, so it falls through
   as SPEC-CORE-145's order says. The "watch without a profile shows Folder" exception
   goes with it.
 - Discover's shelves are unchanged.
+- **Progress bars.** Today the shelves route attaches `watch_progress` only for
+  `by=watch`. It now attaches it for every `by` whenever the request has a viewer, so
+  Video Library cards show their progress bar under any grouping and filter. This is in
+  `shelves.py`, through the shared `watch_state.py`.
 - Choosing a state without a profile is not possible. Clearing the profile clears the
   state, as in Reading.
 
 **Clips (SPEC-ADDON-151).**
 
 - The Library gains the tag menu and the state menu, drawn with or without a profile:
-  すべて / All, 未検証 / Unverified (`trust=unverified`), 検証済み / Verified
+  すべて / All, 未確認 / Unverified (`trust=unverified`), 確認済み / Verified
   (`trust=verified`).
 - Both live in the URL as `tag` (repeated) and `trust` (`unverified` | `verified`). A
   filter change replaces the URL and adds no history entry. Another `trust` value
@@ -153,11 +199,18 @@ chosen in the Target menu. A member re-evaluation does not.
   `tag:`, `untagged`, `folder:` and `month:` shelf page, and the back link of such a page.
 - Home's shelf kinds (`unread`, `recent`, `new`, `unverified`) ignore them. Links to them
   carry none, and their back link to Home drops them. Clips Home ignores them.
-- A Target choice drops them, with `group` and `sort`, by replace.
-- The fill-in of SPEC-ADDON-147 never adds them.
+- A Target choice (as SPEC-CORE-145 defines it) drops them in the same single replace
+  that carries the new Target's `group` and `sort`.
+- These keep `tag` and `trust`:
+  - the 分類 / 並び順 choice (a push);
+  - the `group` / `sort` fill-in;
+  - the rewrite of an unknown value, which drops only the unreadable parameter;
+  - a shelf page's `sort` fill-in.
+- The Home and Library tab links carry none, so going through a tab clears them. Reloading
+  a filtered URL keeps them, because the URL carries them.
 
-**Reset.** In all three apps, filters are not written to storage. They reset to none on
-a fresh open, a drive change and a Target change. In Clips they persist only as long as
+**Reset.** In all three apps, filters are not written to storage. Video and Reading
+reset as the store above says. Clips' filters are the URL's: they last as long as
 the URL carries them.
 
 ### 2. Failure cases
@@ -247,7 +300,12 @@ As in 2:
 
 - the menu shows Try again;
 - the Library shows its failed state;
-- a Library with no result while a tag is chosen or the state is not すべて shows 条件に合う項目はありません / Nothing matches these filters as the title of the empty state the app already draws, in place of that app's own title. Clips' copy is in the knowledge addon's messages.
+- a Library with no result while a tag is chosen or the state is not すべて shows an
+  `EmptyState` with the `Search` icon, the title 条件に合う項目はありません / Nothing matches
+  these filters, and no description. It replaces the app's usual empty state, Video's
+  `no-files` variant included. A Target that is empty or unusable, and an empty drive,
+  keep their own states, which take precedence. Clips' copy is in the knowledge addon's
+  messages.
 
 Nothing is logged beyond the existing request logging.
 
@@ -261,8 +319,9 @@ Nothing is logged beyond the existing request logging.
 
 ### 10. Non-functional
 
-- One tag-counts request per menu open. It is a single grouped query over the filtered
-  listing (one `GROUP BY` over `file_tags`), bounded by the drive's files.
+- One tag-counts request per menu open and one per toggle while it is open. It reads the
+  filtered files' tag links in one query and groups them in Python by folded name,
+  counting distinct files. It is bounded by the drive's files.
 - Search is client-side. Tens to low thousands of tags fit in the menu with its scroll.
 - No change to request counts for the Library itself.
 
@@ -273,6 +332,15 @@ Nothing is logged beyond the existing request logging.
 - `frontend/src/lib/api.ts`: `getTagCounts` (GET and POST).
 - `frontend/src/components/appshell/FilterMenus.tsx` (new); `ViewMenus.tsx`'s
   `LibraryControlRow` for the grid layout; a filter store module beside them.
+- `backend/app/services/watch_state.py` (new): the watch join and bucket, moved from
+  `shelves.py`.
+- `addons/knowledge/frontend/clipsapp/useTagShelves.ts`, `useShelfData.ts` and the
+  folder/month shelves hook of SPEC-ADDON-147: their load scopes include `tag` and
+  `trust`.
+- `frontend/src/components/__tests__/toolbarMenuHome.test.ts`: updated in each PR for the
+  files whose `ToolbarMenu` import it changes.
+- Landing order, as in SPEC-CORE-145: a core PR, then the knowledge PR, then the core
+  pointer bump with the core Clips e2e fixtures.
 - `frontend/src/lib/memberTarget.ts`: `AppRequests` gains `tagCounts` (GET, or POST with
   member ids).
 - `backend/app/routers/shelves.py`: the watch join, shared with tag-counts.
@@ -301,13 +369,15 @@ Nothing is logged beyond the existing request logging.
 I1. For any parameters, every `tag-counts` entry's `count` equals the `count` of the shelves route's `by=all&key=all` answer for the same conditions plus `tag=<name>`, every tag group with such a count above 0 is listed once, no group with 0 is listed, and the list is ordered by count descending then name; `tag-counts/query` with ids X answers the same as `tag-counts` with a collection holding exactly X.
 I2. `tag-counts` and `tag-counts/query` answer 404 for a locked or unknown drive and never count a file of another drive, whatever ids or collections the request names; `watch` without a viewer answers 400 `viewer_required`.
 I3. Once the latest answer has arrived, the tag menu lists each chosen tag once and first, then exactly the answer's other tags minus the Target's own `tag` conditions, in its order; a search shows exactly the rows whose name contains the trimmed text, ignoring case; an answer for conditions no longer in force is never drawn.
-I4. With tags T and state S chosen, every Library request and every See all / Library-origin shelf link in Video, Reading and Clips carries all of T and S, and every item shown carries every tag in T and matches S; Clips Home and its Home-origin shelf pages carry and apply neither.
-I5. No filter value is written to localStorage or sessionStorage; a full page load, a drive change and a Target choice show every app with no tag and state すべて; a tab switch, a See all round trip and a member re-evaluation keep them; in Clips a filter change and a Target choice add no history entry.
+I4. With tags T and state S chosen, every Library request, every See all / Library-origin shelf link, and the Video See all page's request in Video, Reading and Clips carries all of T and S, and every item shown carries every tag in T and matches S; Clips Home and its Home-origin shelf pages carry and apply neither.
+I5. No filter value is written to localStorage or sessionStorage; in Video and Reading a full page load, opening the app on another drive, and a Target choice show no tag and state すべて, while a tab switch, a See all round trip, a file page round trip, re-choosing the Target in force, a fallback to `default` and a member re-evaluation keep them; in Clips the filters are exactly the URL's `tag` / `trust`, a filter change and a Target choice add no history entry, a Target choice and the tab links remove them, and the 分類 / 並び順 choice and every fill-in or rewrite keep them.
 I6. Without a profile, Video draws no state menu and sends no `watch`, its See all page drops a `watch` in its URL, and clearing the profile sets the state to すべて.
 I7. Video's 分類 never offers 視聴状態, and a stored `watch` view shows the next value in SPEC-CORE-145's order without sending `by=watch` from the Library; Discover's Continue shelf and its See all still use `by=watch`.
 I8. In Video, Reading and Clips the Library control row is `LibraryControlRow` with the filter group, a 20px gap, then the view group from 640px up; below 640px two rows of two equal-width buttons, filters on row 1, a lone filter in the left half; at 1440, 1280, 1024 and 390px in ja and en nothing scrolls horizontally, measured in a real browser.
 I9. A failing tag-counts request leaves the chosen tags and the Library's results unchanged.
 I10. A Library with no result while a tag is chosen or the state is not すべて shows 条件に合う項目はありません / Nothing matches these filters as its empty-state title; with no filter set, each app's existing empty title is shown.
+I12. Every tag-counts request the menu sends carries every condition in force: the Target's conditions (member ids through POST), Reading's chip, the state and the chosen tags; after a toggle the menu stays open and requests again.
+I13. Whenever the request has a viewer, the shelves route attaches `watch_progress` for every `by`, so Video Library cards draw their progress under any grouping and filter.
 I11. Clips' state menu offers すべて, 未確認 and 確認済み (en All, Unverified, Verified) and sends `trust=unverified` / `trust=verified`; a Clips URL with any other `trust` is replaced without it.
 
 ## Revises
@@ -315,7 +385,8 @@ I11. Clips' state menu offers すべて, 未確認 and 確認済み (en All, Unv
 SPEC-CORE-057 I10. The face and target are remembered per drive under separate keys, and the classification per Target under `litloft.videoApp.view.<drive>` (the old per-drive classification key read only for the default Target); a stored value that is unknown, stale, not offered (a stored `watch` included), or a smart folder id that is not in this drive's list falls back to the next value in SPEC-CORE-145's order without an error screen and is never sent to the backend.
 SPEC-CORE-063 I16b. The folder chip is never stored; it resets to All on a fresh open and on a target change. The Library sort is stored per Target. The tag and state filters are never stored; they last while the page is open and reset on a full page load, a drive change and a Target choice.
 
-SPEC-CORE-145 I15. Every 分類 and 並び順 menu in the four apps is drawn by `ViewMenus`; Video offers フォルダ, タグ, 追加日, 長さ and なし, and Reading and Clips offer タグ, フォルダ, 追加日 and なし; below 640px the two view menus are equal in width and on one row.
+SPEC-CORE-145 I15. Video offers フォルダ, タグ, 追加日, 長さ and なし, and Reading and Clips offer タグ, フォルダ, 追加日 and なし; at 390px, in Video, Reading and Clips, the two view menus are on one row and equal in width (within 1px), measured in a real browser by `e2e-layout` / `e2e-components`.
+SPEC-CORE-145 I11. Once the Library body is drawn, the Clips URL names the `group` and `sort` shown and the Notes URL names the `sort` shown, so Back after a Clips menu choice or a Notes sort choice shows the previous value; a Clips `tag:`/`untagged`/`folder:`/`month:` shelf page's back link is `?view=all&group=<tags|folder|month>&sort=<the page's sort>` plus the page's `tag` and `trust`.
 SPEC-CORE-145 I3. The view shown is: the URL parameter when present and readable (Clips `group`/`sort`, Notes `sort`, and Notes `folder`/`tag` implying the segment), else the Target's stored value when the app offers it in the current state, else, for the `default` Target only, the old per-drive value, else the app default; a value the app does not offer is never sent to the backend and never shown.
 
 ## Checked, no action
@@ -338,6 +409,10 @@ SPEC-CORE-145 I3. The view shown is: the URL parameter when present and readable
   its own core part so that task can restyle them in one place.
 - **A single "表示" sheet on phones.** Rejected by the user in favour of the 2×2 grid. The
   artboard was dropped from the saved design.
+- **A tag name spelled by another drive.** When none of the matching files' rows for a
+  name belongs to this drive (a file moved before its tags followed it), the menu shows
+  the other drive's spelling. This is rare, shows only a tag the file already carries, and
+  matches what the listing's `tag` filter already does.
 - **Renaming Clips' 未確認 / 確認済みにする.** Not done. The state menu uses those words.
 - **A design for the tag menu at phone width.** None separate. `ToolbarMenu` already
   becomes a bottom sheet below `sm`, and the search field sits at its top.
