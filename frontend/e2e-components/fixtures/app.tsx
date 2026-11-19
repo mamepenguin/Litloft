@@ -2880,6 +2880,9 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
       scrollerPaddingBottom={16}
     />
   ),
+  "scenes-flow-no-visual": () => (
+    <ScenesFlowArrangement hostWidth={390} scrollerHeight={420} noVisual />
+  ),
   "inspector-video": InspectorVideoArrangement,
   "inspector-video-sidebar": InspectorVideoSidebarArrangement,
   "inspector-pdf": InspectorPdfArrangement,

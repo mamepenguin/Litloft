@@ -85,6 +85,8 @@ function jsonResponse(body: unknown): Response {
 interface StubOptions {
   /** Leaves the `visual-index` answer outstanding, as a slow backend would. */
   pendingVisual?: boolean;
+  /** Answers the `visual-index` request with a 404. */
+  noVisual?: boolean;
 }
 
 /** Nothing here reaches a server: the fixture runs from `file://`. */
@@ -122,6 +124,9 @@ function stubIntelligenceApi(
       );
     }
     if (url.includes(`/files/${data.file}/visual-index`)) {
+      if (options.noVisual) {
+        return Promise.resolve(new Response("", { status: 404 }));
+      }
       return options.pendingVisual
         ? new Promise<Response>(() => {})
         : Promise.resolve(jsonResponse(data.visualIndex));
@@ -259,13 +264,15 @@ export function ScenesFlowArrangement({
   hostWidth,
   scrollerHeight,
   scrollerPaddingBottom = 0,
+  noVisual = false,
 }: {
   hostWidth: number;
   scrollerHeight: number;
   scrollerPaddingBottom?: number;
+  noVisual?: boolean;
 }): ReactElement {
   const data = LONG;
-  stubIntelligenceApi(data);
+  stubIntelligenceApi(data, { noVisual });
   const mediaController = useMemo(
     () => makeController(data.duration),
     [data.duration],

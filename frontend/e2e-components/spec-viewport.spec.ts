@@ -71,6 +71,7 @@ const AT_THE_PHONE_WIDTH = [
   "plain-text-document.spec.ts",
   "played-ranges.spec.ts",
   "scenes-section.spec.ts",
+  "scenes-scroll-list-flow.spec.ts",
   "scenes-scroll-list.spec.ts",
   "spec-viewport.spec.ts",
   "home-app-entries.spec.ts",
