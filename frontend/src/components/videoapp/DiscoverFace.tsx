@@ -23,7 +23,7 @@ function DiscoverShelf({
   isSameViewer: (viewer: string | null) => boolean;
 }) {
   const supplied = shelf.state.status === "loaded" ? shelf.state.items : EMPTY_ITEMS;
-  const { items, remove, restore } = useRemovableItems(supplied);
+  const { items, remove, restore } = useRemovableItems(supplied, shelf.cacheKey);
   const cacheKeyRef = useRef(shelf.cacheKey);
   cacheKeyRef.current = shelf.cacheKey;
 
