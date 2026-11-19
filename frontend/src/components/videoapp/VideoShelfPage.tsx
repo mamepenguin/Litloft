@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, Film } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 
@@ -12,6 +12,7 @@ import { usePaged } from "@/components/appshell/usePaged";
 import { VideoGrid } from "@/components/appshell/VideoGrid";
 import { PageFrame } from "@/components/PageFrame";
 import { builtinApps } from "@/lib/builtinApps";
+import { loadSlotItemActions, type ShelfItemAction } from "@/lib/addons";
 import { type ShelfGrouping, type ShelfItem } from "@/lib/api";
 import { slotEntryLabel } from "@/lib/slotLabel";
 import { SortChoiceMenu } from "./LibraryControls";
@@ -23,9 +24,10 @@ import {
   type ShelfSortChoice,
 } from "./labels";
 import { useProviderShelfPage } from "./useProviderShelfPage";
+import { useRemovableItems } from "./useRemovableItems";
 import { isViewerRequired, useVideoApp } from "./useVideoApp";
 import { VideoAppHeader } from "./VideoAppHeader";
-import { VideoCard } from "./VideoCard";
+import { VideoCard, type VideoCardMenu } from "./VideoCard";
 import { SkeletonGrid, VideoPagedGrid } from "./VideoPagedGrid";
 
 export const SHELF_PAGE_SIZE = 60;
@@ -118,6 +120,50 @@ export function VideoShelfPage({
     empty: state.empty,
     onViewerRejected: rejectViewer,
   });
+  const removable = useRemovableItems(provider.items);
+  const [itemActions, setItemActions] = useState<ShelfItemAction[]>([]);
+  const tGlobalRef = useRef(tGlobal);
+  tGlobalRef.current = tGlobal;
+  useEffect(() => {
+    if (!recommendedMode || !state.hasProfile || provider.entry === null) {
+      setItemActions([]);
+      return;
+    }
+    let live = true;
+    void loadSlotItemActions(provider.entry, {
+      drive,
+      locale,
+      t: tGlobalRef.current,
+    }).then((actions) => {
+      if (live) setItemActions(actions);
+    });
+    return () => {
+      live = false;
+    };
+  }, [recommendedMode, state.hasProfile, provider.entry, drive, locale]);
+
+  const viewerRef = useRef(state.nickname);
+  viewerRef.current = state.nickname;
+  const isSameViewer = useCallback(
+    (captured: string | null) => viewerRef.current === captured,
+    [],
+  );
+  const { remove, restore } = removable;
+  const onRemoved = useCallback((item: ShelfItem) => remove(item.id), [remove]);
+  const onRestored = useCallback((item: ShelfItem) => restore(item.id), [restore]);
+  const cardMenu: VideoCardMenu | undefined =
+    recommendedMode &&
+    state.hasProfile &&
+    state.nickname !== null &&
+    itemActions.length > 0
+      ? {
+          actions: itemActions,
+          viewer: state.nickname,
+          isSameViewer,
+          onRemoved,
+          onRestored,
+        }
+      : undefined;
   const sentinel = useNearEnd(entryMode && provider.hasMore, provider.loadMore);
 
   const title = entryMode
@@ -141,15 +187,19 @@ export function VideoShelfPage({
     ) : provider.phase === "failed" ? (
       <RetryButton onRetry={provider.retryFirst} />
     ) : provider.phase === "ready" || provider.phase === "ended" ? (
-      provider.items.length === 0 ? (
+      removable.items.length === 0 ? (
         <EmptyState variant="no-files" />
       ) : (
         <>
           <VideoGrid>
             {() =>
-              provider.items.map((item) => (
+              removable.items.map((item) => (
                 <li key={item.id} className="min-w-0">
-                  <VideoCard item={item} byline={provider.bylines.get(item.id)} />
+                  <VideoCard
+                    item={item}
+                    byline={provider.bylines.get(item.id)}
+                    menu={cardMenu}
+                  />
                 </li>
               ))
             }

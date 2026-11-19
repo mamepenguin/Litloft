@@ -6,6 +6,7 @@ import { RefreshCw } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { FileItem } from "@/types";
 import { useContextMenu } from "@/hooks/useContextMenu";
+import type { ExtraMenuItems } from "@/hooks/useFileMenuItems";
 import { FileCard } from "./FileCard";
 import { FileContextMenu } from "./FileContextMenu";
 import { SectionRow } from "./SectionRow";
@@ -27,6 +28,8 @@ interface CarouselSectionProps {
   onRefresh?: () => void;
   refreshing?: boolean;
   onFileAction?: () => void;
+  /** Rows a caller draws above the shared file menu's own rows. */
+  extraMenuItems?: ExtraMenuItems;
 }
 
 function SkeletonCard() {
@@ -51,6 +54,7 @@ export function CarouselSection({
   onRefresh,
   refreshing,
   onFileAction,
+  extraMenuItems,
 }: CarouselSectionProps) {
   const tc = useTranslations("common");
   const handleAfterAction = useCallback(() => {
@@ -123,6 +127,7 @@ export function CarouselSection({
         target={target}
         onClose={close}
         onUpdate={handleAfterAction}
+        extraMenuItems={extraMenuItems}
       />
     </section>
   );

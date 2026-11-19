@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentType } from "react";
 import { useMemo } from "react";
 import {
   ClipboardCopy,
@@ -40,9 +41,21 @@ export interface FileMenuContext {
   onTrash: () => void;
 }
 
+/** A row a caller puts above the shared menu's own rows. */
+export interface FileMenuExtraItem {
+  id: string;
+  label: string;
+  icon: ComponentType<{ size?: number }>;
+  onSelect: () => void;
+  disabled?: boolean;
+}
+
+export type ExtraMenuItems = (file: FileItem) => FileMenuExtraItem[];
+
 export function useFileMenuItems(
   file: FileItem | null,
   ctx: FileMenuContext,
+  extraItems: readonly FileMenuExtraItem[] = [],
 ): MenuItem[] {
   const tc = useTranslations("common");
   const tf = useTranslations("file");
@@ -59,7 +72,13 @@ export function useFileMenuItems(
     // and go grey rather than vanishing, so the menu keeps its shape.
     const gone = file.missing_since !== null;
 
-    const items: MenuItem[] = [];
+    const items: MenuItem[] = extraItems.map((extra) => ({
+      icon: extra.icon,
+      label: extra.label,
+      onClick: extra.onSelect,
+      disabled: extra.disabled,
+      immediate: true,
+    }));
 
     if (ctx.onOpenInNewTab) {
       items.push({
@@ -134,5 +153,5 @@ export function useFileMenuItems(
     });
 
     return items;
-  }, [file, ctx, clipboard, tc, tf, tcb, tt]);
+  }, [file, extraItems, ctx, clipboard, tc, tf, tcb, tt]);
 }

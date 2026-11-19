@@ -305,6 +305,8 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-150 | implemented | docs/specs/pickup-coverage.md | sha256:d3bc6dc01ac9e71a4db340786e5caa0253003b9847f7f9b2ca20909347013d73 |
 | SPEC-CORE-142 | implemented | docs/specs/pickup-coverage.md | sha256:d3bc6dc01ac9e71a4db340786e5caa0253003b9847f7f9b2ca20909347013d73 |
 | SPEC-CORE-149 | implemented | docs/specs/ci-browser-container.md | sha256:f57295929c9e8a4c02f7e011575865e6ae46bfe6ee148b957e2776667b83d5c2 |
+| SPEC-ADDON-154 | approved | docs/specs/pickup-not-interested.md | sha256:6a49d17c10729d5ba6fb104c92677e932c6049b6fa2900645273998567da55c2 |
+| SPEC-CORE-150 | approved | docs/specs/pickup-not-interested.md | sha256:6a49d17c10729d5ba6fb104c92677e932c6049b6fa2900645273998567da55c2 |
 | SPEC-CORE-145 | implemented | docs/specs/app-view-per-target.md | sha256:926ef39f97e4137c1499212982a2f5dab80c44f41cb1cb75ea7c2f65552200d6 |
 | SPEC-CORE-146 | implemented | docs/specs/app-view-per-target.md | sha256:926ef39f97e4137c1499212982a2f5dab80c44f41cb1cb75ea7c2f65552200d6 |
 | SPEC-ADDON-147 | approved | docs/specs/app-view-per-target.md | sha256:926ef39f97e4137c1499212982a2f5dab80c44f41cb1cb75ea7c2f65552200d6 |
