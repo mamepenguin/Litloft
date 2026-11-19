@@ -21,8 +21,26 @@ interface Departed {
  * put back. A removal records the index it left at; an undo inserts it there,
  * clamped to the list's current length.
  */
-export function useRemovableItems(supplied: readonly ShelfItem[]) {
-  const [operations, setOperations] = useState<Operation[]>([]);
+// Discover's shelves unmount when the viewer switches to the Library tab, and
+// the visit they belong to does not end there; operations recorded under a
+// visit key outlive the component for the rest of the JS session, as the
+// stored ids under the same key do.
+const operationsByKey = new Map<string, Operation[]>();
+
+export function useRemovableItems(supplied: readonly ShelfItem[], key?: string) {
+  const [operations, setLocalOperations] = useState<Operation[]>(() =>
+    key === undefined ? [] : (operationsByKey.get(key) ?? []),
+  );
+  const setOperations = useCallback(
+    (update: (prev: Operation[]) => Operation[]) => {
+      setLocalOperations((prev) => {
+        const next = update(prev);
+        if (key !== undefined) operationsByKey.set(key, next);
+        return next;
+      });
+    },
+    [key],
+  );
 
   // Replayed per render rather than memoized: a paging hook appends into the
   // same array, so its identity does not move when the list grows.
@@ -47,13 +65,15 @@ export function useRemovableItems(supplied: readonly ShelfItem[]) {
     }
   }
 
-  const remove = useCallback((id: string) => {
-    setOperations((prev) => [...prev, { kind: "remove", id }]);
-  }, []);
+  const remove = useCallback(
+    (id: string) => setOperations((prev) => [...prev, { kind: "remove", id }]),
+    [setOperations],
+  );
 
-  const restore = useCallback((id: string) => {
-    setOperations((prev) => [...prev, { kind: "restore", id }]);
-  }, []);
+  const restore = useCallback(
+    (id: string) => setOperations((prev) => [...prev, { kind: "restore", id }]),
+    [setOperations],
+  );
 
   return { items: list, remove, restore };
 }
