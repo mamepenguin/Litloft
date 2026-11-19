@@ -24,7 +24,7 @@ Up to three shelves of 12 books, each loading on its own:
 A shelf with no books is not shown, and **Continue reading** is not shown without a
 profile. Each shelf's **See all** opens it as a grid, 60 books at a time. **Not read yet**
 has no **See all** without a profile. **Continue reading**'s page opens most recently
-opened first, with **最後に開いた順** / **Last opened** in its sort menu.
+opened first, with **最後に開いた日** / **Date Last Opened** in its sort menu.
 
 Covers are portrait. The badge says **EPUB**, **PDF** or **書庫** / **Archive**, the title
 runs to two lines, and the line under it is the book's folder (the drive name at the root)
@@ -43,22 +43,30 @@ folder. The chip goes back to **All** when you reload, leave the page, come back
 Below the chips:
 
 - **タグ** / **Tag** keeps only books carrying the chosen tags. Every chosen tag must be on
-  the book. Under **By tag** it only chooses which books appear; the shelves still follow
-  the books' tags.
+  the book. Under **タグ** grouping it only chooses which books appear; the shelves still
+  follow the books' tags.
 - **状態** / **State** keeps **未読** / **Unread**, **読書中** / **In progress** or
   **読了** / **Finished** books. It needs a profile. With no profile the control is not
   drawn, and clearing the profile also clears a state you had chosen.
-- **まとめ方** / **Group** is **なし** / **None** (the default) or **タグ別** / **By tag**.
-  None is one grid of every matching book, 60 at a time, loading as you scroll. By tag is
-  one shelf per tag, each showing its first books with **See all**; books with no tag are
-  in a last shelf **タグなし** / **No tag**, and a book with several tags is in each of
-  them. The choice is remembered for the drive.
-- **並び順** / **Sort** is added newest first (the default), added oldest first, title or
-  size. It orders the books inside every shelf and in the grid. It is not saved.
+- **分類** / **Group By** is **タグ** / **Tag**, **フォルダ** / **Folder**, **追加日** /
+  **Date Added** or **なし** / **None** (the default). None is one grid of every matching
+  book, 60 at a time, loading as you scroll. Tag is one shelf per tag, each showing its
+  first books with **See all**; books with no tag are in a last shelf **タグなし** / **No
+  tag**, and a book with several tags is in each of them. Folder is one shelf per folder,
+  titled by the folder's last segment (the drive name at the root). Date Added is one shelf
+  per month, newest first.
+- **並び順** / **Sort By** is **追加日（新しい順）** / **Date Added (Newest First)** (the
+  default), **追加日（古い順）** / **Date Added (Oldest First)**, **タイトル** / **Title**
+  or **サイズ** / **Size**. It orders the books inside every shelf and in the grid.
 
-**See all** on a tag shelf opens that shelf as a grid, 60 books at a time, under the same
-target, chips, tag and state, and with the sort you had chosen. The shelf page has its own
-sort menu and its own target control; choosing another target keeps the shelf.
+The grouping and the sort are remembered for each target in this browser, so a Smart
+Collection can open grouped by tag while **All books** opens as one grid. A target you
+have not configured opens on None and Date Added (newest first). **All books** opens on
+the grouping the drive used before this change.
+
+**See all** on a shelf opens it as a grid, 60 books at a time, under the same target,
+chips, tag, state and sort. The shelf page has its own sort menu and its own target
+control; choosing another target keeps the shelf.
 
 ## Target
 
