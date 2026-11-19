@@ -85,6 +85,7 @@ export function VideoApp({ drive }: { drive: string }) {
             hasProfile={state.hasProfile}
             shelves={discover.shelves}
             pending={discover.pending}
+            viewer={state.nickname}
           />
         )}
       </div>

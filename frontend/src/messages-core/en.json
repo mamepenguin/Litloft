@@ -26,6 +26,8 @@
     "loadFailed": "Failed to load: {error}",
     "working": "Working",
     "wholeListFailed": "Could not complete. Please try again.",
+    "undo": "Undo",
+    "saveFailed": "Couldn't save the change",
     "discardUnsaved": {
       "title": "Unsaved changes",
       "message": "This file has unsaved edits. Navigating away may discard them.",

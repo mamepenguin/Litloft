@@ -1267,6 +1267,91 @@ cursor is not followed. The entry's **See all** opens the core page; a module
 that fails to import counts as having no page provider, and for
 `video-discover-shelves` the list provider is tried next.
 
+### Item actions on Recommended cards
+
+A `video-discover-recommended` entry may attach actions to the cards the video
+app draws for it, on Discover's **Recommended** shelf and on its **See all** page.
+Export `slotItemActions` beside `slotProviders`, keyed by the entry id:
+
+```typescript
+// addons/{name}/frontend/slots.ts
+import { Ban } from "lucide-react";
+import { markNotInterested, clearNotInterested } from "./api";
+
+export const slotItemActions = {
+  pickup: ({ drive, locale, t }) => [
+    {
+      id: "not-interested",
+      label: t("myAddon.notInterested"),
+      icon: Ban,
+      run: async (fileId) => {
+        await markNotInterested(drive, fileId, locale);
+        return {
+          message: t("myAddon.removed"),
+          undo: () => clearNotInterested(drive, fileId),
+        };
+      },
+    },
+  ],
+};
+```
+
+A factory is `({ drive, locale, t }) => ShelfItemAction[]`:
+
+| Argument | Meaning |
+|---|---|
+| `drive` | The drive the cards belong to |
+| `locale` | The viewer's UI locale, e.g. `"ja"` |
+| `t` | The core's translator over the merged catalogue, so the addon's own keys resolve |
+
+An action is `{ id, label, icon?, run }`. `label` is drawn as given. `icon` is a
+component drawn at 14px; omit it and the row keeps an empty 14px slot.
+`run(fileId)` must resolve with `{ message, undo? }`:
+
+- A string `message` is shown in the core's success toast, with an Undo action
+  when `undo` is a function. On that resolution the card leaves the shelf at
+  once.
+- `undo()` is called when the viewer chooses Undo. The card returns only when it
+  resolves, at the position it left; a rejection shows the core's save-failed
+  toast and leaves the card removed.
+- A rejection, or a resolution without a string `message`, leaves the card where
+  it is and shows the core's save-failed toast.
+
+The core reads item actions only for `video-discover-recommended` entries, and
+only with a profile set. The card gets a right-click / 500 ms long-press menu of
+「新しいタブで開く」 followed by the actions; a factory that is missing, throws or
+returns anything but an array gives the card no menu, so the browser's own menu
+is left alone. Within the array, an element without a string `id` and `label` or
+a function `run`, and a repeated `id`, is dropped on its own.
+
+### Leading rows in the shared file menu
+
+An addon that draws `CarouselSection` or `FileGrid` (either layout) passes
+`extraMenuItems(file)` to put its own rows above the shared file menu's rows:
+
+```tsx
+<CarouselSection
+  title={t("pickup")}
+  files={files}
+  loading={loading}
+  extraMenuItems={(file) => [
+    {
+      id: "not-interested",
+      label: t("notInterested"),
+      icon: Ban,
+      onSelect: () => markNotInterested(file.id),
+      disabled: pending.has(file.id),
+    },
+  ]}
+/>
+```
+
+A row is `{ id, label, icon, onSelect, disabled? }`. The rows come first, then one
+divider, then the menu's own rows. The core only invokes `onSelect`; it does not
+await it, catch it, or show a toast for it, so the addon owns the pending state,
+the toast and the failure. Without `extraMenuItems` the menu draws exactly its
+own rows and no divider.
+
 ### Registering a `.loft` player
 
 A `.loft` file stores an external URL and a `provider` name. To play a
