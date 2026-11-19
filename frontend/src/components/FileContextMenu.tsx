@@ -5,10 +5,10 @@ import { useTranslations } from "next-intl";
 
 import { deleteFile, moveFile, renameFile } from "@/lib/api";
 import { copyText } from "@/lib/copyText";
-import { useFileMenuItems } from "@/hooks/useFileMenuItems";
+import { useFileMenuItems, type ExtraMenuItems } from "@/hooks/useFileMenuItems";
 import type { FileItem } from "@/types";
 import { ConfirmDialog } from "./ConfirmDialog";
-import { ContextMenu } from "./ContextMenu";
+import { ContextMenu, type MenuDivider, type MenuEntry } from "./ContextMenu";
 import { CopyIdDialog } from "./CopyIdDialog";
 import { MoveDialog } from "./MoveDialog";
 import { CollectionPicker } from "./CollectionPicker";
@@ -25,7 +25,11 @@ interface FileContextMenuProps {
   onRemoveFromContinue?: () => Promise<void>;
   onOpenInNewTab?: () => void;
   onStartInlineRename?: () => void;
+  /** Rows a caller draws above the shared rows, then one divider. */
+  extraMenuItems?: ExtraMenuItems;
 }
+
+const DIVIDER: MenuDivider = { divider: true };
 
 export function FileContextMenu({
   open,
@@ -37,6 +41,7 @@ export function FileContextMenu({
   onRemoveFromContinue,
   onOpenInNewTab,
   onStartInlineRename,
+  extraMenuItems,
 }: FileContextMenuProps) {
   const tt = useTranslations("trash");
   const tf = useTranslations("file");
@@ -127,6 +132,7 @@ export function FileContextMenu({
     }
   }, [onRemoveFromContinue, onClose]);
 
+  const extra = target && extraMenuItems ? extraMenuItems(target) : [];
   const items = useFileMenuItems(target, {
     onOpenInNewTab,
     onAddToCollection: () => setCollectionPickerOpen(true),
@@ -147,7 +153,12 @@ export function FileContextMenu({
         }
       : undefined,
     onTrash: () => setDeleteOpen(true),
-  });
+  }, extra);
+
+  const entries: MenuEntry[] =
+    extra.length > 0
+      ? [...items.slice(0, extra.length), DIVIDER, ...items.slice(extra.length)]
+      : items;
 
   if (!target) return null;
 
@@ -156,7 +167,7 @@ export function FileContextMenu({
       <ContextMenu
         open={open}
         position={position}
-        items={items}
+        items={entries}
         onClose={onClose}
       />
       <RenameDialog

@@ -16,12 +16,24 @@ export interface MenuItem {
    */
   disabled?: boolean;
   danger?: boolean;
+  /**
+   * Run the handler in the click itself rather than on the next frame.
+   * The frame exists so a dialog opens after the menu is gone; a row that
+   * only hands the choice to its caller has nothing to wait for.
+   */
+  immediate?: boolean;
 }
+
+export interface MenuDivider {
+  divider: true;
+}
+
+export type MenuEntry = MenuItem | MenuDivider;
 
 interface ContextMenuProps {
   open: boolean;
   position: { x: number; y: number };
-  items: MenuItem[];
+  items: MenuEntry[];
   onClose: () => void;
 }
 
@@ -62,37 +74,49 @@ export function ContextMenu({ open, position, items, onClose }: ContextMenuProps
           className="fixed z-50 w-44 overflow-hidden rounded-2xl border border-bg-border bg-bg-card shadow-lg animate-fade-in-scale"
           style={{ left: position.x, top: position.y }}
         >
-          {items.map((item) => (
-            <button
-              key={item.label}
-              role="menuitem"
-              disabled={item.disabled}
-              aria-disabled={item.disabled || undefined}
-              onMouseDown={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-              }}
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                if (item.disabled) return;
-                onClose();
-                // Use requestAnimationFrame to let the menu close before opening dialog
-                requestAnimationFrame(() => item.onClick());
-              }}
-              // `:hover` still matches a disabled button, so the override
-              // stops a greyed row tinting under the pointer while
-              // refusing the click.
-              className={`flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm transition-colors disabled:opacity-50 disabled:hover:bg-transparent ${
-                item.danger
-                  ? "text-danger hover:bg-accent/10"
-                  : "text-text-muted hover:bg-bg-elevated hover:text-text-primary"
-              } ${item.disabled && item.danger ? "disabled:hover:text-danger" : ""}`}
-            >
-              <item.icon size={14} />
-              {item.label}
-            </button>
-          ))}
+          {items.map((item, index) =>
+            "divider" in item ? (
+              <div
+                key={`divider-${index}`}
+                role="separator"
+                aria-orientation="horizontal"
+                className="h-px bg-bg-border"
+              />
+            ) : (
+              <button
+                key={item.label}
+                role="menuitem"
+                disabled={item.disabled}
+                aria-disabled={item.disabled || undefined}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (item.disabled) return;
+                  onClose();
+                  if (item.immediate) {
+                    item.onClick();
+                    return;
+                  }
+                  requestAnimationFrame(() => item.onClick());
+                }}
+                // `:hover` still matches a disabled button, so the override
+                // stops a greyed row tinting under the pointer while
+                // refusing the click.
+                className={`flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm transition-colors disabled:opacity-50 disabled:hover:bg-transparent ${
+                  item.danger
+                    ? "text-danger hover:bg-accent/10"
+                    : "text-text-muted hover:bg-bg-elevated hover:text-text-primary"
+                } ${item.disabled && item.danger ? "disabled:hover:text-danger" : ""}`}
+              >
+                <item.icon size={14} />
+                {item.label}
+              </button>
+            ),
+          )}
         </div>
       </DismissScrim>
     </>
