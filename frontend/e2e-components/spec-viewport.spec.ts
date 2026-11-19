@@ -89,6 +89,7 @@ const AT_THE_PHONE_WIDTH = [
   "drive-unavailable.spec.ts",
   "transcript-touch.spec.ts",
   "watched-band.spec.ts",
+  "peak-jump.spec.ts",
   "watched-range-cards.spec.ts",
 ] as const;
 
@@ -139,6 +140,7 @@ const AT_THE_DESKTOP_WIDTH = [
   "clips-primary-action-desktop.spec.ts",
   "pdf-toolbar-row-desktop.spec.ts",
   "watched-band-desktop.spec.ts",
+  "peak-jump-desktop.spec.ts",
 ] as const;
 
 test.describe("the component fixture lays out at the width it was given", () => {
