@@ -106,6 +106,7 @@ Also works for YouTube videos imported with the media_import addon.
 | `↓` | Back 60 s |
 | `M` | Mute / unmute |
 | `F` | Full screen |
+| `P` | Jump to the next part you watched most |
 
 Media keys on your keyboard and the lock screen also control playback.
 
