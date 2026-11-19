@@ -242,7 +242,7 @@ def _fonts_step(job_id: str) -> tuple[dict, dict]:
 
 
 # SPEC-CORE-149 I12, item 3: the fonts step installs the repository's file as the
-# fontconfig user configuration, and nothing lets a test step run without it
+# fontconfig user configuration
 @pytest.mark.parametrize("job_id", BROWSER_JOBS)
 def test_fonts_step_installs_the_user_fontconfig(job_id: str, tmp_path: Path) -> None:
     job, step = _fonts_step(job_id)

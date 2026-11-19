@@ -1,0 +1,82 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [
+    {
+      "id": "CR4-1",
+      "origin": "reviewer",
+      "claim": "The EPUB step's condition checks only `steps.browsers.outcome`, not `steps.fonts.outcome`. If the fonts step fails, the EPUB suite still runs without the pinned fontconfig, and the pytest comment that says 'nothing lets a test step run without it' is false for that step.",
+      "impact": "If `mkdir`/`cp` into `$HOME/.config/fontconfig` fails, for example because `/github/home` is not writable under `--user 1001` (a case the spec lists), the layout step is skipped through the implicit success(). The EPUB step still runs in Chromium and WebKit with the image's CJK fallback font, and any text-dependent failure it reports is a second failure under a misleading name, which the step's own comment says the `if` is meant to prevent. The job is already red because the fonts step failed, so nothing passes silently.",
+      "evidence": ".github/workflows/ci.yml:390-394 is the fonts step (id `fonts`, no `if`). ci.yml:407 is `if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}` on the EPUB step and does not reference `fonts`. ci.yml:403-405 says the browser-check condition is there so a broken setup 'skips the suite instead of failing it again under a misleading name'. tests/test_ci_browser_jobs.py:244-245 says '...and nothing lets a test step run without it', yet test_fonts_step_installs_the_user_fontconfig (:247-264) checks only the fonts step's own `if`/`continue-on-error`, and test_layout_epub_job_runs_both_suites pins EPUB_IF to the string without `fonts`.",
+      "repro": "not_reproduced (read-only). Mutation in thought: make the fonts step fail (e.g. `cp` to an unwritable HOME). Under Actions' condition rules the layout step is skipped and the EPUB step runs. No test in tests/test_ci_browser_jobs.py fails for this ordering, because none asserts that the EPUB `if` gates on `fonts`.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "I12 asks for the fonts step to run before every test step, and it does. I8 requires the EPUB `if` as written. The job turns red on the fonts failure, so no invariant is broken and nothing passes silently. The code simply does not match the test's stated intent, and a test can run in the font environment the change exists to avoid.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Either add `&& steps.fonts.outcome == 'success'` to the EPUB `if` (together with spec item 2 and EPUB_IF in the pytest), or delete the clause 'and nothing lets a test step run without it' from tests/test_ci_browser_jobs.py:244-245."
+    }
+  ],
+  "specification_compliance": [
+    "Commit be7d45e76 adds .github/playwright-fonts.conf, a fontconfig file with two `<alias binding=\"strong\">` entries in which `sans-serif` and `system-ui` each `<prefer>` Liberation Sans. It also adds an `Install the fallback font configuration` step (id `fonts`) to both browser jobs (ci.yml:341-347 and 388-394), after the `browsers` check and before the first test step, and it updates the Core jobs table in testing.md. All three are touch points of the revised spec.",
+    "I12: in each browser job the fonts step sits after `browsers` and before every test step, and it has no `if` or `continue-on-error`. It runs from the workspace root with no working-directory, so the relative path `.github/playwright-fonts.conf` resolves, and it writes to `$HOME/.config/fontconfig/fonts.conf`, the fontconfig user config location. The file declares the preference for both generics.",
+    "I3: the fonts step runs neither apt-get nor playwright install. I1, I2, I4, I5, I8 and I9 are unchanged by this commit: the browser check, the test commands, the EPUB `if`, the image tag and Node 20 are as reviewed in r1-r3.",
+    "I6 (r4): the r3 re-measure of APP_TABLE_HEIGHT was reverted to 548 in 5f77636c8, which is not this commit. The branch diff against the base no longer touches addon-policy.spec.ts, and this commit changes no existing test, config or package.json script.",
+    "I11: the Core jobs table names the three browser checks with their suites and browsers, and it now also mentions the fontconfig step. The removed job name is gone."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The app font stack (globals.css:142-145) lists `system-ui` second, and later names such as Helvetica and Arial, which fontconfig's metric aliases already map to Liberation Sans. Which entry Chromium and WebKit actually resolve first in the image with this file depends on how each engine treats `system-ui` and the CJK names earlier in the stack. The spec reports a local check of 548 px, but the repository does not show it.",
+    "A fonts step failure lets the EPUB suite run without the file (CR4-1)."
+  ],
+  "regression_risks": [
+    "A future image tag that drops Liberation Sans, or a WenQuanYi config shipped with a stronger or earlier binding, would bring the CJK fallback back. Only the layout suite's exact-height assertion (addon-policy.spec.ts, APP_TABLE_HEIGHT 548) would catch it, and it would fail loudly. The pytest checks the file's text, not what fontconfig resolves.",
+    "The step depends on `$HOME` being writable by uid 1001 inside the container (GitHub sets HOME=/github/home for container jobs). If it is not, the job goes red at the fonts step."
+  ],
+  "test_coverage": [
+    "test_browser_job_step_order kills these mutants: removing the fonts step, duplicating its id, and moving it after a test step or before `browsers`.",
+    "test_fonts_step_installs_the_user_fontconfig runs the step's shell text with a temporary HOME and compares bytes with the file. It kills a wrong destination path, a wrong source file, and an added `if` or `continue-on-error`.",
+    "test_fonts_conf_prefers_liberation_sans kills a change of family name or generic in the file. It does not check `binding`: a mutant with `binding=\"weak\"`, which may stop Chromium from accepting the substitute, survives the pytest and would be caught only by the layout suite's exact height in CI.",
+    "No test checks that the EPUB step is skipped when the fonts step fails (CR4-1)."
+  ],
+  "not_verified": [
+    "I ran nothing: no pytest, no vitest, no Playwright, and no `fc-match` in the image. That the image resolves sans-serif and system-ui to Liberation Sans with this file, and measures 548 px, comes from the spec text only.",
+    "Whether Playwright's WebKit build in the image reads the user fontconfig file at ~/.config/fontconfig, and whether Chromium queries fontconfig with the literal `system-ui` family.",
+    "Whether /github/home is writable by uid 1001 in the container job.",
+    "Branch protection on develop (I7).",
+    "I did not use git to confirm that be7d45e76 contains exactly the quoted hunks; I compared them with the working tree instead."
+  ],
+  "coverage": [
+    {
+      "path": ".github/playwright-fonts.conf",
+      "read": "full",
+      "reason": "Read the whole file (6 lines) in the working tree."
+    },
+    {
+      "path": ".github/workflows/ci.yml",
+      "read": "partial",
+      "reason": "Read lines 290-519 in the working tree. That range covers both browser jobs (295-409), including both new fonts steps, and the bootstrap job (496-513), so every hunk of the diff is included."
+    },
+    {
+      "path": "frontend/scripts/check-playwright-browsers.mjs",
+      "read": "full",
+      "reason": "Read the whole file (lines 1-88) in the working tree. This commit does not change it."
+    },
+    {
+      "path": "frontend/src/__tests__/check-playwright-browsers.test.ts",
+      "read": "full",
+      "reason": "Read the entire file as quoted in the branch diff and did not open it in the working tree. This commit does not change it."
+    },
+    {
+      "path": "tests/test_ci_browser_jobs.py",
+      "read": "full",
+      "reason": "Read the entire file from the branch diff, and read lines 230-306 (the I12 tests) in the working tree."
+    }
+  ],
+  "confidence": 80,
+  "trajectory": "The rounds so far:\n- r1 to r2: a documentation fix (the PyYAML install line).\n- r2 to r3: re-measured APP_TABLE_HEIGHT to 560. This put an environment-specific prediction (the CJK font's height) into a test.\n- r3 to r4 (edd274227, 5f77636c8, 1260db974, be7d45e76): removed that prediction (APP_TABLE_HEIGHT back to 548, I6 back to its original text) and replaced it with a mechanism that changes the environment instead: one new CI step (id `fonts`) per browser job, a config file, invariant I12 and its tests.\n\nThe r4 round reacts to the same root cause as r3, the image's fallback font. It does not repeat r3's addition; it removes it. It adds one new step to each job and leaves the existing conditions unchanged; the EPUB `if` was not extended to cover the new step (CR4-1). The design is not being patched in layers."
+}

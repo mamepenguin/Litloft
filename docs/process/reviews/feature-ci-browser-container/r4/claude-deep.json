@@ -1,0 +1,121 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-deep",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [
+    {
+      "id": "CD-1",
+      "origin": "reviewer",
+      "claim": "The EPUB step's gate checks only `steps.browsers.outcome`, so if the new `fonts` step fails, the EPUB suite still runs without the pinned fontconfig. The pytest comment at tests/test_ci_browser_jobs.py:244-245 says the opposite: 'nothing lets a test step run without it'.",
+      "impact": "Suppose the fonts step fails, for example because `cp` cannot write under `$HOME` as `--user 1001`. The layout step is skipped by the implicit success(). The EPUB step still runs under the image's default CJK fallback, so its results come from a font environment I12 says no test step sees. The job still turns red because the fonts step failed, so nothing passes silently. What goes wrong is that the EPUB result shown for that run comes from the wrong environment. A reader who trusts the test comment would believe the gate covers this case.",
+      "evidence": ".github/workflows/ci.yml:390-394 adds the step with id `fonts` and no `if`. ci.yml:407 has `if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}`, which does not mention `steps.fonts`. test_fonts_step_installs_the_user_fontconfig (tests/test_ci_browser_jobs.py:246-264) checks only that the fonts step has no `if`/`continue-on-error`. test_layout_epub_job_runs_both_suites pins the EPUB `if` to the exact string without the fonts condition, so adding the fonts condition would fail that test.",
+      "repro": "not_reproduced (read-only). Reasoning from GitHub Actions semantics: a failed `fonts` step → `success()` is false, so the layout step is skipped; `!cancelled()` is true and `steps.browsers.outcome == 'success'` is true, so the EPUB step runs.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "I12 requires that the fonts step runs before every test step, and it does run (and fails). The job is red, so no invariant is broken silently. The gap is a gate that does not cover the new step, together with a test comment that claims it does.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Either add `&& steps.fonts.outcome == 'success'` to the EPUB `if` and to the spec/test string, or delete the clause 'and nothing lets a test step run without it' from the test comment at tests/test_ci_browser_jobs.py:244-245."
+    },
+    {
+      "id": "CD-2",
+      "origin": "reviewer",
+      "claim": "test_fonts_conf_prefers_liberation_sans checks only that an alias names the generic and a `<prefer>` family. It does not check `binding=\"strong\"`, and it does not check that the file takes effect in the image, given the system fontconfig include order.",
+      "impact": "Changing `binding=\"strong\"` to `weak` (or deleting it) would still pass the pytest. Whether that changes resolution depends on the image's conf.d (lang scoring against WenQuanYi). The only thing that catches an ineffective font config is the layout suite's exact-height assertion (addon-policy.spec.ts:144, now 548), and only in the layout-and-EPUB job. The component jobs have no absolute font canary, but they passed before under the CJK fallback, so an ineffective config there would not create a silent wrong result.",
+      "evidence": "tests/test_ci_browser_jobs.py:276-279 matches `<alias>` by its first `<family>` and the first `<family>` of `<prefer>`, and ignores the `binding` attribute. .github/playwright-fonts.conf:4-5 uses binding=\"strong\".",
+      "repro": "Mutation in thought: remove `binding=\"strong\"` from both aliases → both parametrized cases of test_fonts_conf_prefers_liberation_sans still pass (survives). Change `<prefer>` to `<accept>` → `alias.find(\"prefer\")` is None → killed. Remove the fonts step from one job → `_index` finds 0 → killed. Move the fonts step after a test step → order assertion killed.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "I12 asks that the file make the generics prefer Liberation Sans. The file does this as written. This finding is a gap in test strength, not a broken invariant, and the layout height assertion is a loud backstop.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Assert binding == 'strong' on the matching alias."
+    }
+  ],
+  "specification_compliance": [
+    "Commit be7d45e76 adds .github/playwright-fonts.conf and one `fonts` step per browser job (ci.yml:343-347 and 390-394). The step sits after the `browsers` check and before every test step, has no `if` and no `continue-on-error`, and copies the file to `$HOME/.config/fontconfig/fonts.conf`, as I12 and spec item 3 require.",
+    "The file declares strong `<alias>` entries that prefer Liberation Sans for `sans-serif` and `system-ui`, which matches the second clause of I12 as written.",
+    "The fonts step has no working-directory, so it runs from the workspace root, where the relative `.github/playwright-fonts.conf` resolves. The other steps keep `working-directory: frontend`.",
+    "I6 (r4): together with 5f77636c8, the change restores frontend/e2e-layout/addon-policy.spec.ts to APP_TABLE_HEIGHT = 548 and the '783px' comment (checked in the working tree, lines 27 and 30). Against origin/develop no existing test changes, so the r3 exception is no longer needed, and r3 CD-1 and CR3-1 no longer apply.",
+    "I1, I2, I3, I4 wiring, I5, I8 and I9 are unchanged by this commit: the browser jobs at ci.yml:302-409 differ from r3 only by the fonts steps. check-playwright-browsers.mjs is unchanged (88 lines, re-read).",
+    "The testing.md Core jobs rows (I11) now mention the fontconfig step. That is documentation and needs no code check."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "The spec does not say what the EPUB step should do when the fonts step fails while the browser check passed. Today the EPUB step runs without the font config (CD-1).",
+    "Whether the user fontconfig is loaded depends on the image's system fonts.conf including conf.d/50-user.conf and on XDG_CONFIG_HOME being unset. GitHub Actions sets HOME=/github/home in container jobs, and the step writes there. The spec does not mention this dependency.",
+    "`<prefer>` inserts Liberation Sans immediately before the matched `sans-serif` element, not at the head of the list. If an earlier conf.d file (for example the WenQuanYi package's own conf, numbered below 50) already prepended WenQuanYi before `sans-serif`, WenQuanYi would still come first. The spec reports a local measurement of 548 in the image with the file, which suggests this does not happen, but I could not confirm it.",
+    "The app's font stack (globals.css:142-145) names Arial and Helvetica, which Ubuntu's metric aliases map to Liberation Sans, and also CJK names (メイリオ, Meiryo, ＭＳ Ｐゴシック) that come before Arial. The user file does not touch those names. The spec's statement that 'the app's font stack names no font the image has' is a claim about resolution that the code does not check."
+  ],
+  "regression_risks": [
+    "A Playwright image bump that changes the font packages or the conf.d order could make the user config ineffective again. The layout job's exact 548 height assertion would fail loudly. The component jobs would not flag it unless a width case moved.",
+    "The pytest fonts-step test executes the `run:` script from ci.yml with bash in the bootstrap job and on developer machines (PATH=/usr/bin:/bin). A later edit that uses `${{ }}` expressions or tools outside /usr/bin:/bin in that step would break the bootstrap test rather than the browser job."
+  ],
+  "test_coverage": [
+    "test_browser_job_step_order now asserts browsers < fonts < min(tests) in both jobs. Removing or reordering the fonts step is killed.",
+    "test_fonts_step_installs_the_user_fontconfig runs the step's shell script with a temporary HOME and compares the installed bytes with the repository file. Changing the destination path or the source is killed. Adding an `if` or `continue-on-error` is killed.",
+    "test_fonts_conf_prefers_liberation_sans parses the XML and kills prefer→accept/default and a wrong family name. Dropping binding=\"strong\" survives (CD-2).",
+    "No test covers the EPUB step's behaviour when the fonts step fails, and the pinned EPUB `if` string actively prevents adding that condition without a test change (CD-1).",
+    "Whether the configuration takes effect in the browser is covered only by addon-policy.spec.ts:144 (APP_TABLE_HEIGHT = 548) in the layout suite."
+  ],
+  "not_verified": [
+    "I ran nothing: not pytest, not vitest, not Playwright in the image, and not fc-match. That the image with this file measures 548 comes from the spec, not from my own measurement.",
+    "The image's /etc/fonts conf.d contents (whether 50-user.conf is included, and what the WenQuanYi package's conf prepends and at what priority) and whether XDG_CONFIG_HOME is set in mcr.microsoft.com/playwright:v1.58.2-noble.",
+    "That HOME=/github/home is writable by uid 1001 in the container, and that Playwright passes HOME to the launched Chromium and WebKit processes.",
+    "Whether Chromium on Linux resolves CSS `system-ui` through a fontconfig family named 'system-ui', so I do not know whether the system-ui alias has any effect.",
+    "Branch protection on develop (I7).",
+    "I checked only through the supplied diff and the working tree that commit be7d45e76 contains only the quoted hunks; I did not inspect git objects."
+  ],
+  "coverage": [
+    {
+      "path": ".github/playwright-fonts.conf",
+      "read": "full",
+      "reason": "Read the whole file (6 lines) in the working tree."
+    },
+    {
+      "path": ".github/workflows/ci.yml",
+      "read": "partial",
+      "reason": "Read lines 290-414 in the working tree, which cover both browser jobs including the new fonts steps and the EPUB gate. The bootstrap install hunk (`pip install pytest PyYAML==6.0.2`) was read from the diff only; this commit does not change it."
+    },
+    {
+      "path": "frontend/scripts/check-playwright-browsers.mjs",
+      "read": "full",
+      "reason": "Read the whole file (88 lines) in the working tree. This commit does not change it."
+    },
+    {
+      "path": "frontend/src/__tests__/check-playwright-browsers.test.ts",
+      "read": "full",
+      "reason": "Read the entire file as quoted in the branch diff (256 lines). This commit does not change it."
+    },
+    {
+      "path": "tests/test_ci_browser_jobs.py",
+      "read": "full",
+      "reason": "Read the full file as quoted in the branch diff, and re-read lines 230-306 (the new fonts tests) in the working tree."
+    }
+  ],
+  "confidence": 78,
+  "perspectives": [
+    {
+      "name": "scope",
+      "notes": "The commit touches ci.yml (two fonts steps), the new fonts.conf and the testing.md Core jobs rows, all of which are in the r4 touch-point list. Together with 5f77636c8 it reverts the r3 test-constant change, so I6 holds without the exception."
+    },
+    {
+      "name": "submodules",
+      "notes": "No change. Both jobs still check out recursively and run setup-addons.sh before installing."
+    },
+    {
+      "name": "persistence",
+      "notes": "The fontconfig file is written under the job container's HOME (/github/home), which is per job and is not cached. No Actions cache key changes."
+    },
+    {
+      "name": "concurrency",
+      "notes": "Each matrix shard has its own container and HOME, so the copy cannot collide. The EPUB `!cancelled()` gate does not take the new fonts step into account (CD-1)."
+    }
+  ],
+  "trajectory": "r3 added a prediction: APP_TABLE_HEIGHT = 560, which encoded the image's CJK fallback font in an existing test under an I6 exception. r4 removes that prediction. 5f77636c8 restores 548 and the 783px comment, and the I6 (r4) revision drops the exception. In its place r4 adds a new mechanism: a fontconfig file, a `fonts` step in each browser job, invariant I12 and two pytest tests. No earlier round added this mechanism, so it does not repeat a prior patch. It replaces the r3 approach (adjusting the expectation) with fixing the environment. The design is not being patched repeatedly. The new step adds a state the existing EPUB gate does not consider (CD-1)."
+}

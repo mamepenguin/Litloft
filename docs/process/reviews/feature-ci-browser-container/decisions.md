@@ -12,3 +12,7 @@ pending: none
 - Component shards: 505 + 504 = 1009, equal to `playwright test --config=playwright-components.config.ts --list` (Total: 1009 tests in 84 files).
 - Two layout cases in `e2e-layout/addon-policy.spec.ts` measured the table at 560 against `APP_TABLE_HEIGHT = 548`. In the image, `fc-match` resolves `system-ui` and `sans-serif` to WenQuanYi Zen Hei; the fixture loads no web font.
 - Human decision: option 1, re-measure `APP_TABLE_HEIGHT` to 560 (human: "1"). Recorded as an I6 revision in invariants.md.
+
+## After review r4
+
+- Human decision: continue (human: "はい" to continue, deleting the inaccurate test comment clause and leaving the EPUB `if` unchanged; CD-2 and the fontconfig loading notes to be checked by the CI run).
