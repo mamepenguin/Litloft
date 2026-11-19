@@ -301,5 +301,5 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-144 | implemented | docs/specs/scene-frames-ten-second-fill.md | sha256:b8f691c32fc88fc84869d121b1c2945d83df8d78b4267924e12bca7a92bedda1 |
 | SPEC-ADDON-145 | implemented | docs/specs/scene-frames-ten-second-fill.md | sha256:b8f691c32fc88fc84869d121b1c2945d83df8d78b4267924e12bca7a92bedda1 |
 | SPEC-ADDON-146 | implemented | docs/specs/scene-frames-ten-second-fill.md | sha256:b8f691c32fc88fc84869d121b1c2945d83df8d78b4267924e12bca7a92bedda1 |
-| SPEC-ADDON-152 | approved | docs/specs/scenes-scroll-list.md | sha256:a36a7442854e2ce379a5d3930f5103bbd5421dc414d28b477267cc31cee4e958 |
-| SPEC-ADDON-153 | approved | docs/specs/scenes-scroll-list.md | sha256:a36a7442854e2ce379a5d3930f5103bbd5421dc414d28b477267cc31cee4e958 |
+| SPEC-ADDON-152 | implemented | docs/specs/scenes-scroll-list.md | sha256:a36a7442854e2ce379a5d3930f5103bbd5421dc414d28b477267cc31cee4e958 |
+| SPEC-ADDON-153 | implemented | docs/specs/scenes-scroll-list.md | sha256:a36a7442854e2ce379a5d3930f5103bbd5421dc414d28b477267cc31cee4e958 |
