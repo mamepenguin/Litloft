@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1",
+      "status": "confirmed",
+      "note": "frontend/src/components/videoapp/VideoApp.tsx:88 passes `viewer={state.nickname}` to DiscoverFace. DiscoverFace.tsx:90 defaults `viewer = null`, and DiscoverShelf builds a menu only when `viewer !== null` (DiscoverFace.tsx:60-63). So Discover's item actions work only because of the VideoApp.tsx edit, and VideoApp.tsx is not in the declared touch-point list. The edit is small and only wires a prop through. Recommended is not drawn without a profile (useDiscover.ts:570), so the menu stays gated as I7 requires."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F2",
+      "status": "confirmed",
+      "note": "frontend/src/components/videoapp/useRemovableItems.ts:22-23 declares the module-level Maps `operationsByKey` and `listenersByKey`. Nothing removes entries from `operationsByKey`, and resetDiscoverCache (discoverCache.ts:116-119) clears only `stored` and `removed`. In production code, resetDiscoverCache is referenced only inside discoverCache.ts, so the gap matters only in tests. The module is used by DiscoverFace.tsx:26 (keyed by shelf.cacheKey) and VideoShelfPage.tsx:144 (unkeyed). It is not in the touch-point list."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F3",
+      "status": "rejected_with_evidence",
+      "note": "The mechanism exists: VideoShelfPage.tsx:144 calls useRemovableItems(provider.items) without a key, so operations live in useState (useRemovableItems.ts:51) and are never reset. The scenario cannot happen in normal use, though. The nickname changes only through setNickname or clearNickname (ProfileProvider.tsx:58-70). Their only caller is ProfileSection (components/settings/ProfileSection.tsx:25,52), which renders only on the /settings route (app/settings/page.tsx:19). Going there unmounts VideoShelfPage, and remounting it starts with empty local operations. The only other nickname set is the mount-time cookie read (ProfileProvider.tsx:53-56). That runs before any menu exists, because the menu needs a non-null nickname (VideoShelfPage.tsx:176-179). Cookies changed in another tab are not observed. rejectViewer (useVideoApp.ts:183-184) leaves the nickname unchanged and sets hasProfile to false. The provider then answers 'absent' (useProviderShelfPage.ts:220-222), so no second profile's list is shown. No profile switch can keep this page mounted, so the stale-operation replay over another profile's list cannot happen."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F4",
+      "status": "confirmed",
+      "note": "addons/intelligence/app/purge.py:188-210 `_indexed_drives` now unions PickupNotInterested.drive_id with IndexedFile.drive. It is also called by purge_disabled_vision_drives (purge.py:225) and purge_disabled_video_visual_drives (purge.py:337), so their drive sets change as well. In effect, a drive that has only marks gets an extra policy lookup. purge_vision_for_drive and purge_video_visual_for_drive select files by IndexedFile.drive (e.g. purge.py:270-275), so for such a drive they find no files and touch nothing. A failed policy lookup only skips the drive. Neither function is named in the touch points."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F5",
+      "status": "confirmed",
+      "note": "frontend/src/components/ContextMenu.tsx:24 adds `immediate?: boolean` to MenuItem. The onClick at ContextMenu.tsx:100-104 calls item.onClick() synchronously when it is set and defers through requestAnimationFrame otherwise. It is set in useFileMenuItems.ts:80 and in VideoCard.tsx:227 and :236. The touch points mention only the divider. The flag is opt-in and absent by default, so callers that do not set it behave as before (consistent with I6)."
+    }
+  ],
+  "specification_compliance": [
+    "I6: ContextMenu's divider is drawn only for entries a caller passes with `divider: true` (ContextMenu.tsx:78), and `immediate` is opt-in, so callers that pass neither behave as before.",
+    "I7: Discover's Recommended menu needs viewer !== null (DiscoverFace.tsx:63), and Recommended is not drawn without a profile (useDiscover.ts:570). On See all, the menu needs recommendedMode, hasProfile and a non-null nickname (VideoShelfPage.tsx:175-179)."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "useRemovableItems keeps operations in module-level Maps for the whole JS session. Nothing removes them, and resetDiscoverCache does not clear them (its only callers are tests).",
+    "ContextMenu's `immediate` flag changes when the handler runs (in the same click rather than the next frame) for the rows that set it."
+  ],
+  "regression_risks": [
+    "The `_indexed_drives` change widens the drive set for the vision and video-visual startup purges. For a drive that has only marks this means extra policy lookups and no deletions.",
+    "If a future in-page profile switcher is added, the unkeyed local operations on the Recommended See all page would carry across profiles (the F3 mechanism)."
+  ],
+  "test_coverage": [
+    "frontend/src/components/videoapp/__tests__/useRemovableItems.test.tsx covers keyed persistence across remount, stale undo, separate keys and the unkeyed case (lines 13-51). I did not read the test bodies in full."
+  ],
+  "not_verified": [
+    "I did not run git diff against origin/develop, so I could not confirm directly that VideoApp.tsx and useRemovableItems.ts are in the diff. My conclusion rests on the new `viewer` prop and the new module's usages.",
+    "I ran no tests (I had no execution tools).",
+    "I did not check the backend invariants I1-I3 or I5, beyond the purge drive discovery.",
+    "I did not read VideoCard.tsx's menu logic beyond the `immediate` rows and the isSameViewer check."
+  ],
+  "confidence": 85
+}

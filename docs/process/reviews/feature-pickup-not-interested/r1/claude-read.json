@@ -1,0 +1,326 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "F1",
+      "origin": "reviewer",
+      "claim": "The diff edits frontend/src/components/videoapp/VideoApp.tsx, which is not in the declared touch-point list.",
+      "impact": "No user-visible defect: the only change passes `viewer={state.nickname}` to DiscoverFace. A reader working from the touch points would still miss that Discover's item-action gating (I4 profile check, I7 'with a profile') depends on this prop.",
+      "evidence": "frontend/src/components/videoapp/VideoApp.tsx:88 adds `viewer={state.nickname}`. DiscoverFace defaults `viewer = null`, and with null DiscoverShelf builds no `menu` (DiscoverFace.tsx, the `viewer !== null` condition). The touch points list DiscoverFace.tsx but not VideoApp.tsx.",
+      "repro": "Mutation: delete `viewer={state.nickname}` at VideoApp.tsx:88. Every Recommended card on Discover then loses its menu; the VideoApp.itemActions tests would fail, but only when the intelligence addon is linked (it.runIf).",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "An unplanned reach. It breaks no invariant; the touch-point list is incomplete."
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add `frontend/src/components/videoapp/VideoApp.tsx` (viewer pass-through to DiscoverFace) to the touch points."
+    },
+    {
+      "id": "F2",
+      "origin": "reviewer",
+      "claim": "The diff adds frontend/src/components/videoapp/useRemovableItems.ts, a new module with JS-session-lifetime global state (operationsByKey, listenersByKey), and it is not in the declared touch-point list.",
+      "impact": "A second session-scoped store of removals sits next to discoverCache's removal set, and the touch points do not name it. Discover's drawn cards (keyed operations replayed over the supplied list) and the stored ids (discoverCache) can diverge without the plan accounting for it. The store also grows unbounded for the session. The module is also the path to F3.",
+      "evidence": "frontend/src/components/videoapp/useRemovableItems.ts (new file): module-level `operationsByKey` and `listenersByKey` Maps, never cleared (resetDiscoverCache does not clear them). Used by DiscoverFace.tsx (keyed by shelf.cacheKey) and VideoShelfPage.tsx (unkeyed). The touch points list discoverCache.ts, useDiscover.ts, DiscoverFace.tsx and VideoShelfPage.tsx, but not this module.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "An unplanned reach with new global state. On its own it breaks no declared invariant."
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add useRemovableItems.ts to the touch points. Either clear its keyed operations in resetDiscoverCache or document that the two stores are kept separately."
+    },
+    {
+      "id": "F3",
+      "origin": "reviewer",
+      "claim": "On the Recommended See all page, useRemovableItems is called without a key, so a removal made by one profile persists in local state across a profile switch that does not remount the page. It is replayed over the next profile's list and hides the same file there.",
+      "impact": "Viewer A marks file X on See all, then switches the profile to B without leaving the page. useProviderShelfPage refetches for B (nickname is in its deps), but the local 'remove X' operation is replayed, so X is missing from B's grid although B never marked it.",
+      "evidence": "VideoShelfPage.tsx: `const removable = useRemovableItems(provider.items);` (no key) and the grid renders `removable.items`. useRemovableItems.ts replays `localOperations` over any supplied list containing the id and never resets them. useProviderShelfPage.ts:165 includes `nickname` and `hasProfile` in the reload deps, so the list changes while the operations stay.",
+      "repro": "not_reproduced. Reasoned: render VideoShelfPage with nickname 'alice' and items [r1,r2,r3], remove r2, rerender with nickname 'bob' and a provider answer [r1,r2,r3]. Expected drawn [r1,r2,r3]; the code yields [r1,r3]. No test covers a profile switch on See all.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "A",
+        "invariant_ref": "I1",
+        "reason": "One viewer's mark changes what another viewer is shown in the same drive (client-side). If 'served' is read as server-only, this falls to B."
+      },
+      "severity": "MEDIUM",
+      "proposed_fix": "Key useRemovableItems on the See all page by (drive, entry, nickname), or reset its local operations when nickname, drive or entry changes."
+    },
+    {
+      "id": "F4",
+      "origin": "reviewer",
+      "claim": "Changing `_indexed_drives` to include drives that only have marks also changes the drive set of `purge_disabled_vision_drives` and `purge_disabled_video_visual_drives`, which the touch points do not name.",
+      "impact": "On startup, mark-only drives now get extra vision_describe and video_visual_index policy lookups and run no-op purges, because those functions iterate IndexedFile rows and find none. A policy lookup error there is logged with logger.exception, so log noise is possible; no data is changed.",
+      "evidence": "addons/intelligence/app/purge.py:225 and :337 call `_indexed_drives()`, which now unions PickupNotInterested.drive_id (purge.py:188-210). The touch points name only `purge_drive`, `purge_disabled_drives` and `_indexed_drives`.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "An unplanned reach into two other startup purges. Their behavior is harmless and breaks no invariant."
+      },
+      "severity": "INFO",
+      "proposed_fix": "Name the vision and video-visual purges in the touch points, or give purge_disabled_drives its own drive discovery that adds the mark drives."
+    },
+    {
+      "id": "F5",
+      "origin": "reviewer",
+      "claim": "ContextMenu gains a general `immediate` MenuItem flag, which bypasses the requestAnimationFrame deferral; the touch points describe the ContextMenu change only as a 'divider item'.",
+      "impact": "Any future caller that sets `immediate` gets synchronous onClick inside the click handler. Today only the new extra rows and the VideoCard menu use it, so callers that pass nothing are unchanged (I6 holds). It is unplanned API surface in the shared menu.",
+      "evidence": "frontend/src/components/ContextMenu.tsx: new `immediate?: boolean` on MenuItem, honored in onClick. Used in useFileMenuItems.ts (extra rows, `immediate: true`) and VideoCard.tsx (all menu rows).",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "The file is in the touch points, but the new behavior is not."
+      },
+      "severity": "INFO",
+      "proposed_fix": "Mention the `immediate` row option in the touch points for ContextMenu."
+    }
+  ],
+  "specification_compliance": [
+    "All diff paths except VideoApp.tsx and useRemovableItems.ts (with its test) fall under a listed touch point or the implicit docs/spec/review paths.",
+    "The models.py 'migration' touch point is satisfied by Base.metadata.create_all in addons/intelligence/app/database.py:126; a new table needs no explicit migration function, consistent with backend-conventions (migrations only add).",
+    "Listed but untouched: addons/intelligence/frontend/pickupShelfProvider.ts and frontend/src/components/videoapp/useProviderShelfPage.ts (reverse direction, not reported as findings).",
+    "The sweep's per-viewer try/except at workers/pickup.py:216-225 makes an unreadable-marks raise skip only that viewer, consistent with I3."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "useRemovableItems keeps a JS-session-global store of keyed removal operations, separate from discoverCache's removal set; resetDiscoverCache does not clear it.",
+    "Mark-only drives are now visited by the vision and video-visual startup purges.",
+    "ContextMenu `immediate` rows run onClick synchronously within the click event."
+  ],
+  "regression_risks": [
+    "See all page: a removal persists across a profile switch without remount (F3).",
+    "Discover drawn list (useRemovableItems keyed operations) and stored ids (discoverCache) could diverge if one is reset without the other.",
+    "The core change and the submodule pointer bump appear in one diff, while the declared landing order puts them in separate PRs (1) and (3)."
+  ],
+  "test_coverage": [
+    "Core I4/I7/I8 tests in VideoApp.itemActions.test.tsx and VideoShelfPage.itemActions.test.tsx are gated by it.runIf(intelligenceLinked) and silently skip when the addon directory is not linked; the same gate exists in AddonPolicySection.test.tsx, so it is an existing pattern.",
+    "No test covers a profile switch on the Recommended See all page (F3).",
+    "The sweep test for unreadable marks uses one viewer only, so 'still processes the others' (I3) is not exercised.",
+    "useRemovableItems.test.tsx covers keyed persistence and the stale-restore path, but not the unkeyed-across-profile case."
+  ],
+  "not_verified": [
+    "Whether addons/intelligence/.flash/pickup-not-interested.md is part of the reviewed commit.",
+    "Whether CI links the intelligence addon so the it.runIf-gated tests actually run.",
+    "Whether the See all page can change profile without remounting (F3 assumes that VideoAppHeader allows it in place).",
+    "frontend-conventions.md, design-decisions.md and process.md were not read in full.",
+    "No test or e2e run; all claims come from reading."
+  ],
+  "coverage": [
+    {
+      "path": "addons/intelligence/app/models.py",
+      "read": "partial",
+      "reason": "Changed hunk (PickupNotInterested class) from the diff."
+    },
+    {
+      "path": "addons/intelligence/app/pickup/evaluate.py",
+      "read": "partial",
+      "reason": "Changed hunks (_read_marks, _rank_configs, _cut_rankings, _replay_viewer) from the diff."
+    },
+    {
+      "path": "addons/intelligence/app/pickup/profile.py",
+      "read": "partial",
+      "reason": "Changed hunk (watched_file_ids docstring) from the diff."
+    },
+    {
+      "path": "addons/intelligence/app/purge.py",
+      "read": "partial",
+      "reason": "Diff hunks plus Read of lines 215-396 (vision, video-visual and index purge callers of _indexed_drives)."
+    },
+    {
+      "path": "addons/intelligence/app/routers/pickup.py",
+      "read": "partial",
+      "reason": "Changed hunks (feed-read filter, _store_mark, _remove_mark, the two endpoints) from the diff."
+    },
+    {
+      "path": "addons/intelligence/app/workers/pickup.py",
+      "read": "partial",
+      "reason": "Diff hunks plus Read of lines 205-244 (per-viewer _stale_work loop)."
+    },
+    {
+      "path": "addons/intelligence/frontend/PickupWidget.notInterested.test.tsx",
+      "read": "full",
+      "reason": "New file, whole content in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/PickupWidget.tsx",
+      "read": "partial",
+      "reason": "Changed hunks from the diff (mark, undo, extraMenuItems)."
+    },
+    {
+      "path": "addons/intelligence/frontend/api.ts",
+      "read": "partial",
+      "reason": "Appended hunk (writePickupNotInterested and wrappers)."
+    },
+    {
+      "path": "addons/intelligence/frontend/messages/en.json",
+      "read": "partial",
+      "reason": "Changed hunk (pickup strings)."
+    },
+    {
+      "path": "addons/intelligence/frontend/messages/ja.json",
+      "read": "partial",
+      "reason": "Changed hunk (pickup strings)."
+    },
+    {
+      "path": "addons/intelligence/frontend/pages/pickup.notInterested.test.tsx",
+      "read": "full",
+      "reason": "New file, whole content in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/pages/pickup.tsx",
+      "read": "partial",
+      "reason": "Changed hunks from the diff (loadMore, effects, mark, undo, grid)."
+    },
+    {
+      "path": "addons/intelligence/frontend/slots.ts",
+      "read": "partial",
+      "reason": "Changed hunks (imports, slotItemActions)."
+    },
+    {
+      "path": "addons/intelligence/manifest.json",
+      "read": "partial",
+      "reason": "Changed hunk (new route)."
+    },
+    {
+      "path": "frontend/e2e-components/file-menu-divider.spec.ts",
+      "read": "full",
+      "reason": "New file, whole content in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/app.tsx",
+      "read": "partial",
+      "reason": "Two changed hunks (import and spread)."
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/fileMenuDivider.tsx",
+      "read": "full",
+      "reason": "New file, whole content in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/spec-viewport.spec.ts",
+      "read": "partial",
+      "reason": "Changed hunk (list entry)."
+    },
+    {
+      "path": "frontend/src/components/CarouselSection.tsx",
+      "read": "partial",
+      "reason": "Changed hunks (prop and pass-through)."
+    },
+    {
+      "path": "frontend/src/components/ContextMenu.tsx",
+      "read": "partial",
+      "reason": "Changed hunks (types, items.map render)."
+    },
+    {
+      "path": "frontend/src/components/FileContextMenu.tsx",
+      "read": "partial",
+      "reason": "Changed hunks (prop, extra, entries)."
+    },
+    {
+      "path": "frontend/src/components/FileGrid.tsx",
+      "read": "partial",
+      "reason": "Changed hunks (prop and both layouts' pass-through)."
+    },
+    {
+      "path": "frontend/src/components/videoapp/DiscoverFace.tsx",
+      "read": "partial",
+      "reason": "Changed hunks covering DiscoverShelf and DiscoverFace bodies."
+    },
+    {
+      "path": "frontend/src/components/videoapp/VideoApp.tsx",
+      "read": "full",
+      "reason": "Read the whole file."
+    },
+    {
+      "path": "frontend/src/components/videoapp/VideoCard.tsx",
+      "read": "partial",
+      "reason": "Changed hunks (CardLink, VideoCardWithMenu, VideoCard)."
+    },
+    {
+      "path": "frontend/src/components/videoapp/VideoShelfPage.tsx",
+      "read": "partial",
+      "reason": "Changed hunks (item actions loading, removable, grid)."
+    },
+    {
+      "path": "frontend/src/components/videoapp/discoverCache.ts",
+      "read": "partial",
+      "reason": "Changed hunks (removed map, withoutRemovedItems, removeCachedItem, restoreCachedItem, reset)."
+    },
+    {
+      "path": "frontend/src/components/videoapp/useDiscover.ts",
+      "read": "partial",
+      "reason": "Changed hunks only; the enclosing provider-run function was not read in full."
+    },
+    {
+      "path": "frontend/src/components/videoapp/useRemovableItems.ts",
+      "read": "full",
+      "reason": "New file, whole content in the diff."
+    },
+    {
+      "path": "frontend/src/hooks/useFileMenuItems.ts",
+      "read": "partial",
+      "reason": "Changed hunks (types, extra rows, deps)."
+    },
+    {
+      "path": "frontend/src/lib/addons.ts",
+      "read": "partial",
+      "reason": "Changed hunks (types, loadSlotItemActions)."
+    },
+    {
+      "path": "frontend/src/messages-core/en.json",
+      "read": "partial",
+      "reason": "Changed hunk (common.undo, common.saveFailed)."
+    },
+    {
+      "path": "frontend/src/messages-core/ja.json",
+      "read": "partial",
+      "reason": "Changed hunk (common.undo, common.saveFailed)."
+    },
+    {
+      "path": "addons/intelligence/frontend/__tests__/pickupNotInterestedAction.test.ts",
+      "read": "full",
+      "reason": "New file, whole content in the diff."
+    },
+    {
+      "path": "addons/intelligence/tests/test_z_pickup_not_interested.py",
+      "read": "full",
+      "reason": "New file, whole content in the diff."
+    },
+    {
+      "path": "frontend/src/__tests__/undoSaveFailedMessages.test.ts",
+      "read": "full",
+      "reason": "New file, whole content in the diff."
+    },
+    {
+      "path": "frontend/src/components/__tests__/fileMenuExtraRows.test.tsx",
+      "read": "full",
+      "reason": "New file, whole content in the diff."
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoApp.itemActions.test.tsx",
+      "read": "full",
+      "reason": "New file, whole content in the diff."
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoShelfPage.itemActions.test.tsx",
+      "read": "full",
+      "reason": "New file, whole content in the diff."
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/useRemovableItems.test.tsx",
+      "read": "full",
+      "reason": "New file, whole content in the diff."
+    }
+  ],
+  "confidence": 78
+}

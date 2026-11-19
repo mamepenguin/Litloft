@@ -1,0 +1,7 @@
+addons/intelligence/frontend/__tests__/pickupNotInterestedAction.test.ts
+addons/intelligence/tests/test_z_pickup_not_interested.py
+frontend/src/__tests__/undoSaveFailedMessages.test.ts
+frontend/src/components/__tests__/fileMenuExtraRows.test.tsx
+frontend/src/components/videoapp/__tests__/VideoApp.itemActions.test.tsx
+frontend/src/components/videoapp/__tests__/VideoShelfPage.itemActions.test.tsx
+frontend/src/components/videoapp/__tests__/useRemovableItems.test.tsx
