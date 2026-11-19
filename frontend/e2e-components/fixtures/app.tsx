@@ -111,6 +111,7 @@ import { PersistentHighlightsArrangement } from "./persistentHighlights";
 import {
   ScenesBoundedArrangement,
   ScenesFlowArrangement,
+  ScenesHeldVisualArrangement,
   ScenesPendingVisualArrangement,
   ScenesSectionArrangement,
 } from "./scenesSection";
@@ -2872,6 +2873,14 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   ),
   "scenes-bounded-pending": () => (
     <ScenesPendingVisualArrangement hostWidth={1024} hostHeight={400} />
+  ),
+  "scenes-bounded-held": () => (
+    <ScenesHeldVisualArrangement
+      hostWidth={1024}
+      hostHeight={Number(
+        new URLSearchParams(location.search).get("hostHeight") ?? 400,
+      )}
+    />
   ),
   "scenes-flow": () => (
     <ScenesFlowArrangement

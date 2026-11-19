@@ -44,6 +44,7 @@ const LONG: ScenesDataset = {
 declare global {
   interface Window {
     __scenesPlayback: typeof SCENES_PLAYBACK;
+    __releaseScenesVisual?: () => void;
   }
 }
 
@@ -85,6 +86,8 @@ function jsonResponse(body: unknown): Response {
 interface StubOptions {
   /** Leaves the `visual-index` answer outstanding, as a slow backend would. */
   pendingVisual?: boolean;
+  /** Holds the `visual-index` answer until `window.__releaseScenesVisual` runs. */
+  heldVisual?: boolean;
   /** Answers the `visual-index` request with a 404. */
   noVisual?: boolean;
 }
@@ -95,6 +98,7 @@ function stubIntelligenceApi(
   options: StubOptions = {},
 ): void {
   window.__scenesPlayback = SCENES_PLAYBACK;
+  window.__releaseScenesVisual = undefined;
   window.fetch = (input: RequestInfo | URL) => {
     const url =
       typeof input === "string"
@@ -126,6 +130,12 @@ function stubIntelligenceApi(
     if (url.includes(`/files/${data.file}/visual-index`)) {
       if (options.noVisual) {
         return Promise.resolve(new Response("", { status: 404 }));
+      }
+      if (options.heldVisual) {
+        return new Promise<Response>((resolve) => {
+          window.__releaseScenesVisual = () =>
+            resolve(jsonResponse(data.visualIndex));
+        });
       }
       return options.pendingVisual
         ? new Promise<Response>(() => {})
@@ -227,6 +237,44 @@ export function ScenesPendingVisualArrangement({
 }): ReactElement {
   const data = LONG;
   stubIntelligenceApi(data, { pendingVisual: true });
+  const mediaController = useMemo(
+    () => makeController(data.duration),
+    [data.duration],
+  );
+
+  return (
+    <div
+      id="scenes-host"
+      className="bg-bg-primary flex min-h-0 flex-col overflow-y-auto"
+      style={{ width: hostWidth, height: hostHeight }}
+    >
+      <NextIntlClientProvider
+        locale="en"
+        messages={{ ...enMessages, ...intelligenceEn }}
+      >
+        <ScenesSection
+          fileId={data.file}
+          drive={SCENES_DRIVE}
+          fileType="video"
+          mediaController={mediaController}
+          labelledByHost
+          active
+        />
+      </NextIntlClientProvider>
+    </div>
+  );
+}
+
+/** The bounded form with the Visual Index answer waiting for the test. */
+export function ScenesHeldVisualArrangement({
+  hostWidth,
+  hostHeight,
+}: {
+  hostWidth: number;
+  hostHeight: number;
+}): ReactElement {
+  const data = LONG;
+  stubIntelligenceApi(data, { heldVisual: true });
   const mediaController = useMemo(
     () => makeController(data.duration),
     [data.duration],
