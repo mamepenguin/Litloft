@@ -235,16 +235,34 @@ export function useReadingApp(drive: string): ReadingAppState {
   const setGroup = useCallback(
     (group: ReadingGroup) => {
       writeTargetView("reading", drive, targetId, { group });
-      setChosen({ drive, targetId, view: { ...view, group } });
+      setChosen((held) => ({
+        drive,
+        targetId,
+        view: {
+          ...(held !== null && held.drive === drive && held.targetId === targetId
+            ? held.view
+            : {}),
+          group,
+        },
+      }));
     },
-    [drive, targetId, view],
+    [drive, targetId],
   );
   const setSort = useCallback(
     (sort: SortId) => {
       writeTargetView("reading", drive, targetId, { sort });
-      setChosen({ drive, targetId, view: { ...view, sort } });
+      setChosen((held) => ({
+        drive,
+        targetId,
+        view: {
+          ...(held !== null && held.drive === drive && held.targetId === targetId
+            ? held.view
+            : {}),
+          sort,
+        },
+      }));
     },
-    [drive, targetId, view],
+    [drive, targetId],
   );
 
   const rejectViewer = useCallback(() => setRejectedFor(nickname), [nickname]);

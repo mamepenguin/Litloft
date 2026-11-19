@@ -241,6 +241,42 @@ describe("the profile as an input", () => {
     expect(readTargetView("video", DRIVE, "default").group).toBe("watch");
   });
 
+  it("keeps a chosen sort while a stored Watch State returns with the profile", async () => {
+    nickname = null;
+    writeAppPrefs(DRIVE, { face: "library" });
+    writeTargetView("video", DRIVE, "default", { group: "watch" });
+    const view = render(<VideoApp drive={DRIVE} />);
+    await waitFor(() =>
+      expect(
+        getShelves.mock.calls.some(
+          ([, p]) => (p as Params).by === "folder" && (p as Params).sort === "created_at",
+        ),
+      ).toBe(true),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Sort By/ }));
+    fireEvent.click(await screen.findByRole("menuitemradio", { name: "Size" }));
+    await waitFor(() =>
+      expect(
+        getShelves.mock.calls.some(
+          ([, p]) => (p as Params).by === "folder" && (p as Params).sort === "file_size",
+        ),
+      ).toBe(true),
+    );
+
+    nickname = "alice";
+    view.rerender(<VideoApp drive={DRIVE} />);
+
+    await waitFor(() =>
+      expect(
+        getShelves.mock.calls.some(
+          ([, p]) => (p as Params).by === "watch" && (p as Params).sort === "file_size",
+        ),
+      ).toBe(true),
+    );
+    expect(readTargetView("video", DRIVE, "default").group).toBe("watch");
+  });
+
   it("falls back to Folder in the Library when the server turns the viewer away", async () => {
     const { ApiStatusError } = await import("@/lib/api");
     writeAppPrefs(DRIVE, { face: "library" });

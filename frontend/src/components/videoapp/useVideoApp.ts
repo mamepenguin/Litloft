@@ -238,16 +238,34 @@ export function useVideoApp(drive: string): VideoAppState {
   const setGroup = useCallback(
     (group: VideoGroup) => {
       writeTargetView("video", drive, targetId, { group });
-      setChosen({ drive, targetId, view: { ...view, group } });
+      setChosen((held) => ({
+        drive,
+        targetId,
+        view: {
+          ...(held !== null && held.drive === drive && held.targetId === targetId
+            ? held.view
+            : {}),
+          group,
+        },
+      }));
     },
-    [drive, targetId, view],
+    [drive, targetId],
   );
   const setSort = useCallback(
     (sort: SortId) => {
       writeTargetView("video", drive, targetId, { sort });
-      setChosen({ drive, targetId, view: { ...view, sort } });
+      setChosen((held) => ({
+        drive,
+        targetId,
+        view: {
+          ...(held !== null && held.drive === drive && held.targetId === targetId
+            ? held.view
+            : {}),
+          sort,
+        },
+      }));
     },
-    [drive, targetId, view],
+    [drive, targetId],
   );
 
   const rejectViewer = useCallback(() => setRejectedFor(nickname), [nickname]);
