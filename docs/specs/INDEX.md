@@ -298,10 +298,10 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-CORE-139 | implemented | docs/specs/ytdlp-node-runtime.md | sha256:1eac24c6f5e6733faf454fc9bcc13b8bb176ed4af68f3cab80bb4698fe89edbd |
 | SPEC-CORE-140 | implemented | docs/specs/watched-ranges-display.md | sha256:ee0724df65e30e717bcc7975ce649a286583c18c5bb944980c45424673ba9362 |
 | SPEC-CORE-141 | implemented | docs/specs/watched-ranges-display.md | sha256:ee0724df65e30e717bcc7975ce649a286583c18c5bb944980c45424673ba9362 |
-| SPEC-CORE-145 | draft | docs/specs/app-view-per-target.md | |
-| SPEC-CORE-146 | draft | docs/specs/app-view-per-target.md | |
-| SPEC-ADDON-147 | draft | docs/specs/app-view-per-target.md | |
-| SPEC-ADDON-148 | draft | docs/specs/app-view-per-target.md | |
-| SPEC-CORE-147 | draft | docs/specs/app-library-filters.md | |
-| SPEC-CORE-148 | draft | docs/specs/app-library-filters.md | |
-| SPEC-ADDON-151 | draft | docs/specs/app-library-filters.md | |
+| SPEC-CORE-145 | approved | docs/specs/app-view-per-target.md | sha256:926ef39f97e4137c1499212982a2f5dab80c44f41cb1cb75ea7c2f65552200d6 |
+| SPEC-CORE-146 | approved | docs/specs/app-view-per-target.md | sha256:926ef39f97e4137c1499212982a2f5dab80c44f41cb1cb75ea7c2f65552200d6 |
+| SPEC-ADDON-147 | approved | docs/specs/app-view-per-target.md | sha256:926ef39f97e4137c1499212982a2f5dab80c44f41cb1cb75ea7c2f65552200d6 |
+| SPEC-ADDON-148 | approved | docs/specs/app-view-per-target.md | sha256:926ef39f97e4137c1499212982a2f5dab80c44f41cb1cb75ea7c2f65552200d6 |
+| SPEC-CORE-147 | approved | docs/specs/app-library-filters.md | sha256:f643aa489b12cc08965cfbd7bd99d9c8fb658f7620d00de33fc6842b813428d6 |
+| SPEC-CORE-148 | approved | docs/specs/app-library-filters.md | sha256:f643aa489b12cc08965cfbd7bd99d9c8fb658f7620d00de33fc6842b813428d6 |
+| SPEC-ADDON-151 | approved | docs/specs/app-library-filters.md | sha256:f643aa489b12cc08965cfbd7bd99d9c8fb658f7620d00de33fc6842b813428d6 |
