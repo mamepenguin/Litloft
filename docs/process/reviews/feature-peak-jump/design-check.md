@@ -30,3 +30,9 @@ design: docs/process/reviews/feature-peak-jump/design/
 - visible: cannot be checked in R-5 (level 1/2/3 brightness difference not shown)
 
 TOTAL: 3 findings
+
+## Accepted by the human (2026-11-20, "はい")
+- D-1: accepted. Spec D1 sets the button transparent at rest and filled on hover like the other row buttons; the artboards draw it hovered.
+- D-2: accepted. The label shares the speed pill's top offset.
+- D-3: accepted. The band is SPEC-CORE-140's and is unchanged here.
+- R-5 deviations, accepted and left as they are: a jump on a YouTube embed that has never played starts playback (the embed's seek does this for +10 too); on a file over 10 hours at a 524px frame the time display wraps to two lines (no control clipped).
