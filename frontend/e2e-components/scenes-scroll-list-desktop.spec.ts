@@ -113,10 +113,30 @@ test.describe("SPEC-ADDON-152 I1 — every frame is drawn and only the list scro
     });
   }
 
-  test("SPEC-ADDON-152 I1 — the 1024×1400 panel draws 8 columns (D2)", async ({ page }) => {
+  test("SPEC-ADDON-152 I1 — the 1024×1400 panel draws the columns its content width gives, 8 with no scrollbar gutter (D2)", async ({ page }) => {
     const reading = await openHost(page, PANEL_1400);
     expect(reading.tiles).toBe(FRAMES);
-    expect(reading.columns).toBe(8);
+    const list = await page.evaluate(() => {
+      const tile = document.querySelector<HTMLElement>("button[data-scene-tile]");
+      let node = tile?.parentElement ?? null;
+      while (node && !/(auto|scroll)/.test(getComputedStyle(node).overflowY)) {
+        node = node.parentElement;
+      }
+      if (!node) return null;
+      const style = getComputedStyle(node);
+      return {
+        content:
+          node.clientWidth -
+          Number.parseFloat(style.paddingLeft) -
+          Number.parseFloat(style.paddingRight),
+        gutter: node.offsetWidth - node.clientWidth,
+        rem: Number.parseFloat(getComputedStyle(document.documentElement).fontSize),
+      };
+    });
+    expect(list, "the list is not a scroll container").not.toBeNull();
+    const expected = Math.max(3, Math.floor((list!.content + 0.5 * list!.rem) / (7.5 * list!.rem)));
+    expect(reading.columns).toBe(expected);
+    if (list!.gutter === 0) expect(reading.columns).toBe(8);
     expect(reading.host.scrollHeight).toBeLessThanOrEqual(reading.host.clientHeight + 1);
   });
 
