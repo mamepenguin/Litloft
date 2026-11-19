@@ -2,9 +2,56 @@
 
 decision:
 ran_in_app: yes
-at: e57b7174cc14147e0c61fa4ae68a350c5607e4c8
+at: 0ef326bd02e9ec6588e8b0587ebb8b1b706f6af7
 by: agent
 evidence: |
+  Re-run 4 (2026-11-20), on the review r7 fixes only. Core 0ef326bd0, which pins addons/intelligence
+  at 2faa21f. Stack started with `r5_stack.py clone` and `up` (port 3101), then `down` and
+  `destroy`. Same video XN1lPMKvrM7S, whose Visual Index is stale, so the stale note is drawn.
+  Driven by Playwright Chromium: 390x844 with touch through CDP touch events for the phone, and a
+  mouse in the workbench. The `visual-index` answer was the real one, served through a route.
+  Result: R7-1 and I13 PASS; R7-2/I5 FAIL.
+  - R7-1, phone sheet with touch: PASS at half and at full snap.
+    - A horizontal finger drag along the ruler from 10% to 80%, ended with touchEnd (no cancel):
+      - the ruler point stayed: the line at 79.786% of the ruler, the outline on 7:48:02, and
+        aria-valuenow 28082 (= 7:48:02), unchanged 1.5 s later;
+      - the list placed that row: the tile 94 px below the top of the visible area, wholly
+        visible;
+      - the video stayed paused at 0 (no seek), and the chip is shown
+      (r5/rerun4-phone-half-ruler-drag.jpg, rerun4-phone-full-ruler-drag.jpg).
+    - A vertical swipe of 220 px that starts on the ruler scrolled the sheet as a reader's scroll
+      (scrollTop 26908→27191 at half, →27233 at full). It removed the ruler point; the chip is
+      shown (r5/rerun4-phone-half-ruler-vertical.jpg, rerun4-phone-full-ruler-vertical.jpg).
+  - I13, mouse in the workbench at 1400x1400: PASS.
+    - A press on the ruler at 30%, then a drag down off the ruler and a release 400 px below it,
+      set the point at the press (2:55:34, scrollTop 9895).
+    - Moving back over the ruler afterwards with no button drew only the hover line; the point and
+      scrollTop did not change.
+    - A press on the panel's "Scenes" heading, a drag onto the ruler across 40%–88% with the button
+      held, and a release on the ruler set no new point (still 2:55:34) and left the list at 9895
+      (r5/rerun4-wb-drag-onto-ruler.jpg).
+    - A drag that starts on the ruler (20%→60%) still scrolled the list (scrollTop 15958) and set
+      the point at 5:51:56, without seeking (r5/rerun4-wb-drag-on-ruler.jpg).
+  - R7-2/I5, workbench at 1400 wide with the `visual-index` answer delayed: FAIL.
+    - At heights 1054, 1058, …, 1098 (4 px steps; coarse runs at 1050–1250), the placeholder's form
+      while pending was the same as the card's form after the answer at 1054 and at 1086–1098.
+    - From 1058 to 1082 (7 heights) they differed: the placeholder was full (160 px) while
+      pending, and the card arrived one line (44 px).
+    - Traced at 1070:
+      - Pending: list 190, placeholder 160, so H = 190 + 160 − 121.6 = 228.4, above 2 row steps
+        (2 × 106 = 212) → full.
+      - Answered: the section draws list 225, one-line card 44, the stale note 16 and the action
+        row 37, with 14 px gaps.
+      - So the drawn card is one line, and the list grows 35 px when the answer arrives
+        (r5/rerun4-wb-form-h1070-pending.jpg, rerun4-wb-form-h1070-answered.jpg).
+    - At 1054 both are one line (pending list 254, placeholder 80; answered list 209, card 44). At
+      1086 both are full (pending list 206, answered list 163, card 122) (r5/rerun4-wb-form-h1054-*,
+      rerun4-wb-form-h1086-*).
+    - The band where they differ is about 28 px wide. That matches the stale note (16 px) plus its
+      14 px gap, which the placeholder does not include. I measured only this stale-index video;
+      a video whose index is not stale was not tried.
+  Earlier runs follow.
+
   Re-run 3 (2026-11-19), on the review r6 fixes only. Core e57b7174c, which pins addons/intelligence
   at 432e475 (the addon working tree was at the same commit). Stack started with `r5_stack.py
   clone` and `up` (port 3102). The first `up` left the frontend in Created: port 3102 was briefly
