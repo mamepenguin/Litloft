@@ -1,0 +1,1 @@
+{"v":3,"createdOnFiles":{"v":1,"at":"2026-11-20T00:00:00Z"},"title":"よく観た所へ飛ぶ","launch":{"view":"canvas"},"pages":[],"boards":{"Main.dc.html":{"x":0,"y":0,"w":880,"h":495,"title":"PC: ボタン（または P キー）を押した直後"},"Touch.dc.html":{"x":960,"y":0,"w":390,"h":220,"title":"スマホ: 下のバーのボタンを押した直後"}},"order":["Main.dc.html","Touch.dc.html"],"notes":{},"designSystems":[]}

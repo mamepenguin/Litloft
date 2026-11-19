@@ -311,3 +311,4 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-CORE-146 | implemented | docs/specs/app-view-per-target.md | sha256:926ef39f97e4137c1499212982a2f5dab80c44f41cb1cb75ea7c2f65552200d6 |
 | SPEC-ADDON-147 | approved | docs/specs/app-view-per-target.md | sha256:926ef39f97e4137c1499212982a2f5dab80c44f41cb1cb75ea7c2f65552200d6 |
 | SPEC-ADDON-148 | approved | docs/specs/app-view-per-target.md | sha256:926ef39f97e4137c1499212982a2f5dab80c44f41cb1cb75ea7c2f65552200d6 |
+| SPEC-CORE-151 | draft | docs/specs/peak-jump.md | |
