@@ -171,3 +171,7 @@ From design-check.md at 0d1479603:
 - D-3, the stale note between the card and the action row: accepted. The spec requires it, and the R-5 video's Visual Index was stale.
 - D-7, fewer columns beside the inspector: accepted. The column count follows the formula from the panel width; see the D2 revision in invariants.md for the 1024px panel.
 - D-4, D-5 and D-6 were states with no screenshot. The human asked for them to be taken (the rerun2 shots) and checked again.
+- From design-check.md at 7f672063e, after the rerun2 shots:
+  - D-4, the dark palette being neutral charcoal rather than the design's wine tint: accepted. The app follows DESIGN.md's dark theme.
+  - D-5, "Regenerate scenes" drawn as a filled button: accepted. The button is unchanged from develop.
+  - D-6, the shorter list with two panels: accepted. The host's player and header take the height, and the column count matches the design.
