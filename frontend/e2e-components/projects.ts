@@ -48,9 +48,7 @@ export const DESKTOP_ONLY = [
   "**/focus-mode-touch-desktop.spec.ts",
   "**/document-summary-inspector-desktop.spec.ts",
   "**/notes-library-desktop.spec.ts",
-  "**/notes-view-menus-desktop.spec.ts",
   "**/clips-primary-action-desktop.spec.ts",
-  "**/clips-view-menus-desktop.spec.ts",
   "**/pdf-toolbar-row-desktop.spec.ts",
   "**/watched-band-desktop.spec.ts",
 ];

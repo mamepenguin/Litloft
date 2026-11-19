@@ -154,33 +154,10 @@ Saving adds the items to a note under a `## Captures` heading. Each item has a l
 
 - **Clip a web page**, at the top right, opens a form for a URL or pasted HTML: destination folder, duplicate check and bookmarklet. A clip made there appears on the page without a reload.
 - The header has a **Target** menu, **Clip a web page** and the tabs **Home** and **Library**. **Home** has the shelves **Unread** (no history row for you), **Recently opened** (latest opening first) and **Unverified** (still waiting for **Trust as a source**), each with **See all** to a page of that shelf. Without a [profile](../user-guide/profile-preferences.md), **Unread** becomes **New clips** and **Recently opened** is not drawn; **Unverified** stays.
-- **Library** is `?view=all`. It groups by tag (`group=tags`, the default), folder
-  (`group=folder`), date added (`group=month`) or not at all (`group=none`), and sorts by
-  `sort=newest` (the default), `oldest` or `title`. The Folder and Date Added groupings ask
-  the core `shelves` route for `by=folder` and `by=month` under the target's conditions.
+- **Library** is `?view=all`. It groups by tag (`group=tags`, the default) or not at all (`group=none`), and sorts by `sort=newest` (default), `oldest` or `title`. A shelf page is `?view=shelf&shelf=<id>`, with `<id>` one of `unread`, `recent`, `new`, `unverified`, `tag:<name>` or `untagged`.
 - Unread, Recently opened, New clips and the tag shelves are cover cards. **Unverified** is a list of rows, each with **Mark as verified**, which writes the clip's trust tier through the core's `PUT /api/files/{id}/trust-tier`.
 - A card shows the clip's first Markdown image, its title, its site and a reading time of `max(1, round(bytes / 1500))` minutes. A red dot marks a clip you have not opened. Opening a card goes to the file page and counts as opening it.
 - A drive with no clips shows one empty state, and the page keeps its header and its **Clip a web page** action.
-
-### Library URLs
-
-The Clips Library names its view in the URL, so Back after a menu choice returns to the
-previous one:
-
-- **Library**: `?view=all&group=<tags|folder|month|none>&sort=<newest|oldest|title>`.
-- **Shelf page**: `?view=shelf&shelf=<id>&sort=<sort>`, where `<id>` is `unread`, `recent`,
-  `new`, `unverified`, `tag:<name>`, `untagged`, `folder:<key>` or `month:<YYYY-MM>`. A
-  folder key is the server's key verbatim: a trailing `/` names the files directly in that
-  folder, no trailing slash names its subtree, and the empty key is the drive root. A
-  `month:` key is `YYYY-MM`; any other key is unknown, and the page opens Home.
-
-A `group` or `sort` the URL leaves out, or states unreadably, opens on the choice
-remembered for the target in force (else the app default), and the page replaces the URL
-with it once the Library is drawn, without a history entry. A `tag:`, `untagged`, `folder:`
-or `month:` shelf page fills in `sort` the same way, and its back link is
-`?view=all&group=<tags|folder|month>&sort=<sort>`. The Notes Library's URLs always carry
-`sort` (`updated`, `title` or `created`) for the same reason; its rail segment is not a URL
-parameter, and `folder` or `tag` in the URL selects an entry and implies the segment.
 
 ### Covers and sites
 

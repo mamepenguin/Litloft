@@ -87,7 +87,7 @@ for (const width of [WIDTH, 760, 1440]) {
 test("SPEC-ADDON-138 I9 at 390px on a coarse pointer the Library's tag shelves are strips and the page does not scroll sideways", async ({
   page,
 }) => {
-  await open(page, "q=view%3Dall%26group%3Dtags%26sort%3Dnewest");
+  await open(page, "q=view%3Dall%26group%3Dtags");
   await expect(page.getByRole("heading", { name: "research" })).toBeVisible();
 
   const lists = await page.locator("#clips-page-host section ul").evaluateAll((uls) =>

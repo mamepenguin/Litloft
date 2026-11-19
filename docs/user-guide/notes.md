@@ -18,21 +18,10 @@ The Target menu narrows everything on the page, on both tabs, to **All notes**, 
 
 The Library lists the notes of the target and shows the chosen note beside the list.
 
-- **分類** / **Group By** chooses how the rail classifies the notes: **フォルダ** / **Folders**
-  or **タグ** / **Tags**. At 1280 px and wider it is a menu at the top of the rail, and the
-  entries follow it. Narrower, the rail is one menu, whose first group is the same choice.
-  Choose an entry to list its notes: a folder lists the notes directly in it, not in its
-  subfolders, and **All** lists every note. Each entry shows its note count. The rail shows
-  at most 200 entries.
+- **Folders** or **Tags** (the switch at the top of the rail, remembered for the drive) chooses how the rail classifies the notes. Choose an entry to list its notes: a folder lists the notes directly in it, not in its subfolders, and **All** lists every note. Each entry shows its note count. The rail shows at most 200 entries.
 - The search field above the list matches titles and folder names, not the text inside notes. Press Enter to search. It searches within the chosen entry.
-- **並び順** / **Sort By** orders the list by **変更日** / **Date Modified**, **タイトル** /
-  **Title** or **作成日** / **Date Created**.
+- **Sort** orders the list by **Updated**, **Title** or **Created**.
 - More notes load as you scroll to the end of the list.
-
-The grouping and the sort are remembered for each Target in this browser. A Target you have
-not configured opens on Folders and Date Modified; **All notes** opens on the folder or tag
-choice the drive already had. Choosing the grouping already shown keeps the folder or tag
-selected in the rail.
 
 What is drawn depends on the window width:
 
@@ -40,7 +29,7 @@ What is drawn depends on the window width:
 |---|---|
 | 1280 px and wider | The rail, the list and the note, side by side. |
 | 1024 to 1279 px | The rail becomes a menu above the list. The list and the note are side by side. |
-| Under 1024 px | The rail and **並び順** / **Sort By** are menus above the list. Choosing a note opens its file page. |
+| Under 1024 px | The rail and **Sort** are menus above the list. Choosing a note opens its file page. |
 
 Folders are moved and renamed in the file browser, not here.
 
@@ -71,17 +60,7 @@ While a note is open, `Cmd/Ctrl+K` opens search limited to this drive's notes. T
 
 - **Home** has the shelves **Unread**, **Recently opened** and **Unverified**. Without a [profile](profile-preferences.md), **Unread** becomes **New clips** and **Recently opened** is not drawn. **Recently opened** does not follow the Target. A shelf with nothing in it is not drawn. **See all** beside a shelf opens that shelf as a page of its own, with a link back to Home or the Library.
 - **Unverified** lists clips that are not yet a trusted source, one row each. **Mark as verified** on a row marks that clip as a trusted source, the same as **Trust as a source** on its file page, and the row leaves the shelf. If it cannot be saved, **Couldn't save** appears beside the button and you can press it again.
-- **Library** has two menus, **分類** / **Group By** then **並び順** / **Sort By**.
-  **分類** is **タグ** / **Tag** (one shelf per tag, the most used first, **タグなし** /
-  **Untagged** last), **フォルダ** / **Folder** (one shelf per folder, titled by the
-  folder's last segment, the drive name at the root), **追加日** / **Date Added** (one shelf
-  per month, newest first) or **なし** / **None** (every clip in one grid). **並び順** is
-  **追加日（新しい順）** / **Date Added (Newest First)**, **追加日（古い順）** / **Date
-  Added (Oldest First)** or **タイトル** / **Title**. More shelves or cards load as you
-  scroll to the end. The grouping and the sort are remembered for each Target in this
-  browser, and a Target you have not configured opens on Tag and Date Added (newest first).
-  A Folder or Date Added shelf's **See all** opens that shelf as a page, with a link back to
-  the Library grouped the same way.
+- **Library** has two menus: **By tag** (one shelf per tag, the most used first, **Untagged** last) or **No grouping** (every clip in one grid), and the order, **Newest clipped**, **Oldest clipped** or **Title**. More shelves or cards load as you scroll to the end.
 - A clip is a card: its first picture, the title, then the site it came from and a reading time. Home and shelf pages add how long ago it was clipped. A red dot marks a clip you have not opened. Choosing a card opens the clip's file page.
 - A clip with no picture shows a plain grey block, and so does one whose picture does not load. The site is the host of the clip's `url`, or failing that of the first link in the start of the page.
 

@@ -4,9 +4,8 @@
  * by `clipsPageResponse`, called from the fixture's fetch stub.
  *
  * The page URL's query picks the case: `q` is the Clips query string
- * (`view=all&group=none&sort=newest`), `locale=ja` picks the Japanese
- * messages, `nick=1` sets a viewer nickname, `hold=covers` or `hold=shelves`
- * holds that answer until `window.__releaseClipCovers()` /
+ * (`view=all&group=none`), `nick=1` sets a viewer nickname, `hold=covers` or
+ * `hold=shelves` holds that answer until `window.__releaseClipCovers()` /
  * `window.__releaseClipShelves()`.
  */
 
@@ -15,11 +14,9 @@ import { NextIntlClientProvider } from "next-intl";
 
 import ClipsPage from "@/addons/knowledge/pages/clips";
 import knowledgeEn from "@/addons/knowledge/messages/en.json";
-import knowledgeJa from "@/addons/knowledge/messages/ja.json";
 import { CurrentDriveProvider } from "@/components/CurrentDriveProvider";
 import { ProfileProvider, useProfile } from "@/components/ProfileProvider";
 import enMessages from "@/messages-core/en.json";
-import jaMessages from "@/messages-core/ja.json";
 
 import { CLIP_COUNT, afterShelvesGate, armCoverGate, clipCoversResponse, clipFiles, json } from "./clipsData";
 
@@ -43,8 +40,7 @@ export function clipsPageResponse(url: string, init?: RequestInit): Promise<Resp
     return Promise.resolve(json({ data: clipFiles(3, 5) }));
   }
   if (path.endsWith("/api/drives/fixture/shelves")) {
-    const by = params.get("by");
-    if (by === "tag") {
+    if (params.get("by") === "tag") {
       const shelf = (key: string, label: string, from: number) => ({
         key,
         label,
@@ -58,33 +54,6 @@ export function clipsPageResponse(url: string, init?: RequestInit): Promise<Resp
           total_shelves: 2,
           base: "",
         }),
-      );
-    }
-    if (by === "folder" || by === "month") {
-      const key = params.get("key");
-      if (key !== null) {
-        return afterShelvesGate(
-          json({
-            by,
-            shelves: [{ key, label: key, count: 6, items: clipFiles(6) }],
-            total_shelves: 1,
-            base: "",
-          }),
-        );
-      }
-      const shelves =
-        by === "folder"
-          ? [
-              { key: "clips/", label: "clips", count: 6, items: clipFiles(6, 1) },
-              { key: "", label: "", count: 4, items: clipFiles(4, 7) },
-              { key: "research/2026/", label: "2026", count: 4, items: clipFiles(4, 11) },
-            ]
-          : [
-              { key: "2026-03", label: "2026-03", count: 7, items: clipFiles(7, 1) },
-              { key: "2026-02", label: "2026-02", count: 7, items: clipFiles(7, 8) },
-            ];
-      return afterShelvesGate(
-        json({ by, shelves, total_shelves: shelves.length, base: "" }),
       );
     }
     const asked = params.getAll("ids");
@@ -116,14 +85,10 @@ function Nickname({ name }: { name: string }): null {
 
 export function ClipsPageArrangement(): ReactElement {
   const query = new URLSearchParams(window.location.search);
-  const ja = query.get("locale") === "ja";
   window.__fixtureSearchParams = new URLSearchParams(query.get("q") ?? "");
   armCoverGate(query.get("hold") === "covers", query.get("hold") === "shelves");
   return (
-    <NextIntlClientProvider
-      locale={ja ? "ja" : "en"}
-      messages={ja ? { ...jaMessages, ...knowledgeJa } : { ...enMessages, ...knowledgeEn }}
-    >
+    <NextIntlClientProvider locale="en" messages={{ ...enMessages, ...knowledgeEn }}>
       <ProfileProvider>
         {query.get("nick") === "1" && <Nickname name="viewer" />}
         <CurrentDriveProvider>

@@ -1,19 +1,17 @@
 /**
  * The real Notes Library inside the page frame the Notes page draws it in,
- * for measuring its layout at whatever width and locale the browser is given.
- * The requests it makes are answered by `notesLibraryResponse`, called from
- * the fixture's fetch stub.
+ * for measuring its layout at whatever width the browser is given. The
+ * requests it makes are answered by `notesLibraryResponse`, called from the
+ * fixture's fetch stub.
  */
 
 import type { ReactElement } from "react";
 import { NextIntlClientProvider } from "next-intl";
 
 import NotesLibrary from "@/addons/knowledge/library/NotesLibrary";
-import knowledgeEn from "@/addons/knowledge/messages/en.json";
 import knowledgeJa from "@/addons/knowledge/messages/ja.json";
 import { PageFrame } from "@/components/PageFrame";
 import { PageHeader } from "@/components/PageHeader";
-import enMessages from "@/messages-core/en.json";
 import jaMessages from "@/messages-core/ja.json";
 
 const NOTE_COUNT = 12;
@@ -78,14 +76,9 @@ export function notesLibraryResponse(url: string): Response | null {
 }
 
 export function NotesLibraryArrangement(): ReactElement {
-  const query = new URLSearchParams(window.location.search);
-  const ja = query.get("locale") !== "en";
-  window.__fixtureSearchParams = new URLSearchParams(`view=all&sort=updated&note=${SHOWN_NOTE}`);
+  window.__fixtureSearchParams = new URLSearchParams(`view=all&note=${SHOWN_NOTE}`);
   return (
-    <NextIntlClientProvider
-      locale={ja ? "ja" : "en"}
-      messages={ja ? { ...jaMessages, ...knowledgeJa } : { ...enMessages, ...knowledgeEn }}
-    >
+    <NextIntlClientProvider locale="ja" messages={{ ...jaMessages, ...knowledgeJa }}>
       <PageFrame width="wide" header={<PageHeader title="ノート" />}>
         <div id="notes-app-panel" className="px-4 pb-10 pt-6">
           <NotesLibrary
