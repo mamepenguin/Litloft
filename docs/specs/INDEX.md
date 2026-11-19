@@ -302,3 +302,6 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-CORE-146 | draft | docs/specs/app-view-per-target.md | |
 | SPEC-ADDON-147 | draft | docs/specs/app-view-per-target.md | |
 | SPEC-ADDON-148 | draft | docs/specs/app-view-per-target.md | |
+| SPEC-CORE-147 | draft | docs/specs/app-library-filters.md | |
+| SPEC-CORE-148 | draft | docs/specs/app-library-filters.md | |
+| SPEC-ADDON-151 | draft | docs/specs/app-library-filters.md | |

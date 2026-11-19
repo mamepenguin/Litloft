@@ -158,8 +158,18 @@ Notes' existing drop of `note` keeps its current trigger. On a Target change:
 
 **Video and Reading (SPEC-CORE-145, 146).**
 
-- The Library's 分類 menu and 並び順 menu read and write the view as above. Their option
-  sets are unchanged.
+- The Library's 分類 menu and 並び順 menu read and write the view as above. The sort
+  options are unchanged.
+- Video's 分類 gains なし / None (`all`). It is listed last: フォルダ, タグ, 追加日, 長さ,
+  視聴状態, なし. Under なし, Video lists `by=all` as one grid, 60 per page, appended on
+  scrolling, as Reading's None does. 視聴状態 stays in this spec. SPEC-CORE-147 moves it to
+  a filter.
+- Reading's 分類 becomes Clips' set: タグ / Tag (`tag`), フォルダ / Folder (`folder`), 追加日 /
+  Date Added (`month`), なし / None (`none`, the default). Folder and Date Added request
+  `by=folder` / `by=month` under the chip, tags and state in force. They page shelves like
+  By tag, order shelves the server's way and title them as Video does, with See all
+  carrying the conditions in force as Reading's See all does today. The folder chips stay;
+  a chip narrows the books, and Folder groups the books inside it.
 - Video's Watch-state fallback is unchanged: a saved `watch` with no profile shows Folder
   and stays stored.
 - See all / shelf pages keep their URL `sort`. They open on the Library's sort in force,
@@ -244,6 +254,16 @@ Notes' existing drop of `note` keeps its current trigger. On a Target change:
 | Notes `title` | タイトル順 / Title | タイトル / Title |
 | Notes `created` | 作成順 / Created | 作成日 / Date Created |
 
+**One core part for the view menus.** `frontend/src/components/appshell/ViewMenus.tsx`
+holds the 分類 and 並び順 menus. Each app passes its option list and value. All four apps
+draw their view menus through it, so a later change to how these menus look is made in
+one place. They are drawn as today's outlined `ToolbarMenu` with the label shown; this
+change does not redesign them. Reading's tag and state menus (filters) keep their look
+until SPEC-CORE-147.
+
+Below 640px the two view menus sit on one row at equal widths, and a long value is cut
+with an ellipsis (design artboard Phone, row 2).
+
 **The menus' look.** This applies to the Library control row, and to the Notes rail at
 1280px and wider. Below 1280px the Notes rail stays the one `LibraryRailMenu`, with only
 its heading renamed. The quiet sort menus in the See all / shelf page headers keep their
@@ -264,7 +284,9 @@ design is https://claude.ai/artifact/B2vcc6DPrGHjDkDhjPzrxe, saved in
 Checkable lines from the design, at 1280px:
 
 - Every app's Library control row is 分類 then 並び順, both outlined menus with icon,
-  label and value (Main).
+  label and value. In Video, Reading and Clips they follow the filters after a gap (Main;
+  the filters themselves are SPEC-CORE-147).
+- At 390px the view menus are one row of two equal-width buttons (Phone, row 2).
 - Clips Library: header, then tabs ホーム | ライブラリ, then the control row, then shelves.
   A shelf is a title, a count, "すべて見る ›" at the right end, then one row of cards.
   The 分類 menu lists タグ, フォルダ, 追加日, なし, with a check on the current one
@@ -410,7 +432,8 @@ requests reuse the Library's existing failed state and Try again. Nothing is log
 - `frontend/src/lib/appPrefs.ts`: new `readTargetView` / `writeTargetView`; the
   classification/group fields stop being written.
 - `frontend/src/components/videoapp/{useVideoApp.ts, VideoApp.tsx, LibraryFace.tsx, LibraryControls.tsx, labels.ts}`
-- `frontend/src/components/readingapp/{useReadingApp.ts, ReadingApp.tsx, LibraryFace.tsx, LibraryControls.tsx, labels.ts}`
+- `frontend/src/components/readingapp/{useReadingApp.ts, ReadingApp.tsx, LibraryFace.tsx, LibraryControls.tsx, labels.ts, shelfLinks.ts}` and the reading shelf page (folder / month shelves)
+- `frontend/src/components/appshell/ViewMenus.tsx` (new)
 - `frontend/src/messages-core/{ja,en}.json`: `videoApp.*`, `readingApp.*` keys in the
   wording table.
 - `addons/knowledge/frontend/pages/clips.tsx`, `clipsapp/{clipsUrl.ts, Library.tsx, ShelfPage.tsx, requests.ts, useTagShelves.ts}`
@@ -466,6 +489,7 @@ I11. Once the Library body is drawn, the Clips URL names the `group` and `sort` 
 
 I12. In the Library control rows of Video, Reading, Notes and Clips, and in the Notes rail at 1280px and wider, the grouping menu draws the `LayoutList` icon and the 分類 label, and the sort menu draws the `ArrowDownUp` icon and the 並び順 label, grouping before sort.
 I13. In Notes and Clips, the URL fill-in and the Target-change rewrite add no history entry; opening a Library or shelf URL that already has its view parameters replaces nothing; a fallback to `default` or the first resolution on load leaves the URL's `group` and `sort` as they were.
+I15. Every 分類 and 並び順 menu in the four apps is drawn by `ViewMenus`; Video offers フォルダ, タグ, 追加日, 長さ, 視聴状態 (with a profile) and なし, and Reading and Clips offer タグ, フォルダ, 追加日 and なし; below 640px the two view menus are equal in width and on one row.
 I14. A Clips folder shelf is titled with its key's last segment (the drive name for the root key `""`), a month shelf with its `YYYY-MM` formatted like Video's month shelves, and its shelf page carries the same heading; "See all ›" of every Clips Library shelf carries the Library's `sort`.
 
 ## Revises
@@ -473,6 +497,7 @@ I14. A Clips folder shelf is titled with its key's last segment (the drive name 
 SPEC-CORE-057 I10. The face and target are remembered per drive under separate keys, and the classification per Target under `litloft.videoApp.view.<drive>` (the old per-drive classification key read only for the default Target); a stored value that is unknown, stale, not offered in the current state, or a smart folder id that is not in this drive's list falls back to its default without an error screen and is never sent to the backend; a saved Watch state survives the profile's absence.
 SPEC-CORE-063 I16. The face and target of Reading are saved per drive under the `litloft.readingApp` keys and its group and Library sort per Target under `litloft.readingApp.view.<drive>`, and Video's saved face and target under `litloft.videoApp` still apply unchanged.
 SPEC-CORE-063 I16b. The folder chip is never stored; it resets to All on a fresh open and on a target change. The Library sort is stored per Target.
+SPEC-CORE-063 I19. Group None lists books by `all`, Tag by `tag` with `no_tag` last, Folder by `folder` and Date Added by `month` in the server's order, and Sort orders the books inside every shelf and the flat grid.
 SPEC-CORE-072 I1. In both apps, the shelf page for `by=watch&key=continue` opened without a recognised `sort` in the URL requests the shelf with `sort=last_played&order=desc` and shows 最後に開いた日 / Date Last Opened as the selected sort.
 SPEC-CORE-072 I3. On that page a URL `sort` naming one of the four existing choices opens on that choice with its pair from the table in item 1; `sort=played` or an unknown value opens on Date Last Opened.
 SPEC-CORE-072 I4. Every other shelf page (any other `by`, or `by=watch` with another key) and Library offer exactly the four existing choices and never request `sort=last_played`; a shelf page without a recognised `sort`, or with `sort=played`, opens on Date Added (Newest First); Library opens on the Target's view in force (SPEC-CORE-145); Library's See all links never carry `sort=played`.
@@ -487,9 +512,6 @@ SPEC-ADDON-100 I29. Clips `?view=all` is the Library: grouped by tag, folder, mo
   folders that act as format walls, Notes groups its rail rather than shelves, and Video
   has length and watch state. A component that knew all of these would make core know
   addon groupings. The user chose to bring Video's approach to Clips instead.
-- **Reading gaining Folder or Date Added groupings.** Not done. In Reading, folders are the
-  format boundaries (manga, novels…) shown as chips, and tags subdivide within them. Its
-  None / Tag set fits that.
 - **Clips grouped by site.** Not offered. The site is derived by the knowledge addon from
   frontmatter. Adding it to the core shelves route would make core interpret addon data
   (`internal-api-policy.md` R1), and the user limited Clips to groupings the existing

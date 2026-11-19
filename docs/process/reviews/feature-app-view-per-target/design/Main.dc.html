@@ -11,76 +11,97 @@
 <style>
 body{margin:0}
 .tb{display:inline-flex;align-items:center;gap:6px;border:1px solid rgba(145,145,140,.2);background:#fff;border-radius:16px;padding:8px 12px;font-size:14px;color:#62625b;white-space:nowrap;font-family:inherit}
-.tb b{font-weight:400;color:#211922}
-.tb svg{width:16px;height:16px;flex-shrink:0}
-.tb .cv{width:16px;height:16px}
+.old{display:inline-flex;align-items:center;gap:6px;border:1px solid transparent;background:#e5e5e0;border-radius:16px;padding:8px 14px;font-size:14px;color:#62625b;white-space:nowrap;font-family:inherit}
+.old b{font-weight:400;color:#211922}
+.old svg{width:16px;height:16px;flex-shrink:0}
+.fl{display:inline-flex;align-items:center;gap:6px;border:1px solid rgba(145,145,140,.2);background:#fff;border-radius:16px;padding:8px 12px;font-size:14px;color:#62625b;white-space:nowrap;font-family:inherit}
+.tb b,.fl b{font-weight:400;color:#211922}
+.tb svg,.fl svg{width:16px;height:16px;flex-shrink:0}
+.chip{display:inline-flex;align-items:center;border:1px solid rgba(145,145,140,.2);border-radius:999px;padding:5px 12px;font-size:13px;color:#211922}
+.chip.on{border-color:#211922;font-weight:600}
 .seg{display:inline-flex;border-radius:10px;background:#f6f6f3;padding:3px;width:200px}
 .seg span{flex:1;text-align:center;font-size:13px;height:30px;line-height:30px;border-radius:8px;color:#62625b}
 .seg .on{background:#fff;color:#211922;font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.08)}
 .chg{color:#d63031}
+.cell{padding:22px 0;display:flex;gap:8px;flex-wrap:wrap;align-items:center;border-bottom:1px solid rgba(145,145,140,.2)}
+.gap{width:20px}
+.app{padding:22px 0;font-weight:600;border-bottom:1px solid rgba(145,145,140,.2)}
 </style>
 </helmet>
-<div style="width:1280px;height:900px;box-sizing:border-box;padding:56px 64px;background:#ffffff;color:#211922;font-family:-apple-system,system-ui,'Segoe UI',Roboto,sans-serif;display:flex;flex-direction:column;gap:28px">
+<div style="width:1280px;height:1000px;box-sizing:border-box;padding:56px 64px;background:#ffffff;color:#211922;font-family:-apple-system,system-ui,'Segoe UI',Roboto,sans-serif;display:flex;flex-direction:column;gap:28px">
 <div style="display:flex;flex-direction:column;gap:6px">
 <h1 style="margin:0;font-size:28px;font-weight:700">ライブラリの操作列</h1>
-<p style="margin:0;font-size:14px;color:#62625b">左が今、右が変更後。赤字が変わる言葉。</p>
+<p style="margin:0;font-size:14px;color:#62625b">左が今、右が変更後。赤字が変わるところ。</p>
 </div>
-<div style="display:grid;grid-template-columns:120px minmax(0,1fr) minmax(0,1fr);column-gap:32px;row-gap:0;font-size:14px">
-<div style="padding:10px 0;color:#62625b;font-size:12px;border-bottom:1px solid rgba(145,145,140,.2)"></div>
+<div style="display:grid;grid-template-columns:96px minmax(0,1fr) minmax(0,1.35fr);column-gap:32px;font-size:14px">
+<div style="padding:10px 0;border-bottom:1px solid rgba(145,145,140,.2)"></div>
 <div style="padding:10px 0;color:#62625b;font-size:12px;border-bottom:1px solid rgba(145,145,140,.2)">今</div>
 <div style="padding:10px 0;color:#62625b;font-size:12px;border-bottom:1px solid rgba(145,145,140,.2)">変更後</div>
 
-<div style="padding:24px 0;font-weight:600;border-bottom:1px solid rgba(145,145,140,.2)">動画</div>
-<div style="padding:24px 0;display:flex;gap:8px;flex-wrap:wrap;border-bottom:1px solid rgba(145,145,140,.2)">
-<span class="tb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="7" height="7" x="3" y="3" rx="1"></rect><rect width="7" height="7" x="3" y="14" rx="1"></rect><path d="M14 4h7"></path><path d="M14 9h7"></path><path d="M14 15h7"></path><path d="M14 20h7"></path></svg>分類 <b>フォルダ</b><svg class="cv" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></span>
-<span class="tb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 16 4 4 4-4"></path><path d="M7 20V4"></path><path d="m21 8-4-4-4 4"></path><path d="M17 4v16"></path></svg>追加日（新しい順）<svg class="cv" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></span>
-<div style="width:100%;font-size:12px;color:#62625b">分類: フォルダ / タグ / 追加した月 / 長さ / 視聴状態。並び順は開き直すと戻る</div>
+<div class="app">動画</div>
+<div class="cell">
+<span class="tb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="7" height="7" x="3" y="3" rx="1"></rect><rect width="7" height="7" x="3" y="14" rx="1"></rect><path d="M14 4h7"></path><path d="M14 9h7"></path><path d="M14 15h7"></path><path d="M14 20h7"></path></svg>分類 <b>視聴状態</b></span>
+<span class="tb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 16 4 4 4-4"></path><path d="M7 20V4"></path><path d="m21 8-4-4-4 4"></path><path d="M17 4v16"></path></svg>追加日（新しい順）</span>
+<div style="width:100%;font-size:12px;color:#62625b">分類: フォルダ / タグ / 追加した月 / 長さ / 視聴状態</div>
 </div>
-<div style="padding:24px 0;display:flex;gap:8px;flex-wrap:wrap;border-bottom:1px solid rgba(145,145,140,.2)">
-<span class="tb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="7" height="7" x="3" y="3" rx="1"></rect><rect width="7" height="7" x="3" y="14" rx="1"></rect><path d="M14 4h7"></path><path d="M14 9h7"></path><path d="M14 15h7"></path><path d="M14 20h7"></path></svg>分類 <b>フォルダ</b><svg class="cv" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></span>
-<span class="tb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 16 4 4 4-4"></path><path d="M7 20V4"></path><path d="m21 8-4-4-4 4"></path><path d="M17 4v16"></path></svg>並び順 <b>追加日（新しい順）</b><svg class="cv" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></span>
-<div style="width:100%;font-size:12px;color:#62625b">分類: フォルダ / タグ / <span class="chg">追加日</span> / 長さ / 視聴状態。並び順も対象ごとに保存</div>
-</div>
-
-<div style="padding:24px 0;font-weight:600;border-bottom:1px solid rgba(145,145,140,.2)">読書</div>
-<div style="padding:24px 0;display:flex;gap:8px;flex-wrap:wrap;border-bottom:1px solid rgba(145,145,140,.2)">
-<span class="tb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"></path><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"></path><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"></path></svg>まとめ方 <b>タグ別</b><svg class="cv" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></span>
-<span class="tb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 16 4 4 4-4"></path><path d="M7 20V4"></path><path d="m21 8-4-4-4 4"></path><path d="M17 4v16"></path></svg>追加日（新しい順）<svg class="cv" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></span>
-<div style="width:100%;font-size:12px;color:#62625b">まとめ方: なし / タグ別。フォルダは上のチップ列</div>
-</div>
-<div style="padding:24px 0;display:flex;gap:8px;flex-wrap:wrap;border-bottom:1px solid rgba(145,145,140,.2)">
-<span class="tb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="7" height="7" x="3" y="3" rx="1"></rect><rect width="7" height="7" x="3" y="14" rx="1"></rect><path d="M14 4h7"></path><path d="M14 9h7"></path><path d="M14 15h7"></path><path d="M14 20h7"></path></svg><span class="chg">分類</span> <b class="chg">タグ</b><svg class="cv" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></span>
-<span class="tb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 16 4 4 4-4"></path><path d="M7 20V4"></path><path d="m21 8-4-4-4 4"></path><path d="M17 4v16"></path></svg>並び順 <b>追加日（新しい順）</b><svg class="cv" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></span>
-<div style="width:100%;font-size:12px;color:#62625b">分類: なし / <span class="chg">タグ</span>（選べるものは今のまま）。チップ列もそのまま</div>
+<div class="cell">
+<span class="fl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"></path><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"></circle></svg><span class="chg">タグ</span> <b class="chg">指定なし</b></span>
+<span class="fl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="m9 12 2 2 4-4"></path></svg><span class="chg">状態</span> <b class="chg">未視聴</b></span>
+<span class="gap"></span>
+<span class="tb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="7" height="7" x="3" y="3" rx="1"></rect><rect width="7" height="7" x="3" y="14" rx="1"></rect><path d="M14 4h7"></path><path d="M14 9h7"></path><path d="M14 15h7"></path><path d="M14 20h7"></path></svg>分類 <b>フォルダ</b></span>
+<span class="tb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 16 4 4 4-4"></path><path d="M7 20V4"></path><path d="m21 8-4-4-4 4"></path><path d="M17 4v16"></path></svg>並び順 <b>追加日（新しい順）</b></span>
+<div style="width:100%;font-size:12px;color:#62625b">状態: すべて / 未視聴 / 視聴中 / 視聴済み。分類: フォルダ / タグ / <span class="chg">追加日</span> / 長さ / <span class="chg">なし</span></div>
 </div>
 
-<div style="padding:24px 0;font-weight:600;border-bottom:1px solid rgba(145,145,140,.2)">ノート</div>
-<div style="padding:24px 0;display:flex;gap:12px;flex-wrap:wrap;align-items:center;border-bottom:1px solid rgba(145,145,140,.2)">
+<div class="app">読書</div>
+<div class="cell">
+<span class="chip on">すべて</span><span class="chip">漫画</span><span class="chip">小説</span><span class="chip">技術書</span>
+<div style="width:100%;height:0"></div>
+<span class="old"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"></path></svg>指定なし</span>
+<span class="old">状態 <b>読書中</b></span>
+<span class="old">まとめ方 <b>タグ別</b></span>
+<span class="old">追加日（新しい順）</span>
+</div>
+<div class="cell">
+<span class="chip on">すべて</span><span class="chip">漫画</span><span class="chip">小説</span><span class="chip">技術書</span>
+<div style="width:100%;height:0"></div>
+<span class="fl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"></path><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"></circle></svg>タグ <b>指定なし</b></span>
+<span class="fl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="m9 12 2 2 4-4"></path></svg>状態 <b>読書中</b></span>
+<span class="gap"></span>
+<span class="tb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="7" height="7" x="3" y="3" rx="1"></rect><rect width="7" height="7" x="3" y="14" rx="1"></rect><path d="M14 4h7"></path><path d="M14 9h7"></path><path d="M14 15h7"></path><path d="M14 20h7"></path></svg><span class="chg">分類</span> <b class="chg">タグ</b></span>
+<span class="tb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 16 4 4 4-4"></path><path d="M7 20V4"></path><path d="m21 8-4-4-4 4"></path><path d="M17 4v16"></path></svg>並び順 <b>追加日（新しい順）</b></span>
+<div style="width:100%;font-size:12px;color:#62625b">分類: <span class="chg">タグ / フォルダ / 追加日</span> / なし（Clips と同じ）</div>
+</div>
+
+<div class="app">Clips</div>
+<div class="cell">
+<span class="tb">タグ別</span>
+<span class="tb">クリップした順</span>
+<div style="width:100%;font-size:12px;color:#62625b">まとめ方: タグ別 / まとめない。並び順: クリップした順 / 古い順 / タイトル順</div>
+</div>
+<div class="cell">
+<span class="fl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"></path><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"></circle></svg><span class="chg">タグ</span> <b class="chg">鶏肉</b></span>
+<span class="fl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="m9 12 2 2 4-4"></path></svg><span class="chg">状態</span> <b class="chg">すべて</b></span>
+<span class="gap"></span>
+<span class="tb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="7" height="7" x="3" y="3" rx="1"></rect><rect width="7" height="7" x="3" y="14" rx="1"></rect><path d="M14 4h7"></path><path d="M14 9h7"></path><path d="M14 15h7"></path><path d="M14 20h7"></path></svg><span class="chg">分類</span> <b class="chg">フォルダ</b></span>
+<span class="tb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 16 4 4 4-4"></path><path d="M7 20V4"></path><path d="m21 8-4-4-4 4"></path><path d="M17 4v16"></path></svg>並び順 <b class="chg">追加日（新しい順）</b></span>
+<div style="width:100%;font-size:12px;color:#62625b">状態: すべて / <span class="chg">未検証 / 検証済み</span>。分類: タグ / <span class="chg">フォルダ / 追加日</span> / なし</div>
+</div>
+
+<div class="app" style="border-bottom:0">ノート</div>
+<div class="cell" style="border-bottom:0">
 <div class="seg"><span class="on">フォルダ</span><span>タグ</span></div>
-<span class="tb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21 16-4 4-4-4"></path><path d="M17 20V4"></path><path d="m3 8 4-4 4 4"></path><path d="M7 4v16"></path></svg>更新順<svg class="cv" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></span>
-<div style="width:100%;font-size:12px;color:#62625b">左のレール上部の切り替え。並べ替え: 更新順 / タイトル順 / 作成順</div>
+<span class="tb">更新順</span>
 </div>
-<div style="padding:24px 0;display:flex;gap:8px;flex-wrap:wrap;border-bottom:1px solid rgba(145,145,140,.2)">
-<span class="tb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="7" height="7" x="3" y="3" rx="1"></rect><rect width="7" height="7" x="3" y="14" rx="1"></rect><path d="M14 4h7"></path><path d="M14 9h7"></path><path d="M14 15h7"></path><path d="M14 20h7"></path></svg><span class="chg">分類</span> <b>フォルダ</b><svg class="cv" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></span>
-<span class="tb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 16 4 4 4-4"></path><path d="M7 20V4"></path><path d="m21 8-4-4-4 4"></path><path d="M17 4v16"></path></svg><span class="chg">並び順</span> <b class="chg">変更日</b><svg class="cv" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></span>
-<div style="width:100%;font-size:12px;color:#62625b">分類はレール上部のメニュー（フォルダ / タグ）。並び順: <span class="chg">変更日 / タイトル / 作成日</span>。棚は出さない</div>
-</div>
-
-<div style="padding:24px 0;font-weight:600">Clips</div>
-<div style="padding:24px 0;display:flex;gap:8px;flex-wrap:wrap">
-<span class="tb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 5 6.3 6.3a2.4 2.4 0 0 1 0 3.4L17 19"></path><path d="M9.586 5.586A2 2 0 0 0 8.172 5H3a1 1 0 0 0-1 1v5.172a2 2 0 0 0 .586 1.414L8.29 18.29a2.426 2.426 0 0 0 3.42 0l3.58-3.58a2.426 2.426 0 0 0 0-3.42z"></path></svg>タグ別<svg class="cv" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></span>
-<span class="tb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21 16-4 4-4-4"></path><path d="M17 20V4"></path><path d="m3 8 4-4 4 4"></path><path d="M7 4v16"></path></svg>クリップした順<svg class="cv" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></span>
-<div style="width:100%;font-size:12px;color:#62625b">まとめ方: タグ別 / まとめない。並び順: クリップした順 / 古い順 / タイトル順。URL のみ</div>
-</div>
-<div style="padding:24px 0;display:flex;gap:8px;flex-wrap:wrap">
-<span class="tb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="7" height="7" x="3" y="3" rx="1"></rect><rect width="7" height="7" x="3" y="14" rx="1"></rect><path d="M14 4h7"></path><path d="M14 9h7"></path><path d="M14 15h7"></path><path d="M14 20h7"></path></svg><span class="chg">分類</span> <b class="chg">タグ</b><svg class="cv" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></span>
-<span class="tb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 16 4 4 4-4"></path><path d="M7 20V4"></path><path d="m21 8-4-4-4 4"></path><path d="M17 4v16"></path></svg>並び順 <b class="chg">追加日（新しい順）</b><svg class="cv" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></span>
-<div style="width:100%;font-size:12px;color:#62625b">分類: タグ / <span class="chg">フォルダ / 追加日</span> / <span class="chg">なし</span>。並び順: <span class="chg">追加日（新しい順） / 追加日（古い順） / タイトル</span></div>
+<div class="cell" style="border-bottom:0">
+<span class="tb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="7" height="7" x="3" y="3" rx="1"></rect><rect width="7" height="7" x="3" y="14" rx="1"></rect><path d="M14 4h7"></path><path d="M14 9h7"></path><path d="M14 15h7"></path><path d="M14 20h7"></path></svg><span class="chg">分類</span> <b>フォルダ</b></span>
+<span class="tb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 16 4 4 4-4"></path><path d="M7 20V4"></path><path d="m21 8-4-4-4 4"></path><path d="M17 4v16"></path></svg><span class="chg">並び順</span> <b class="chg">変更日</b></span>
+<div style="width:100%;font-size:12px;color:#62625b">タグはレールで選ぶ（今のまま）。並び順: <span class="chg">変更日 / タイトル / 作成日</span></div>
 </div>
 </div>
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":900}}'>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1000}}'>
 class Component extends DCLogic {
 renderVals() {
 return {};
