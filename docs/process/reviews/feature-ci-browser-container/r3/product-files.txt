@@ -1,0 +1,3 @@
+.github/workflows/ci.yml
+frontend/e2e-layout/addon-policy.spec.ts
+frontend/scripts/check-playwright-browsers.mjs

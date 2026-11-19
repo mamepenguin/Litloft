@@ -76,10 +76,11 @@ docker run --rm knowledge-test
 ### The bootstrap script
 
 `configure.py` is stdlib-only and is not in the backend test image. Its tests
-run on a bare interpreter with only pytest installed, as CI runs them:
+run on a bare interpreter with pytest and PyYAML installed, as CI runs them
+(PyYAML is for the test that reads `ci.yml`):
 
 ```bash
-python3 -m pip install pytest
+python3 -m pip install pytest PyYAML==6.0.2
 python3 -m pytest tests -v
 ```
 
@@ -335,7 +336,8 @@ and `main`. Each addon repository has its own workflow.
 | `frontend (coverage floor and denominator)` | merges the four shard reports (`vitest --merge-reports --coverage`), applies the thresholds, runs `check-coverage-denominator.mjs` |
 | `frontend (tsc / eslint)` | checks every addon contributed tests (`vitest list --filesOnly`), then `tsc --noEmit` and `pnpm lint` |
 | `frontend (shuffled order)` | the whole suite under `--sequence.shuffle --retry=1`, without coverage |
-| `frontend (layout invariants and components in a browser)` | `pnpm test:e2e:layout` and `pnpm test:e2e:components` in Chromium |
+| `frontend (browser components 1/2)`, `(browser components 2/2)` | `setup-addons.sh`, install, `check-playwright-browsers.mjs`, `.github/playwright-fonts.conf` as the user fontconfig (the fallback is pinned to Liberation Sans), then half of the component suite (`playwright test --config=playwright-components.config.ts --shard=k/2`) in Chromium |
+| `frontend (layout invariants and EPUB reader in a browser)` | `setup-addons.sh`, install, `check-playwright-browsers.mjs`, `.github/playwright-fonts.conf` as the user fontconfig (the fallback is pinned to Liberation Sans), then `pnpm test:e2e:layout` (Chromium) and `pnpm test:e2e:epub` (Chromium and WebKit); the EPUB step runs after a layout failure |
 | `mcp-server (vitest / tsc)` | vitest with coverage, the population check, `tsc` |
 | `backend (pytest in the test image)` | builds and runs `backend/Dockerfile.test` with the floor, then `check-coverage-population.py` |
 | `bootstrap (configure.py)` | `python -m pytest tests -v` on Python 3.12 |
