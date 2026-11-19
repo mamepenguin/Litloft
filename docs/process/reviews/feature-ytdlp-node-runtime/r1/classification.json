@@ -1,0 +1,52 @@
+{
+  "risk": "CRITICAL",
+  "score": 13,
+  "base": 3,
+  "zone_max": "CRITICAL",
+  "modifiers": [],
+  "promotions": [],
+  "zones_touched": [
+    {
+      "path": "addons/intelligence",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "addons/media_import",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "backend/Dockerfile",
+      "level": "CRITICAL"
+    },
+    {
+      "path": "docs/ADDON-DEVELOPMENT.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/addons/intelligence.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/addons/media-import.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/INDEX.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/ytdlp-node-runtime.md",
+      "level": "LOW"
+    },
+    {
+      "path": "tests/test_backend_dockerfile.py",
+      "level": "MEDIUM"
+    }
+  ],
+  "human_zones_touched": [],
+  "protected_paths_touched": [],
+  "docs_only": false,
+  "reasons": [
+    "highest zone CRITICAL (10 points)"
+  ]
+}

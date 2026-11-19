@@ -19,6 +19,11 @@ export interface FindRow {
   match_length: number;
   /** Quads of the picture lines the hit sits on, as fractions of the picture. */
   boxes?: number[][] | null;
+  /**
+   * The pixel size of the frame the boxes came from, on a frame-text row
+   * whose file cannot report its own size (a `.loft`).
+   */
+  frame_size?: number[] | null;
 }
 
 export interface FindAnswer {

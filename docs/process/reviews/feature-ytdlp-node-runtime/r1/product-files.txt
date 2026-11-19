@@ -1,0 +1,8 @@
+addons/intelligence/Dockerfile
+addons/intelligence/Dockerfile.test
+addons/intelligence/app/youtube_source.py
+addons/media_import/backend/requirements.txt
+addons/media_import/backend/service.py
+addons/media_import/backend/subscription/manager.py
+addons/media_import/backend/subscription/providers/youtube.py
+backend/Dockerfile

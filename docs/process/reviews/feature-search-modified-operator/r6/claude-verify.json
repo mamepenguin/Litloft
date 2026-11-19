@@ -1,0 +1,94 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "CRITICAL",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R1",
+      "status": "confirmed",
+      "note": "backend/app/services/mtime.py:8-17 defines modified_at_from_stat and read_modified_at. It is imported at drives.py:60, content_write.py:11, fileops.py:29, markdown_relations.py:23, scanner.py:38 and upload.py:25. That is six modules; 'seven write paths' counts paths, not files. A grep of docs/specs/search-modified-operator.md finds no 'mtime.py', and the Touch points section (line 276 onward) does not name it."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R2",
+      "status": "confirmed",
+      "note": "SearchQueryHeader.tsx:272-281 sets the entries list with 'modified' between 'duration' and 'favorite'. In non-test src it is the only file that renders <ConditionMenu. The spec's Touch points do not mention SearchQueryHeader. SearchQueryHeader.scope.test.tsx:118 and SearchQueryHeader.sizeDuration.test.tsx:95 expect 'Modified' in the order."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R3",
+      "status": "confirmed",
+      "note": "Grep finds modified_at: null at e2e-components/fixtures/clipsRow.tsx:53, justifiedHold.tsx:55, notesLibrary.tsx:46, videoCardByline.tsx:41 and e2e-epub/preview/app.tsx:48. The spec has no match for 'e2e'."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R4",
+      "status": "confirmed",
+      "note": "smartCollections.test.ts:288,326 expect tz: Intl.DateTimeFormat().resolvedOptions().timeZone. SearchQueryHeader scope/sizeDuration tests expect 'Modified'. FileDetailFullScreen.smartCollection.test.tsx:388-401 savedSmartFolder() returns modified_at: null, but types/smartFolder.ts:3-18 has no modified_at field. The spec's Touch points name only backend/tests/, the addon's tests/ and core-search-vocabulary.test.ts. I did not count the ~70 fixture files."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R5",
+      "status": "confirmed",
+      "note": "addons/intelligence/frontend/Page.tsx:103-111 builds the scope string from path/in/tag/type only. Page.tsx:113-127 calls filterFromParsed(parseSearchQuery(raw), null) with no modified argument (searchQuery.ts:848-852 defaults it to []), so filter.modified is absent. AskFindHeader.tsx:54-61 sends only folder/collection/tag/type. The spec does not name addons/intelligence/frontend. Behaviour: before this change a modified: token was free text, which these functions also dropped. The scope result is therefore the same, but the token is now consumed as an operator and silently ignored, not treated as text."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "SCOPE-1",
+      "status": "confirmed",
+      "note": "Same as R1: mtime.py:8-17 is new, is imported by six modules, and is not named in the spec's Touch points."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "SCOPE-2",
+      "status": "confirmed",
+      "note": "Same as R2: SearchQueryHeader.tsx:272-281 sets the order with 'modified' between 'duration' and 'favorite'. The file is not a touch point."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "SCOPE-3",
+      "status": "confirmed",
+      "note": "Same as R3: the five fixture/preview files hold modified_at: null at the cited lines. The touch points name only searchMerge.ts and FolderTreePane.tsx for FileItem literals."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "SCOPE-4",
+      "status": "confirmed",
+      "note": "mcp-server/src/__tests__/modifiedOperator.test.ts exists. smartCollections.test.ts:288,326 expect tz. SearchQueryHeader.modified.test.tsx is a new frontend test. None of these is under a listed test touch point. I did not verify the exact counts (~85 files, nine new)."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "SCOPE-5",
+      "status": "confirmed",
+      "note": "FileDetailFullScreen.smartCollection.test.tsx:388-401 savedSmartFolder() includes modified_at: null. frontend/src/types/smartFolder.ts:3-18 SmartFolder declares updated_at (line 16) and no modified_at. The function returns an untyped object literal, so this compiles, but the field does not exist on the type."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "ROBUST-1",
+      "status": "confirmed",
+      "note": "mtime.py:12-17: the try covers only os.stat, and modified_at_from_stat (line 9, datetime.fromtimestamp(int(st_mtime), UTC)) runs outside it. A ValueError/OverflowError (or the OSError fromtimestamp can raise) for an out-of-range mtime propagates. scanner.py:585 calls read_modified_at(item) for every existing row in the pass-1 loop (rglob at line 472) with no per-item handler; the grep shows no try between lines 472 and 627. The only other fromtimestamp calls are scanner.py:374 (register_single_file) and :657 (pass 2, new files), so existing rows in pass 1 are newly exposed. Note: an mtime beyond year 9999 is not normal use under the threat model, which suggests bucket B."
+    }
+  ],
+  "specification_compliance": [
+    "Touch-point omissions confirmed: backend/app/services/mtime.py, SearchQueryHeader.tsx, the e2e fixtures, the frontend/mcp-server tests and the addon frontend's Page.tsx/AskFindHeader.tsx."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "In the intelligence addon's Ask scope, a modified: token is now parsed as an operator and silently left out of the scope and the count. Before this change it was free text, which was also dropped."
+  ],
+  "regression_risks": [
+    "The pass-1 scan now converts st_mtime for every existing row without a guard; a file with an mtime outside the datetime range would abort the scan."
+  ],
+  "test_coverage": [
+    "No test seen for an out-of-range mtime during a scan of existing rows."
+  ],
+  "not_verified": [
+    "Exact counts of the changed frontend test files (~70/~85) and of the new test files",
+    "Whether an outer caller of _scan_and_register catches the exception and how the scan failure reaches the user",
+    "The git diff itself against origin/develop; I checked the code state at the worktree HEAD only"
+  ],
+  "confidence": 85
+}

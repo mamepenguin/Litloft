@@ -42,6 +42,7 @@ const makeFile = (id: string, overrides?: Partial<FileItem>): FileItem => ({
   trust_reviewed_at: null,
   created_at: "2026-01-01T00:00:00",
   updated_at: "2026-01-01T00:00:00",
+  modified_at: null,
   ...overrides,
 });
 

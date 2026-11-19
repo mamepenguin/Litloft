@@ -1,0 +1,23 @@
+{
+  "v": 3,
+  "attachments": {},
+  "boards": {
+    "ClipsHome.dc.html": {"expand": "fill", "h": 1180, "title": "Clips / ホーム", "w": 1440, "x": 0, "y": 1300},
+    "ClipsLibrary.dc.html": {"expand": "fill", "h": 1180, "title": "Clips / ライブラリ", "w": 1440, "x": 1520, "y": 1300},
+    "Main.dc.html": {"expand": "fill", "h": 1180, "title": "ノート / ホーム", "w": 1440, "x": 0, "y": 0},
+    "NotesLibrary.dc.html": {"expand": "fill", "h": 1180, "title": "ノート / ライブラリ（閲覧）", "w": 1440, "x": 1520, "y": 0},
+    "NotesLibraryEdit.dc.html": {"expand": "fill", "h": 1180, "title": "ノート / ライブラリ（編集中）", "w": 1440, "x": 3040, "y": 0},
+    "NotesLibraryPhone.dc.html": {"h": 844, "title": "ノート / ライブラリ（スマホ）", "w": 390, "x": 4560, "y": 0}
+  },
+  "createdOnFiles": {"at": "2026-11-18T03:30:00Z", "v": 1},
+  "designSystems": [],
+  "launch": {"view": "canvas"},
+  "noteOrder": ["t1", "t2"],
+  "notes": {
+    "t1": {"kind": "title1", "maxW": 4950, "text": "ノート — 自分で書いたものを、開かずに読む", "w": 240, "x": 0, "y": -300},
+    "t2": {"kind": "title1", "maxW": 2960, "text": "Clips — 外から集めたものを、表紙で選んで読む", "w": 240, "x": 0, "y": 1000}
+  },
+  "order": ["Main.dc.html", "NotesLibrary.dc.html", "NotesLibraryEdit.dc.html", "NotesLibraryPhone.dc.html", "ClipsHome.dc.html", "ClipsLibrary.dc.html"],
+  "pages": [],
+  "title": "ノートと Clips アプリ"
+}

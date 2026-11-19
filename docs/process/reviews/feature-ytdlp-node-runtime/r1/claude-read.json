@@ -1,0 +1,149 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [
+    {
+      "id": "R1",
+      "origin": "reviewer",
+      "claim": "The shared intelligence test double addons/intelligence/tests/youtube_frame_doubles.py was edited (FakeYouTube.set_ytdlp gains a `stderr` argument and the fake yt-dlp script writes it to stderr on a successful -J), and no touch point names this file.",
+      "impact": "No user impact. Every intelligence test that uses FakeYouTube runs through the edited fake. The edit only adds output when `stderr` is set, and existing callers leave it at None, so the earlier behaviour is unchanged. Still, a shared fixture was changed without being planned. It is the hook the I5 test needs.",
+      "evidence": "addons/intelligence/tests/youtube_frame_doubles.py:85-86 (new `if cfg.get(\"stderr\")` branch in _YTDLP_SCRIPT) and the set_ytdlp signature/JSON write (diff hunk at old line 266). The spec's Touch points list names no file under addons/intelligence/tests/.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariant is broken. The edit is backward compatible and serves the I5 test, but the touch-point list does not include it.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Add addons/intelligence/tests/youtube_frame_doubles.py (the FakeYouTube stderr option) to the touch points."
+    },
+    {
+      "id": "R2",
+      "origin": "reviewer",
+      "claim": "addons/media_import/backend/subscription/providers/youtube.py now imports `...service` at module level (`from ...service import JS_RUNTIME_OPTIONS`). Before, that module imported service only lazily inside functions. This changes the provider module's import graph, which goes beyond the touch point's 'every options dict'.",
+      "impact": "No user impact is visible. service.py imports nothing from `subscription` at module level (only lazily, at lines 651 and 1187), so no import cycle exists today. But importing the YouTube provider now loads all of service.py and its core `app.*` imports. A later module-level import of the subscription package from service.py would create a cycle that the touch points do not warn about.",
+      "evidence": "providers/youtube.py:57 adds the module-level import. The same file at lines 262 and 271 keeps the earlier lazy `from ...service import _fetch_metadata_sync` / `_download_captions_sync` inside functions. service.py:35 is its only relative module-level import (`.schemas`). manager.py:37 already imported service at module level, so for manager this is not new.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariant is broken and no cycle exists now. This is an unplanned structural reach inside a listed file.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Name the shared JS_RUNTIME_OPTIONS constant in service.py, and the new module-level import of it in providers/youtube.py, in the touch points, or define the dict locally in each of the three files."
+    },
+    {
+      "id": "R3",
+      "origin": "reviewer",
+      "claim": "New test files outside the touch-point list: addons/intelligence/tests/test_spec_addon_141_ytdlp_node_runtime.py and addons/media_import/backend/tests/test_spec_addon_142_ytdlp_node_runtime.py. Also, tests/test_backend_dockerfile.py gains an I7 test, while the touch point lists that file only for I8's tests.",
+      "impact": "None for a user. These are the acceptance tests for I2-I7. Two of them, the item-1 checks in both new files, also make each addon's test suite fail when its test image has no Node 24 or no yt-dlp-ejs, which adds a test-image dependency the touch points do not list.",
+      "evidence": "test_spec_addon_141_ytdlp_node_runtime.py:149-157 and test_spec_addon_142_ytdlp_node_runtime.py:171-179 assert `node --version` starts with v24 and that yt-dlp-ejs is installed. tests/test_backend_dockerfile.py adds test_spec_addon_142_i7_... alongside the I8 tests.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "The tests are expected companions of the invariants, and no invariant is broken. This only records that the touch-point list does not name them.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "List the two new spec test files in the touch points, and say that tests/test_backend_dockerfile.py also carries the I7 check."
+    }
+  ],
+  "specification_compliance": [
+    "Every product path in the diff (both intelligence Dockerfiles, youtube_source.py, media_import requirements.txt, service.py, manager.py, providers/youtube.py, backend/Dockerfile, the three docs pages, and the submodule pointers) appears in the touch-point list. docs/specs/* and INDEX.md are implicit.",
+    "I2: both argv lists in youtube_source.py (run_lookup line 164, download_rendition line 353) put `--no-js-runtimes`, `--js-runtimes=node` before the URL. The URL stays last. No --remote-components.",
+    "I3/I4: all seven YoutubeDL options dicts (service.py 82, 170, 262-272, 332-345; providers/youtube.py 187-195, 213-220; manager.py 93-100) gain only `js_runtimes: {\"node\": {}}` through JS_RUNTIME_OPTIONS. No remote_components.",
+    "I7: backend/Dockerfile names no addon or JS runtime.",
+    "I8: backend/Dockerfile:22-31 uses `|| exit 1` in both loops and drops the trailing `; true`. With no match, the unexpanded glob fails the `-f` test and the loop exits 0."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "providers/youtube.py now imports service.py at module load (R2)",
+    "Shared test double FakeYouTube gains a stderr option (R1)",
+    "Both addon test suites now require Node 24 and yt-dlp-ejs in the test image (R3)"
+  ],
+  "regression_risks": [
+    "Backend image builds now fail on transient PyPI or Debian mirror errors in any addon install. This is intended (SPEC-CORE-139), but CI images jobs become network-sensitive.",
+    "The ~200 MB nodejs-wheel download in both images makes builds more likely to time out on a slow IPv4 path."
+  ],
+  "test_coverage": [
+    "I2 is checked for the frame read, storyboard index and .loft fetch lookups, and for the download argv. The download check does not require every non-URL argument to start with '-', which matches the revised I2.",
+    "I3/I4 are checked per place with a recording YoutubeDL, including three listing limits. I6 builds a real YoutubeDL with node removed from PATH.",
+    "I5 is checked through the fake yt-dlp's new stderr option.",
+    "I7 and I8 are checked through the sh -c harness in tests/test_backend_dockerfile.py, including failure-before-success ordering and the last output line.",
+    "I1 has no automated test. It is checked manually in R-5."
+  ],
+  "not_verified": [
+    "Did not run any test or build. Could not execute commands.",
+    "Did not check whether any import path loads providers/youtube.py before service.py in a way that could cycle at runtime. Only the module-level imports of service.py were read.",
+    "Did not verify the content of the submodule commits beyond the files in the provided diff (for example, whether other files changed in those submodule commits).",
+    "Did not verify I1 against built images."
+  ],
+  "coverage": [
+    {
+      "path": "addons/intelligence/Dockerfile",
+      "read": "full",
+      "reason": "Whole file read."
+    },
+    {
+      "path": "addons/intelligence/Dockerfile.test",
+      "read": "full",
+      "reason": "Whole file read."
+    },
+    {
+      "path": "addons/intelligence/app/youtube_source.py",
+      "read": "partial",
+      "reason": "Read lines 140-379, which cover run_lookup and download_rendition. The _JS_RUNTIME_ARGV definition (around line 71) was read from the diff hunk only."
+    },
+    {
+      "path": "addons/media_import/backend/requirements.txt",
+      "read": "full",
+      "reason": "Whole file read."
+    },
+    {
+      "path": "addons/media_import/backend/service.py",
+      "read": "partial",
+      "reason": "Read lines 245-364 (captions and STT options) and the module-level imports. The title and metadata hunks (around 79-90 and 167-175) and the JS_RUNTIME_OPTIONS constant were read from the diff."
+    },
+    {
+      "path": "addons/media_import/backend/subscription/manager.py",
+      "read": "partial",
+      "reason": "Read lines 85-114 (_resolve_channel_id_via_yt_dlp). The import hunk at line 37 was read from the diff and confirmed by grep."
+    },
+    {
+      "path": "addons/media_import/backend/subscription/providers/youtube.py",
+      "read": "partial",
+      "reason": "Read lines 180-228 (both changed functions). The import at line 57 and the lazy imports at 262 and 271 were confirmed by grep."
+    },
+    {
+      "path": "backend/Dockerfile",
+      "read": "full",
+      "reason": "Whole file read."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_141_ytdlp_node_runtime.py",
+      "read": "full",
+      "reason": "New file, read in full from the diff."
+    },
+    {
+      "path": "addons/intelligence/tests/youtube_frame_doubles.py",
+      "read": "partial",
+      "reason": "Read lines 60-99 (the fake yt-dlp script). The set_ytdlp hunk was read from the diff."
+    },
+    {
+      "path": "addons/media_import/backend/tests/test_spec_addon_142_ytdlp_node_runtime.py",
+      "read": "full",
+      "reason": "New file, read in full from the diff."
+    },
+    {
+      "path": "tests/test_backend_dockerfile.py",
+      "read": "partial",
+      "reason": "Read the added section (lines 82-240) and the diff context only. The earlier tests were not opened."
+    }
+  ],
+  "confidence": 80
+}

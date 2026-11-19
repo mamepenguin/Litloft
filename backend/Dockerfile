@@ -20,11 +20,13 @@ RUN mkdir -p addons && find addons -maxdepth 1 -type l -delete 2>/dev/null; \
     done && rm -rf /tmp/_all_addons
 RUN if [ ! -f addons/__init__.py ]; then touch addons/__init__.py; fi
 RUN for req in addons/*/requirements.txt; do \
-      [ -f "$req" ] && pip install --no-cache-dir -r "$req"; \
-    done; true
+      if [ -f "$req" ]; then \
+        pip install --no-cache-dir -r "$req" || exit 1; \
+      fi; \
+    done
 RUN for addon_dir in addons/*/; do \
       if [ -f "$addon_dir/install.sh" ]; then \
-        sh "$addon_dir/install.sh"; \
+        sh "$addon_dir/install.sh" || exit 1; \
       fi; \
-    done; true
+    done
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

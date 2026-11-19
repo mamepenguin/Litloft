@@ -94,7 +94,7 @@ export function resolveAppTarget(
   }
 
   const parsed = parseSearchQuery(folder.query);
-  if (parsed.durations.length > 0) {
+  if (parsed.durations.length > 0 || (parsed.modified?.length ?? 0) > 0) {
     return { usable: false, reason: "unsupported_part" };
   }
 

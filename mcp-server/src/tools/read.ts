@@ -126,6 +126,7 @@ const SUMMARY_FIELDS = [
   "tags",
   "created_at",
   "updated_at",
+  "modified_at",
   "match_source",
 ];
 

@@ -490,6 +490,7 @@ def _shelves(
         collection=params.collection,
         size=params.size,
         duration=params.duration,
+        modified=params.modified,
         trust=params.trust,
         origin=params.origin,
         exclude_origin=params.exclude_origin,

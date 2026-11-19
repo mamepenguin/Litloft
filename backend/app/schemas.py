@@ -58,6 +58,7 @@ class FileResponse(_UtcDateTimeMixin, BaseModel):
     subtitles: list[SubtitleInfo] = []
     created_at: datetime
     updated_at: datetime
+    modified_at: datetime | None = None
     deleted_at: datetime | None = None
     missing_since: datetime | None = None
     # 'verified' plus a NULL reviewed stamp means the row was bulk-migrated
@@ -1308,6 +1309,7 @@ def file_to_response(
         subtitles=subtitles or [],
         created_at=file.created_at,
         updated_at=file.updated_at,
+        modified_at=file.modified_at,
         deleted_at=file.deleted_at,
         missing_since=file.missing_since,
         trust_tier=file.trust_tier,
