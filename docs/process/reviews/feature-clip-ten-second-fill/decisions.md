@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: continue (r7, human 2026-11-19: 「推奨通りでよい」) — fix F2 (paused time does not count toward the candidates embedding budget) and F3 (prioritize queues the frame-text rebuild at 100 together with the fetch); accept the ordering where a CLIP regenerate recorded during a running fetch skips the storyboard leg and the requeued fetch rebuilds the candidates from the video.
 ran_in_app: yes
 at: 1c475b85127a86544eac36d544192a3f438ddec6
 by: agent

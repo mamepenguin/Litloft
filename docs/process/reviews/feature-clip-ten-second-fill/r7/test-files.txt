@@ -1,0 +1,14 @@
+addons/intelligence/tests/test_spec_addon_111_frame_scan_index.py
+addons/intelligence/tests/test_spec_addon_111_frame_scan_model.py
+addons/intelligence/tests/test_spec_addon_111_frame_scan_task.py
+addons/intelligence/tests/test_spec_addon_117_loft_media_fetch.py
+addons/intelligence/tests/test_spec_addon_117_loft_media_queue.py
+addons/intelligence/tests/test_spec_addon_117_loft_media_schema.py
+addons/intelligence/tests/test_spec_addon_117_loft_media_start.py
+addons/intelligence/tests/test_spec_addon_121_loft_fetch_storyboard.py
+addons/intelligence/tests/test_spec_addon_144_scene_fill.py
+addons/intelligence/tests/test_spec_addon_145_change_frame_move.py
+addons/intelligence/tests/test_spec_addon_145_frame_scan.py
+addons/intelligence/tests/test_spec_addon_146_candidates_stage.py
+addons/intelligence/tests/test_spec_addon_146_loft_candidates_queue.py
+addons/intelligence/tests/test_z_clip_thumbnail_dispatch.py
