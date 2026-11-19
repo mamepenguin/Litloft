@@ -332,7 +332,7 @@ export function useDiscover({
       id: string,
       entries: readonly SlotEntry[],
       cacheKey: string,
-      options: { watch?: "unwatched"; preferPageProvider?: boolean; recommended?: boolean } = {},
+      options: { preferPageProvider?: boolean; recommended?: boolean } = {},
     ) => {
       if (entries.length === 0) {
         commit(() => {
@@ -352,7 +352,6 @@ export function useDiscover({
         requests,
         drive: visit.drive,
         target: visit.params,
-        watch: options.watch,
         accepted,
         isCurrent: () => live() && !settled(),
         onViewerRejected: () => onRejected.current(),
@@ -480,7 +479,7 @@ export function useDiscover({
         "recommended",
         visit.entries.recommended,
         recommendedCacheKey(visit, visit.entries.recommended),
-        { watch: "unwatched", recommended: true },
+        { recommended: true },
       );
     }
     for (const entry of sortSlotEntries(visit.entries.addons)) {

@@ -19,7 +19,7 @@ The `intelligence` addon adds meaning-based search, Ask (question answering over
 | **Visual index** | Described scenes marked on a video's Scenes timeline, each one seekable | off | yes, with `llm.vision_model` |
 | **Text in pictures** | Reads the words in pictures with a local OCR engine so search and Ask find them | on | no |
 | **Transcription** | Local faster-Whisper, the local Japanese-only Haas engine, or a cloud provider | local | no |
-| **Pickup** | A feed of videos you have never opened, ranked by your watch history, newer ones first among equal matches | always | no |
+| **Pickup** | A feed of videos you have not watched yet (half or more played counts as watched), ranked by your watch history, newer ones first among equal matches | always | no |
 
 The LLM itself ships disabled (`llm.provider: "disabled"`), so a new install makes no LLM calls until you configure a provider. Features marked "manual" run only when you press a button.
 
@@ -306,16 +306,16 @@ The frames go to the `vision_model` of the profile the question resolves to, and
 When the file's chunk text exceeds `rag.file_question_max_chars` (default 16,000, from 1,000 to 200,000), the chunks closest to the question are sent and the answer says it read part of the file. The earlier turns share this limit with the passages, at most half of it, so a follow-up can be answered from part of a file the first question read whole.
 ### Pickup
 
-A row on the drive home of videos you have never opened, ranked by how well they match your watch history in that drive, with newer videos ahead of older ones that match about as well. Pickup lists videos only, and only your video history shapes it. A newly added video can appear within an hour of being indexed. **See all** opens the full feed at `/drive/<name>/addons/intelligence/pickup`.
+A row on the drive home of videos you have not watched, ranked by how well they match your watch history in that drive, with newer videos ahead of older ones that match about as well. A video counts as watched once at least half of it has been played, or it is liked or marked as a favourite; a video under 20 seconds counts by position instead, and history last played before 2026-11-05 keeps the earlier rule, where opening a video was enough. A video you have only glanced at stays a candidate. Pickup lists videos only, and only your video history shapes it. A newly added video can appear within an hour of being indexed. **See all** opens the full feed at `/drive/<name>/addons/intelligence/pickup`.
 
-Pickup also feeds **Recommended** on the [Video](../user-guide/video.md) page: of the feed's top entries that match the app's target and are still unwatched, up to 12 are picked for the day. While new videos are being added, the picks can change during the day. **See all** opens the same list in the video app, the day's picks first and then the rest of the feed, all at once. Recommended is absent when that leaves nothing.
+Pickup also feeds **Recommended** on the [Video](../user-guide/video.md) page: of the feed's top entries that match the app's target and that you have not watched, up to 12 are picked for the day. While new videos are being added, the picks can change during the day. **See all** opens the same list in the video app, the day's picks first and then the rest of the feed, all at once. Recommended is absent when that leaves nothing.
 
 - It needs a [profile](../user-guide/profile-preferences.md) and some watch history. It appears after the next rebuild once you have watched something.
 - It makes no LLM calls. It uses the embeddings indexing already made.
-- A video counts by how much of it you watched: half or more counts fully, less counts less, and a video you closed before a tenth of it, or removed from **Continue**, does not count. A video you liked or marked as a favourite always counts fully. An embedded video (`.loft`) whose player reports no length counts half.
+- A video's weight as a seed follows how much of it you watched. A video you watched (at least half played) counts fully, as does one you liked or marked as a favourite. A video you have only glanced at, or removed from **Continue**, counts for nothing. History last played before 2026-11-05 keeps the earlier weighting: half or more counts fully, less counts less, a video you closed before a tenth of it counts for nothing, and an embedded video (`.loft`) whose player reports no length counts half.
 - The last year of history is grouped into interests. An interest loses half its weight for each week you do not touch it, but never drops below a quarter of the strongest one's share.
 - The row shows a different twelve videos each day. The full feed keeps a stable order.
-- A file you have opened, ever, is never in the feed. Nothing from another drive is used.
+- A video you have watched is never in the feed; one you have only glanced at stays a candidate but is no seed. The feed also drops a video watched after its last rebuild as soon as it is read. Nothing from another drive is used.
 - It is rebuilt when a scan finishes and every hour, for viewers whose history changed. Liking, favouriting or removing a video from **Continue** counts as a change.
 
 Watching many episodes of one series pulls the feed toward that series, which is expected.
