@@ -131,11 +131,11 @@ describe("SPEC-CORE-146 the shared view menu labels", () => {
 });
 
 describe("SPEC-CORE-146 I9 the Video Library in Japanese", () => {
-  it("SPEC-CORE-146 the menus read 分類 and 並び順, with the new option names", async () => {
+  it("SPEC-CORE-146 SPEC-CORE-147 I7 the menus read 分類 and 並び順, with the new option names and no 視聴状態", async () => {
     writeAppPrefs(DRIVE, { face: "library" });
     render(<VideoApp drive={DRIVE} />);
 
-    expect(await optionsOf(/分類/)).toEqual(["フォルダ", "タグ", "追加日", "長さ", "視聴状態", "なし"]);
+    expect(await optionsOf(/分類/)).toEqual(["フォルダ", "タグ", "追加日", "長さ", "なし"]);
     const sort = await optionsOf(/並び順/);
     expect(sort).toContain("追加日（新しい順）");
     expect(sort).toContain("追加日（古い順）");

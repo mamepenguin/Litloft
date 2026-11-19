@@ -415,24 +415,29 @@ describe("SPEC-CORE-057 I9 Library", () => {
     expect(screen.getByText("Trip")).toBeInTheDocument();
   });
 
-  it("SPEC-CORE-057 offers the six groupings with a profile and saves the choice", async () => {
+  it("SPEC-CORE-147 I7 offers five groupings with a profile, never Watch State, and saves the choice", async () => {
     renderApp();
     await openMenu(/Group By/);
 
-    for (const label of ["Folder", "Tag", "Date Added", "Length", "Watch State", "None"]) {
+    for (const label of ["Folder", "Tag", "Date Added", "Length", "None"]) {
       expect(screen.getAllByText(label).length).toBeGreaterThan(0);
     }
+    expect(screen.queryByText("Watch State")).not.toBeInTheDocument();
     fireEvent.click(screen.getByText("Tag"));
 
     await waitFor(() => expect(shelfCalls({ by: "tag" }).length).toBeGreaterThan(0));
     expect(readTargetView("video", DRIVE, "default").group).toBe("tag");
   });
 
-  it("SPEC-CORE-057 reads shelves by watch state for a profile", async () => {
+  it("SPEC-CORE-147 I7 shows Folder for a stored Watch State with a profile and sends no Library by=watch", async () => {
     writeTargetView("video", DRIVE, "default", { group: "watch" });
     renderApp();
 
-    await waitFor(() => expect(shelfCalls({ by: "watch" }).length).toBeGreaterThan(0));
+    await screen.findByText("Movies");
+    expect(shelfCalls({ by: "folder" }).length).toBeGreaterThan(0);
+    expect(
+      shelfCalls({ by: "watch" }).filter(([, p]) => (p as Params).key === undefined),
+    ).toHaveLength(0);
   });
 });
 
