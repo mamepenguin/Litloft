@@ -228,9 +228,7 @@ export function ToolbarMenu({
             <span className="flex-shrink-0">
               <Icon size={14} />
             </span>
-            <span className={truncateValue ? "whitespace-nowrap" : "min-w-[2.5em] truncate"}>
-              {value}
-            </span>
+            <span className="min-w-[2.5em] truncate">{value}</span>
             <ChevronDown size={14} className="flex-shrink-0" aria-hidden="true" />
           </>
         ) : filled ? (
