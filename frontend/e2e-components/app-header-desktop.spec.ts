@@ -23,7 +23,7 @@ import {
 } from "./app-header.measure";
 
 const DRIVE = "fixture";
-const SORT_CHOICE = "Added (newest first)";
+const SORT_CHOICE = "Date Added (Newest First)";
 const TARGET_SHARE = 0.4;
 const TITLE_FLOOR = 120;
 

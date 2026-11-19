@@ -93,6 +93,7 @@ const AT_THE_PHONE_WIDTH = [
 
 const AT_THE_DESKTOP_WIDTH = [
   "frame-crop-desktop.spec.ts",
+  "view-menus-desktop.spec.ts",
   "frame-outline-desktop.spec.ts",
   "add-menu-desktop.spec.ts",
   "condition-menu-desktop.spec.ts",
@@ -117,7 +118,6 @@ const AT_THE_DESKTOP_WIDTH = [
   "scenes-section-rows-scrollbar-desktop.spec.ts",
   "video-card-byline-desktop.spec.ts",
   "video-card-spacing-desktop.spec.ts",
-  "view-menus-desktop.spec.ts",
   "inspector-responsive-layout-desktop.spec.ts",
   "player-workbench-desktop.spec.ts",
   "collection-workbench-metrics-desktop.spec.ts",
