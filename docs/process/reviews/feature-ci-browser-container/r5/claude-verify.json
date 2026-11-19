@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "CRITICAL",
+  "findings": [],
+  "verification": [],
+  "specification_compliance": [
+    "I1: .github/workflows/ci.yml:352 runs `playwright test --config=playwright-components.config.ts --shard=${{ matrix.shard }}/2` over matrix shard [1, 2] (ci.yml:311). ci.yml:397 and ci.yml:408 run `pnpm test:e2e:layout` and `pnpm test:e2e:epub` with no extra arguments. No --project, --grep, --grep-invert or --pass-with-no-tests appears in these steps.",
+    "I2: none of the browser steps (ci.yml:302-409) has continue-on-error, none is piped, and the component matrix has fail-fast: false (ci.yml:309).",
+    "I3: no apt-get or playwright install step appears in either browser job.",
+    "I4: the check runs before the tests in both jobs (ci.yml:338 for chromium and chromium-headless-shell, ci.yml:385 adds webkit). check-playwright-browsers.mjs exits 1 when it cannot locate or read browsers.json, when PLAYWRIGHT_BROWSERS_PATH is unset, when no browser name is given, or when a build directory is missing (lines 43-86). In layout-epub, layout does not run after a failed check because it has no `if`, and EPUB is gated on steps.browsers.outcome == 'success' (ci.yml:407).",
+    "I5: both jobs use checkout with submodules: recursive and run setup-addons.sh before pnpm install (ci.yml:317-333, 364-381).",
+    "I6 (r4): frontend/e2e-layout/addon-policy.spec.ts:27 still has APP_TABLE_HEIGHT = 548, so the r3 exception was reverted as r4 requires.",
+    "I8: the EPUB step has `!cancelled()` (ci.yml:407), so it runs after a layout failure.",
+    "I9: both jobs use the same image, mcr.microsoft.com/playwright:v1.58.2-noble (ci.yml:306, 359), with node-version 20.",
+    "I12: the fonts step copies .github/playwright-fonts.conf to $HOME/.config/fontconfig/fonts.conf before every test step in both jobs (ci.yml:343-347, 390-394). The file gives sans-serif and system-ui a strong prefer for Liberation Sans (playwright-fonts.conf:4-5).",
+    "I11: docs/developer-guide/testing.md:339-340 names the three browser checks with their suites and browsers."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The EPUB step's condition (ci.yml:407) depends only on the browsers step. If the fonts step itself failed, EPUB would still run without the pinned fontconfig. The job would already be red from the fonts failure, so no check passes silently."
+  ],
+  "regression_risks": [
+    "The browser check applies only the ubuntu24.04-x64 revision override (check-playwright-browsers.mjs:13,73). If the image base or the runner architecture changes, it would compare against the wrong revision. It would then fail loudly rather than pass silently."
+  ],
+  "test_coverage": [
+    "tests/test_ci_browser_jobs.py has tests for step order through the fonts step (line 130-147), the fonts step installing the user fontconfig (line 247) and the Liberation Sans preference (line 301), as well as shards, filters, fail-fast, swallowed failures and the absence of installs."
+  ],
+  "not_verified": [
+    "I did not run any test or CI job, because I have no execution tools.",
+    "I did not check that the image tag v1.58.2 matches the @playwright/test version in frontend/pnpm-lock.yaml (I9).",
+    "I did not check that the branch protection required-check list matches the job names (I7, a GitHub setting).",
+    "I did not check that test_ci_browser_jobs.py is collected and not skipped in the bootstrap job (I10).",
+    "I did not read the vitest test for check-playwright-browsers.mjs.",
+    "I did not confirm empirically that fontconfig in the container honours the user config before 60-latin.conf."
+  ],
+  "confidence": 80
+}
