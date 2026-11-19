@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R1",
+      "status": "confirmed",
+      "note": "Traced by reading the code. Next's router.replace wraps dispatchNavigateAction in startTransition (frontend/node_modules/next/dist/client/components/app-router-instance.js:339-341). In NotesPage.tsx:166-176, setSwitchedFrom and notesTarget.choose are urgent updates. choose (useNotesTarget.ts:177-183) only calls setHeld. For a Smart Collection or collection whose list has already loaded (it must have loaded for the menu to offer it) and that needs no member evaluation, selectedId and target become ready in that same urgent render, so targetId changes while useSearchParams still returns the old URL with note and sort. The effect at NotesPage.tsx:54-56 stores those old params in latest.current. The effect at :57-72 then sees previous !== targetId, inLibrary and current.has('note'), reads raw = the old sort and calls router.replace(libraryHref(..., {note:null}, oldSort)). That replace is queued after the eager sort-less one, so the final URL carries the old sort. switchedFrom is the old search with note, which differs from the final URL, so switchPending is false (:45). NotesLibrary.tsx:76-78 then takes the URL's sort, which is the previous Target's. I did not run it in a real browser."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R2",
+      "status": "confirmed",
+      "note": "clips.tsx:203-208 sets switchedFrom = search and replaces the URL with group/sort deleted. If neither was present, the replaced URL is identical and the search string does not change. switchPending (:154) stays true, switchSettled (:215) stays false, and fillHref (:253-256) requires !switchPending, so it stays null until some other navigation. Concrete path: a Library URL is never filled in while the Target is empty (bodyDrawn at :251-252 needs !targetHasNone). Choosing a non-empty Target from there leaves the Library drawn with a URL that lacks group/sort, which breaks I11 and the I13 (r4) fill-in. The view shown is still correct, because effectiveParams drops the URL values and resolved uses the new Target. Notes behaves the same way: NotesPage.tsx:168-173 deletes sort and note, a count===0 Target never rendered NotesLibrary (:118-119) so it never filled in sort, ignoreUrlSort={switchPending} stays true, and NotesLibrary.tsx:139-142 requires !ignoreUrlSort for fillHref. The test harness also ignores a replace to an identical URL (notesAppHarness.tsx:50), which matches the router's behaviour that this finding relies on."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R3",
+      "status": "confirmed",
+      "note": "notesAppHarness.tsx:44-54 and :64-66 apply replace synchronously and notify listeners inside the handler, so the URL change is batched with setHeld into one render. By the time the note-drop effect runs, latest.current no longer has note. Nothing under addons/knowledge/frontend/__tests__ uses startTransition or useTransition (grep returned no files). No vitest test models a replace landing after the urgent Target change."
+    }
+  ],
+  "specification_compliance": [
+    "The R1 path breaks I4 and I13 (r4) for Notes: after a Target change made with a note in the URL, the URL and the view keep the previous Target's sort.",
+    "The R2 path breaks I11 and the I13 (r4) fill-in for Clips and Notes when the Target is chosen from a URL that already lacks the view parameters (for example, from an empty Target)."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The R2 stuck switchPending state also arises on Clips shelf pages whose shelf does not follow sort (no sort in the URL). The effect there is benign until the next navigation."
+  ],
+  "regression_risks": [
+    "The Target-change design depends on the order in which the router transition commits relative to urgent state updates. The synchronous test harnesses cannot see that ordering."
+  ],
+  "test_coverage": [
+    "No test drives router.replace as a deferred (transition) update in notesAppHarness or clipsAppHarness.",
+    "No test chooses a Target starting from an empty-Target Library URL that lacks group/sort."
+  ],
+  "not_verified": [
+    "R1 was not reproduced in a real browser running Next 16. I relied on reading app-router-instance.js and on how React schedules passive effects after a discrete event.",
+    "The Next action queue's ordering of two back-to-back same-route replaces was not traced in its source.",
+    "Member-evaluation Targets (lookingUp after choose) were not traced for R1; there the replace may commit first and avoid the bug."
+  ],
+  "confidence": 82
+}
