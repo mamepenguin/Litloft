@@ -116,6 +116,21 @@ describe("ToolbarMenu", () => {
     expect(screen.queryByRole("menu")).not.toBeInTheDocument();
   });
 
+  it("shortens a quiet menu's value where the bar is tight", () => {
+    render(
+      <ToolbarMenu
+        label="Sort"
+        value="Date Added (Newest First)"
+        icon={Filter}
+        quiet
+        truncateValue
+      >
+        {rows}
+      </ToolbarMenu>,
+    );
+    expect(screen.getByText("Date Added (Newest First)")).toHaveClass("truncate");
+  });
+
   it("keeps the popover's recipe, which is what keeps it on screen", () => {
     // A literal, not the string `useMenuSurface` builds. Comparing the
     // element's class to the recipe it is set from compares the recipe to
