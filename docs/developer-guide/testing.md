@@ -76,10 +76,11 @@ docker run --rm knowledge-test
 ### The bootstrap script
 
 `configure.py` is stdlib-only and is not in the backend test image. Its tests
-run on a bare interpreter with only pytest installed, as CI runs them:
+run on a bare interpreter with pytest and PyYAML installed, as CI runs them
+(PyYAML is for the test that reads `ci.yml`):
 
 ```bash
-python3 -m pip install pytest
+python3 -m pip install pytest PyYAML==6.0.2
 python3 -m pytest tests -v
 ```
 

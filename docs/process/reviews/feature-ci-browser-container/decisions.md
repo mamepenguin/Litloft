@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: continue (r1, human: "continue")
 ran_in_app: not-applicable
 at: 7fddd2033ae4bce3f7c37256e888793db6a91384
 by: agent

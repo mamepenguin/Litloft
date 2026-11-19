@@ -1,0 +1,2 @@
+.github/workflows/ci.yml
+frontend/scripts/check-playwright-browsers.mjs
