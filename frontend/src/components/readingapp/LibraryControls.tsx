@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowDownUp, BookMarked, Check, Layers, Tag } from "lucide-react";
+import { ArrowDownUp, BookMarked, Check, Tag } from "lucide-react";
 import { useCallback } from "react";
 import { useTranslations } from "next-intl";
 
@@ -8,7 +8,6 @@ import { RetryButton } from "@/components/appshell/RetryButton";
 import { useLoad } from "@/components/appshell/useLoad";
 import { MenuRadioGroup, ToolbarMenu } from "@/components/ToolbarMenu";
 import { getDriveTags, type ShelfWatchState } from "@/lib/api";
-import type { ReadingGroup } from "@/lib/appPrefs";
 import { SORT_CHOICES } from "./labels";
 
 export type ReadingState = "all" | ShelfWatchState;
@@ -121,43 +120,6 @@ export function StateMenu({
           isSelected={(state) => state === value}
           onSelect={(state) => {
             onChange(state);
-            close();
-          }}
-        />
-      )}
-    </ToolbarMenu>
-  );
-}
-
-export function GroupMenu({
-  value,
-  onChange,
-}: {
-  value: ReadingGroup;
-  onChange: (value: ReadingGroup) => void;
-}) {
-  const t = useTranslations("readingApp");
-  const options = [
-    { value: "none" as const, label: t("group.none") },
-    { value: "tag" as const, label: t("group.byTag") },
-  ];
-  return (
-    <ToolbarMenu
-      label={t("group.label")}
-      value={t(`group.${value === "none" ? "none" : "byTag"}`)}
-      icon={Layers}
-      showLabel
-      filled
-      className="min-w-0 ml-auto"
-      align="start"
-    >
-      {(close) => (
-        <MenuRadioGroup<ReadingGroup>
-          heading={t("group.label")}
-          options={options}
-          isSelected={(group) => group === value}
-          onSelect={(group) => {
-            onChange(group);
             close();
           }}
         />

@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { Film } from "lucide-react";
 import { useTranslations } from "next-intl";
 
@@ -11,7 +10,6 @@ import { ShelfBlock } from "@/components/appshell/ShelfBlock";
 import { PageFrame } from "@/components/PageFrame";
 import { DiscoverFace } from "./DiscoverFace";
 import { LibraryFace } from "./LibraryFace";
-import type { SortChoice } from "./labels";
 import { useDiscover } from "./useDiscover";
 import { useVideoApp } from "./useVideoApp";
 import { VideoAppHeader } from "./VideoAppHeader";
@@ -21,7 +19,6 @@ const PANEL_ID = "video-app-panel";
 export function VideoApp({ drive }: { drive: string }) {
   const t = useTranslations("videoApp");
   const state = useVideoApp(drive);
-  const [sortId, setSortId] = useState<SortChoice["id"]>("newest");
   const face = state.prefs?.face;
 
   const discover = useDiscover({
@@ -71,11 +68,11 @@ export function VideoApp({ drive }: { drive: string }) {
             params={state.params}
             requests={state.requests}
             empty={state.empty}
-            savedClassification={state.prefs!.classification}
+            group={state.view.group}
             hasProfile={state.hasProfile}
-            sortId={sortId}
-            onClassification={(classification) => state.updatePrefs({ classification })}
-            onSort={setSortId}
+            sortId={state.view.sort}
+            onGroup={state.setGroup}
+            onSort={state.setSort}
             onViewerRejected={state.rejectViewer}
           />
         ) : (

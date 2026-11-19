@@ -7,7 +7,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor, fireEvent, act } from "@testing-library/react";
 
-import { readAppPrefs, writeAppPrefs } from "@/lib/appPrefs";
+import { readAppPrefs, readTargetView, writeAppPrefs, writeTargetView } from "@/lib/appPrefs";
 import { VideoApp } from "../VideoApp";
 
 const { DRIVE } = vi.hoisted(() => ({ DRIVE: "main" }));
@@ -229,7 +229,8 @@ describe("the profile as an input", () => {
   });
 
   it("drops Continue and the Watch state choice when the profile is cleared", async () => {
-    writeAppPrefs(DRIVE, { face: "library", classification: "watch" });
+    writeAppPrefs(DRIVE, { face: "library" });
+    writeTargetView("video", DRIVE, "default", { group: "watch" });
     const view = render(<VideoApp drive={DRIVE} />);
     await waitFor(() => expect(getShelves.mock.calls.some(([, p]) => p.by === "watch")).toBe(true));
 
@@ -237,12 +238,13 @@ describe("the profile as an input", () => {
     view.rerender(<VideoApp drive={DRIVE} />);
 
     await waitFor(() => expect(getShelves.mock.calls.at(-1)![1]).toMatchObject({ by: "folder" }));
-    expect(readAppPrefs(DRIVE).classification).toBe("watch");
+    expect(readTargetView("video", DRIVE, "default").group).toBe("watch");
   });
 
   it("falls back to Folder in the Library when the server turns the viewer away", async () => {
     const { ApiStatusError } = await import("@/lib/api");
-    writeAppPrefs(DRIVE, { face: "library", classification: "watch" });
+    writeAppPrefs(DRIVE, { face: "library" });
+    writeTargetView("video", DRIVE, "default", { group: "watch" });
     getShelves.mockImplementation(async (d, p: Params) => {
       if (p.by === "watch") throw Object.assign(new ApiStatusError(400, "x"), { detail: "viewer_required" });
       return defaultShelves(d, p);
@@ -263,7 +265,7 @@ describe("the Library while it pages and fails", () => {
     getShelves.mockImplementation(never);
     const { container } = render(<VideoApp drive={DRIVE} />);
 
-    await screen.findByRole("button", { name: /Classification/ });
+    await screen.findByRole("button", { name: /Group By/ });
     await waitFor(() => expect(container.querySelectorAll(".animate-pulse").length).toBeGreaterThan(0));
     expect(screen.queryByText("No files")).not.toBeInTheDocument();
   });

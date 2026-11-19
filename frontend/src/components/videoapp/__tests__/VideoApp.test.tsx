@@ -7,7 +7,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { act, render, screen, waitFor, fireEvent } from "@testing-library/react";
 
-import { readAppPrefs, writeAppPrefs } from "@/lib/appPrefs";
+import { readAppPrefs, readTargetView, writeAppPrefs, writeTargetView } from "@/lib/appPrefs";
 import { ApiStatusError } from "@/lib/api";
 import { VideoApp } from "../VideoApp";
 
@@ -320,24 +320,25 @@ describe("SPEC-CORE-057 no profile", () => {
     expect(filesCalls({ sort: "random" })).toHaveLength(0);
   });
 
-  it("SPEC-CORE-057 does not offer Watch state in the Classification menu", async () => {
+  it("SPEC-CORE-057 does not offer Watch State in the Group By menu", async () => {
     writeAppPrefs(DRIVE, { face: "library" });
     renderApp();
 
-    await openMenu(/Classification/);
+    await openMenu(/Group By/);
 
     expect(screen.getByText("Tag")).toBeInTheDocument();
-    expect(screen.queryByText("Watch state")).not.toBeInTheDocument();
+    expect(screen.queryByText("Watch State")).not.toBeInTheDocument();
   });
 
-  it("SPEC-CORE-057 I10 shows Folder for a saved Watch state and keeps the saved value", async () => {
-    writeAppPrefs(DRIVE, { face: "library", classification: "watch" });
+  it("SPEC-CORE-057 I10 shows Folder for a saved Watch State and keeps the saved value", async () => {
+    writeAppPrefs(DRIVE, { face: "library" });
+    writeTargetView("video", DRIVE, "default", { group: "watch" });
     renderApp();
 
     await screen.findByText("Movies");
     expect(shelfCalls({ by: "watch" })).toHaveLength(0);
     expect(shelfCalls({ by: "folder" }).length).toBeGreaterThan(0);
-    expect(readAppPrefs(DRIVE).classification).toBe("watch");
+    expect(readTargetView("video", DRIVE, "default").group).toBe("watch");
   });
 });
 
@@ -407,28 +408,28 @@ describe("SPEC-CORE-057 I9 Library", () => {
   });
 
   it("SPEC-CORE-057 labels the untagged shelf No tag", async () => {
-    writeAppPrefs(DRIVE, { classification: "tag" });
+    writeTargetView("video", DRIVE, "default", { group: "tag" });
     renderApp();
 
     expect(await screen.findByText("No tag")).toBeInTheDocument();
     expect(screen.getByText("Trip")).toBeInTheDocument();
   });
 
-  it("SPEC-CORE-057 offers the five classifications with a profile and saves the choice", async () => {
+  it("SPEC-CORE-057 offers the six groupings with a profile and saves the choice", async () => {
     renderApp();
-    await openMenu(/Classification/);
+    await openMenu(/Group By/);
 
-    for (const label of ["Folder", "Tag", "Month added", "Length", "Watch state"]) {
+    for (const label of ["Folder", "Tag", "Date Added", "Length", "Watch State", "None"]) {
       expect(screen.getAllByText(label).length).toBeGreaterThan(0);
     }
     fireEvent.click(screen.getByText("Tag"));
 
     await waitFor(() => expect(shelfCalls({ by: "tag" }).length).toBeGreaterThan(0));
-    expect(readAppPrefs(DRIVE).classification).toBe("tag");
+    expect(readTargetView("video", DRIVE, "default").group).toBe("tag");
   });
 
   it("SPEC-CORE-057 reads shelves by watch state for a profile", async () => {
-    writeAppPrefs(DRIVE, { classification: "watch" });
+    writeTargetView("video", DRIVE, "default", { group: "watch" });
     renderApp();
 
     await waitFor(() => expect(shelfCalls({ by: "watch" }).length).toBeGreaterThan(0));
