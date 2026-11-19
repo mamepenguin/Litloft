@@ -2,10 +2,57 @@
 
 decision:
 ran_in_app: yes
-at: 0d147960350b03e9bf1d6c1a3fdd5c7be480c3fd
+at: e57b7174cc14147e0c61fa4ae68a350c5607e4c8
 by: agent
 evidence: |
-  Re-run 2026-11-19 on the fixed areas only. Core 0d1479603, addons/intelligence working tree at
+  Re-run 3 (2026-11-19), on the review r6 fixes only. Core e57b7174c, which pins addons/intelligence
+  at 432e475 (the addon working tree was at the same commit). Stack started with `r5_stack.py
+  clone` and `up` (port 3102). The first `up` left the frontend in Created: port 3102 was briefly
+  held by another stack, so I recreated the frontend with
+  `r5_stack.py compose up -d --force-recreate --no-build frontend`. Then `down` and `destroy`.
+  Same video XN1lPMKvrM7S, driven by Playwright Chromium. The phone runs use 390x844 with touch.
+  Result: no failure.
+  - F-1, phone sheet without a Visual Index (`visual-index` routed to 404): PASS.
+    - The card box is 0 px high and not sticky. No strip stays pinned at the sheet's bottom:
+      elementFromPoint at y=820/835/843 hits tiles at both half and full snap
+      (r5/rerun3-phone-novi-half.jpg, rerun3-phone-novi-full.jpg).
+    - At the end of the list (scrollTop 29808 = max), the last tile ends at y=808 and the scroller at
+      844. The 36 px below is transparent padding (the list's 4 px, the inspector body's `p-4`, and
+      the scroller's 16 px padding-bottom); y=820–843 hits those wrappers, not a pinned box
+      (r5/rerun3-phone-novi-full-end.jpg).
+    - Band: at full snap after open, 0–1.193%; after a swipe, 1.006–1.875%; at the end,
+      97.398–100%. Each equals the band computed from the visible area, which runs from the ruler
+      to the scroller's bottom.
+    - At half snap right after open, the band included the 4:40 row (0–1.006%). That row is
+      803–886 px and the area ends at 844, so 41 of its 83 px (49.4%) show. This is a sub-pixel
+      boundary; after a swipe the band matched again (0.597–1.535%).
+  - F-1 regression, with a Visual Index: the one-line card is pinned at 778–844 at half and full,
+    with sticky position and an opaque background. The band matched at half, after a swipe, at full
+    (0.796–1.705%) and at the end. At the end the card (665–731), stale note and action row (775)
+    follow the last tile (r5/rerun3-phone-vi-half.jpg, rerun3-phone-vi-full.jpg,
+    rerun3-phone-vi-full-end.jpg).
+  - I13, workbench 1400x1400: PASS. With the video paused at 0, none of these changed scrollTop
+    (0), the ruler point (none) or the chip (absent):
+    - a right-button press at 60% of the ruler;
+    - a right-button drag from 30% to 80%;
+    - a middle-button press.
+    A left click at 60% then scrolled the list (scrollTop 15958), set the point at 5:51:56 and drew
+    the chip; the video did not seek (r5/rerun3-i13-left-click.jpg).
+  - Clock: PASS.
+    - Playing from 10:55, the accent outline moved from 10:34 to 11:00 with playback. That row was
+      already wholly visible, so scrollTop stayed 429 as I2 says.
+    - Paused at 11:15, a click on the player's own seek bar (`seek-line`, at 20%) moved the time to
+      1:51:19. The outline moved to 1:51:09 and the list placed that row (scrollTop 429→6066) within
+      463 ms, under the 1 s idle beat (r5/rerun3-clock-paused-seek.jpg).
+  - I12: NOT REPRODUCED. With the stream request delayed 15 s, the media controller was already
+    present when the tiles appeared: the playing outline was drawn at 0:00, and a wheel at once drew
+    the chip, though the video's readyState stayed 0. Delaying the stream does not delay the
+    controller, so I could not make the controller appear after the reader's scroll. After the
+    wheel, the list stayed at scrollTop 1500 for 22 s (r5/rerun3-i12-late-player.jpg). That
+    reading does not exercise I12's case.
+  Earlier runs follow.
+
+  Re-run 2 (2026-11-19) on the fixed areas only. Core 0d1479603, addons/intelligence working tree at
   2ee8d4f. Stack started with `r5_stack.py clone` and `up` (port 3101), then `down` and `destroy`.
   Same video XN1lPMKvrM7S. Driven by Playwright Chromium (frontend/node_modules). The busy addon
   still answered `visual-index` with 502 at times, so each page was given the real answer, fetched
