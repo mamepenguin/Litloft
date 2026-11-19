@@ -273,7 +273,10 @@ export function ScenesHeldVisualArrangement({
   hostWidth: number;
   hostHeight: number;
 }): ReactElement {
-  const data = LONG;
+  const stale = new URLSearchParams(location.search).get("stale") === "1";
+  const data = stale
+    ? { ...LONG, visualIndex: { ...SCENES_LONG_VISUAL_INDEX, stale: true } }
+    : LONG;
   stubIntelligenceApi(data, { heldVisual: true });
   const mediaController = useMemo(
     () => makeController(data.duration),
