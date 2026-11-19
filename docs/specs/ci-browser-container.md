@@ -2,7 +2,7 @@
 
 SPEC-ID: SPEC-CORE-149
 
-Approval: sha256:c706eec081dc989a011f0b52e920b824a67514bd46476bfeb2374a7f6843d7ef Yuichi Senga 2026-11-19
+Approval:
 
 ## Summary
 
@@ -44,11 +44,19 @@ run and then a core CI run.
 3. Each browser job, in this order: checks out with `submodules: recursive`; runs
    `./setup-addons.sh`; sets up pnpm and Node 20 (`pnpm/action-setup`, `actions/setup-node`
    with the pnpm cache) as the vitest jobs do; runs `pnpm install --frozen-lockfile`; runs
-   the browser check (step id `browsers`); runs the tests. No translation merge step, as
-   in today's browser job. The image ships git (Playwright's `Dockerfile.noble` installs
+   the browser check (step id `browsers`); copies `.github/playwright-fonts.conf` to
+   `$HOME/.config/fontconfig/fonts.conf` (step id `fonts`); runs the tests. No
+   translation merge step, as in today's browser job. The image ships git (Playwright's `Dockerfile.noble` installs
    it) and Node 24; `setup-node` puts Node 20 first on `PATH`, so pnpm and the tests run
    on Node 20. Actions sets `CI=true` in container jobs, so the configs keep the `line`
    reporter.
+
+   The fontconfig file makes `sans-serif` and `system-ui` prefer Liberation Sans, which
+   the image ships. The app's font stack names no font the image has, so the fallback
+   decides every text measurement in these suites, and without the file the image falls
+   back to WenQuanYi Zen Hei, a CJK font with taller lines: in run 44498253376 the
+   addon-policy table measured 560 px against the 548 px that a Mac and the image with
+   this file both measure (checked locally in the image).
 4. The browser check is `node scripts/check-playwright-browsers.mjs <names…>` in
    `frontend/`. The names per job are fixed: `chromium chromium-headless-shell` in the
    component jobs, `chromium chromium-headless-shell webkit` in the layout-and-EPUB job.
@@ -76,7 +84,7 @@ run and then a core CI run.
 6. A new pytest, `tests/test_ci_browser_jobs.py`, reads `.github/workflows/ci.yml` and
    `frontend/pnpm-lock.yaml` and asserts I1, I2, I3, I5, I8, I9, the check names in
    step 2, the browser-check step and its per-job names from step 4, and that the
-   `browsers` step precedes every test step (I4's wiring). The other invariants are
+   `browsers` step precedes every test step (I4's wiring), and I12. The other invariants are
    checked elsewhere: I4's logic by the vitest in step 7, I6 and I11 by review of the
    diff, I7 by the read-back in step 8, I10 by the test importing `yaml` directly and
    appearing in the `bootstrap` log. It runs in the `bootstrap (configure.py)`
@@ -107,6 +115,9 @@ run and then a core CI run.
   `search-results-bar.spec.ts`). The implementer does not adjust the test, its margin or
   its expectation. The difference is reported to the human with the case, both
   measurements and the fonts involved, and the human decides.
+- **A text measurement differs between the container and a Mac.** With the fontconfig
+  file in place, the implementer does not adjust the test; the case, both measurements
+  and `fc-match sans-serif` in the image go to the human.
 - **A setup step fails in the container** (checkout, `pnpm/action-setup`, the pnpm cache,
   file ownership under `--user 1001`, including a permission error from a suite's
   `globalSetup` writing its bundle or fixture, which shows inside the test step). The implementer stops and reports; changing the
@@ -193,6 +204,7 @@ and a shorter wall time.
   and `frontend-layout-epub`; the `bootstrap` job's install step (risk zone CRITICAL;
   not a protected path).
 - `frontend/scripts/check-playwright-browsers.mjs` (new).
+- `.github/playwright-fonts.conf` (new).
 - A vitest test for it under `frontend/src/` (new).
 - `tests/test_ci_browser_jobs.py` (new).
 - `docs/developer-guide/testing.md`: the `### Core jobs` table.
@@ -213,6 +225,7 @@ I7. After merge, the required checks on `develop` are exactly the names of the j
 I8. A failing layout case does not stop the EPUB suite from running in the same job.
 I9. The browser jobs run their tests on Node 20, in the same image tag in every job, and that tag's version equals the `@playwright/test` version in `frontend/pnpm-lock.yaml`.
 I10. The CI-shape test runs in `bootstrap (configure.py)` and is collected, not skipped.
+I12. In every browser job, a step that installs `.github/playwright-fonts.conf` as the fontconfig user configuration runs before every test step, and that file makes `sans-serif` and `system-ui` prefer Liberation Sans.
 I11. The `### Core jobs` table in `docs/developer-guide/testing.md` names the three browser checks and the suites and browsers each runs, and no longer names the removed job.
 
 ## Checked, no action
