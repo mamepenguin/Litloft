@@ -151,3 +151,47 @@ export function ScenesSectionArrangement({
     </div>
   );
 }
+
+/**
+ * The real Scenes section in a bounded box standing in for a workbench panel
+ * body: a flex column of a stated width and height, as `PanelTabBody` gives
+ * the stacked inspector's tab. The 500-frame file, so the list scrolls.
+ * `?t=` is the playback time it opens at.
+ */
+export function ScenesBoundedArrangement({
+  hostWidth,
+  hostHeight,
+}: {
+  hostWidth: number;
+  hostHeight: number;
+}): ReactElement {
+  const data = LONG;
+  stubIntelligenceApi(data);
+  const mediaController = useMemo(() => {
+    const start = Number(new URLSearchParams(location.search).get("t") ?? 0);
+    if (start > 0) SCENES_PLAYBACK.time = start;
+    return makeController(data.duration);
+  }, [data.duration]);
+
+  return (
+    <div
+      id="scenes-host"
+      className="bg-bg-primary flex min-h-0 flex-col overflow-y-auto"
+      style={{ width: hostWidth, height: hostHeight }}
+    >
+      <NextIntlClientProvider
+        locale="en"
+        messages={{ ...enMessages, ...intelligenceEn }}
+      >
+        <ScenesSection
+          fileId={data.file}
+          drive={SCENES_DRIVE}
+          fileType="video"
+          mediaController={mediaController}
+          labelledByHost
+          active
+        />
+      </NextIntlClientProvider>
+    </div>
+  );
+}

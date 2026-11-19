@@ -108,7 +108,10 @@ import { VideoCardBylineArrangement } from "./videoCardByline";
 import { VideoCardSpacingArrangement } from "./videoCardSpacing";
 import { AppHeaderArrangement } from "./appHeader";
 import { PersistentHighlightsArrangement } from "./persistentHighlights";
-import { ScenesSectionArrangement } from "./scenesSection";
+import {
+  ScenesBoundedArrangement,
+  ScenesSectionArrangement,
+} from "./scenesSection";
 import { ClipsPageArrangement, clipsPageResponse } from "./clipsPage";
 import { ClipsRowArrangement, clipsRowResponse } from "./clipsRow";
 import { NotesLibraryArrangement, notesLibraryResponse } from "./notesLibrary";
@@ -2855,6 +2858,12 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   ),
   "scenes-long-390": () => (
     <ScenesSectionArrangement hostWidth={390} long />
+  ),
+  "scenes-bounded-1024": () => (
+    <ScenesBoundedArrangement hostWidth={1024} hostHeight={600} />
+  ),
+  "scenes-bounded-short": () => (
+    <ScenesBoundedArrangement hostWidth={1024} hostHeight={260} />
   ),
   "inspector-video": InspectorVideoArrangement,
   "inspector-video-sidebar": InspectorVideoSidebarArrangement,
