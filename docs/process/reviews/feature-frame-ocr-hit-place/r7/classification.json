@@ -1,0 +1,160 @@
+{
+  "risk": "HIGH",
+  "score": 7,
+  "base": 3,
+  "zone_max": "MEDIUM",
+  "modifiers": [],
+  "promotions": [],
+  "zones_touched": [
+    {
+      "path": "addons/intelligence",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "addons/media_import",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "docs/ADDON-DEVELOPMENT.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/addons/intelligence.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/INDEX.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/frame-ocr-hit-place.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/user-guide/search.md",
+      "level": "LOW"
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/app.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/frameCrop.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/frameOutline.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/frame-crop-desktop.spec.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/frame-crop.cases.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/frame-crop.data.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/frame-crop.spec.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/frame-outline-desktop.spec.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/frame-outline.data.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/projects.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/spec-viewport.spec.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/FileDetailContainer.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/__tests__/FindInFile.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/__tests__/harness.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/find/useFindInFile.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/MiniPlayerContainer.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/VideoPlayer.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/loft/LoftPlayer.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/loft/__tests__/LoftPlayer.pictureOverlay.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/loft/types.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/player/FindOutlineLayer.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/player/__tests__/FindOutlineLayer.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/search/PassageList.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/search/__tests__/PassageList.frameCrop.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/hooks/useMiniPlayer.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/__tests__/searchPassages.frameHitLink.test.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/fileFind.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/searchMerge.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/searchPassages.ts",
+      "level": "MEDIUM"
+    }
+  ],
+  "human_zones_touched": [],
+  "protected_paths_touched": [],
+  "docs_only": false,
+  "reasons": [
+    "highest zone MEDIUM (4 points)"
+  ]
+}

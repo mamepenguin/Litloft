@@ -153,10 +153,18 @@ Saving adds the items to a note under a `## Captures` heading. Each item has a l
 **Clips** is at `/drive/{drive}/addons/knowledge/clips`, below Notes in the sidebar. It lists only files whose frontmatter has `origin: webclip`, so a clip stays a clip when you move it or write in it, and it becomes a note again when you delete that line.
 
 - **Clip a web page**, at the top right, opens a form for a URL or pasted HTML: destination folder, duplicate check and bookmarklet. A clip made there appears on the page without a reload.
-- **Home** draws up to 12 rows in each shelf: **Unread** (no history row for you), **Recently opened** (latest opening first) and **Unverified** (still waiting for **Trust as a source**). Without a [profile](../user-guide/profile-preferences.md), **Unread** becomes **New clips** and **Recently opened** is not drawn; **Unverified** stays.
-- **All** lists every clip newest first, grouped by the date it was clipped, 60 per page with **Load more**.
-- A row shows the title, the opening text, the folder and the clip date; opening it goes to the file page and counts as opening it.
+- The header has a **Target** menu, **Clip a web page** and the tabs **Home** and **Library**. **Home** has the shelves **Unread** (no history row for you), **Recently opened** (latest opening first) and **Unverified** (still waiting for **Trust as a source**), each with **See all** to a page of that shelf. Without a [profile](../user-guide/profile-preferences.md), **Unread** becomes **New clips** and **Recently opened** is not drawn; **Unverified** stays.
+- **Library** is `?view=all`. It groups by tag (`group=tags`, the default) or not at all (`group=none`), and sorts by `sort=newest` (default), `oldest` or `title`. A shelf page is `?view=shelf&shelf=<id>`, with `<id>` one of `unread`, `recent`, `new`, `unverified`, `tag:<name>` or `untagged`.
+- Unread, Recently opened, New clips and the tag shelves are cover cards. **Unverified** is a list of rows, each with **Mark as verified**, which writes the clip's trust tier through the core's `PUT /api/files/{id}/trust-tier`.
+- A card shows the clip's first Markdown image, its title, its site and a reading time of `max(1, round(bytes / 1500))` minutes. A red dot marks a clip you have not opened. Opening a card goes to the file page and counts as opening it.
 - A drive with no clips shows one empty state, and the page keeps its header and its **Clip a web page** action.
+
+### Covers and sites
+
+The cover and site of a card are read from the start of each clip (the first 4096 bytes); nothing is stored.
+
+- The cover is the first Markdown image `![alt](target)` after the frontmatter. A `loft://<file id>` target is used when that file is an active image of the same drive, and is drawn through the core's thumbnail route. An absolute `http(s)` URL is drawn directly by the browser from its host, with `referrerpolicy="no-referrer"`, so the clip's source site (or the image's host) sees the request. HTML `<img>` is not read. A cover that is missing or fails to load leaves a plain block.
+- The site is the host of the frontmatter `url` when it is an `http(s)` URL, else of the first `http(s)` link after the frontmatter that is not an image. It is lower-cased, without a port and without a leading `www.`.
 
 The bookmarklet on the Clips page opens `/drive/{drive}/addons/knowledge/clips?prefill=…&title=…&autosubmit=1`, so a bookmarklet clip is made and shown on Clips. A bookmarklet installed earlier still opens Notes, which passes the same parameters on to Clips.
 
@@ -245,6 +253,7 @@ The addon's routes are reached through the backend at `/api/addons/knowledge/...
 | `GET /clips?url=` | Your earlier clips of a URL in this drive. *profile* |
 | `POST /clips` | Clip a URL. Answers `202` and finishes in the background; the result arrives as the WebSocket event `knowledge.clip.ready` or `knowledge.clip.failed`. *profile* |
 | `POST /clips/pasted` | Clip pasted HTML. Answers `201` when done. *profile* |
+| `POST /clip-covers` | The cover and site of the given clips, for cards. See [POST /clip-covers](#post-clip-covers). |
 | `POST /captures/commit` | Save capture basket items into a note. *profile* |
 | `POST /notes` | Create a note with a given folder, filename and content. *profile* |
 | `POST /note-from-file` | Create a note citing a file. *profile* |
@@ -258,6 +267,18 @@ The addon's routes are reached through the backend at `/api/addons/knowledge/...
 | `POST /resync-tags/<file_id>` | Copy a note's frontmatter tags into Litloft's tag list. |
 | `POST /file_active_summary`, `GET` / `DELETE /file_active_summary/<file_id>` | A file's summary note. |
 | `GET /file_active_summary/<file_id>/note` | The summary note to show on a file page. |
+
+### POST /clip-covers
+
+Request: `{"file_ids": ["<id>", ...]}`, at most 60 ids. Needs `X-Lit-Drive`; no profile is needed.
+
+Response: `{"covers": {"<id>": {"image_id": string|null, "image_url": string|null, "site": string|null}}}`. Only active text files of the request's drive that the caller may read get an entry; any other id is absent, so a locked or other drive's file is not revealed. `image_id` is the id of an image file in the drive, `image_url` an external image URL; at most one is set. A file whose start cannot be read, or whose cover and site are not found, answers all three as `null`. If the check of the `loft://` image ids fails, every `image_id` is `null` and the rest of the answer stands. Nothing is stored. The rules for the cover and the site are under [Covers and sites](#covers-and-sites).
+
+| Status | When |
+|---|---|
+| `400` | `X-Lit-Drive` is missing. |
+| `422` | More than 60 ids. |
+| `502` | The backend's access check or file lookup failed. |
 
 ### Notes that cite sources
 

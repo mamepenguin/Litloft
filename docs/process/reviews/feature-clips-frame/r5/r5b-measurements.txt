@@ -1,0 +1,36 @@
+[1440 en home] skeletons 11: 229.5x208,375x1120 | cards 5: 229.5x208/L1,229.5x208/L2 | hscroll sw=1440 cw=1440
+  home rule=186 firstHeading={"t":"Unread","top":222} gap=36.0
+  verify buttons: [{"h":30.5625,"fs":"13px"},{"h":30.5625,"fs":"13px"},{"h":30.5625,"fs":"13px"},{"h":30.5625,"fs":"13px"},{"h":30.5625,"fs":"13px"}]
+  meta lines: ["· 20 clips","kurashiru.com · 1 min · now","zenn.dev · 13 min · 1 month ago","zenn.dev · 26 min · 2 months ago","cookien.com · 2 min · 2 months ago","cookien.com · 3 min · 2 months ago","zenn.dev · 17 min · 2 months ago","zenn.dev · 12 min · 2 months ago","cookien.com · 3 min · 4 months ago","zenn.dev · 9 min · 6 months ago","zenn.dev · 5 min · 6 months ago","kurashiru.com · now","zenn.dev · 2 months ago","cookien.com · 2 months ago"]
+[1440 en none] skeletons 8: 229.5x208 | cards 20: 229.5x208/L1,229.5x208/L2,229.5x208/L3,229.5x208/L4 | hscroll sw=1440 cw=1440
+[1440 en shelf-new] skeletons 8: 229.5x208 | cards 20: 229.5x208/L1,229.5x208/L2,229.5x208/L3,229.5x208/L4 | hscroll sw=1440 cw=1440
+[1440 en shelf-unread] skeletons 8: 229.5x208 | cards 20: 229.5x208/L1,229.5x208/L2,229.5x208/L3,229.5x208/L4 | hscroll sw=1440 cw=1440
+[1440 en bytag] skeletons 5: 229.5x208 | cards 6: 229.5x208/L2,229.5x208/L1 | hscroll sw=1440 cw=1440
+  library rule=186 menuTop=210 (rule->menu 24.0) menuBottom=248 firstShelf "開発" top=288 (menu->shelf 40.0)
+[390touch en home] skeletons 9: 186x150,375x358 | cards 12: 186x150/L1,186x150/L3,186x150/L2,186x150/L5 | hscroll sw=390 cw=390
+  home rule=190 firstHeading={"t":"Unread","top":274} gap=84.0
+  verify buttons: [{"h":30.5625,"fs":"13px"},{"h":30.5625,"fs":"13px"},{"h":30.5625,"fs":"13px"},{"h":30.5625,"fs":"13px"},{"h":30.5625,"fs":"13px"}]
+  meta lines: ["· 20 clips","kurashiru.com · 1 min · 1 minute ago","zenn.dev · 13 min · 1 month ago","zenn.dev · 26 min · 2 months ago","cookien.com · 2 min · 2 months ago","cookien.com · 3 min · 2 months ago","zenn.dev · 17 min · 2 months ago","zenn.dev · 12 min · 2 months ago","cookien.com · 3 min · 4 months ago","zenn.dev · 9 min · 6 months ago","zenn.dev · 5 min · 6 months ago","kurashiru.com · 1 minute ago","zenn.dev · 2 months ago","cookien.com · 2 months ago"]
+[390touch en none] skeletons 8: 200.3x169 | cards 20: 200.3x169/L1,200.3x169/L3,200.3x169/L2,200.3x169/L4,200.3x169/L5 | hscroll sw=390 cw=390
+[390touch en shelf-new] skeletons 8: 200.3x169 | cards 20: 200.3x169/L1,200.3x169/L3,200.3x169/L2,200.3x169/L4,200.3x169/L5 | hscroll sw=390 cw=390
+[390touch en shelf-unread] skeletons 8: 200.3x169 | cards 20: 200.3x169/L1,200.3x169/L3,200.3x169/L2,200.3x169/L4,200.3x169/L5 | hscroll sw=390 cw=390
+[390touch en bytag] skeletons 4: 200.3x169 | cards 5: 200.3x169/L2,200.3x169/L1,200.3x169/L3 | hscroll sw=390 cw=390
+  library rule=190 menuTop=262 (rule->menu 72.0) menuBottom=300 firstShelf "開発" top=340 (menu->shelf 40.0)
+[390 en home] skeletons 9: 200.3x169,375x358 | cards 4: 200.3x169/L1,200.3x169/L3 | hscroll sw=390 cw=390
+  home rule=190 firstHeading={"t":"Unread","top":274} gap=84.0
+  verify buttons: [{"h":30.5625,"fs":"13px"},{"h":30.5625,"fs":"13px"},{"h":30.5625,"fs":"13px"},{"h":30.5625,"fs":"13px"},{"h":30.5625,"fs":"13px"}]
+  meta lines: ["· 20 clips","kurashiru.com · 1 min · 1 minute ago","zenn.dev · 13 min · 1 month ago","zenn.dev · 26 min · 2 months ago","cookien.com · 2 min · 2 months ago","cookien.com · 3 min · 2 months ago","zenn.dev · 17 min · 2 months ago","zenn.dev · 12 min · 2 months ago","cookien.com · 3 min · 4 months ago","zenn.dev · 9 min · 6 months ago","zenn.dev · 5 min · 6 months ago","kurashiru.com · 1 minute ago","zenn.dev · 2 months ago","cookien.com · 2 months ago"]
+[390 en none] skeletons 8: 200.3x169 | cards 20: 200.3x169/L1,200.3x169/L3,200.3x169/L2,200.3x169/L4,200.3x169/L5 | hscroll sw=390 cw=390
+[390 en shelf-new] skeletons 8: 200.3x169 | cards 20: 200.3x169/L1,200.3x169/L3,200.3x169/L2,200.3x169/L4,200.3x169/L5 | hscroll sw=390 cw=390
+[390 en shelf-unread] skeletons 8: 200.3x169 | cards 20: 200.3x169/L1,200.3x169/L3,200.3x169/L2,200.3x169/L4,200.3x169/L5 | hscroll sw=390 cw=390
+[390 en bytag] skeletons 4: 200.3x169 | cards 5: 200.3x169/L2,200.3x169/L1,200.3x169/L3 | hscroll sw=390 cw=390
+  library rule=190 menuTop=262 (rule->menu 72.0) menuBottom=300 firstShelf "開発" top=340 (menu->shelf 40.0)
+[1440 ja home] skeletons 11: 229.5x208,375x1120 | cards 5: 229.5x208/L1,229.5x208/L3,229.5x208/L2 | hscroll sw=1440 cw=1440
+  home rule=186 firstHeading={"t":"未読","top":222} gap=36.0
+  verify buttons: [{"h":30.5625,"fs":"13px"},{"h":30.5625,"fs":"13px"},{"h":30.5625,"fs":"13px"},{"h":30.5625,"fs":"13px"},{"h":30.5625,"fs":"13px"}]
+  meta lines: ["· 20 件","kurashiru.com · 1 分 · 2分前","zenn.dev · 13 分 · 1か月前","zenn.dev · 26 分 · 2か月前","cookien.com · 2 分 · 2か月前","cookien.com · 3 分 · 2か月前","zenn.dev · 17 分 · 2か月前","zenn.dev · 12 分 · 2か月前","cookien.com · 3 分 · 4か月前","zenn.dev · 9 分 · 6か月前","zenn.dev · 5 分 · 6か月前","kurashiru.com · 2分前","zenn.dev · 2か月前","cookien.com · 2か月前"]
+[1440 ja none] skeletons 8: 229.5x208 | cards 20: 229.5x208/L1,229.5x208/L3,229.5x208/L2,229.5x208/L4,229.5x208/L5 | hscroll sw=1440 cw=1440
+[1440 ja shelf-new] skeletons 8: 229.5x208 | cards 20: 229.5x208/L1,229.5x208/L3,229.5x208/L2,229.5x208/L4,229.5x208/L5 | hscroll sw=1440 cw=1440
+[1440 ja shelf-unread] skeletons 8: 229.5x208 | cards 20: 229.5x208/L1,229.5x208/L3,229.5x208/L2,229.5x208/L4,229.5x208/L5 | hscroll sw=1440 cw=1440
+[1440 ja bytag] skeletons 5: 229.5x208 | cards 6: 229.5x208/L2,229.5x208/L1,229.5x208/L3 | hscroll sw=1440 cw=1440
+  library rule=186 menuTop=210 (rule->menu 24.0) menuBottom=248 firstShelf "開発" top=288 (menu->shelf 40.0)

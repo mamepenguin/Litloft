@@ -103,6 +103,7 @@ const file = (id: string, drive = DRIVE) =>
     trust_reviewed_at: null,
     created_at: "2026-01-01T00:00:00",
     updated_at: "2026-01-01T00:00:00",
+    modified_at: null,
   }) satisfies FileItem;
 
 const item = (id: string, drive = DRIVE): WatchHistoryItem => ({

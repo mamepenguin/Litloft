@@ -27,6 +27,7 @@ from app.schemas import (
     WatchProgressInfo,
     file_to_response,
 )
+from app.services.watched_ranges import watched_ranges_by_file
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/drives", tags=["drives"])
@@ -416,6 +417,23 @@ def query_drive_shelves(
     )
 
 
+def _attach_watched_ranges(
+    db: Session, viewer_id: str | None, shelves: list[ShelfResponse]
+) -> None:
+    if viewer_id is None:
+        return
+    items = [item for shelf in shelves for item in shelf.items]
+    durations = {
+        item.id: item.watch_progress.duration
+        for item in items
+        if item.watch_progress is not None
+    }
+    ranges = watched_ranges_by_file(db, viewer_id, durations)
+    for item in items:
+        if item.watch_progress is not None:
+            item.watched_ranges = ranges.get(item.id, [])
+
+
 def _shelves(
     drive_name: str,
     db: Session,
@@ -472,6 +490,7 @@ def _shelves(
         collection=params.collection,
         size=params.size,
         duration=params.duration,
+        modified=params.modified,
         trust=params.trust,
         origin=params.origin,
         exclude_origin=params.exclude_origin,
@@ -492,7 +511,7 @@ def _shelves(
     if params.watch is not None:
         base = base.filter(_watch_bucket() == params.watch)
     try:
-        if params.by == "all":
+        if params.by == "all" or params.key is not None:
             shelf = _keyed_shelf(
                 base,
                 by=params.by,
@@ -503,32 +522,28 @@ def _shelves(
                 page=params.page or 1,
                 per_shelf=params.per_shelf,
             )
-            return ShelvesResponse(by=params.by, shelves=[shelf], total_shelves=1)
-        if params.key is not None:
-            shelf = _keyed_shelf(
+            response = ShelvesResponse(
+                by=params.by, shelves=[shelf], total_shelves=1
+            )
+        else:
+            shelves, total, response_base = _unkeyed_shelves(
                 base,
                 by=params.by,
-                key=params.key,
                 drive=drive_name,
                 sort=params.sort,
                 order=params.order,
-                page=params.page or 1,
                 per_shelf=params.per_shelf,
+                shelf_limit=params.shelf_limit,
+                offset=params.offset,
             )
-            return ShelvesResponse(by=params.by, shelves=[shelf], total_shelves=1)
-        shelves, total, response_base = _unkeyed_shelves(
-            base,
-            by=params.by,
-            drive=drive_name,
-            sort=params.sort,
-            order=params.order,
-            per_shelf=params.per_shelf,
-            shelf_limit=params.shelf_limit,
-            offset=params.offset,
-        )
+            response = ShelvesResponse(
+                by=params.by,
+                shelves=shelves,
+                total_shelves=total,
+                base=response_base,
+            )
+        _attach_watched_ranges(db, viewer_id, response.shelves)
     except Exception:
         logger.exception("Shelves failed: drive=%s by=%s", drive_name, params.by)
         raise
-    return ShelvesResponse(
-        by=params.by, shelves=shelves, total_shelves=total, base=response_base
-    )
+    return response

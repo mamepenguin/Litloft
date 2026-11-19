@@ -8,6 +8,14 @@ export const SMART_COLLECTION_MEMBERS_PATH = "/app-api/smart-collection-members"
 export const SMART_COLLECTION_ENDPOINT_MISSING =
   "This Litloft server has no Smart Collection endpoint; update Litloft.";
 
+/**
+ * The zone this machine reads dates in, sent so a Smart Collection with an
+ * absolute `modified:` date is evaluated where the viewer reads it.
+ */
+export function hostTimeZone(): string {
+  return Intl.DateTimeFormat().resolvedOptions().timeZone;
+}
+
 interface CollectionRow {
   id: string;
   name: string;
@@ -119,7 +127,7 @@ async function smartCollectionResult(
   let page: SmartCollectionPage;
   try {
     page = await client.request<SmartCollectionPage>("GET", SMART_COLLECTION_MEMBERS_PATH, {
-      query: { drive, id: folder.id, offset, limit },
+      query: { drive, id: folder.id, offset, limit, tz: hostTimeZone() },
     });
   } catch (err) {
     if (isMissingSmartCollectionEndpoint(err)) {

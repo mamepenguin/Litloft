@@ -7,6 +7,7 @@ import {
   hasImpossibleRange,
   parseSearchQuery,
   resolveKinds,
+  resolveModified,
 } from "./searchQuery";
 
 const PAGE_LIMIT = 500;
@@ -19,6 +20,16 @@ export interface SmartCollectionEvalInput {
   sort: SortField;
   order: SortOrder;
   includeSceneClip: boolean;
+  /**
+   * The zone absolute `modified:` dates are read in; the browser's own zone
+   * when absent.
+   */
+  timeZone?: string | null;
+  /**
+   * The instant, in epoch milliseconds, relative amounts count back from.
+   * One evaluation takes it once, so every page sends the same wire forms.
+   */
+  now?: number;
 }
 
 export interface SmartCollectionEvalIo {
@@ -59,8 +70,13 @@ export async function evaluateSmartCollection(
   io: SmartCollectionEvalIo,
 ): Promise<SmartCollectionEvalResult> {
   const parsed = parseSearchQuery(input.query.trim());
+  const modified = resolveModified(
+    parsed,
+    input.now ?? Date.now(),
+    input.timeZone ?? null,
+  );
   const kinds = resolveKinds(input.type, parsed.types);
-  if (kinds.impossible || hasImpossibleRange(parsed)) {
+  if (kinds.impossible || hasImpossibleRange(parsed, modified.comparisons)) {
     return { files: [], complete: true };
   }
 
@@ -93,6 +109,7 @@ export async function evaluateSmartCollection(
       ...(parsed.durations.length > 0
         ? { duration: parsed.durations.map(comparisonWireForm) }
         : {}),
+      ...(modified.wireForms.length > 0 ? { modified: modified.wireForms } : {}),
       sort: listingSort,
       order: listingOrder,
       page,
@@ -114,7 +131,7 @@ export async function evaluateSmartCollection(
         limit: SEMANTIC_LIMIT,
         passages: true,
         ...(parsed.hasOperators
-          ? { filter: filterFromParsed(parsed, input.type) }
+          ? { filter: filterFromParsed(parsed, input.type, modified.wireForms) }
           : { type: input.type, includeSceneClip: input.includeSceneClip }),
       });
       if (answer.ok) {

@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 
 import { ApiStatusError } from "@/lib/apiError";
+import { isValidTimeZone, parseSearchQuery } from "@/lib/searchQuery";
 import {
   evaluateSmartCollection,
   type SmartCollectionEvalResult,
@@ -47,6 +48,12 @@ export async function GET(request: NextRequest): Promise<Response> {
     return detail(400, "offset and limit must be non-negative integers");
   }
 
+  const tzParam = params.get("tz");
+  const timeZone = tzParam === null || tzParam === "" ? null : tzParam;
+  if (timeZone !== null && !isValidTimeZone(timeZone)) {
+    return detail(400, "Unknown time zone");
+  }
+
   const headers = forwardedHeaders(request.headers);
   const signal = request.signal;
 
@@ -61,6 +68,13 @@ export async function GET(request: NextRequest): Promise<Response> {
   const folder = lookup.folders.find((entry) => entry.id === id);
   if (!folder) return detail(404, "Smart collection not found");
 
+  const hasAbsoluteModified = (parseSearchQuery(folder.query).modified ?? []).some(
+    (token) => token.amount.kind === "absolute",
+  );
+  if (hasAbsoluteModified && timeZone === null) {
+    return detail(400, "tz is required for an absolute modified: date");
+  }
+
   let evaluation: SmartCollectionEvalResult;
   try {
     evaluation = await evaluateSmartCollection(
@@ -71,6 +85,7 @@ export async function GET(request: NextRequest): Promise<Response> {
         sort: "relevance",
         order: "desc",
         includeSceneClip: false,
+        timeZone,
       },
       createSmartCollectionServerIo(headers, signal),
     );

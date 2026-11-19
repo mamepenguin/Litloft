@@ -1,0 +1,211 @@
+{
+  "risk": "HIGH",
+  "score": 8,
+  "base": 3,
+  "zone_max": "MEDIUM",
+  "modifiers": [
+    "schema"
+  ],
+  "promotions": [],
+  "zones_touched": [
+    {
+      "path": "DESIGN.md",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "backend/app/routers/drives.py",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "backend/app/routers/shelves.py",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "backend/app/schemas.py",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "backend/app/services/watched_ranges.py",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "backend/tests/test_watched_ranges.py",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/reference/api.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/INDEX.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/watched-ranges-display.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/user-guide/keyboard-shortcuts.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/user-guide/video.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/user-guide/viewers-and-players.md",
+      "level": "LOW"
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/app.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/watchedRanges.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/projects.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/spec-viewport.spec.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/watched-band-desktop.spec.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/watched-band.serve.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/watched-band.spec.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/watched-range-cards.spec.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-layout/fixtures/video-app.html",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-layout/video-app.spec.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/__tests__/VideoPlayer.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/CardProgress.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/ContinueWatchingSection.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileCard.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/VideoPlayerShell.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/componentFixtureParity.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/watchedBand.shortcuts.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/watchedRangesCards.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/player/MediaControls/CompactControlsPresenter.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/player/MediaControls/MediaControlsContainer.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/player/MediaControls/PointerControlsPresenter.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/player/MediaControls/TouchControlsPresenter.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/player/MediaControls/__tests__/watchedBand.data.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/player/MediaControls/__tests__/watchedBand.visibility.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/player/MediaControls/__tests__/watchedBandHarness.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/player/MediaControls/hooks/__tests__/usePlayerGestures.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/player/MediaControls/hooks/useMediaControlsState.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/player/MediaControls/hooks/usePlayerGestures.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/player/MediaControls/parts/SeekBar.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/player/MediaControls/types.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/player/hooks/useVideoShortcuts.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/videoapp/VideoCard.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/api.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/playbackProgress.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/watchedRangesStore.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/types/index.ts",
+      "level": "MEDIUM"
+    }
+  ],
+  "human_zones_touched": [],
+  "protected_paths_touched": [],
+  "docs_only": false,
+  "reasons": [
+    "highest zone MEDIUM (4 points)",
+    "modifiers: schema"
+  ]
+}

@@ -1,0 +1,311 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "CR-1",
+      "origin": "reviewer",
+      "claim": "The diff changes the shared FileDetail test harness default (`usePolicyMock` now returns `{enabled: true, isLoading: false}` instead of undefined), a place that is not in the touch-point list and that about ten other test suites import.",
+      "impact": "No user impact. Every suite that imports `harness.tsx` (DocumentController, FileDetailCanvas, FileDetailContent, FileDetailHeaderRow, FileDetailInboxNav, FileDetailPageRow, FileNavInPageRow, FilePageClosedEvent, ...) now gets a fail-open policy by default. A test that relied on the old undefined default without calling mockReturnValue would silently change what it exercises. The change appears to compensate for the new `vi.restoreAllMocks()` calls in FindInFile.test.tsx (lines 2804 and 2892), which reset the per-file `mockReturnValue` set in beforeEach at line 611.",
+      "evidence": "frontend/src/components/FileDetail/__tests__/harness.tsx:50 `export const usePolicyMock = vi.fn(() => ({ enabled: true, isLoading: false }));`. The grep for usePolicyMock shows importers across frontend/src/components/FileDetail/__tests__/*. FindInFile.test.tsx:2804 and :2892 call vi.restoreAllMocks().",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "A test-only shared fixture outside the declared touch points. It breaks no invariant and has no user-visible effect.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Name harness.tsx in the touch points, or scope the restore in FindInFile.test.tsx so it does not reset the shared mock."
+    },
+    {
+      "id": "CR-2",
+      "origin": "reviewer",
+      "claim": "The diff amends an existing SPEC-ADDON-134 test (`test_spec_addon_134_frame_lines_schema.py`) to expect the new columns, and SPEC-ADDON-134 is neither among the touch points nor under Revises.",
+      "impact": "No user impact. A reader tracing SPEC-ADDON-134's schema test will find columns that belong to SPEC-ADDON-136 with no pointer to it.",
+      "evidence": "addons/intelligence/tests/test_spec_addon_134_frame_lines_schema.py:103-116 adds `frame_width`/`frame_height` (INTEGER, nullable) to the exact column set asserted for the SPEC-ADDON-134 migration test.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "A cross-spec test edit outside the touch-point list. The schema change itself is declared (I3), so no invariant breaks.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    },
+    {
+      "id": "CR-3",
+      "origin": "reviewer",
+      "claim": "`_frame_segment` now runs a second query (the segment's chunk texts) for every `screen_text` passage, the vector-only ones included, so passages outside the keyword case also gain a read.",
+      "impact": "A search with many vector-only frame-text passages makes one extra intelligence-DB read per passage, even though only keyword passages use the chunks. Latency only; the answer is unchanged.",
+      "evidence": "addons/intelligence/app/search.py:2371-2396 always runs the `SELECT text AS chunk_text ... ORDER BY chunk_index` query. _finish_passage at :2606-2615 calls it for every screen_text passage, and the chunks are used only at :2648-2655 under `keyword_matches`.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariant covers read counts. This reaches past the touch point's stated scope, 'a lines reader for a segment' for keyword passages.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Read the chunk texts only when the passage is keyword-matched and not a .loft, for example lazily inside _passage_line."
+    },
+    {
+      "id": "CR-4",
+      "origin": "reviewer",
+      "claim": "Mounting `FindOutlineLayer` inside the shared `VideoPlayer` and `LoftPlayer` also reaches every surface that uses those players, which the touch points do not name: the collection surface `FileDetailFullScreen` (listed as 'not touched'), the shelf apps and the mini player.",
+      "impact": "On those surfaces there is no FindProvider, so `useFindMarks` returns EMPTY_MARKS (term null) and nothing is drawn. The layer still attaches 10 media event listeners, three document listeners and a ResizeObserver, and it re-renders itself on every `timeupdate`. LoftPlayer now holds controller state and passes a new overlay element on each render, so the embed re-renders once more when its controller arrives. No visible change was found.",
+      "evidence": "frontend/src/components/VideoPlayer.tsx:264 `<FindOutlineLayer video={videoElement} controller={mc} />` is unconditional. frontend/src/components/loft/LoftPlayer.tsx:37-45 and :87 set `pictureOverlay` unconditionally. frontend/src/components/player/FindOutlineLayer.tsx:151-170 adds the listeners. frontend/src/components/FileDetail/find/FindContext.tsx:37-44 holds the default marks (term null).",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "I8 says a page with no qualifying row renders and plays as before. Only the inert layer re-renders, so no invariant is shown broken, but the reach goes past the listed surfaces.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    }
+  ],
+  "specification_compliance": [
+    "Every product path in the diff maps to a declared touch point: database.py, models.py, frame_ocr.py, search.py, schemas.py, routers/search.py, file_find.py, YouTubeEmbed.tsx, loft/types.ts, LoftPlayer.tsx, VideoPlayer.tsx, player/FindOutlineLayer.tsx (the new shared outline-layer component), MiniPlayerContainer.tsx, useMiniPlayer.ts, the e2e-components files (fixtures/app.tsx, projects.ts and spec-viewport.spec.ts sit under frontend/e2e-components/), searchMerge.ts, searchPassages.ts, PassageList.tsx, fileFind.ts, FileDetailContainer.tsx and useFindInFile.ts. Docs: ADDON-DEVELOPMENT.md, docs/addons/intelligence.md and docs/user-guide/search.md. Submodule pointers. The unplanned places are test-only (CR-1, CR-2), plus the indirect reach in CR-3 and CR-4.",
+    "Opposite direction: `addons/intelligence/app/image_query.py` is a declared touch point but is not edited. The new schema fields default to None, so the image-query answer carries them as null (step 4), and a test asserts this.",
+    "I3: the only `_Segment(` construction is frame_ocr.py:452, and it sets width/height from `ocr_image.size`. The only `VideoFrameLines(` construction is frame_ocr.py:511, and it writes them. The migration checks PRAGMA table_info before each ALTER.",
+    "I6: changeQuery and commitQuery call clearAnswer, which resets initialPlaceRef (useFindInFile.ts:116), so a changed query never applies the rule. A failed answer leaves the ref set, so 再試行 applies it. A pending step takes precedence (useFindInFile.ts:207-217).",
+    "I1: _first_occurrence breaks ties by earliest start, then longest, then first term in order. _hit_line uses the declared overlap rule with non-empty lines. The .loft exclusion and the keyword gate are at search.py:2648-2654.",
+    "I9: the YouTube embed renders the overlay after the iframe host and before the poster, gestures and controls, using the same FULLSCREEN_BOX as the iframe when boxed. It has pointer-events-none."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "PassageList keys rows by index within a file group (PassageList.tsx:405). If the list were re-rendered with different passages without passing through the 'loading' state, a PassagePicture would keep a stale `crop` and draw the old region over the new large frame until it loads. FolderBrowser appears to switch to 'loading' on refetch, which unmounts the rows. Not verified for every path."
+  ],
+  "regression_risks": [
+    "The shared harness default change (CR-1) can hide a policy-disabled path in other FileDetail suites that did not set mockReturnValue explicitly.",
+    "The LoftPlayer wrapper `handleMediaController` sets state in LoftPlayer on every controller report, which adds one embed re-render. The iframe is preserved per the media_import test, but any embed effect keyed on props identity would re-run."
+  ],
+  "test_coverage": [
+    "Backend: test_spec_addon_136_frame_hit_lines.py covers I1 (fields, three-decimal start, null cases, the answer is otherwise unchanged, read failure with one warning per file), I2 (boxes, frame_size only with both sizes, spanning lines and newline, empty line, multi-chunk segment) and the image-query nulls. test_spec_addon_136_frame_size.py covers the migration idempotence and the store-step sizes, including a .loft read.",
+    "Frontend: FindInFile.test.tsx covers I6 (tolerance, pending step wins, retry, changed query) and the native I7 conditions. FindOutlineLayer.test.tsx covers the embed layer's conditions and the clock subscription. PassageList.frameCrop.test.tsx covers the I4 state transitions. searchPassages.frameHitLink.test.ts covers I5. The e2e geometry specs cover the crop region and the contain-fit placement.",
+    "Not covered: a test that a vector-only screen_text passage issues no extra DB read (CR-3)."
+  ],
+  "not_verified": [
+    "No test was run, neither vitest, pytest nor playwright; every conclusion comes from reading the code.",
+    "The YouTube embed's real behaviour under the IFrame API, including the ad state and full screen, was not checked.",
+    "Every path that renders PassageList was not traced to confirm that rows unmount between queries.",
+    "Not every suite that imports harness.tsx was checked for reliance on the old undefined usePolicyMock default.",
+    "docs/process/spec-and-design.md was not read to confirm how this repository counts test files against the touch points."
+  ],
+  "coverage": [
+    {
+      "path": "addons/intelligence/app/database.py",
+      "read": "partial",
+      "reason": "Lines 1270-1319: the video_frame_lines creation and the new ALTER block inside _migrate_frame_page_ocr_columns."
+    },
+    {
+      "path": "addons/intelligence/app/file_find.py",
+      "read": "partial",
+      "reason": "Lines 100-189: _row, the whole of _frame_occurrences, and the start of _usable_picture_lines. The import hunk was read in the diff."
+    },
+    {
+      "path": "addons/intelligence/app/models.py",
+      "read": "partial",
+      "reason": "Lines 875-899: the whole VideoFrameLines class."
+    },
+    {
+      "path": "addons/intelligence/app/routers/search.py",
+      "read": "partial",
+      "reason": "Lines 70-119: the passage pass-through in _to_response_model."
+    },
+    {
+      "path": "addons/intelligence/app/schemas.py",
+      "read": "partial",
+      "reason": "Grep context around SearchPassage (lines 29-44) and FileFindRow (lines 517-534)."
+    },
+    {
+      "path": "addons/intelligence/app/search.py",
+      "read": "partial",
+      "reason": "Lines 2360-2714: _frame_url, _frame_segment, the frame-line reader and helpers, _passage_line, _finish_passage and _build_passages. The _build_results hunk near line 2178 was read in the diff only."
+    },
+    {
+      "path": "addons/intelligence/app/workers/frame_ocr.py",
+      "read": "partial",
+      "reason": "Lines 420-539: the segment opening in _read_video and _store_read. The _Segment dataclass hunk was read in the diff."
+    },
+    {
+      "path": "addons/media_import/frontend/players/YouTubeEmbed.tsx",
+      "read": "partial",
+      "reason": "Lines 470-549: the render tree with the iframe host, the overlay and the poster. The props hunk was read in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/app.tsx",
+      "read": "partial",
+      "reason": "Only the two import lines and the two ARRANGEMENTS spread entries changed; read in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/frameCrop.tsx",
+      "read": "full",
+      "reason": "New file; the whole file is in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/frameOutline.tsx",
+      "read": "full",
+      "reason": "New file; the whole file is in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/frame-crop-desktop.spec.ts",
+      "read": "full",
+      "reason": "New 3-line file in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/frame-crop.cases.ts",
+      "read": "full",
+      "reason": "New file; the whole file is in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/frame-crop.data.ts",
+      "read": "full",
+      "reason": "New file; the whole file is in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/frame-crop.spec.ts",
+      "read": "full",
+      "reason": "New 3-line file in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/frame-outline-desktop.spec.ts",
+      "read": "full",
+      "reason": "New file; the whole file is in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/frame-outline.data.ts",
+      "read": "full",
+      "reason": "New file; the whole file is in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/projects.ts",
+      "read": "partial",
+      "reason": "Only the two DESKTOP_ONLY list entries changed; read in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/spec-viewport.spec.ts",
+      "read": "partial",
+      "reason": "Only three list entries changed; read in the diff."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/FileDetailContainer.tsx",
+      "read": "partial",
+      "reason": "Lines 60-119, which include the useFindInFile call."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/find/useFindInFile.ts",
+      "read": "partial",
+      "reason": "Lines 150-415: runFetch, changeQuery, commitQuery, openWithQuery, closeFind, step, retry, keyDown and the initial effect. The top hunks (isPlaceAt, options, clearAnswer reset) were read in the diff."
+    },
+    {
+      "path": "frontend/src/components/MiniPlayerContainer.tsx",
+      "read": "full",
+      "reason": "Whole file read."
+    },
+    {
+      "path": "frontend/src/components/VideoPlayer.tsx",
+      "read": "partial",
+      "reason": "Lines 200-299: the render tree of BrowserVideoPlayer around the new layer."
+    },
+    {
+      "path": "frontend/src/components/loft/LoftPlayer.tsx",
+      "read": "full",
+      "reason": "Whole file read."
+    },
+    {
+      "path": "frontend/src/components/loft/types.ts",
+      "read": "full",
+      "reason": "Whole file read."
+    },
+    {
+      "path": "frontend/src/components/player/FindOutlineLayer.tsx",
+      "read": "full",
+      "reason": "Whole file read."
+    },
+    {
+      "path": "frontend/src/components/search/PassageList.tsx",
+      "read": "full",
+      "reason": "Whole file read."
+    },
+    {
+      "path": "frontend/src/hooks/useMiniPlayer.ts",
+      "read": "partial",
+      "reason": "Lines 1-60, which include the new context and hook."
+    },
+    {
+      "path": "frontend/src/lib/fileFind.ts",
+      "read": "full",
+      "reason": "Lines 1-111, the whole file."
+    },
+    {
+      "path": "frontend/src/lib/searchMerge.ts",
+      "read": "partial",
+      "reason": "Lines 1-60, which include FrameQuad and SearchPassage."
+    },
+    {
+      "path": "frontend/src/lib/searchPassages.ts",
+      "read": "partial",
+      "reason": "Lines 60-139: asciiFold, linkTerm, startText and the whole of passageHref."
+    },
+    {
+      "path": "addons/intelligence/tests/test_search_passages.py",
+      "read": "partial",
+      "reason": "Only the PASSAGE_FIELDS hunk, read in the diff."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_134_frame_lines_schema.py",
+      "read": "partial",
+      "reason": "Only the changed column-set hunk, read in the diff."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_136_frame_hit_lines.py",
+      "read": "full",
+      "reason": "New file; the whole file is in the diff."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_136_frame_size.py",
+      "read": "full",
+      "reason": "New file; the whole file is in the diff."
+    },
+    {
+      "path": "addons/media_import/frontend/players/__tests__/YouTubeEmbed.pictureOverlay.test.tsx",
+      "read": "full",
+      "reason": "New file; the whole file is in the diff."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/__tests__/FindInFile.test.tsx",
+      "read": "partial",
+      "reason": "The added hunks were read in the diff, plus a grep for usePolicy and restoreAllMocks."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/__tests__/harness.tsx",
+      "read": "partial",
+      "reason": "Lines 30-69, which include the changed usePolicyMock."
+    },
+    {
+      "path": "frontend/src/components/loft/__tests__/LoftPlayer.pictureOverlay.test.tsx",
+      "read": "full",
+      "reason": "New file; the whole file is in the diff."
+    },
+    {
+      "path": "frontend/src/components/player/__tests__/FindOutlineLayer.test.tsx",
+      "read": "full",
+      "reason": "New file; the whole file is in the diff."
+    },
+    {
+      "path": "frontend/src/components/search/__tests__/PassageList.frameCrop.test.tsx",
+      "read": "full",
+      "reason": "New file; the whole file is in the diff."
+    },
+    {
+      "path": "frontend/src/lib/__tests__/searchPassages.frameHitLink.test.ts",
+      "read": "full",
+      "reason": "New file; the whole file is in the diff."
+    }
+  ],
+  "confidence": 78
+}

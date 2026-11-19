@@ -32,6 +32,7 @@ function item(extra: Record<string, unknown> = {}): ShelfItem {
     trust_reviewed_at: null,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
+    modified_at: null,
     ...extra,
   } as ShelfItem;
 }

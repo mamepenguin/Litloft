@@ -555,6 +555,20 @@ def _migrate(engine_) -> None:
                 "ON files (liked_at)"
             ))
 
+    # Filled by every write that touches the file and by the scan; the
+    # migration itself leaves every existing row NULL.
+    inspector_modified = inspect(engine_)
+    if "files" in inspector_modified.get_table_names():
+        modified_columns = {
+            column["name"] for column in inspector_modified.get_columns("files")
+        }
+        if "modified_at" not in modified_columns:
+            logger.info("Migrating: adding 'modified_at' column to files")
+            with engine_.begin() as conn:
+                conn.execute(
+                    text("ALTER TABLE files ADD COLUMN modified_at DATETIME")
+                )
+
     # The columns stay NULL after this runs; the scanner backfills them for
     # images it finds with no width recorded.
     inspector_dimensions = inspect(engine_)

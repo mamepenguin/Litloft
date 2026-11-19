@@ -28,6 +28,9 @@ export function resolveVideoTarget(folder: SmartFolder | null): VideoTarget {
   if (folder === null) return { usable: true, params: { type: VIDEO_ONLY } };
 
   const parsed = parseSearchQuery(folder.query);
+  if ((parsed.modified?.length ?? 0) > 0) {
+    return { usable: false, reason: "unsupported_part" };
+  }
   const { kinds, impossible } = resolveKinds(folder.file_type, parsed.types);
   // No kind named at all leaves the base kind; `impossible` is the folder's own kinds contradicting.
   if (impossible || (kinds.length > 0 && !kinds.includes("video"))) {

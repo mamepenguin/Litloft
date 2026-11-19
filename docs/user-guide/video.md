@@ -117,3 +117,7 @@ drive cannot be opened at `/drive/<drive>/apps`, in the same way as a root folde
 On a video's own page, the ruler in the **Scenes** panel shows the video's frames along
 its length. Hovering the ruler, or touching it on a phone, shows the frames there without
 moving the video. A click on the ruler, or a tap on a frame, plays from that point.
+
+The thin band above the seek bar, and the bars on Continue and Recently viewed cards, fill
+the parts you have already watched; only continuous playing of 10 seconds or more is
+recorded.

@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R1",
+      "status": "confirmed",
+      "note": "Traced through the code. useMediaControlsState.ts:262-270: noteSkip on touch sets bottomOnly=true and controlsVisible=true. It changes none of the deps of the effect at 222-234, so bottom-only survives while paused, and the test at watchedBand.visibility.test.tsx:347-353 confirms this ('bottom-only' while paused). A touch pointerdown on the seek slider calls onScrubStart, which is state.beginScrub (MediaControlsContainer.tsx:314 -> SeekBar.tsx:141). beginScrub (279-282) calls setScrubTime, so scrubbing flips to true. The effect at 222-234, whose deps include scrubbing, re-runs and line 223 `if (paused || holdVisible) setBottomOnly(false)` clears bottom-only because paused is true. controlsVisible is already true, so TouchControlsPresenter.tsx:63 computes whole = visible && !bottomOnly = true: the centre play button and the top-right buttons appear and take touches mid-scrub. On scrub end, endScrub (297) skips restartSkipWindow because bottomOnlyRef is now false, so the 2 s window is not restarted either. Nothing on the coarse-pointer path counters this, because the frame's pointerdown reveal is skipped for coarse pointers (MediaControlsContainer.tsx:128). The paused-transition effect at 238-242 already ends bottom-only on pause and resume, so the paused term at line 223 only matters on unrelated re-runs like this one. The existing test 'a scrub started in bottom-only stays there...' (watchedBand.visibility.test.tsx:406-430) calls touchPage() with no paused option, so it covers only the playing case. This contradicts I5: the scrub should keep bottom-only, and the chrome should become whole only 2 s after the scrub ends."
+    }
+  ],
+  "specification_compliance": [
+    "I5: in the touch layout, a scrub started from bottom-only while paused turns the chrome whole at scrub start, through useMediaControlsState.ts:223 (R1 confirmed)."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "A fix that drops `paused` from line 223 must keep the pause and resume transitions clearing bottom-only; the effect at 238-242 handles those."
+  ],
+  "test_coverage": [
+    "watchedBand.visibility.test.tsx covers a scrub in bottom-only only while playing; there is no paused variant."
+  ],
+  "not_verified": [
+    "Did not run the tests; the confirmation comes from reading the code statically.",
+    "Did not check whether the keyboard scrub path (SeekBar.tsx:150) behaves the same in the touch layout.",
+    "Did not review other invariants (I1-I4, I6-I10) beyond what R1 touches."
+  ],
+  "confidence": 88
+}

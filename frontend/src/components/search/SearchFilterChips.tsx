@@ -28,7 +28,13 @@ function chipValue(
   if (chip.operator === "type") return kindLabel(chip.kind);
   if (chip.operator === "path") return chip.folder;
   if (chip.operator === "collection") return chip.collection;
-  if (chip.operator === "size" || chip.operator === "duration") return chip.value;
+  if (
+    chip.operator === "size" ||
+    chip.operator === "duration" ||
+    chip.operator === "modified"
+  ) {
+    return chip.value;
+  }
   return null;
 }
 
@@ -66,6 +72,7 @@ export function SearchFilterChips({
     if (chip.operator === "collection") return t("filterCollection");
     if (chip.operator === "size") return t("filterSize");
     if (chip.operator === "duration") return t("filterLength");
+    if (chip.operator === "modified") return t("filterModified");
     return chip.flag === "favorite" ? tSidebar("favorites") : tSidebar("liked");
   };
   const kindLabel = (kind: string) => tFilter(`type.${kind}`);

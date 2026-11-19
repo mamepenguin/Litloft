@@ -1,0 +1,10 @@
+backend/tests/test_watched_ranges.py
+frontend/src/__tests__/VideoPlayer.test.tsx
+frontend/src/components/__tests__/VideoPlayerShell.test.tsx
+frontend/src/components/__tests__/componentFixtureParity.test.tsx
+frontend/src/components/__tests__/watchedBand.shortcuts.test.tsx
+frontend/src/components/__tests__/watchedRangesCards.test.tsx
+frontend/src/components/player/MediaControls/__tests__/watchedBand.data.test.tsx
+frontend/src/components/player/MediaControls/__tests__/watchedBand.visibility.test.tsx
+frontend/src/components/player/MediaControls/__tests__/watchedBandHarness.tsx
+frontend/src/components/player/MediaControls/hooks/__tests__/usePlayerGestures.test.tsx

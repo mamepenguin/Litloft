@@ -35,6 +35,7 @@ import {
   hasImpossibleRange,
   parseSearchQuery,
   resolveKinds,
+  resolveModified,
 } from "@/lib/searchQuery";
 import {
   fetchSemanticHits,
@@ -176,11 +177,29 @@ export function useFolderFiles({
   const hasProfile = nickname !== null;
   const isSearch = !!(searchQuery && searchQuery.trim());
   const parsed = useMemo(() => parseSearchQuery(searchQuery?.trim() ?? ""), [searchQuery]);
+  // One `now` per search run, held across renders: a memo may be recomputed
+  // by React, which would resolve relative amounts again mid-run and change
+  // the listing on every render.
+  const runKey = `${searchQuery?.trim() ?? ""}\u0000${typeFilter ?? ""}`;
+  const runNow = useRef<{ key: string; now: number } | null>(null);
+  if (runNow.current === null || runNow.current.key !== runKey) {
+    runNow.current = { key: runKey, now: Date.now() };
+  }
+  const modifiedNow = runNow.current.now;
+  const modifiedNowRef = useRef(modifiedNow);
+  modifiedNowRef.current = modifiedNow;
+  const modified = useMemo(
+    () => resolveModified(parsed, modifiedNow),
+    [parsed, modifiedNow],
+  );
   const searchKinds = useMemo(
     () => resolveKinds(typeFilter ?? null, parsed.types),
     [typeFilter, parsed],
   );
-  const rangeImpossible = useMemo(() => hasImpossibleRange(parsed), [parsed]);
+  const rangeImpossible = useMemo(
+    () => hasImpossibleRange(parsed, modified.comparisons),
+    [parsed, modified],
+  );
   const isFavorites = view === "favorites";
   const isRecent = view === "recent" && !isSearch;
   const isContinue = view === "continue" && !isSearch;
@@ -285,6 +304,7 @@ export function useFolderFiles({
           parsedRef.current,
           ctrl.signal,
           io,
+          modifiedNowRef.current,
         );
         if (generation !== resolutionGeneration.current || ctrl.signal.aborted) return;
         setInResolution(
@@ -348,6 +368,9 @@ export function useFolderFiles({
           ...(parsed.durations.length > 0
             ? { duration: parsed.durations.map(comparisonWireForm) }
             : {}),
+          ...(modified.wireForms.length > 0
+            ? { modified: modified.wireForms }
+            : {}),
           trust: trustFilter || undefined,
           sort: backendSort,
           order: backendOrder,
@@ -384,7 +407,7 @@ export function useFolderFiles({
       });
       return { data: res.data, total: res.meta.total };
     },
-    [isSearch, parsed, searchKinds, rangeImpossible, inNameBlocked, resolvedCollections, resolvedFileIds, driveName, folderPath, sort, order, isFavorites, isSpecialView, isRecentAdded, isLiked, tagFilter, typeFilter, trustFilter],
+    [isSearch, parsed, modified, searchKinds, rangeImpossible, inNameBlocked, resolvedCollections, resolvedFileIds, driveName, folderPath, sort, order, isFavorites, isSpecialView, isRecentAdded, isLiked, tagFilter, typeFilter, trustFilter],
   );
 
   // The listing page 1 that answered for the resolution in force. An `in:`
@@ -441,9 +464,9 @@ export function useFolderFiles({
   const [semanticFailed, setSemanticFailed] = useState(false);
 
   const filter = useMemo(() => {
-    const built = filterFromParsed(parsed, typeFilter ?? null);
+    const built = filterFromParsed(parsed, typeFilter ?? null, modified.wireForms);
     return { ...built, collections: [...resolvedCollections] };
-  }, [parsed, typeFilter, resolvedCollections]);
+  }, [parsed, typeFilter, resolvedCollections, modified]);
   const filterSignature = parsed.hasOperators ? filterQueryParam(filter) : "";
   const meaningEligible =
     isSearch &&

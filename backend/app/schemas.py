@@ -58,6 +58,7 @@ class FileResponse(_UtcDateTimeMixin, BaseModel):
     subtitles: list[SubtitleInfo] = []
     created_at: datetime
     updated_at: datetime
+    modified_at: datetime | None = None
     deleted_at: datetime | None = None
     missing_since: datetime | None = None
     # 'verified' plus a NULL reviewed stamp means the row was bulk-migrated
@@ -714,6 +715,11 @@ class WatchProgressInfo(BaseModel):
     duration: float
 
 
+class WatchedRange(BaseModel):
+    start: float
+    end: float
+
+
 class WatchHistoryItemResponse(_UtcDateTimeMixin, BaseModel):
     id: str
     filename: str
@@ -739,6 +745,7 @@ class WatchHistoryItemResponse(_UtcDateTimeMixin, BaseModel):
     created_at: datetime
     updated_at: datetime
     watch_progress: WatchProgressInfo
+    watched_ranges: list[WatchedRange]
 
     model_config = {"from_attributes": True}
 
@@ -749,12 +756,14 @@ class WatchHistoryResponse(BaseModel):
 
 class ShelfItemResponse(FileResponse):
     watch_progress: WatchProgressInfo | None = None
+    watched_ranges: list[WatchedRange] | None = None
 
     @model_serializer(mode="wrap")
     def _omit_absent_progress(self, handler):
         data = handler(self)
         if data.get("watch_progress") is None:
             data.pop("watch_progress", None)
+            data.pop("watched_ranges", None)
         return data
 
 
@@ -1300,6 +1309,7 @@ def file_to_response(
         subtitles=subtitles or [],
         created_at=file.created_at,
         updated_at=file.updated_at,
+        modified_at=file.modified_at,
         deleted_at=file.deleted_at,
         missing_since=file.missing_since,
         trust_tier=file.trust_tier,

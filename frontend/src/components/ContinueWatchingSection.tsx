@@ -81,6 +81,7 @@ export function ContinueWatchingSection({
                 key={item.id}
                 file={item}
                 watchProgress={item.watch_progress}
+                watchedRanges={item.watched_ranges}
                 onContextMenu={(e, f) => {
                   setTarget(f);
                   handlers.onContextMenu(e);

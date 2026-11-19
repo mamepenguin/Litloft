@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>カードの視聴範囲</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="width: 1120px; height: 760px; box-sizing: border-box; padding: 48px; display: flex; flex-direction: column; gap: 48px; background: {{bg}}; font-family: -apple-system, system-ui, 'Segoe UI', Roboto, sans-serif">
+<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px">
+<sc-for list="{{cards}}" as="c" hint-placeholder-count="4">
+<a href="#" style="display: block; text-decoration: none; min-width: 0">
+<div style="position: relative; aspect-ratio: 16 / 9; border-radius: 16px; overflow: hidden; background: {{c.thumb}}">
+<span style="position: absolute; right: 8px; bottom: 10px; padding: 2px 6px; border-radius: 8px; background: rgba(0,0,0,0.7); color: #ffffff; font-size: 12px; font-weight: 500; font-variant-numeric: tabular-nums">{{c.length}}</span>
+<div style="position: absolute; left: 0; right: 0; bottom: 0; height: 4px; background: rgba(0,0,0,0.5)">
+<sc-for list="{{c.spans}}" as="s" hint-placeholder-count="3">
+<div style="position: absolute; top: 0; bottom: 0; left: {{s.left}}; width: {{s.width}}; background: #ffffff"></div>
+</sc-for>
+</div>
+<sc-if value="{{c.showTick}}" hint-placeholder-val="{{ false }}">
+<div style="position: absolute; bottom: 0; width: 3px; height: 10px; border-radius: 2px 2px 0 0; transform: translateX(-50%); background: #ffffff; box-shadow: 0 0 0 1px rgba(0,0,0,0.5); left: {{c.tickLeft}}"></div>
+</sc-if>
+</div>
+<span style="display: block; margin-top: 12px; font-size: 16px; line-height: 22px; font-weight: 500; color: {{text}}">{{c.title}}</span>
+<span style="display: block; margin-top: 4px; font-size: 14px; line-height: 20px; color: {{muted}}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{c.byline}}</span>
+</a>
+</sc-for>
+</div>
+<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px">
+<sc-for list="{{cards}}" as="c" hint-placeholder-count="4">
+<a href="#" style="display: block; text-decoration: none; min-width: 0; border-radius: 12px; overflow: hidden; background: {{card}}; box-shadow: {{shadow}}">
+<div style="position: relative; aspect-ratio: 16 / 9; overflow: hidden; background: {{c.thumb}}">
+<div style="position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: rgba(255,255,255,0.2)">
+<sc-for list="{{c.spans}}" as="s" hint-placeholder-count="3">
+<div style="position: absolute; top: 0; bottom: 0; left: {{s.left}}; width: {{s.width}}; background: {{accent}}"></div>
+</sc-for>
+</div>
+<sc-if value="{{c.showTick}}" hint-placeholder-val="{{ false }}">
+<div style="position: absolute; bottom: 0; width: 3px; height: 10px; border-radius: 2px 2px 0 0; transform: translateX(-50%); background: #ffffff; box-shadow: 0 0 0 1px rgba(0,0,0,0.5); left: {{c.tickLeft}}"></div>
+</sc-if>
+</div>
+<div style="padding: 12px">
+<span style="display: block; font-size: 14px; font-weight: 600; color: {{text}}">{{c.title}}</span>
+<span style="display: block; margin-top: 4px; font-size: 12px; color: {{muted}}; font-variant-numeric: tabular-nums">{{c.length}}</span>
+</div>
+</a>
+</sc-for>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light"},"$preview":{"width":1120,"height":760}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const dark = (this.props.theme ?? 'light') === 'dark';
+    const pct = function (x) { return (x * 100) + '%'; };
+    const base = [
+      { title: '設計レビュー勉強会 第3回', byline: '講義', length: '42:10', secs: 2530, thumb: 'linear-gradient(135deg, #3a4a5c, #1b2430)', ranges: [[0, 0.24], [0.36, 0.62], [0.83, 0.87]], resume: 0.6 },
+      { title: '週末キャンプの記録', byline: 'Family', length: '18:02', secs: 1082, thumb: 'linear-gradient(135deg, #5c6b3a, #23301b)', ranges: [[0, 0.12]], resume: 0.12 },
+      { title: 'ライブ配信アーカイブ', byline: '音楽', length: '1:54:33', secs: 6873, thumb: 'linear-gradient(135deg, #5c3a52, #2a1b26)', ranges: [[0, 0.05], [0.97, 1]], resume: 0.9997 },
+      { title: '料理: 下ごしらえの基本', byline: '料理', length: '9:47', secs: 587, thumb: 'linear-gradient(135deg, #6b4a2e, #2e1f12)', ranges: [[0, 1]], resume: 1 }
+    ];
+    const cards = base.map(function (c) {
+      return {
+        title: c.title, byline: c.byline, length: c.length, thumb: c.thumb,
+        spans: c.ranges.map(function (r) { return { left: pct(r[0]), width: pct(r[1] - r[0]) }; }),
+        showTick: c.resume * c.secs > 5 && c.resume * c.secs < c.secs - 5, tickLeft: pct(c.resume)
+      };
+    });
+    return {
+      cards: cards,
+      bg: dark ? '#131312' : '#ffffff',
+      card: dark ? '#1c1c1b' : '#ffffff',
+      shadow: dark ? '0 1px 2px rgba(0,0,0,0.35), 0 1px 3px rgba(0,0,0,0.25)' : '0 1px 2px rgba(33,25,34,0.04), 0 1px 3px rgba(33,25,34,0.04)',
+      accent: dark ? '#e85d5e' : '#d63031',
+      text: dark ? '#eeeeea' : '#211922',
+      muted: dark ? '#a5a59f' : '#62625b'
+    };
+  }
+}
+</script>
+</body>
+</html>

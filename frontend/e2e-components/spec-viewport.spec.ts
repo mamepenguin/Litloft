@@ -47,6 +47,7 @@ const AT_THE_PHONE_WIDTH = [
   "immersive-viewer-layer.spec.ts",
   "chrome-buttons.spec.ts",
   "fixture-origin.spec.ts",
+  "frame-crop.spec.ts",
   "page-frame.spec.ts",
   "page-header-actions.spec.ts",
   "player-captions.spec.ts",
@@ -85,9 +86,13 @@ const AT_THE_PHONE_WIDTH = [
   "batch-progress.spec.ts",
   "drive-unavailable.spec.ts",
   "transcript-touch.spec.ts",
+  "watched-band.spec.ts",
+  "watched-range-cards.spec.ts",
 ] as const;
 
 const AT_THE_DESKTOP_WIDTH = [
+  "frame-crop-desktop.spec.ts",
+  "frame-outline-desktop.spec.ts",
   "add-menu-desktop.spec.ts",
   "condition-menu-desktop.spec.ts",
   "anchored-direction-desktop.spec.ts",
@@ -128,6 +133,9 @@ const AT_THE_DESKTOP_WIDTH = [
   "focus-mode-touch-desktop.spec.ts",
   "document-summary-inspector-desktop.spec.ts",
   "notes-library-desktop.spec.ts",
+  "clips-primary-action-desktop.spec.ts",
+  "pdf-toolbar-row-desktop.spec.ts",
+  "watched-band-desktop.spec.ts",
 ] as const;
 
 test.describe("the component fixture lays out at the width it was given", () => {

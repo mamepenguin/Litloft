@@ -98,7 +98,7 @@ On a video or audio file, timestamps in the description you wrote (`⋮` → **E
 
 Litloft draws its own control bar over the video. It looks different with a mouse and on a touch screen.
 
-- Gestures: on touch, tap to show the controls, double-tap the left or right half to skip 10 s (keep tapping to skip further), press and hold to play at 2x, and swipe up or down or pinch for full screen. With a mouse, click to play or pause and double-click for full screen. See [keyboard shortcuts and gestures](keyboard-shortcuts.md).
+- Gestures: on touch, tap to show the controls, double-tap the left or right half to skip 10 s (keep tapping to skip further; the seek bar comes up with it), press and hold to play at 2x, and swipe up or down or pinch for full screen. With a mouse, click to play or pause and double-click for full screen. See [keyboard shortcuts and gestures](keyboard-shortcuts.md).
 - **Settings**: subtitles and playback speed, plus **Picture-in-Picture**, **Autoplay** (off by default), a subtitle track picker when there is more than one, and **Browser controls**. On an iPhone there is also **Open in the iOS player**.
 - **Browser controls** hands the video to the browser's own bar, which is where AirPlay lives. **Use Litloft controls**, under the player, switches back.
 - **Subtitles**: put `movie.srt` or `movie.vtt` next to `movie.mp4`, or `movie.en.srt`, `movie.ja.vtt` and so on for several languages. They load automatically, for `.loft` files too, and do not appear in the file list. Renaming or moving the video in Litloft takes them along. Without one, the intelligence addon's generated track is offered.

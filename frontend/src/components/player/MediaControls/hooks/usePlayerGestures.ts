@@ -43,7 +43,8 @@ export interface UsePlayerGesturesOptions {
   /** Rate to return to when a long press ends. */
   preferredRate: number;
   onToggleControls: () => void;
-  onHideControls: () => void;
+  /** A tap sought: the skip feedback and the chrome's skip state follow. */
+  onSkipTap: () => void;
   onTogglePlay: () => void;
   onToggleFullscreen: () => void;
 }
@@ -98,7 +99,7 @@ export function usePlayerGestures({
   duration,
   preferredRate,
   onToggleControls,
-  onHideControls,
+  onSkipTap,
   onTogglePlay,
   onToggleFullscreen,
 }: UsePlayerGesturesOptions): PlayerGestures {
@@ -115,7 +116,7 @@ export function usePlayerGestures({
   const preferredRateRef = useRef(preferredRate);
   const callbacksRef = useRef({
     onToggleControls,
-    onHideControls,
+    onSkipTap,
     onTogglePlay,
     onToggleFullscreen,
   });
@@ -129,7 +130,7 @@ export function usePlayerGestures({
     preferredRateRef.current = preferredRate;
     callbacksRef.current = {
       onToggleControls,
-      onHideControls,
+      onSkipTap,
       onTogglePlay,
       onToggleFullscreen,
     };
@@ -151,9 +152,9 @@ export function usePlayerGestures({
     }
   }, []);
 
-  const applySkip = useCallback((side: SkipSide, seconds: number, at: number) => {
+  const applySkip = useCallback((side: SkipSide, seconds: number, at: number): boolean => {
     const controller = mcRef.current;
-    if (!controller) return;
+    if (!controller) return false;
     // Each tap is a single ten second hop from wherever the playhead
     // now is; `seconds` is only the running total shown on screen.
     const delta = side === "forward" ? SKIP_SECONDS : -SKIP_SECONDS;
@@ -161,16 +162,16 @@ export function usePlayerGestures({
     try {
       target = controller.getCurrentTime() + delta;
     } catch {
-      return;
+      return false;
     }
-    if (!Number.isFinite(target)) return;
+    if (!Number.isFinite(target)) return false;
     const total = durationRef.current;
     if (target < 0) target = 0;
     if (total > 0 && target > total) target = total;
     try {
       controller.seek(target);
     } catch {
-      return;
+      return false;
     }
 
     burstRef.current = { side, seconds, at };
@@ -181,6 +182,7 @@ export function usePlayerGestures({
       burstRef.current = null;
       setSkip(null);
     }, SKIP_ACCUMULATE_MS);
+    return true;
   }, []);
 
   const resetTapSequence = useCallback(() => {
@@ -204,14 +206,13 @@ export function usePlayerGestures({
         const burst = burstRef.current;
         if (burst && now - burst.at < SKIP_ACCUMULATE_MS) {
           const seconds = side === burst.side ? burst.seconds + SKIP_SECONDS : SKIP_SECONDS;
-          applySkip(side, seconds, now);
+          if (applySkip(side, seconds, now)) callbacksRef.current.onSkipTap();
           return;
         }
         const last = lastTapRef.current;
         if (last && last.side === side && now - last.at <= DOUBLE_TAP_MS) {
           lastTapRef.current = null;
-          applySkip(side, SKIP_SECONDS, now);
-          callbacksRef.current.onHideControls();
+          if (applySkip(side, SKIP_SECONDS, now)) callbacksRef.current.onSkipTap();
           return;
         }
       }

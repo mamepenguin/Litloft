@@ -1,12 +1,18 @@
 "use client";
 
-import { useCallback, useRef, type CSSProperties } from "react";
+import { useCallback, useRef, useState, type CSSProperties } from "react";
 import { useTranslations } from "next-intl";
+import type { WatchedPiece } from "@/lib/watchedRangesStore";
 
 const ROW_PX = 40;
 const LINE_PX = 12;
 /** Clearance between the knob and the frame's bottom edge. */
 const KNOB_GAP_PX = 4;
+
+const BAND_HEIGHT_PX = 3;
+/** The band's bottom edge sits 8px above the visible 4px line. */
+const BAND_TOP_PX = 7;
+const LEVEL_ALPHA = [0.35, 0.6, 0.9];
 
 /** Rounding keeps float noise (0.42 * 100 === 42.00000000000001) out of
  *  the rendered style. */
@@ -50,6 +56,8 @@ export interface SeekBarProps {
   onScrubChange: (seconds: number) => void;
   onScrubEnd: () => void;
   variant?: "centered" | "edge";
+  watchedPieces?: WatchedPiece[];
+  bandVisible?: boolean;
 }
 
 export function SeekBar({
@@ -61,11 +69,26 @@ export function SeekBar({
   onScrubChange,
   onScrubEnd,
   variant = "centered",
+  watchedPieces = [],
+  bandVisible = false,
 }: SeekBarProps) {
   const t = useTranslations("player");
   const rowRef = useRef<HTMLDivElement>(null);
+  const [hovered, setHovered] = useState(false);
   const playedFraction =
     duration > 0 ? Math.min(Math.max(displayTime / duration, 0), 1) : 0;
+
+  // A finger never hovers, so a touch that happens to cross the row on
+  // its way somewhere else must not summon the band.
+  const hover = (pointerType: string) => {
+    if (pointerType !== "touch") setHovered(true);
+  };
+  const unhover = (pointerType: string) => {
+    if (pointerType !== "touch") setHovered(false);
+  };
+
+  const showBand =
+    !disabled && duration > 0 && (bandVisible || hovered) && watchedPieces.length > 0;
 
   // The browser's own "click the track to jump" behaviour is a mouse-only
   // default action: WebKit and Blink under touch only move the value when
@@ -100,6 +123,8 @@ export function SeekBar({
       data-player-scrub=""
       ref={rowRef}
       className="relative h-10 w-full touch-none"
+      onPointerOver={(e) => hover(e.pointerType)}
+      onPointerOut={(e) => unhover(e.pointerType)}
     >
       <input
         type="range"
@@ -142,6 +167,29 @@ export function SeekBar({
           "peer-focus-visible:ring-2 peer-focus-visible:ring-focus-ring",
         ].join(" ")}
       >
+        {showBand && (
+          <div
+            data-testid="watched-band"
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-x-0"
+            style={{ top: -BAND_TOP_PX, height: BAND_HEIGHT_PX }}
+          >
+            {watchedPieces.map((piece) => (
+              <div
+                key={`${piece.start}-${piece.end}`}
+                data-testid="watched-piece"
+                data-level={piece.level}
+                className="absolute inset-y-0"
+                style={{
+                  left: `${(piece.start / duration) * 100}%`,
+                  width: `${((piece.end - piece.start) / duration) * 100}%`,
+                  backgroundColor: `rgba(255, 255, 255, ${LEVEL_ALPHA[piece.level - 1]})`,
+                }}
+              />
+            ))}
+          </div>
+        )}
+
         <div className="absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 overflow-hidden rounded-full bg-white/25">
           <div
             data-testid="buffered-range"

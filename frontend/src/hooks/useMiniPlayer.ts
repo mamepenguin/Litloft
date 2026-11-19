@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type RefObject } from "react";
 import type { MediaController } from "@/lib/mediaController";
 import { useMediaClock } from "@/lib/mediaClock";
 import { isNativeShell } from "@/lib/nativeBridge";
@@ -40,6 +40,13 @@ export function shouldShowMini(inputs: MiniPlayerInputs): boolean {
 }
 
 const DESKTOP_QUERY = "(min-width: 768px)";
+
+/** Read by anything inside the player that must go quiet in the mini box. */
+export const MiniPlayerBoxContext = createContext(false);
+
+export function useInMiniPlayerBox(): boolean {
+  return useContext(MiniPlayerBoxContext);
+}
 
 interface UseMiniPlayerOpts {
   containerRef: RefObject<HTMLElement | null>;
