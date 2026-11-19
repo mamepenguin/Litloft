@@ -17,8 +17,8 @@ const SM = 640;
 
 const VIEWS = [
   { name: "Home", search: "nick=1", ready: "Unread" },
-  { name: "Library by tag", search: "q=view%3Dall%26group%3Dtags", ready: "research" },
-  { name: "Library without grouping", search: "q=view%3Dall%26group%3Dnone", ready: null },
+  { name: "Library by tag", search: "q=view%3Dall%26group%3Dtags%26sort%3Dnewest", ready: "research" },
+  { name: "Library without grouping", search: "q=view%3Dall%26group%3Dnone%26sort%3Dnewest", ready: null },
 ] as const;
 
 let run = 0;
