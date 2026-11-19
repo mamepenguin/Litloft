@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-deep",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [],
+  "specification_compliance": [
+    "Commit 72a6773f2 changes one comment line in tests/test_ci_browser_jobs.py (now lines 244-245). It deletes the clause 'and nothing lets a test step run without it'. That is the second option proposed by r4 CD-1 and CR4-1, and the comment now claims only what test_fonts_step_installs_the_user_fontconfig checks: that the step copies the repository file to $HOME/.config/fontconfig/fonts.conf, with no if and no continue-on-error.",
+    "The commit changes no product file. In the working tree, ci.yml:302-409 (both browser jobs, including the fonts steps at 343-347 and 390-394 and the EPUB gate at 407), ci.yml:509-513 (bootstrap install), check-playwright-browsers.mjs (88 lines) and playwright-fonts.conf (6 lines) match the quoted branch diff. I1, I2, I3, I4 wiring, I5, I8, I9, I10 and I12 hold as they did in r4.",
+    "The EPUB `if` still references only steps.browsers. That matches spec item 2 and I8 as written, and the job is red whenever the fonts step fails. Since this commit removed the comment, no prose claims otherwise, so the r4 mismatch between the code and the test comment is gone."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The behavior behind r4 CD-1/CR4-1 is unchanged by design. If the fonts step fails while the browser check passed, the EPUB step still runs under the image's default fallback font. The job is already red at the fonts step, so nothing passes silently. The spec does not say whether the EPUB step should also gate on steps.fonts. This commit chose to correct the comment and leave the gate as it is."
+  ],
+  "regression_risks": [
+    "None from this commit. It edits a comment and has no executable effect.",
+    "r4 CD-2 still applies: test_fonts_conf_prefers_liberation_sans (tests/test_ci_browser_jobs.py:276-279) does not read the alias `binding` attribute, so dropping binding=\"strong\" from playwright-fonts.conf:4-5 keeps the pytest green. Only the layout suite's exact-height assertion would catch a resulting font drift, and it would fail loudly."
+  ],
+  "test_coverage": [
+    "Mutation in thought for this commit: it changes no assertion, so the set of killed and surviving mutants is the same as in r4. Removing the fonts step, reordering it, or adding an if or continue-on-error to it is killed by test_browser_job_step_order and test_fonts_step_installs_the_user_fontconfig. Adding `&& steps.fonts.outcome == 'success'` to the EPUB if is killed by test_layout_epub_job_runs_both_suites, because EPUB_IF pins the spec's string. Removing binding=\"strong\" survives.",
+    "No test checks how the EPUB step behaves when the fonts step fails. No comment claims that any test checks this any more."
+  ],
+  "not_verified": [
+    "I ran nothing: not pytest, not vitest, not Playwright, and not fc-match in mcr.microsoft.com/playwright:v1.58.2-noble.",
+    "I did not inspect git objects to confirm that commit 72a6773f2 contains only the quoted one-line hunk. I compared the working tree at tests/test_ci_browser_jobs.py:244-245 with the diff.",
+    "I did not check whether the user fontconfig takes effect in the image (conf.d include order, XDG_CONFIG_HOME, writability of HOME for uid 1001).",
+    "I did not check branch protection on develop (I7).",
+    "I did not open the vitest test in the working tree. I read it only as quoted in the branch diff."
+  ],
+  "coverage": [
+    {
+      "path": ".github/playwright-fonts.conf",
+      "read": "full",
+      "reason": "Read the whole file (6 lines) in the working tree. This commit does not change it."
+    },
+    {
+      "path": ".github/workflows/ci.yml",
+      "read": "partial",
+      "reason": "Read lines 290-519 in the working tree. This range covers both browser jobs (302-409) and the bootstrap job (496-513), which are every hunk of the branch diff. This commit does not change the file."
+    },
+    {
+      "path": "frontend/scripts/check-playwright-browsers.mjs",
+      "read": "full",
+      "reason": "Read the whole file (lines 1-88) in the working tree. This commit does not change it."
+    },
+    {
+      "path": "frontend/src/__tests__/check-playwright-browsers.test.ts",
+      "read": "full",
+      "reason": "Read the entire file as quoted in the branch diff (256 lines); I did not open it in the working tree. This commit does not change it."
+    },
+    {
+      "path": "tests/test_ci_browser_jobs.py",
+      "read": "full",
+      "reason": "Read the entire file from the branch diff, and read lines 225-306 in the working tree, which include the changed comment at 244-245."
+    }
+  ],
+  "confidence": 88,
+  "perspectives": [
+    {
+      "name": "scope",
+      "notes": "The commit touches one comment in a touch-point test file. It reaches no other file and no behavior."
+    },
+    {
+      "name": "submodules",
+      "notes": "No change. Both browser jobs still check out recursively and run setup-addons.sh before installing (ci.yml:313-320, 362-367)."
+    },
+    {
+      "name": "persistence",
+      "notes": "No change. The fontconfig file is written to each job container's HOME, which is not cached."
+    },
+    {
+      "name": "concurrency",
+      "notes": "No change. The component matrix keeps fail-fast: false, and the EPUB step keeps `!cancelled() && steps.browsers.outcome == 'success'`. The comment no longer claims that the gate covers the fonts step."
+    }
+  ],
+  "trajectory": "The rounds so far:\n- r1 to r2: a documentation fix.\n- r2 to r3: added a prediction to a test, APP_TABLE_HEIGHT = 560.\n- r3 to r4: removed that prediction and added a new mechanism, the fontconfig file, a `fonts` step in each job and I12 with its tests.\n- r4 to r5 (72a6773f2): adds no branch, no state and no prediction. It removes one claim from a test comment, the clause saying no test step can run without the fonts step, which the code did not enforce. It chooses to correct the prose rather than add a new condition to the EPUB gate.\n\nThis round repeats nothing an earlier round added. The design is not being patched."
+}

@@ -1,0 +1,111 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-deep",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [
+    {
+      "id": "CD-1",
+      "origin": "reviewer",
+      "claim": "The new pytest imports `yaml` at module level, which reaches the documented local bootstrap-test workflow. That workflow is not a touch point: `docs/developer-guide/testing.md` § The bootstrap script still tells developers to install only pytest, \"as CI runs them\".",
+      "impact": "A developer who follows docs/developer-guide/testing.md:78-84 (`pip install pytest` then `python3 -m pytest tests -v`) on an interpreter without PyYAML gets a collection error in tests/test_ci_browser_jobs.py. pytest then reports 'Interrupted: 1 error during collection', so none of the existing configure.py and Dockerfile tests in tests/ run locally. The failure is loud, not silent.",
+      "evidence": "tests/test_ci_browser_jobs.py:11 `import yaml` (unconditional, by design per spec item 6). docs/developer-guide/testing.md:78-84 says 'Its tests run on a bare interpreter with only pytest installed, as CI runs them: python3 -m pip install pytest / python3 -m pytest tests -v'. ci.yml:494 now installs `pytest PyYAML==6.0.2`. The touch-point list names only the `### Core jobs` table of testing.md, and spec §7 says the rest of the document is unchanged except the Browser suites section.",
+      "repro": "not_reproduced (read-only review). Expected result on an interpreter without PyYAML: `python3 -m pytest tests -v` → ModuleNotFoundError: No module named 'yaml' while collecting tests/test_ci_browser_jobs.py, and the run is interrupted.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This breaks no declared invariant: I10 concerns CI, where PyYAML is installed. It is an unplanned reach into a documented local workflow outside the touch-point list.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add PyYAML==6.0.2 to the install line in testing.md § The bootstrap script and drop 'with only pytest installed', or name that section as a touch point."
+    },
+    {
+      "id": "CD-2",
+      "origin": "reviewer",
+      "claim": "The new vitest test frontend/src/__tests__/check-playwright-browsers.test.ts runs in every addon repository's frontend CI and in core's vitest shard, coverage, shuffled and tsc/eslint jobs. The touch-point list does not name this reach, and it goes against a stated repository convention that script checks are scripts, not vitest tests, because core's suite ships into addon pipelines.",
+      "impact": "After merge to develop, each addon's frontend job (which checks out core develop and runs core's whole suite, testing.md:372-374) also runs this test. It spawns `node` and resolves the installed playwright-core, so a difference in an addon pipeline's install (for example a missing `@playwright/test`) would turn an addon PR red for a core-only CI concern. I found no concrete failure: the test clears PLAYWRIGHT_BROWSERS_PATH and builds its own temporary store.",
+      "evidence": "frontend/scripts/check-coverage-denominator.mjs:9-10: 'It is a script, not a vitest test: core's suite is executed by the addon repositories' CI, so a new test here ships into their pipelines unannounced.' docs/developer-guide/testing.md:372-374: addon frontend jobs run core's whole suite. vitest.config.ts:13-18 does not exclude src/__tests__, so the file is collected. check-playwright-browsers.test.ts:31-37 and 218-254 resolve @playwright/test → playwright → playwright-core from frontend/. The spec's touch point names only 'A vitest test for it under frontend/src/ (new)', and §7 says 'The other CI jobs are untouched'.",
+      "repro": "not_reproduced (read-only; the addon workflows are not checked out in this worktree, so the addon jobs' install steps could not be read).",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No declared invariant covers addon pipelines or which vitest jobs collect the test. The spec plans the test file itself, so the issue is only the unlisted reach.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Name the addon frontend pipelines and core's vitest jobs as places this test reaches, or record why the check-coverage-denominator convention does not apply here."
+    }
+  ],
+  "specification_compliance": [
+    "At file level, every path the diff changes is either in the touch-point list (ci.yml, check-playwright-browsers.mjs, the vitest test under frontend/src/, tests/test_ci_browser_jobs.py, testing.md Core jobs table) or an implicit touch point (docs/specs/ci-browser-container.md, docs/specs/INDEX.md, docs/process/reviews/).",
+    "Within ci.yml, only the frontend-layout job (replaced by frontend-components and frontend-layout-epub) and the bootstrap install step change; the other jobs' definitions are byte-identical in the diff.",
+    "Within testing.md, only the Core jobs table rows change, but a sentence outside the table (the bootstrap local-run instructions, lines 78-84) becomes inaccurate (CD-1).",
+    "Unplanned reaches beyond files: the local bootstrap test workflow (CD-1) and addon repositories' frontend CI plus core's vitest/coverage/shuffled/tsc/eslint jobs, via the new vitest test (CD-2).",
+    "Branch protection is a listed touch point and is not visible in the diff; not verified."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "check-playwright-browsers.mjs with `--browsers-json` as the last argument sets the path to the empty string; readFileSync('') then fails and the script reports 'cannot read browsers.json at '. This fails closed, but the error names an empty path.",
+    "A name passed twice (for example `chromium chromium`) is checked and printed twice; no dedup is specified.",
+    "The EPUB step's `steps.browsers.outcome == 'success'` makes the EPUB step skipped, not failed, when the browser check fails. The job is still red because the browser step failed, which matches I4."
+  ],
+  "regression_risks": [
+    "Local `python3 -m pytest tests -v` without PyYAML is interrupted at collection, so the existing bootstrap tests do not run locally (CD-1).",
+    "Addon frontend pipelines now run a test that spawns node and resolves playwright-core (CD-2).",
+    "Container jobs run as `--user 1001`; a permission problem in the workspace or the pnpm store would surface only in CI (spec §2 covers this as a stop-and-report case)."
+  ],
+  "test_coverage": [
+    "tests/test_ci_browser_jobs.py pins job ids, names, the shard matrix, fail-fast, the image tag against the lockfile, Node 20, step order, the browser-check command and step id, the EPUB `if`, the absence of filter flags, pipes, continue-on-error, apt-get and playwright install, and the bootstrap install line.",
+    "The vitest test covers each failure condition in spec item 4 (unset store, no names, unknown name, missing directory, unreadable or invalid JSON, absent file), the hyphen-to-underscore mapping, the ubuntu24.04-x64 override and ignoring other platforms' overrides, and both the pass and fail paths against the installed playwright-core.",
+    "No test covers the local-run documentation or the addon pipelines' environment; both are outside what these tests could check."
+  ],
+  "not_verified": [
+    "The instructions name commit eda97893f, which by its message only records R-5 in decisions.md. I reviewed the branch diff quoted in the prompt, not that single commit's diff, which I could not compute without git.",
+    "Addon repositories' frontend workflows are not checked out here, so whether they install @playwright/test and run the new vitest test cleanly was not read.",
+    "Branch protection on develop (I7) cannot be observed from the repository.",
+    "No command was run: neither pytest, vitest nor the check script was executed.",
+    "Whether the Playwright image's /ms-playwright actually contains chromium-1208, chromium_headless_shell-1208 and the expected webkit revision for 1.58.2."
+  ],
+  "coverage": [
+    {
+      "path": ".github/workflows/ci.yml",
+      "read": "full",
+      "reason": "Read lines 240-519, which cover both changed hunks (the frontend-components and frontend-layout-epub jobs, and the bootstrap job) with their enclosing jobs."
+    },
+    {
+      "path": "frontend/scripts/check-playwright-browsers.mjs",
+      "read": "full",
+      "reason": "Opened and read the whole file (88 lines)."
+    },
+    {
+      "path": "frontend/src/__tests__/check-playwright-browsers.test.ts",
+      "read": "full",
+      "reason": "New file; read its entire content as shown in the diff (all 256 lines)."
+    },
+    {
+      "path": "tests/test_ci_browser_jobs.py",
+      "read": "full",
+      "reason": "New file; read its entire content as shown in the diff (all 230 lines)."
+    }
+  ],
+  "confidence": 78,
+  "perspectives": [
+    {
+      "name": "scope",
+      "notes": "Every changed file is a listed or implicit touch point. Two behavioural reaches are unlisted: the local bootstrap-test instructions (CD-1) and the addon/core vitest pipelines that collect the new test (CD-2)."
+    },
+    {
+      "name": "submodules",
+      "notes": "Both browser jobs check out with `submodules: recursive` and run ./setup-addons.sh before installing (ci.yml:313-320, 354-359), matching I5. The new vitest test also runs in addon pipelines, which check out core with submodules (CD-2)."
+    },
+    {
+      "name": "persistence",
+      "notes": "The old `playwright-Linux-*` cache is no longer written (spec §4 accepts this). The pnpm cache key is unchanged, but the container's store path may differ, which the spec accepts. The vitest test cleans its temp dirs in afterEach. No application data is touched."
+    },
+    {
+      "name": "concurrency",
+      "notes": "The component matrix has fail-fast: false. Tests use mkdtemp per case, so shuffled or parallel runs do not collide. The EPUB step runs after a layout failure via !cancelled(). The workflow grows from 14 to 16 jobs, and queueing is out of scope per the spec."
+    }
+  ]
+}

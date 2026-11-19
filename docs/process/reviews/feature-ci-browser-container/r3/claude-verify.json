@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "CRITICAL",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "CR3-1",
+      "status": "confirmed",
+      "note": "Reproduced by arithmetic against frontend/e2e-layout/addon-policy.spec.ts. Line 27 sets APP_TABLE_HEIGHT = 560, so the threshold height * 0.7 < 560 flips at 560 / 0.7 = 800px, which matches the comment at lines 30-31. Line 37 declares { height: 807, innerScroll: false }, and 807 * 0.7 = 564.9, a margin of 4.9px above 560. With the previous 548 the margin was 564.9 - 548 = 16.9px. Line 169 asserts (height * 0.7 < APP_TABLE_HEIGHT) === innerScroll, line 168 asserts the measured scrollsVertically, and line 144 pins the rounded table height to the constant."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "CD-1",
+      "status": "confirmed",
+      "note": "Line 144 of addon-policy.spec.ts asserts Math.round(tableHeight) === 560 exactly. The fixture (fixtures/addon-policy.html:15) links only globals.built.css. globals.css:142 and :157 use a system font stack (--font-sans: -apple-system, system-ui, ...) with no @font-face, so the rendered height depends on the host's fonts. decisions.md:13 records that the image resolves system-ui and sans-serif to WenQuanYi Zen Hei and that 548 was measured elsewhere. testing.md:192-197 still tells developers to install host browsers with `playwright install --with-deps chromium`, and testing.md:226-229 says to run `pnpm test:e2e:layout`. A search of testing.md for 'image' or 'container' finds no mention of the Playwright image for the browser suites. A local run outside the image will therefore likely measure a different height and fail lines 144 and 152."
+    }
+  ],
+  "specification_compliance": [
+    "I6 (r3) allows only the APP_TABLE_HEIGHT change from 548 to 560 in addon-policy.spec.ts. The constant is 560 at line 27. I did not diff the rest of the spec against the base."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The comment at addon-policy.spec.ts:30-31 says the wrapper scrolls 'below an 800px viewport'. With 560 that is now exactly true at the boundary, and at 800px itself 0.7 * 800 = 560 is not less than 560, so 800px is declared as not scrolling."
+  ],
+  "regression_risks": [
+    "Local layout runs on a host with different fallback fonts will fail the exact-height assertions at addon-policy.spec.ts:144 and :152.",
+    "The 4.9px margin for the 807px case is small. Any font-metric drift in the image that adds about 5px to the table would flip the expected innerScroll."
+  ],
+  "test_coverage": [
+    "The exact height assertion at addon-policy.spec.ts:144 together with the per-height assertion at :169 ties the declared table to the measured layout. A change in font metrics shows up as a red test, not a silent pass."
+  ],
+  "not_verified": [
+    "Did not run Playwright locally or in the image, so I did not observe the measured height of 560 or what a host install would measure.",
+    "Did not inspect CI run 44498253376.",
+    "Did not diff the commit against origin/develop to confirm that no other spec lines changed."
+  ],
+  "confidence": 85
+}

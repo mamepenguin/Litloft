@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [
+    {
+      "id": "CR3-1",
+      "origin": "reviewer",
+      "claim": "Re-measuring APP_TABLE_HEIGHT to 560 moves the scroll threshold to 800px (0.7 × 800 = 560). The declared non-scrolling 807px case now sits 4.9px above the threshold; before the change the margin was 16.9px.",
+      "impact": "On a later image or font-package change that adds about 0.4px per row across the 12 rows, two things break together. The 807px height case flips (scrollsVertically becomes true while it is declared false), and the exact-height check at line 144 fails. The failure is loud: CI goes red and nothing passes silently. The suite has simply become more sensitive to fonts in the image.",
+      "evidence": "frontend/e2e-layout/addon-policy.spec.ts:27 `APP_TABLE_HEIGHT = 560`. Line 37 declares `{ height: 807, innerScroll: false }`, and 807 × 0.7 = 564.9. Line 169 asserts `height * 0.7 < APP_TABLE_HEIGHT` equals innerScroll, and line 144 asserts that the rounded table height equals the constant exactly.",
+      "repro": "not_reproduced (read-only). Arithmetic: 564.9 − 560 = 4.9px of headroom, against 564.9 − 548 = 16.9px before.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariant is broken. The I6 revision explicitly allows the 548→560 re-measure, and any drift would fail loudly rather than silently. Only the case's headroom shrinks.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    }
+  ],
+  "specification_compliance": [
+    "Commit 78e058f2c changes only frontend/e2e-layout/addon-policy.spec.ts. APP_TABLE_HEIGHT goes from 548 to 560, and the doc comment's threshold goes from 783px to 800px. I6 as revised in r3 allows exactly this change (548→560, human decision recorded in decisions.md:13-14).",
+    "The comment's threshold is arithmetically consistent with the constant: 560 / 0.7 = 800. The old pair was consistent too: 548 / 0.7 ≈ 783.",
+    "The declared HEIGHTS table still agrees with the new constant. 667, 715 and 745 give caps of 466.9, 500.5 and 521.5, all below 560, and are declared innerScroll true. 807 and 863 give caps of 564.9 and 604.1, both at or above 560, and are declared innerScroll false. The self-check at line 169 therefore holds for every row.",
+    "The commit changes no other test, config, retry count or package.json script, and leaves ci.yml and check-playwright-browsers.mjs as reviewed in r1/r2. I re-read both in the working tree: the browser jobs are at ci.yml:302-393 and the bootstrap install is at ci.yml:494."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "APP_TABLE_HEIGHT now matches the Playwright image's fallback font (WenQuanYi Zen Hei for system-ui/sans-serif; the fixture loads no web font). A local `pnpm test:e2e:layout` on a machine whose fallback font differs can fail lines 144 and 152 where it may have passed against 548. Spec §7 says local runs are unchanged. Whether developer machines ever matched 548 is unknown."
+  ],
+  "regression_risks": [
+    "The 807px case now has 4.9px of headroom before it flips, down from 16.9px, so a future image-tag bump that changes fonts is more likely to turn the layout job red (CR3-1)."
+  ],
+  "test_coverage": [
+    "The constant is pinned in both directions. Line 144 asserts it equals the measured table height, and line 169 ties it to each declared innerScroll boolean. A wrong constant, or a wrong boolean in HEIGHTS, would fail a test.",
+    "Mutants considered: APP_TABLE_HEIGHT=548 fails line 144 in the container. APP_TABLE_HEIGHT=570 fails line 144, and the 807 row also fails line 169 because 564.9 < 570 is true while the row is declared false. Flipping the 807 row's innerScroll fails lines 168 and 169."
+  ],
+  "not_verified": [
+    "I did not run Playwright, so I have not confirmed that the container measures exactly 560 or that macOS/local runs measure 548 or anything else.",
+    "I did not inspect git objects to confirm that commit 78e058f2c contains only the quoted hunk. I compared the working tree with the diff instead.",
+    "Branch protection on develop (I7) is a GitHub setting outside the repository.",
+    "I did not re-check the vitest and pytest test files beyond their content in the quoted diff; this commit does not change them.",
+    "I did not read the addon-policy fixture HTML in full, only its font-related lines."
+  ],
+  "coverage": [
+    {
+      "path": ".github/workflows/ci.yml",
+      "read": "partial",
+      "reason": "Read lines 280-509, which cover both browser jobs (302-393) and the bootstrap job (480-497), i.e. every hunk of the branch diff. Commit 78e058f2c does not change this file."
+    },
+    {
+      "path": "frontend/e2e-layout/addon-policy.spec.ts",
+      "read": "full",
+      "reason": "Read the whole file (lines 1-204), including the changed constant and comment and every assertion that uses them."
+    },
+    {
+      "path": "frontend/scripts/check-playwright-browsers.mjs",
+      "read": "full",
+      "reason": "Read the whole file (lines 1-88). Commit 78e058f2c does not change it."
+    },
+    {
+      "path": "frontend/src/__tests__/check-playwright-browsers.test.ts",
+      "read": "full",
+      "reason": "Read the entire file as quoted in the branch diff; I did not open it in the working tree. Commit 78e058f2c does not change it."
+    },
+    {
+      "path": "tests/test_ci_browser_jobs.py",
+      "read": "full",
+      "reason": "Read the entire file as quoted in the branch diff; I did not open it in the working tree. Commit 78e058f2c does not change it."
+    }
+  ],
+  "confidence": 85,
+  "trajectory": "The fix commits since r2 are mostly not fixes to this change. f62fe60c through 4f829590 come from the Pickup coverage work (SPEC-ADDON-149/150, SPEC-CORE-142), merged from develop at 0215ef84c; dc5b423c0 is an INDEX status edit. The only commit for this change is 78e058f2c, which re-measures one test constant after the container's fonts changed the measured height, with the human approving and the I6 revision recording it. It adds no branch, state or prediction to the CI wiring or the browser-check script, and it repeats nothing an earlier round added. r2's round changed documentation only. The design is not being patched; the one cost is less headroom in the 807px layout case."
+}

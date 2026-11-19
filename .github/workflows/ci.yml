@@ -292,16 +292,23 @@ jobs:
         run: pnpm exec vitest run --sequence.shuffle --retry=1
         working-directory: frontend
 
-  frontend-layout:
-    # Deliberately not the specs under `frontend/e2e/`: those need a live stack
-    # on localhost:3000 and a seeded library, and skip themselves when no drive
-    # answers, so in CI they would report green having run almost nothing.
-    #
-    name: frontend (layout invariants and components in a browser)
-    # Pinned because Playwright refuses to install browsers on ubuntu-26.04,
-    # which ubuntu-latest now resolves to. Return to ubuntu-latest once the
-    # pinned @playwright/test supports it.
-    runs-on: ubuntu-24.04
+  # Deliberately not the specs under `frontend/e2e/`: those need a live stack
+  # on localhost:3000 and a seeded library, and skip themselves when no drive
+  # answers, so in CI they would report green having run almost nothing.
+  #
+  # The image carries the system libraries and the browsers, so no step here
+  # calls `apt-get` or `playwright install`; `check-playwright-browsers.mjs`
+  # compares what it holds with what the lockfile installed.
+  frontend-components:
+    name: frontend (browser components ${{ matrix.shard }}/2)
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.58.2-noble
+      options: --user 1001
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -326,36 +333,78 @@ jobs:
         run: pnpm install --frozen-lockfile
         working-directory: frontend
 
-      # Keyed on the lockfile because that is what pins @playwright/test,
-      # and a browser build only matches the version that downloaded it.
-      - name: Cache the Chromium build
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('frontend/pnpm-lock.yaml') }}
-
-      # Chromium alone. The invariants here are flex geometry, resolved
-      # transitions and pointer-event dispatch, not rendering differences
-      # between engines.
-      - name: Install Chromium
-        run: pnpm exec playwright install --with-deps chromium
+      - name: Check the image's browser builds
+        id: browsers
+        run: node scripts/check-playwright-browsers.mjs chromium chromium-headless-shell
         working-directory: frontend
+
+      # The image's own fallback is a CJK font whose taller lines move every
+      # text measurement. The file pins the fallback to Liberation Sans.
+      - name: Install the fallback font configuration
+        id: fonts
+        run: |
+          mkdir -p "$HOME/.config/fontconfig"
+          cp .github/playwright-fonts.conf "$HOME/.config/fontconfig/fonts.conf"
+
+      # Spelled out rather than through the package script, so the shard flag
+      # does not depend on pnpm's argument forwarding.
+      - name: Test the components in a browser
+        run: pnpm exec playwright test --config=playwright-components.config.ts --shard=${{ matrix.shard }}/2
+        working-directory: frontend
+
+  frontend-layout-epub:
+    name: frontend (layout invariants and EPUB reader in a browser)
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.58.2-noble
+      options: --user 1001
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Link addons into backend/ and frontend/
+        run: ./setup-addons.sh
+
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: frontend/package.json
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install frontend dependencies
+        run: pnpm install --frozen-lockfile
+        working-directory: frontend
+
+      - name: Check the image's browser builds
+        id: browsers
+        run: node scripts/check-playwright-browsers.mjs chromium chromium-headless-shell webkit
+        working-directory: frontend
+
+      # The image's own fallback is a CJK font whose taller lines move every
+      # text measurement. The file pins the fallback to Liberation Sans.
+      - name: Install the fallback font configuration
+        id: fonts
+        run: |
+          mkdir -p "$HOME/.config/fontconfig"
+          cp .github/playwright-fonts.conf "$HOME/.config/fontconfig/fonts.conf"
 
       - name: Test the layout invariants
         run: pnpm test:e2e:layout
         working-directory: frontend
 
-      - name: Test the components in a browser
-        run: pnpm test:e2e:components
-        working-directory: frontend
-
       # The EPUB reader's defences are a sanitizer and a CSP that each engine
       # enforces on its own, so this suite runs in WebKit as well.
-      - name: Install WebKit
-        run: pnpm exec playwright install --with-deps webkit
-        working-directory: frontend
-
+      #
+      # `!cancelled()` so a layout failure does not hide the EPUB result, and
+      # the browser check's outcome so a missing build skips the suite instead
+      # of failing it again under a misleading name.
       - name: Test the EPUB reader in Chromium and WebKit
+        if: ${{ !cancelled() && steps.browsers.outcome == 'success' }}
         run: pnpm test:e2e:epub
         working-directory: frontend
 
@@ -458,7 +507,7 @@ jobs:
       # image, so these run on a bare interpreter. The tests build their own
       # addon trees in tmp_path, so no submodule checkout is needed.
       - name: Install pytest
-        run: pip install pytest
+        run: pip install pytest PyYAML==6.0.2
 
       - name: Test
         run: python -m pytest tests -v
