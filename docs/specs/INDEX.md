@@ -212,7 +212,7 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-CORE-093 | implemented | docs/specs/clips-app.md | sha256:d1d401dd7d6f89f47a97e0f715443a96d7e5bf310ca2d3eac832774676615389 |
 | SPEC-ADDON-100 | implemented | docs/specs/clips-app.md | sha256:d1d401dd7d6f89f47a97e0f715443a96d7e5bf310ca2d3eac832774676615389 |
 | SPEC-ADDON-101 | implemented | docs/specs/clips-app.md | sha256:d1d401dd7d6f89f47a97e0f715443a96d7e5bf310ca2d3eac832774676615389 |
-| SPEC-ADDON-104 | implemented | docs/specs/scene-rows-fill-height.md | sha256:f6c531b6906b5bbe5e5d8cf035998960347c7f35260260170946f66f517620e1 |
+| SPEC-ADDON-104 | superseded | docs/specs/scene-rows-fill-height.md | sha256:f6c531b6906b5bbe5e5d8cf035998960347c7f35260260170946f66f517620e1 |
 | SPEC-CORE-094 | implemented | docs/specs/file-detail-single-header.md | sha256:d7dacebc30fe3cedb69e9435864254124e5f362ae87a840aa00504eab89b3b47 |
 | SPEC-CORE-095 | implemented | docs/specs/file-detail-single-header.md | sha256:d7dacebc30fe3cedb69e9435864254124e5f362ae87a840aa00504eab89b3b47 |
 | SPEC-CORE-096 | implemented | docs/specs/reading-text-size.md | sha256:d1b28deeb6a5175080485786c2bd1f4aa641c404c7450da37f5711057df018c0 |
@@ -313,3 +313,5 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-148 | implemented | docs/specs/app-view-per-target.md | sha256:926ef39f97e4137c1499212982a2f5dab80c44f41cb1cb75ea7c2f65552200d6 |
 | SPEC-CORE-151 | implemented | docs/specs/peak-jump.md | sha256:0a67582136afa051544144984d1d172a874727be87bfb69a7c0080c1a4f5fcfc |
 | SPEC-CORE-152 | implemented | docs/specs/finished-card-full-bar.md | sha256:84ed425d591c26b46508b2e8dca5b50b75d58a9d012decba97bd32e16d4b00dc |
+| SPEC-ADDON-152 | implemented | docs/specs/scenes-scroll-list.md | sha256:a36a7442854e2ce379a5d3930f5103bbd5421dc414d28b477267cc31cee4e958 |
+| SPEC-ADDON-153 | implemented | docs/specs/scenes-scroll-list.md | sha256:a36a7442854e2ce379a5d3930f5103bbd5421dc414d28b477267cc31cee4e958 |

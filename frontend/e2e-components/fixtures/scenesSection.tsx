@@ -44,6 +44,7 @@ const LONG: ScenesDataset = {
 declare global {
   interface Window {
     __scenesPlayback: typeof SCENES_PLAYBACK;
+    __releaseScenesVisual?: () => void;
   }
 }
 
@@ -82,9 +83,22 @@ function jsonResponse(body: unknown): Response {
   });
 }
 
+interface StubOptions {
+  /** Leaves the `visual-index` answer outstanding, as a slow backend would. */
+  pendingVisual?: boolean;
+  /** Holds the `visual-index` answer until `window.__releaseScenesVisual` runs. */
+  heldVisual?: boolean;
+  /** Answers the `visual-index` request with a 404. */
+  noVisual?: boolean;
+}
+
 /** Nothing here reaches a server: the fixture runs from `file://`. */
-function stubIntelligenceApi(data: ScenesDataset): void {
+function stubIntelligenceApi(
+  data: ScenesDataset,
+  options: StubOptions = {},
+): void {
   window.__scenesPlayback = SCENES_PLAYBACK;
+  window.__releaseScenesVisual = undefined;
   window.fetch = (input: RequestInfo | URL) => {
     const url =
       typeof input === "string"
@@ -114,18 +128,31 @@ function stubIntelligenceApi(data: ScenesDataset): void {
       );
     }
     if (url.includes(`/files/${data.file}/visual-index`)) {
-      return Promise.resolve(jsonResponse(data.visualIndex));
+      if (options.noVisual) {
+        return Promise.resolve(new Response("", { status: 404 }));
+      }
+      if (options.heldVisual) {
+        return new Promise<Response>((resolve) => {
+          window.__releaseScenesVisual = () =>
+            resolve(jsonResponse(data.visualIndex));
+        });
+      }
+      return options.pendingVisual
+        ? new Promise<Response>(() => {})
+        : Promise.resolve(jsonResponse(data.visualIndex));
     }
     return Promise.resolve(new Response("", { status: 404 }));
   };
 }
 
-/** The real Scenes section in a host of the given width. */
+/** The real Scenes section in a host of the given width and height. */
 export function ScenesSectionArrangement({
   hostWidth,
+  hostHeight = 900,
   long = false,
 }: {
   hostWidth: number;
+  hostHeight?: number;
   long?: boolean;
 }): ReactElement {
   const data = long ? LONG : SHORT;
@@ -136,7 +163,11 @@ export function ScenesSectionArrangement({
   );
 
   return (
-    <div id="scenes-host" className="bg-bg-primary" style={{ width: hostWidth }}>
+    <div
+      id="scenes-host"
+      className="bg-bg-primary flex min-h-0 flex-col overflow-y-auto"
+      style={{ width: hostWidth, height: hostHeight }}
+    >
       <NextIntlClientProvider
         locale="en"
         messages={{ ...enMessages, ...intelligenceEn }}
@@ -148,6 +179,185 @@ export function ScenesSectionArrangement({
           mediaController={mediaController}
         />
       </NextIntlClientProvider>
+    </div>
+  );
+}
+
+/**
+ * The real Scenes section in a bounded box standing in for a workbench panel
+ * body: a flex column of a stated width and height, as `PanelTabBody` gives
+ * the stacked inspector's tab. The 500-frame file, so the list scrolls.
+ * `?t=` is the playback time it opens at.
+ */
+export function ScenesBoundedArrangement({
+  hostWidth,
+  hostHeight,
+}: {
+  hostWidth: number;
+  hostHeight: number;
+}): ReactElement {
+  const data = LONG;
+  stubIntelligenceApi(data);
+  const mediaController = useMemo(() => {
+    const start = Number(new URLSearchParams(location.search).get("t") ?? 0);
+    if (start > 0) SCENES_PLAYBACK.time = start;
+    return makeController(data.duration);
+  }, [data.duration]);
+
+  return (
+    <div
+      id="scenes-host"
+      className="bg-bg-primary flex min-h-0 flex-col overflow-y-auto"
+      style={{ width: hostWidth, height: hostHeight }}
+    >
+      <NextIntlClientProvider
+        locale="en"
+        messages={{ ...enMessages, ...intelligenceEn }}
+      >
+        <ScenesSection
+          fileId={data.file}
+          drive={SCENES_DRIVE}
+          fileType="video"
+          mediaController={mediaController}
+          labelledByHost
+          active
+        />
+      </NextIntlClientProvider>
+    </div>
+  );
+}
+
+/** The bounded form with the Visual Index answer never arriving. */
+export function ScenesPendingVisualArrangement({
+  hostWidth,
+  hostHeight,
+}: {
+  hostWidth: number;
+  hostHeight: number;
+}): ReactElement {
+  const data = LONG;
+  stubIntelligenceApi(data, { pendingVisual: true });
+  const mediaController = useMemo(
+    () => makeController(data.duration),
+    [data.duration],
+  );
+
+  return (
+    <div
+      id="scenes-host"
+      className="bg-bg-primary flex min-h-0 flex-col overflow-y-auto"
+      style={{ width: hostWidth, height: hostHeight }}
+    >
+      <NextIntlClientProvider
+        locale="en"
+        messages={{ ...enMessages, ...intelligenceEn }}
+      >
+        <ScenesSection
+          fileId={data.file}
+          drive={SCENES_DRIVE}
+          fileType="video"
+          mediaController={mediaController}
+          labelledByHost
+          active
+        />
+      </NextIntlClientProvider>
+    </div>
+  );
+}
+
+/** The bounded form with the Visual Index answer waiting for the test. */
+export function ScenesHeldVisualArrangement({
+  hostWidth,
+  hostHeight,
+}: {
+  hostWidth: number;
+  hostHeight: number;
+}): ReactElement {
+  const stale = new URLSearchParams(location.search).get("stale") === "1";
+  const data = stale
+    ? { ...LONG, visualIndex: { ...SCENES_LONG_VISUAL_INDEX, stale: true } }
+    : LONG;
+  stubIntelligenceApi(data, { heldVisual: true });
+  const mediaController = useMemo(
+    () => makeController(data.duration),
+    [data.duration],
+  );
+
+  return (
+    <div
+      id="scenes-host"
+      className="bg-bg-primary flex min-h-0 flex-col overflow-y-auto"
+      style={{ width: hostWidth, height: hostHeight }}
+    >
+      <NextIntlClientProvider
+        locale="en"
+        messages={{ ...enMessages, ...intelligenceEn }}
+      >
+        <ScenesSection
+          fileId={data.file}
+          drive={SCENES_DRIVE}
+          fileType="video"
+          mediaController={mediaController}
+          labelledByHost
+          active
+        />
+      </NextIntlClientProvider>
+    </div>
+  );
+}
+
+/**
+ * The flow form: the section inside an ancestor marked `data-inspector-scroller`,
+ * as the phone sheet gives it, with a scroller whose bottom padding can stand in
+ * for the sheet's safe-area strip.
+ */
+export function ScenesFlowArrangement({
+  hostWidth,
+  scrollerHeight,
+  scrollerPaddingBottom = 0,
+  noVisual = false,
+}: {
+  hostWidth: number;
+  scrollerHeight: number;
+  scrollerPaddingBottom?: number;
+  noVisual?: boolean;
+}): ReactElement {
+  const data = LONG;
+  stubIntelligenceApi(data, { noVisual });
+  const mediaController = useMemo(
+    () => makeController(data.duration),
+    [data.duration],
+  );
+
+  return (
+    <div
+      id="scenes-host"
+      className="bg-bg-primary flex min-h-0 flex-col"
+      style={{ width: hostWidth }}
+    >
+      <div
+        data-inspector-scroller=""
+        data-testid="scenes-flow-scroller"
+        className="min-h-0 overflow-auto overscroll-contain"
+        style={{
+          height: scrollerHeight,
+          paddingBottom: scrollerPaddingBottom,
+        }}
+      >
+        <NextIntlClientProvider
+          locale="en"
+          messages={{ ...enMessages, ...intelligenceEn }}
+        >
+          <ScenesSection
+            fileId={data.file}
+            drive={SCENES_DRIVE}
+            fileType="video"
+            mediaController={mediaController}
+            labelledByHost
+            active
+          />
+        </NextIntlClientProvider>
+      </div>
     </div>
   );
 }

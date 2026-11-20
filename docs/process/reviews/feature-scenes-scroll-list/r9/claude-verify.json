@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [],
+  "specification_compliance": [
+    "No findings were listed to verify, so no verification records are returned.",
+    "Spot-checked I9's pointercancel clause: ScenesSectionContainer.tsx:571-581 restores previousBrowse, previousFollowing and previousScroll (captured at pointerdown, :520-529) only for a non-mouse drag that passed the 8 px threshold (:549-551). A cancel before the threshold leaves the state alone, which is correct because a touch press sets no ruler point (:530).",
+    "Spot-checked I13 (r7): a mouse press with a non-primary button sets dragStart to null (:518-529). A mouse move applies the ruler point only when buttons&1 is set and dragStart came from a mouse press on the ruler (:541-544). A primary press made elsewhere leaves dragStart null, and the window-level pointerup clears it (:158-174).",
+    "Spot-checked I3 ordering: the scroller's native pointercancel listener (useSceneList.ts:422-427) runs before React's root-delegated onPointerCancel. It therefore still sees the drag and skips takeOver for a dragged ruler gesture."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "After a touch ruler drag is cancelled in flow form, the rest of that gesture's touchmoves are suppressed as reader input (useSceneList.ts:412-419 with dragStart.cancelled set at ScenesSectionContainer.tsx:575). If the browser then scrolls the shared scroller for the rest of the gesture, following stays at its restored value even though the reader moved the page. The spec does not say whether this post-cancel browser scroll counts as a reader's scroll."
+  ],
+  "regression_risks": [
+    "The ordering between the native pointercancel listener on the scroller and React's delegated onPointerCancel on the ruler matters for I3. Moving the React root, or turning the scroller listener into a capture-phase listener, would not change it, but clearing dragStart in a native listener first would."
+  ],
+  "test_coverage": [
+    "ScenesSectionRulerMap.test.tsx:237 covers the I9 restore after an 8 px drag. ScenesSectionSeek.test.tsx:181 covers the SPEC-ADDON-089 I3 pointercancel restore. Neither test was run."
+  ],
+  "not_verified": [
+    "Tests were not run (no command execution available).",
+    "The e2e-components specs, the docs and the INDEX.md changes were not read.",
+    "The I1/I5 bounded-form geometry (H computation, one-line card form) and the I6 picture request timing were not checked.",
+    "Real browser behaviour of touch pointercancel followed by native scrolling was not checked."
+  ],
+  "confidence": 72,
+  "coverage": [
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/ScenesSectionContainer.tsx",
+      "read": "partial",
+      "reason": "Ruler pointer handling and lifecycle, lines 140-600"
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/ScenesSectionPresenter.tsx",
+      "read": "partial",
+      "reason": "Pointer dispatch, lines 120-280"
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/hooks/useSceneList.ts",
+      "read": "partial",
+      "reason": "Follow placement and reader take-over listeners, lines 330-490"
+    }
+  ]
+}

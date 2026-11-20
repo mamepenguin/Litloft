@@ -1,0 +1,294 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "R7-1",
+      "origin": "reviewer",
+      "claim": "In flow form a horizontal touch drag on the ruler ends with no ruler point. Each touchmove of the drag bubbles from the sticky ruler to the shared scroller's `touchmove` listener, whose takeOver calls onReaderTakeOver and so setBrowsePoint(null). The listener does not tell a ruler drag from a reader's scroll.",
+      "impact": "On the phone sheet, the main touch host, a horizontal drag along the ruler places the dragged row, then the ruler point vanishes once the drag ends. The white ruler line and tile outline are gone. The card and aria-valuenow show the top row's first frame, which is the row before the dragged one, not the dragged frame. Enter on the ruler then does nothing. Spec §1.6 counts only a vertical swipe starting on the pinned ruler as a reader's scroll, and §1.12 says the drag's touchmove does not clear the ruler point.",
+      "evidence": "useSceneList.ts:396-401 takeOver calls setFollowing(false) and onReaderTakeOver() without checking the event target. useSceneList.ts:434 registers `scroller.addEventListener(\"touchmove\", takeOver)` on scrollerOf(list), which in flow form is the [data-inspector-scroller] ancestor that also holds the sticky ruler box (ScenesSectionPresenter.tsx rulerBoxRef). ScenesSectionContainer.tsx:424-427 onReaderTakeOver calls setBrowsePoint(null). ScenesSectionContainer.tsx:511-541: pointermove applies the point, and pointerup returns early when `start.dragged`, so it never re-applies the point after the last touchmove. Browsers dispatch a touch's pointermove before its compatibility touchmove, so the touchmove clears the point last. The jsdom test 'in flow form a touch the browser takes for vertical scrolling…' (ScenesSectionRulerMap.test.tsx) confirms that ruler touchmoves reach this listener in flow form.",
+      "repro": "not_reproduced. Traced by reading: in #scenes-flow, touchStart on the ruler at 10%, touchMove to 20/40/60/80% at constant y, then touchEnd. Every move runs pointermove (applyRulerPoint), then touchmove (takeOver, so browse is null). At touchEnd, pointerup sees dragged=true and returns, leaving browse null. The e2e case 'SPEC-ADDON-153 I9 — a touch drag on the ruler places its row…' (scenes-scroll-list.spec.ts) would still pass: it asserts only visibleRows[0] grew and rulerNow differs from the opening value, and with browse cleared and following off, rulerNow is the top row's first frame, which also differs. It then cancels, and the cancel restores the start state. The jsdom pointercancel case runs in bounded form, where the ruler is outside the scroller.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "A",
+        "reason": "I9 requires a horizontal drag of at least 8 px to set the ruler point at the frame under it. The gesture's own touchmove removes that point.",
+        "invariant_ref": "I9"
+      },
+      "severity": "MEDIUM",
+      "proposed_fix": "In the touchmove handler, ignore a touch whose ruler drag is active or has passed the 8 px threshold, for example with a ref the Container sets in handlePointerDown/handlePointerMove for touch on the ruler. Or skip takeOver for touchmoves whose target is inside the ruler until a pointercancel shows the browser took the vertical pan. Add a flow-form test that ends a horizontal drag with pointerup and asserts aria-valuenow equals the dragged frame."
+    },
+    {
+      "id": "R7-2",
+      "origin": "reviewer",
+      "claim": "In bounded form, the H that chooses between the full and one-line card is not independent of which card is drawn. The placeholder box includes the action row's 2.25rem with no flex gap, while a real card is followed by an action row separated by the section's 0.875rem gap. So the list's client height, and with it H, differs by about the gap between the placeholder state and the card state.",
+      "impact": "For a host height in a band about 14 px wide, the placeholder can be drawn in one form and the arriving card in the other: a visible change of form when the Visual Index answers. The e2e case checks only that the placeholder is stable while pending, not that the card keeps the placeholder's form.",
+      "evidence": "ScenesSectionPresenter.tsx placeholder: height calc(7.75rem + 2.25rem) or calc(2.75rem + 2.25rem), inside cardBoxRef, with the action row absent while awaiting. With a card, cardBoxRef holds only the card, and the action row is a separate flex child after a gap-3.5. useSceneList.ts:160-168 computes H as list.clientHeight + cardBox height − 7.6rem.",
+      "repro": "not_reproduced. Choose a bounded host height where list.clientHeight + placeholderHeight − 7.6rem is just at least 2·step. After the card arrives, the extra 0.875rem gap before the action row comes out of the list, so H falls below 2·step and the card turns one-line.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "I5 defines H from the drawn card's or placeholder's height, so the computation matches its letter. The form change on arrival contradicts only the spec's prose claim that the choice does not flip, and no invariant line forbids it.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Size the placeholder so its total matches card + gap + action row, or compute H against a fixed reservation that does not depend on the drawn part."
+    }
+  ],
+  "specification_compliance": [
+    "r6 F-1 (I11): fixed. In flow form the card box gets `hidden` when neither the placeholder nor a scene card is drawn (ScenesSectionPresenter.tsx cardDrawn), so viewportOf's `card.height > 0` test falls through to the scroller's bottom. scenes-scroll-list-flow.spec.ts covers this with a 404 Visual Index.",
+    "r6 TP-2: fixed. usePlaybackClock.ts subscribes to the shared mediaClock again. The private 250 ms poller, isJump and onJump are removed. ScenesSectionClock.test.tsx covers a getter that throws once. The paused-seek delay of up to MEDIA_CLOCK_IDLE_MS is recorded as the 'I2 clock' acceptance, and the e2e playAt waits MEDIA_CLOCK_IDLE_MS + 300.",
+    "I12: the Container's reset layout effect no longer depends on `mediaController != null`. useSceneList's show effect reads hasPlaybackRef, so a controller appearing neither sets following nor removes the ruler point. The follow effect still re-runs on hasPlayback and places the playing row while following. ScenesSectionController.test.tsx covers both branches.",
+    "I13: handlePointerDown applies the point only for button 0, and handlePointerMove only when `buttons & 1`. ScenesSectionRulerButtons.test.tsx covers a right-button press and drag.",
+    "I9: broken in flow form for a horizontal touch drag (R7-1).",
+    "r6 TP-1, the four scenes-scroll-list* e2e files outside the touch-point glob, is still open, and scenes-scroll-list-flow.spec.ts adds a fifth file outside it. This is a documentation matter only."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "A mouse drag that starts outside the ruler with the primary button held and then enters the ruler sets the ruler point on pointermove (`buttons & 1`), with no pointerdown on the ruler. I13 says only that a press with another button does nothing.",
+    "On every new showing, failedTimes and the requested pictures are reset for a .loft as well as a native file, so a failed .loft scene-tile is asked for again on the next showing. §1.14 states the retry-on-next-showing rule only for a native frame.",
+    "A mouse click on a partly visible tile first fires focusin, which clears following and the ruler point, and then click sets following again. The intermediate state is not visible but runs an extra flushSync render."
+  ],
+  "regression_risks": [
+    "The flow-form touchmove listener treats every touchmove on the shared scroller as a reader's scroll, ruler drags included (R7-1).",
+    "Following and placement depend on the shared clock's idle beat while the player is paused: a seek made elsewhere while paused is placed up to 1 s later. This is accepted, but any test that changes the paused time must wait for it.",
+    "The show effect now reads hasPlayback through a ref, written during render. If the controller and the frames change in the same commit, placement uses the ref's value from that render, which is correct now but easy to break."
+  ],
+  "test_coverage": [
+    "No test ends a horizontal touch drag on the ruler in flow form and checks the ruler point afterwards. The e2e drag case asserts only a moved list and a changed aria-valuenow, both of which hold with the point cleared, and then cancels. The jsdom pointercancel case runs in bounded form (R7-1).",
+    "No test checks that the card keeps the placeholder's form when the Visual Index answer arrives near the I5 boundary (R7-2).",
+    "The new jsdom suites cover the r6 fixes: the clock holding its last reading, a controller appearing only as a placement event, and right-button presses. The new e2e flow spec covers I11's no-card clause."
+  ],
+  "not_verified": [
+    "I did not run any jsdom or Playwright test; every result here comes from reading the code.",
+    "The pointer/touch event order (pointermove before touchmove) on iOS Safari and Chromium for a touch-action: pan-y element. R7-1 relies on it.",
+    "The exact pixel band in which R7-2's form change happens in a real layout.",
+    "Whether the submodule commit 432e4758 contains changes beyond the hunks shown in the supplied diff."
+  ],
+  "confidence": 74,
+  "trajectory": "The fix round after r6 (277b53fb4, with the submodule moved to 432e4758) mostly removed things. It deleted the section's private 250 ms poller, the isJump/onJump jump detection and the noop callback, and went back to the shared media clock. It also dropped `mediaController != null` from the Container's reset effect and narrowed the button checks to the primary button. It added two things: a hasPlaybackRef, so the show effect reads the controller without re-running on it, and a `cardDrawn` branch that hides the flow card box. e57b7174c changed only a test wait, from a guessed 400 ms to MEDIA_CLOCK_IDLE_MS + 300, matching the accepted clock timing. 0f20db72f is documentation only. The ref and the cardDrawn branch are new state and a new condition placed to dodge an effect's dependencies and an empty box, where the r6 round had added the private poller to dodge the clock. So the pattern of patching around effects continues in a smaller form. On balance this round removed more state than it added, and the remaining defect (R7-1) comes from the reader-scroll listener, not from these patches.",
+  "coverage": [
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/ScenesSectionContainer.tsx",
+      "read": "full",
+      "reason": "Opened lines 100-799 in the worktree; the earlier lines (imports, DragStart type) read in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/ScenesSectionPresenter.tsx",
+      "read": "full",
+      "reason": "Every changed hunk read in the supplied diff, including the cardDrawn fix hunk."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/browseLifetime.ts",
+      "read": "full",
+      "reason": "Deleted file; whole content read in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/hooks/usePlaybackClock.ts",
+      "read": "full",
+      "reason": "Whole resulting file reconstructed from both the full diff and the fix diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/hooks/useSceneList.ts",
+      "read": "full",
+      "reason": "Opened the whole file in the worktree."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/hooks/useScenePictures.ts",
+      "read": "full",
+      "reason": "New file; whole content read in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/hooks/useSceneRows.ts",
+      "read": "full",
+      "reason": "Deleted file; whole content read in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/hooks/useWindowPictures.ts",
+      "read": "full",
+      "reason": "Deleted file; whole content read in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/sceneList.ts",
+      "read": "full",
+      "reason": "New file; whole content read in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/scenesModel.ts",
+      "read": "full",
+      "reason": "The only hunk (removals) read in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/messages/en.json",
+      "read": "full",
+      "reason": "The single added key read in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/messages/ja.json",
+      "read": "full",
+      "reason": "The single added key read in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/app.tsx",
+      "read": "full",
+      "reason": "All changed hunks read in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/scenesSection.tsx",
+      "read": "full",
+      "reason": "All changed hunks and the new arrangements read in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/scenesSectionData.ts",
+      "read": "full",
+      "reason": "The changed hunk read in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/projects.ts",
+      "read": "full",
+      "reason": "The changed hunk read in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/scenes-scroll-list-desktop.spec.ts",
+      "read": "full",
+      "reason": "New file; whole content read in the diff; MEDIA_CLOCK_IDLE_MS export checked in mediaClock.ts:28."
+    },
+    {
+      "path": "frontend/e2e-components/scenes-scroll-list-flow.spec.ts",
+      "read": "full",
+      "reason": "New file; whole content read in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/scenes-scroll-list-scrollbar-desktop.spec.ts",
+      "read": "full",
+      "reason": "New file; whole content read in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/scenes-scroll-list.cases.ts",
+      "read": "full",
+      "reason": "New file; whole content read in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/scenes-scroll-list.spec.ts",
+      "read": "full",
+      "reason": "New file; whole content read in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/scenes-section-desktop.spec.ts",
+      "read": "full",
+      "reason": "Whole new content read in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/scenes-section-rows-desktop.spec.ts",
+      "read": "full",
+      "reason": "Deleted file; content read in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/scenes-section-rows-scrollbar-desktop.spec.ts",
+      "read": "full",
+      "reason": "Deleted file; content read in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/scenes-section-rows.cases.ts",
+      "read": "full",
+      "reason": "Deleted file; content read in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/scenes-section-rows.spec.ts",
+      "read": "full",
+      "reason": "Deleted file; content read in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/scenes-section.cases.ts",
+      "read": "full",
+      "reason": "Every changed hunk read in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/scenes-section.spec.ts",
+      "read": "full",
+      "reason": "Whole new content read in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/spec-viewport.spec.ts",
+      "read": "full",
+      "reason": "The changed hunks read in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/__tests__/ScenesSectionClock.test.tsx",
+      "read": "full",
+      "reason": "New file; whole content read in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/__tests__/ScenesSectionController.test.tsx",
+      "read": "full",
+      "reason": "New file; whole content read in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/__tests__/ScenesSectionKeyboard.test.tsx",
+      "read": "partial",
+      "reason": "Changed hunks only, read in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/__tests__/ScenesSectionOneList.test.tsx",
+      "read": "partial",
+      "reason": "Changed hunks only, read in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/__tests__/ScenesSectionReload.test.tsx",
+      "read": "full",
+      "reason": "New file; whole content read in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/__tests__/ScenesSectionRequests.test.tsx",
+      "read": "partial",
+      "reason": "Changed hunk only, read in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/__tests__/ScenesSectionRows.test.ts",
+      "read": "full",
+      "reason": "Deleted file; content read in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/__tests__/ScenesSectionRulerButtons.test.tsx",
+      "read": "full",
+      "reason": "New file; whole content read in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/__tests__/ScenesSectionRulerMap.test.tsx",
+      "read": "full",
+      "reason": "New file; whole content read in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/__tests__/ScenesSectionScrollList.test.tsx",
+      "read": "full",
+      "reason": "New file; whole content read in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/__tests__/ScenesSectionSeek.test.tsx",
+      "read": "partial",
+      "reason": "Changed hunks only, read in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/__tests__/ScenesSectionTimeline.test.tsx",
+      "read": "partial",
+      "reason": "Changed hunks only, read in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/__tests__/ScenesSectionVisualIndex.test.tsx",
+      "read": "partial",
+      "reason": "Changed hunk only, read in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/__tests__/ScenesSectionWidth.test.tsx",
+      "read": "partial",
+      "reason": "Changed hunks only, read in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/__tests__/scrollListLayout.tsx",
+      "read": "full",
+      "reason": "New file; whole content read in the diff."
+    }
+  ]
+}
