@@ -71,14 +71,7 @@ While a note is open, `Cmd/Ctrl+K` opens search limited to this drive's notes. T
 
 - **Home** has the shelves **Unread**, **Recently opened** and **Unverified**. Without a [profile](profile-preferences.md), **Unread** becomes **New clips** and **Recently opened** is not drawn. **Recently opened** does not follow the Target. A shelf with nothing in it is not drawn. **See all** beside a shelf opens that shelf as a page of its own, with a link back to Home or the Library.
 - **Unverified** lists clips that are not yet a trusted source, one row each. **Mark as verified** on a row marks that clip as a trusted source, the same as **Trust as a source** on its file page, and the row leaves the shelf. If it cannot be saved, **Couldn't save** appears beside the button and you can press it again.
-- **Library** has two filters, **タグ** / **Tag** and **状態** / **State**, then two menus,
-  **分類** / **Group By** and **並び順** / **Sort By**. **タグ** lists the tags of the clips
-  you can see right now, with how many carry each; type in its search field to narrow the
-  list, and choose several to see only clips that carry all of them. **状態** is **すべて** /
-  **All**, **未確認** / **Unverified** or **確認済み** / **Verified**. The filters stay in the
-  page's address while you move between the Library and its shelf pages, and are cleared
-  by the **Home** and **Library** tabs and by choosing another Target. When nothing matches,
-  the page says **条件に合う項目はありません** / **Nothing matches these filters**.
+- **Library** has two menus, **分類** / **Group By** then **並び順** / **Sort By**.
   **分類** is **タグ** / **Tag** (one shelf per tag, the most used first, **タグなし** /
   **Untagged** last), **フォルダ** / **Folder** (one shelf per folder, titled by the
   folder's last segment, the drive name at the root), **追加日** / **Date Added** (one shelf

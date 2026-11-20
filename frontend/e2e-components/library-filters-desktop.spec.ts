@@ -68,33 +68,3 @@ for (const app of ["video", "reading"] as const) {
     }
   }
 }
-
-for (const locale of ["en", "ja"] as const) {
-  for (const width of WIDTHS) {
-    test(`SPEC-ADDON-151 I8 clips ${locale} at ${width}px: Tag and State, a 20px gap, then Group By and Sort By on one row`, async ({
-      page,
-    }) => {
-      await page.setViewportSize({ width, height: 900 });
-      const q = new URLSearchParams({
-        run: String(++navigation),
-        locale,
-        q: "view=all&group=tags&sort=newest&tag=research&trust=unverified",
-      });
-      await page.goto(`${FIXTURE}?${q}#clips-page`);
-      await expect(page.locator("body")).toHaveAttribute("data-arrangement", "clips-page");
-      const m = menus(page, locale);
-
-      const tag = await box(m.tag);
-      const state = await box(m.state);
-      const group = await box(m.group);
-      const sort = await box(m.sort);
-
-      for (const other of [state, group, sort]) expect(Math.abs(tag.y - other.y)).toBeLessThanOrEqual(1);
-      expect(tag.x + tag.width).toBeLessThanOrEqual(state.x);
-      expect(Math.abs(group.x - (state.x + state.width) - 20), "20px between the groups").toBeLessThanOrEqual(1);
-      expect(group.x + group.width).toBeLessThanOrEqual(sort.x);
-      const o = await pageOverflow(page);
-      expect(o.scrollWidth).toBeLessThanOrEqual(o.clientWidth);
-    });
-  }
-}

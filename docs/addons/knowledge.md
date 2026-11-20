@@ -182,14 +182,6 @@ or `month:` shelf page fills in `sort` the same way, and its back link is
 `sort` (`updated`, `title` or `created`) for the same reason; its rail segment is not a URL
 parameter, and `folder` or `tag` in the URL selects an entry and implies the segment.
 
-The Library's filters are in the URL too: `tag` (repeated; a clip must carry every one)
-and `trust` (`unverified` or `verified`). A filter change replaces the URL without a
-history entry. Every grouping, every `tag:`, `untagged`, `folder:` and `month:` shelf page
-and that page's back link carry them; Home and its shelf kinds (`unread`, `recent`, `new`,
-`unverified`) ignore them. The Home and Library tab links carry none, a Target choice drops
-them, and any other `trust` value is removed from the URL by replace. The tag menu's
-candidates come from the core `tag-counts` route under every condition in force.
-
 ### Covers and sites
 
 The cover and site of a card are read from the start of each clip (the first 4096 bytes); nothing is stored.
