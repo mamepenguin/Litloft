@@ -79,8 +79,12 @@ toast, 元に戻す, removal and restore of the card, the visit's removal set), 
 
 **`FileContextMenu` callbacks (SPEC-CORE-157).** `FileContextMenu` gains three optional
 props, `onTrashed(file)`, `onRenamed(file)`, `onMoved(file)`. Each is called exactly once
-after its request succeeds, before `onUpdate`, and never when it fails. A caller that
-passes none behaves as today. The addon depends on them, so the core PR lands first.
+after its request succeeds, before `onUpdate`, and never when it fails. It also gains one
+optional gate, `beforeChange(run)`: when given, confirming the rename, move or trash dialog
+calls it instead of sending the request, and the request is sent only when it calls `run`;
+until then the dialog stays open, and the page does not change. A caller that passes none
+of the four behaves as today. The addon uses `FileContextMenu` with them (it keeps no menu
+of its own), so the core PR lands first.
 
 The menu and its dialogs are held by the list (or the page), not by each card, so a dialog
 stays open and completes against its file if the card behind it leaves the list meanwhile.
@@ -190,7 +194,7 @@ need a profile and are not offered without one.
 
 ### 7. Effect on existing features
 
-- `FileContextMenu`: three new optional callbacks; callers that pass none (Home, the file
+- `FileContextMenu`: three new optional callbacks and one optional gate; callers that pass none (Home, the file
   list, Inbox, the folder tree, search) render and behave as today.
   `useFileMenuItems`, `ContextMenu`, `useContextMenu` are used unchanged.
 - `VideoCard`: gains an opt-in way to attach the file menu. Used without it, it renders
@@ -241,7 +245,8 @@ As in section 2. Toasts are the existing ones (`couldNotRemoveFromContinue`,
 
 Core (SPEC-CORE-157):
 
-- `frontend/src/components/FileContextMenu.tsx` (the three optional callbacks).
+- `frontend/src/components/FileContextMenu.tsx` (the three optional callbacks and the
+  optional `beforeChange` gate).
 - `frontend/src/components/videoapp/VideoApp.tsx`, `VideoCard.tsx`, `DiscoverFace.tsx`,
   `LibraryFace.tsx`, `VideoPagedGrid.tsx`, `VideoShelfPage.tsx`, `useProviderShelfPage.ts`,
   `useRemovableItems.ts`, `discoverCache.ts`, `useDiscover.ts`, `useVideoApp.ts`.
@@ -292,7 +297,7 @@ I4. In a flat list paged by page number or offset, pages loaded after a removal 
 I5. After a successful 名前を変更 or 移動 every card for that id stays at its position and, once the latest re-read (`by=all`, `ids=[id]`, no Target filter) answers with the item, draws it with the drawn progress kept when the answer has none; an older re-read's answer, a failed or empty re-read change nothing and show no toast; no other row changes the page.
 I6. A failed rename, move, trash, set-aside or history removal leaves the page unchanged; a failed 続きから外す shows `couldNotRemoveFromContinue`, a failed 履歴から削除 closes the menu with no toast; a dialog stays open and completes against its file when its card leaves the list meanwhile.
 I7. On Video's Discover an id trashed through the menu is absent from every provider answer stored later under any of the page's cache keys in the JS session, and a Recommended 元に戻す does not draw it again; 続きから外す and 履歴から削除 leave that removal set unchanged; a menu removal offers no 元に戻す; a Recommended action otherwise keeps its pending state, undo and removal set exactly as SPEC-CORE-150 states.
-I8. `FileContextMenu` calls each of `onTrashed`, `onRenamed` and `onMoved` exactly once after its request succeeds, before `onUpdate`, and never on failure; `VideoCard` and `FileContextMenu` used without the new opt-in or callbacks, and `useFileMenuItems`, `ContextMenu` and `useContextMenu`, render the same DOM and behave as before.
+I8. `FileContextMenu` calls each of `onTrashed`, `onRenamed` and `onMoved` exactly once after its request succeeds, before `onUpdate`, and never on failure; with `beforeChange` it sends a rename, move or trash request only after `beforeChange` calls `run`, and never when it does not; `VideoCard` and `FileContextMenu` used without the new opt-in, callbacks or gate, and `useFileMenuItems`, `ContextMenu` and `useContextMenu`, render the same DOM and behave as before.
 I9. A page change after an action or re-read is applied only to lists still held for the same drive, Target and profile (Video Discover: and visit); an answer arriving after a change of any of them changes nothing.
 I10. In the Notes Library, 名前を変更, 移動 and ゴミ箱に移動 on the note shown in the pane are sent only after the pane's change gate passes (the server holds the editor's latest text, or the viewer confirmed discarding), and not at all when it is cancelled; after the trash the URL has no `note`, after a rename or move the pane shows the note with its new name and folder. 続きから外す writes only through `POST /api/files/{id}/progress/dismiss` and 履歴から削除 only through `DELETE /api/files/{id}/progress`, each only on the viewer's choice in the menu.
 
