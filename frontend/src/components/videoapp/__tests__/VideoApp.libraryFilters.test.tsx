@@ -526,6 +526,20 @@ describe("SPEC-CORE-147 I5 where the filters live", () => {
     expectFiltersOff();
   });
 
+  it("SPEC-CORE-147 I5 opening the app on another drive without its Library still empties them", async () => {
+    const { unmount, VideoApp, prefs } = await filtered();
+    unmount();
+
+    prefs.writeAppPrefs("other", { face: "discover" });
+    const other = render(<VideoApp drive="other" />);
+    await act(async () => {});
+    other.unmount();
+
+    render(<VideoApp drive={DRIVE} />);
+    await screen.findByText("folder card");
+    expectFiltersOff();
+  });
+
   it("SPEC-CORE-147 I5 choosing another Target empties them", async () => {
     getSmartFolders.mockResolvedValue([smartFolder("sf-movies", "Trips", "path:Movies")]);
     await filtered();

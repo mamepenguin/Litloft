@@ -133,6 +133,7 @@ function TagRows({
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             aria-label={t("searchTags")}
+            placeholder={t("searchTags")}
             className="min-w-0 flex-1 bg-transparent text-sm text-text-primary outline-none placeholder:text-text-muted"
           />
         </div>

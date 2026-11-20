@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { useProfile } from "@/components/ProfileProvider";
 import { useLoad, type LoadState } from "@/components/appshell/useLoad";
-import { resetLibraryFilters } from "@/components/appshell/libraryFilters";
+import { readLibraryFilters, resetLibraryFilters } from "@/components/appshell/libraryFilters";
 import { useMemberTarget } from "@/components/appshell/useMemberTarget";
 import { ApiStatusError, getCollections, getSmartFolders } from "@/lib/api";
 import { collectionTargetId, parseAppTargetId } from "@/lib/appTarget";
@@ -265,6 +265,10 @@ export function useReadingApp(drive: string): ReadingAppState {
     },
     [drive, targetId],
   );
+
+  useEffect(() => {
+    readLibraryFilters("reading", drive);
+  }, [drive]);
 
   const rejectViewer = useCallback(() => setRejectedFor(nickname), [nickname]);
   const chooseTarget = useCallback(

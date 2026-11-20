@@ -11,7 +11,7 @@
  */
 
 import type { ComponentType } from "react";
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const DRIVE = "main";
@@ -379,6 +379,20 @@ describe("SPEC-CORE-147 I5 where Reading's filters live", () => {
     const other = render(<ReadingApp drive="other" />);
     await screen.findByText("Flat one");
     expectFiltersOff();
+    other.unmount();
+
+    render(<ReadingApp drive={DRIVE} />);
+    await screen.findByText("Flat one");
+    expectFiltersOff();
+  });
+
+  it("SPEC-CORE-147 I5 opening the app on another drive without its Library still empties them", async () => {
+    const { unmount, ReadingApp, prefs } = await filtered();
+    unmount();
+
+    prefs.writeAppPrefs("other", { face: "discover" }, "reading");
+    const other = render(<ReadingApp drive="other" />);
+    await act(async () => {});
     other.unmount();
 
     render(<ReadingApp drive={DRIVE} />);

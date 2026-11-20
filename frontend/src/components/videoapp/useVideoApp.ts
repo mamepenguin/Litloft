@@ -36,7 +36,7 @@ import {
 import type { CollectionSummary } from "@/types";
 import type { SmartFolder } from "@/types/smartFolder";
 import { useLoad, type LoadState } from "@/components/appshell/useLoad";
-import { resetLibraryFilters } from "@/components/appshell/libraryFilters";
+import { readLibraryFilters, resetLibraryFilters } from "@/components/appshell/libraryFilters";
 import { useMemberTarget } from "@/components/appshell/useMemberTarget";
 
 export const VIEWER_REQUIRED = "viewer_required";
@@ -264,6 +264,10 @@ export function useVideoApp(drive: string): VideoAppState {
     },
     [drive, targetId],
   );
+
+  useEffect(() => {
+    readLibraryFilters("video", drive);
+  }, [drive]);
 
   const rejectViewer = useCallback(() => setRejectedFor(nickname), [nickname]);
   const chooseTarget = useCallback(
