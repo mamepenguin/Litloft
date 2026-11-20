@@ -7,6 +7,7 @@ import {
 
 interface SpreadsheetHandle {
   xs?: { sheet?: { reload?: () => void; focusing?: boolean } };
+  observer?: MutationObserver | null;
 }
 
 /**
@@ -26,6 +27,30 @@ export async function drawExcel(
   const { default: previewExcel } = await import("@js-preview/excel");
   const instance = previewExcel.init(container, { showContextmenu: false });
   const spreadsheet = instance as unknown as SpreadsheetHandle;
+
+  // The library's own observer makes the grid's inputs read-only and then
+  // blurs `document.activeElement` wherever it is, 200 ms after any change in
+  // the grid; a resize therefore took focus from the find field beside it.
+  // This one does the same job and blurs only an element inside the grid.
+  spreadsheet.observer?.disconnect();
+  let lockQueued = false;
+  const lockInputs = () => {
+    lockQueued = false;
+    for (const input of container.querySelectorAll("input")) {
+      input.readOnly = true;
+    }
+    const focused = document.activeElement;
+    if (focused instanceof HTMLElement && container.contains(focused)) {
+      focused.blur();
+    }
+  };
+  const inputLock = new MutationObserver(() => {
+    if (lockQueued) return;
+    lockQueued = true;
+    requestAnimationFrame(lockInputs);
+  });
+  inputLock.observe(container, { attributes: true, childList: true, subtree: true });
+  lockInputs();
 
   let active = false;
   let drawn = false;
@@ -60,6 +85,7 @@ export async function drawExcel(
     if (disposed) return;
     disposed = true;
     observer?.disconnect();
+    inputLock.disconnect();
     container.removeEventListener("click", onClickInside);
     document.removeEventListener("focusin", onFocusIn);
     setOfficeGridFocusProbe(null);
