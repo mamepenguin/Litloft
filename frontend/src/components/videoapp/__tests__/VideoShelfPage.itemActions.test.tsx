@@ -56,6 +56,17 @@ vi.mock("@/addons/intelligence/slots.ts", () => ({
 vi.mock("@/addons/media_import/slots.ts", () => ({ slotComponents: {}, slotProviders: {}, slotPageProviders: {} }));
 vi.mock("@/addons/knowledge/slots.ts", () => ({ slotComponents: {} }));
 
+vi.mock("@/components/ClipboardProvider", () => ({
+  useClipboard: () => ({
+    clipboard: null,
+    copy: vi.fn(),
+    cut: vi.fn(),
+    paste: vi.fn(),
+    clear: vi.fn(),
+    isCut: () => false,
+  }),
+}));
+
 vi.mock("next/navigation", () => ({
   usePathname: () => "/drive/main/apps/video/shelf",
   useSearchParams: () => new URLSearchParams(),
@@ -227,6 +238,52 @@ describe("SPEC-CORE-150 item actions on the Recommended See all page", () => {
       await settle();
       expect(drawn()).toEqual([title("r1"), title("r2")]);
       expect(screen.getByText(FAILED).closest('[role="alert"]')).not.toBeNull();
+    },
+  );
+});
+
+describe("SPEC-CORE-157 the Recommended See all page's card menu", () => {
+  const FILE_ROWS = ["Open in new tab", "Download", "Add to collection", "Copy", "Cut", "Copy ID", "Rename", "Move", "Move to Trash"];
+
+  function sequence(): string[] {
+    const menu = screen.queryByRole("menu");
+    if (!menu) return [];
+    return [...menu.querySelectorAll('[role="menuitem"], [role="separator"]')].map((el) =>
+      el.getAttribute("role") === "separator" ? "---" : el.textContent?.trim() ?? "",
+    );
+  }
+
+  async function rightClick(id: string) {
+    const text = screen.getByText(title(id));
+    await act(async () => {
+      fireEvent.contextMenu((text.closest("a") as HTMLElement | null) ?? text);
+    });
+    await settle();
+  }
+
+  it.runIf(intelligenceLinked)(
+    "SPEC-CORE-157 I1 SPEC-CORE-150 I7 as revised a card opens the actions, one divider, then the file menu",
+    async () => {
+      intelActions.pickup = () => [{ id: "x", label: ACTION, run: async () => ({ message: MESSAGE }) }];
+      await openPage(["r1", "r2"]);
+
+      await rightClick("r1");
+
+      const rows = sequence();
+      expect(rows.slice(0, 2)).toEqual([ACTION, "---"]);
+      expect(rows.slice(2).filter((r) => r !== "---")).toEqual(FILE_ROWS);
+    },
+  );
+
+  it.runIf(intelligenceLinked)(
+    "SPEC-CORE-157 I1 without valid actions a card opens the file menu with no action rows",
+    async () => {
+      await openPage(["r1", "r2"]);
+
+      await rightClick("r1");
+
+      expect(sequence()[0]).toBe("Open in new tab");
+      expect(sequence().filter((r) => r !== "---")).toEqual(FILE_ROWS);
     },
   );
 });
