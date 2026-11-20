@@ -1255,18 +1255,32 @@ class SmartFolderResponse(_UtcDateTimeMixin, BaseModel):
     model_config = {"from_attributes": True}
 
 
+_APP_KEY_PATTERN = r"^[a-z0-9][a-z0-9_-]*(/[a-z0-9][a-z0-9_-]*)?$"
+
+
 class HomeShortcutResponse(BaseModel):
-    kind: Literal["smart_folder", "pin", "collection"]
+    kind: Literal["smart_folder", "pin", "collection", "app_target"]
     id: str
     name: str
     query: str | None
     file_type: str | None
+    app: str | None
 
 
 class HomeShortcutUpdate(BaseModel):
-    kind: Literal["smart_folder", "pin", "collection"]
+    kind: Literal["smart_folder", "pin", "collection", "app_target"]
     id: str
     on_home: bool
+    app: str | None = Field(default=None, max_length=64, pattern=_APP_KEY_PATTERN)
+
+    @model_validator(mode="after")
+    def _app_matches_kind(self):
+        if self.kind == "app_target":
+            if self.app is None:
+                raise ValueError("app is required for kind 'app_target'")
+        elif self.app is not None:
+            raise ValueError("app is only allowed for kind 'app_target'")
+        return self
 
 
 class ExifResponse(BaseModel):
