@@ -25,6 +25,11 @@ export interface SendToken {
   nickname: string;
 }
 
+export interface WatchedRegistration {
+  fileId: string;
+  nickname: string | null;
+}
+
 type Listener = () => void;
 
 interface Entry {
@@ -36,8 +41,10 @@ interface Entry {
   /** The (file, nickname) the in-flight or applied read belongs to. */
   readFor: string | null;
   version: number;
+  jumpAvailable: boolean;
   listeners: Set<Listener>;
   skipListeners: Set<Listener>;
+  jumpListeners: Set<Listener>;
 }
 
 const entries = new Map<MediaController, Entry>();
@@ -53,8 +60,10 @@ function ensure(mc: MediaController): Entry {
     segmentSeconds: DEFAULT_SEGMENT_SECONDS,
     readFor: null,
     version: 0,
+    jumpAvailable: false,
     listeners: new Set(),
     skipListeners: new Set(),
+    jumpListeners: new Set(),
   };
   entries.set(mc, created);
   return created;
@@ -133,7 +142,12 @@ function sumTotals(entry: Entry): Map<number, number> {
 }
 
 function dropEntryIfUnused(mc: MediaController, entry: Entry): void {
-  if (entry.fileId === null && entry.listeners.size === 0 && entry.skipListeners.size === 0) {
+  if (
+    entry.fileId === null &&
+    entry.listeners.size === 0 &&
+    entry.skipListeners.size === 0 &&
+    entry.jumpListeners.size === 0
+  ) {
     entries.delete(mc);
   }
 }
@@ -156,6 +170,7 @@ export const watchedRangesStore = {
     entry.sentTotals = new Map();
     entry.segmentSeconds = DEFAULT_SEGMENT_SECONDS;
     entry.readFor = null;
+    entry.jumpAvailable = false;
     entry.version += 1;
     notify(entry);
     maybeRead(entry);
@@ -170,6 +185,7 @@ export const watchedRangesStore = {
     entry.sentTotals = new Map();
     entry.segmentSeconds = DEFAULT_SEGMENT_SECONDS;
     entry.readFor = null;
+    entry.jumpAvailable = false;
     entry.version += 1;
     notify(entry);
     dropEntryIfUnused(mc, entry);
@@ -242,6 +258,40 @@ export const watchedRangesStore = {
     entry.skipListeners.add(listener);
     return () => {
       entry.skipListeners.delete(listener);
+      dropEntryIfUnused(mc, entry);
+    };
+  },
+
+  /** The file and viewer the host last registered for this controller. */
+  registration(mc: MediaController): WatchedRegistration | null {
+    const entry = entries.get(mc);
+    if (!entry || entry.fileId === null) return null;
+    return { fileId: entry.fileId, nickname: entry.nickname };
+  },
+
+  /** What the mounted `MediaControls` last published for this controller. */
+  jumpAvailable(mc: MediaController): boolean {
+    return entries.get(mc)?.jumpAvailable ?? false;
+  },
+
+  publishJumpAvailable(mc: MediaController, available: boolean): void {
+    const entry = entries.get(mc);
+    if (entry) entry.jumpAvailable = available;
+  },
+
+  requestJump(mc: MediaController): void {
+    const entry = entries.get(mc);
+    if (!entry) return;
+    for (const listener of [...entry.jumpListeners]) {
+      if (entry.jumpListeners.has(listener)) listener();
+    }
+  },
+
+  subscribeJump(mc: MediaController, listener: Listener): () => void {
+    const entry = ensure(mc);
+    entry.jumpListeners.add(listener);
+    return () => {
+      entry.jumpListeners.delete(listener);
       dropEntryIfUnused(mc, entry);
     };
   },

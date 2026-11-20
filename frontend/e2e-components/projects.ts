@@ -53,6 +53,7 @@ export const DESKTOP_ONLY = [
   "**/clips-view-menus-desktop.spec.ts",
   "**/pdf-toolbar-row-desktop.spec.ts",
   "**/watched-band-desktop.spec.ts",
+  "**/peak-jump-desktop.spec.ts",
 ];
 
 /** Literals rather than a device preset, which can change under it. */

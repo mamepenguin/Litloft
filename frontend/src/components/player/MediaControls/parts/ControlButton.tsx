@@ -28,6 +28,7 @@ export interface ControlButtonProps {
   disabled?: boolean;
   size?: ControlButtonSize;
   className?: string;
+  title?: string;
   children: ReactNode;
 }
 
@@ -37,6 +38,7 @@ export function ControlButton({
   disabled = false,
   size = "bar",
   className = "",
+  title,
   children,
 }: ControlButtonProps) {
   return (
@@ -44,6 +46,7 @@ export function ControlButton({
       type="button"
       className={`${BASE_CLASS} ${SIZE_CLASS[size]} ${className}`}
       aria-label={label}
+      title={title}
       disabled={disabled}
       onClick={onClick}
     >

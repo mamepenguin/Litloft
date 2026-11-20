@@ -1063,7 +1063,8 @@ exception. Full-screen image and archive viewers follow the same rules.
 - **Transient gesture feedback**: a half-disc `bg-white/15`, icon plus label,
   fading, `aria-hidden` — the same operation must also be a real button or
   shortcut.
-- **Transient state pills**: `bg-black/70 rounded-2xl`, top centre.
+- **Transient state pills**: `bg-black/70 rounded-2xl`, top centre. They share
+  that spot and stack, the long-press speed pill above the jump label.
 - **Player settings are one panel** (`bg-black/85`) inside the frame: a bottom
   sheet on touch, a `w-64 rounded-2xl` popover on mouse. No bare native controls
   in the bar.

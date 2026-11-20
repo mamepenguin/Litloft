@@ -101,6 +101,7 @@ import {
 } from "./fileHeaderRow";
 import { PlayedRangesArrangement } from "./playedRanges";
 import { WatchedBandArrangement, WatchedRangeCardsArrangement } from "./watchedRanges";
+import { PeakJumpArrangement } from "./peakJump";
 import { TextResumeArrangement } from "./textResume";
 import { HomeAppEntriesArrangement } from "./homeAppEntries";
 import { DiscoverPrefixArrangement } from "./discoverPrefix";
@@ -2833,6 +2834,7 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "played-ranges": PlayedRangesArrangement,
   "watched-band": WatchedBandArrangement,
   "watched-range-cards": WatchedRangeCardsArrangement,
+  "peak-jump": PeakJumpArrangement,
   "text-resume": TextResumeArrangement,
   "home-app-entries": HomeAppEntriesArrangement,
   "clips-page": ClipsPageArrangement,

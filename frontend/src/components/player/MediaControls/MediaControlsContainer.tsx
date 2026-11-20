@@ -3,6 +3,7 @@
 import {
   useCallback,
   useEffect,
+  useRef,
   useState,
   type ReactNode,
   type RefObject,
@@ -12,13 +13,17 @@ import { CompactControlsPresenter } from "./CompactControlsPresenter";
 import { PointerControlsPresenter } from "./PointerControlsPresenter";
 import { TouchControlsPresenter } from "./TouchControlsPresenter";
 import { GestureOverlay } from "./GestureOverlay";
-import { pickControlsLayout } from "./layout";
+import { JUMP_BUTTON_MIN_WIDTH, pickControlsLayout } from "./layout";
 import { useMediaControlsState } from "./hooks/useMediaControlsState";
 import { usePlaybackRatePreference } from "./hooks/usePlaybackRatePreference";
 import { useCaptionsPreference } from "./hooks/useCaptionsPreference";
 import { BOOST_RATE, usePlayerGestures } from "./hooks/usePlayerGestures";
 import { usePointerMode } from "../hooks/usePointerMode";
 import { useWatchedPieces, watchedRangesStore } from "@/lib/watchedRangesStore";
+import { useMostWatchedSpots, useWatchedRegistration } from "@/lib/mostWatched";
+
+/** How long the jump label stays after a press. */
+const MOST_WATCHED_LABEL_MS = 2000;
 
 export interface MediaControlsContainerProps {
   mc: MediaController | null;
@@ -78,6 +83,25 @@ export default function MediaControlsContainer({
   const [nativeFullscreen, setNativeFullscreen] = useState(false);
   const [frameWidth, setFrameWidth] = useState<number | null>(null);
   const watchedPieces = useWatchedPieces(mc, state.duration);
+  const spots = useMostWatchedSpots(mc, state.duration);
+  const registration = useWatchedRegistration(mc);
+  const registrationKey = registration
+    ? `${registration.fileId}\u0000${registration.nickname ?? ""}`
+    : "";
+  const jumpAvailable =
+    mc !== null &&
+    registration?.nickname != null &&
+    state.duration > 0 &&
+    !state.interrupted &&
+    interactive &&
+    spots.length > 0;
+  const [mostWatched, setMostWatched] = useState<{
+    key: string;
+    index: number;
+    count: number;
+  } | null>(null);
+  const rememberedRef = useRef<{ key: string; start: number } | null>(null);
+  const labelTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const {
     revealControls,
@@ -96,6 +120,34 @@ export default function MediaControlsContainer({
     if (!mc) return;
     return watchedRangesStore.subscribeSkip(mc, noteSkip);
   }, [mc, noteSkip]);
+
+  // The remembered spot belongs to one file and one viewer; the label
+  // goes with it, because it names a position in that file's order.
+  useEffect(() => {
+    rememberedRef.current = null;
+    setMostWatched(null);
+    if (labelTimerRef.current) {
+      clearTimeout(labelTimerRef.current);
+      labelTimerRef.current = null;
+    }
+  }, [registrationKey]);
+
+  useEffect(() => {
+    if (!jumpAvailable) setMostWatched(null);
+  }, [jumpAvailable]);
+
+  useEffect(() => {
+    if (!mc) return;
+    watchedRangesStore.publishJumpAvailable(mc, jumpAvailable);
+    return () => watchedRangesStore.publishJumpAvailable(mc, false);
+  }, [mc, jumpAvailable]);
+
+  useEffect(
+    () => () => {
+      if (labelTimerRef.current) clearTimeout(labelTimerRef.current);
+    },
+    [],
+  );
 
   // Guarded because a controller can outlive its player by a moment:
   // whoever owns the frame may tear the backend down in the same commit
@@ -263,6 +315,39 @@ export default function MediaControlsContainer({
     onBoostingChange?.(boosting);
   }, [boosting, onBoostingChange]);
 
+  const handleJump = useCallback(() => {
+    if (!mc || spots.length === 0) return;
+    const remembered = rememberedRef.current;
+    const at =
+      remembered && remembered.key === registrationKey
+        ? spots.findIndex((spot) => spot.start === remembered.start)
+        : -1;
+    const index = at === -1 ? 0 : (at + 1) % spots.length;
+    const spot = spots[index];
+    try {
+      mc.seek(spot.start);
+    } catch {
+      // A seek the player refuses leaves the order and the label alone.
+      return;
+    }
+    rememberedRef.current = { key: registrationKey, start: spot.start };
+    setMostWatched({ key: registrationKey, index: index + 1, count: spots.length });
+    if (labelTimerRef.current) clearTimeout(labelTimerRef.current);
+    labelTimerRef.current = setTimeout(() => {
+      labelTimerRef.current = null;
+      setMostWatched(null);
+    }, MOST_WATCHED_LABEL_MS);
+    // The button and the gesture overlay are different surfaces, as for
+    // the play button: a tap beside it must not complete a double tap.
+    resetTapSequence();
+    watchedRangesStore.reportSkip(mc);
+  }, [mc, spots, resetTapSequence, registrationKey]);
+
+  useEffect(() => {
+    if (!mc) return;
+    return watchedRangesStore.subscribeJump(mc, handleJump);
+  }, [mc, handleJump]);
+
   const layout = pickControlsLayout(pointerMode, frameWidth);
 
   // The compact layout draws no settings sheet, so a sheet left open
@@ -280,6 +365,15 @@ export default function MediaControlsContainer({
     pointer: PointerControlsPresenter,
   }[layout];
 
+  const showJump =
+    jumpAvailable &&
+    layout !== "compact" &&
+    (layout === "touch" || (frameWidth ?? 0) >= JUMP_BUTTON_MIN_WIDTH);
+  const jumpLabel =
+    jumpAvailable && mostWatched?.key === registrationKey
+      ? { index: mostWatched.index, count: mostWatched.count }
+      : null;
+
   return (
     <>
       <GestureOverlay
@@ -287,6 +381,7 @@ export default function MediaControlsContainer({
         skip={gestures.skip}
         boosting={boosting}
         boostRate={BOOST_RATE}
+        mostWatched={jumpLabel}
         handlers={gestures.handlers}
       />
       <Presenter
@@ -311,6 +406,8 @@ export default function MediaControlsContainer({
         backendOwnsFrame={!interactive}
         onTogglePlay={handleTogglePlayFromControls}
         onSkip={handleSkip}
+        showJump={showJump}
+        onJump={handleJump}
         onScrubStart={state.beginScrub}
         onScrubChange={state.updateScrub}
         onScrubEnd={state.endScrub}
