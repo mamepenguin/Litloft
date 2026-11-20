@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: D-1 to D-11 of design-check.md accepted by the human (2026-11-21). D-1 to D-4 and D-6 to D-9 are the shipped cards, shelves, header, tab underline and empty-state text, which the artboards drew loosely and this change does not touch; D-10 is the existing header Target row and quiet sort menu, with the field placed as drawn; D-5 is the artboard's inconsistency, and the spec's strong border while the field holds text stands; D-11 records that no artboard draws Clips at 390.
 ran_in_app: yes
 at: d2012b837ad8a8bb81bcf9e8e0b648c0c556a598
 by: agent
