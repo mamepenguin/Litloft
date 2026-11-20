@@ -106,7 +106,10 @@ export function NameFilter({
   useEffect(() => {
     if (scopeKey === previousScopeRef.current) return;
     previousScopeRef.current = scopeKey;
+    if (timerRef.current === null) return;
     cancel();
+    setDraft(previousValueRef.current);
+    draftRef.current = previousValueRef.current;
   }, [scopeKey]);
 
   useEffect(() => {

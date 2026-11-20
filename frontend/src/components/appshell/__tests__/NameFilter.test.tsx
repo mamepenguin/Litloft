@@ -461,6 +461,18 @@ describe("SPEC-CORE-156 I13 a pending apply on unmount and on a scope change", (
     expect(onLeavePending).not.toHaveBeenCalled();
   });
 
+  it("SPEC-CORE-156 I13 a scopeKey change that drops a pending apply shows the name in force", async () => {
+    const view = await mount({ value: "web", scopeKey: "all|" });
+
+    type("webzz");
+    advance(100);
+    view.update({ scopeKey: "shelf|tag:trip" });
+    advance(1000);
+
+    expect(onApply).not.toHaveBeenCalled();
+    expect(input()).toHaveValue("web");
+  });
+
   it("SPEC-CORE-156 I13 an unchanged scopeKey keeps the pending apply", async () => {
     const view = await mount({ value: "", scopeKey: "all|" });
     fireEvent.click(icon());
