@@ -1,0 +1,180 @@
+{
+  "risk": "HIGH",
+  "score": 7,
+  "base": 3,
+  "zone_max": "MEDIUM",
+  "modifiers": [],
+  "promotions": [],
+  "zones_touched": [
+    {
+      "path": "addons/knowledge",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "docs/ADDON-DEVELOPMENT.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/addons/knowledge.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/INDEX.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/app-library-name-filter.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/user-guide/notes.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/user-guide/reading.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/user-guide/video.md",
+      "level": "LOW"
+    },
+    {
+      "path": "frontend/e2e-components/app-header.spec.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/name-filter-desktop.spec.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/name-filter.measure.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/name-filter.spec.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/projects.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/spec-viewport.spec.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/__tests__/appTargetParam.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/__tests__/ime-enter-guard.test.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/__tests__/nameFilterMemberTarget.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/__tests__/nameFilterRetention.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/app/drive/[name]/apps/reading/shelf/page.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/app/drive/[name]/apps/video/shelf/page.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/PageTabs.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/PageTabs.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/seeAllNameFilter.listing.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/seeAllNameFilter.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/appshell/AppTabs.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/appshell/NameFilter.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/appshell/__tests__/NameFilter.normalise.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/appshell/__tests__/NameFilter.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/appshell/libraryFilters.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/readingapp/LibraryFace.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/readingapp/ReadingApp.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/readingapp/ReadingShelfPage.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/readingapp/__tests__/ReadingApp.nameFilter.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/readingapp/shelfLinks.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/videoapp/LibraryFace.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/videoapp/VideoApp.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/videoapp/VideoShelfPage.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoApp.nameFilter.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/videoapp/shelfLinks.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/messages-core/en.json",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/messages-core/ja.json",
+      "level": "MEDIUM"
+    }
+  ],
+  "human_zones_touched": [],
+  "protected_paths_touched": [],
+  "docs_only": false,
+  "reasons": [
+    "highest zone MEDIUM (4 points)"
+  ]
+}
