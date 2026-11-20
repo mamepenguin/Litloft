@@ -39,7 +39,9 @@
     "manageTitle": "Shown targets",
     "done": "Done",
     "searchTargets": "Search targets",
-    "seeAllIn": "See all: {name}"
+    "seeAllIn": "See all: {name}",
+    "putOnHome": "Put on Home",
+    "removeFromHome": "Remove from Home"
   },
   "metadata": {
     "description": "Home LAN file management & media streaming"
@@ -90,6 +92,7 @@
   },
   "drive": {
     "appsNav": "Apps",
+    "appShortcutLabel": "{app} · {target}",
     "empty": "No drives found",
     "emptyDescription": "Configure drives.json to add drives.",
     "pickup": "Pickup",
@@ -103,8 +106,6 @@
     "emptyDrive": "No files yet",
     "unlockAccess": "Enter password",
     "couldNotRemoveFromContinue": "Could not remove from Continue",
-    "putOnHome": "Put on Home",
-    "removeFromHome": "Remove from Home",
     "homeShortcutFailed": "Couldn't change the Home entry"
   },
   "folder": {
