@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: ship. Given 2026-11-21 by the supervisor session, which the human named in their own message as speaking for them: "(1) このまま出荷してよいです。(2) D-1〜D-8 はすべて受け入れます。" CR-1 is media_import #47, already merged on the addon side; CR-2 and CR-4 are left as they are, since changing the touch points would need the spec approved again.
 ran_in_app: yes
 at: 718a10627766f047e207b41ebdaf4922edfc3582
 by: agent
