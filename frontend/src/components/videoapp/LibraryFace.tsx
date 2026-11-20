@@ -5,35 +5,28 @@ import { useLocale, useTranslations } from "next-intl";
 
 import { RetryButton } from "@/components/appshell/RetryButton";
 import { ShelfBlock } from "@/components/appshell/ShelfBlock";
+import { GroupMenu, LibraryControlRow, SortMenu } from "@/components/appshell/ViewMenus";
 import { useNearEnd } from "@/components/appshell/useNearEnd";
 import { usePaged } from "@/components/appshell/usePaged";
 import { EmptyState } from "@/components/EmptyState";
 import { type Shelf, type ShelfGrouping } from "@/lib/api";
-import type { AppClassification } from "@/lib/appPrefs";
 import type { AppRequests } from "@/lib/memberTarget";
 import type { VideoTargetParams } from "@/lib/videoAppTarget";
-import { ClassificationMenu, SortChoiceMenu } from "./LibraryControls";
-import { SORT_CHOICES, shelfTitle, type SortChoice } from "./labels";
+import { SORT_CHOICES, VIDEO_GROUPS, shelfTitle, type SortId, type VideoGroup } from "./labels";
 import { videoShelfHref } from "./shelfLinks";
-import { VideoCard } from "./VideoCard";
 import { isViewerRequired } from "./useVideoApp";
+import { VideoCard } from "./VideoCard";
+import { VideoPagedGrid } from "./VideoPagedGrid";
 
 export const LIBRARY_SHELF_ITEMS = 5;
 export const LIBRARY_SHELVES_PER_PAGE = 12;
-
-/** The classification the face draws: Watch state needs a profile, the saved choice stays. */
-export function effectiveClassification(
-  saved: AppClassification,
-  hasProfile: boolean,
-): AppClassification {
-  return saved === "watch" && !hasProfile ? "folder" : saved;
-}
+export const LIBRARY_NONE_PAGE_SIZE = 60;
 
 export function seeAllHref(
   drive: string,
   by: ShelfGrouping,
   key: string,
-  sortId?: SortChoice["id"],
+  sortId?: SortId,
 ): string {
   return videoShelfHref(drive, by, key, sortId, "library");
 }
@@ -43,10 +36,10 @@ export function LibraryFace({
   params,
   requests,
   empty,
-  savedClassification,
+  group,
   hasProfile,
   sortId,
-  onClassification,
+  onGroup,
   onSort,
   onViewerRejected,
 }: {
@@ -54,28 +47,27 @@ export function LibraryFace({
   params: VideoTargetParams | null;
   requests: AppRequests;
   empty: boolean;
-  /** The viewer's saved choice, which may not be offered right now. */
-  savedClassification: AppClassification;
+  group: VideoGroup;
   hasProfile: boolean;
-  sortId: SortChoice["id"];
-  onClassification: (value: AppClassification) => void;
-  onSort: (value: SortChoice["id"]) => void;
+  sortId: SortId;
+  onGroup: (value: VideoGroup) => void;
+  onSort: (value: SortId) => void;
   onViewerRejected: () => void;
 }) {
   const t = useTranslations("videoApp");
   const locale = useLocale();
-  const by = effectiveClassification(savedClassification, hasProfile);
   const sort = SORT_CHOICES.find((choice) => choice.id === sortId) ?? SORT_CHOICES[0];
+  const none = group === "all";
 
-  const fetchPage = useMemo(
+  const fetchGrouped = useMemo(
     () =>
-      params === null
+      params === null || none
         ? null
         : (page: number) =>
             requests
               .shelves(drive, {
                 ...params,
-                by,
+                by: group,
                 sort: sort.sort,
                 order: sort.order,
                 per_shelf: LIBRARY_SHELF_ITEMS,
@@ -89,25 +81,60 @@ export function LibraryFace({
                   throw error;
                 },
               ),
-    [drive, params, requests, by, sort.sort, sort.order, onViewerRejected],
+    [drive, params, requests, none, group, sort.sort, sort.order, onViewerRejected],
   );
-  const shelves = usePaged<Shelf>(fetchPage);
+  const shelves = usePaged<Shelf>(fetchGrouped);
   const sentinel = useNearEnd(shelves.hasMore && shelves.more === "idle", shelves.loadMore);
+
+  const fetchFlat = useMemo(
+    () =>
+      params === null || !none
+        ? null
+        : (page: number) =>
+            requests
+              .shelves(drive, {
+                ...params,
+                by: "all",
+                key: "all",
+                sort: sort.sort,
+                order: sort.order,
+                per_shelf: LIBRARY_NONE_PAGE_SIZE,
+                page,
+              })
+              .then(
+                (response) => {
+                  const shelf = response.shelves[0];
+                  return { items: shelf?.items ?? [], total: shelf?.count ?? 0 };
+                },
+                (error: unknown) => {
+                  if (isViewerRequired(error)) onViewerRejected();
+                  throw error;
+                },
+              ),
+    [drive, params, requests, none, sort.sort, sort.order, onViewerRejected],
+  );
+  const flat = usePaged(fetchFlat);
+
   const number = useMemo(() => new Intl.NumberFormat(locale), [locale]);
+  const groupOptions = VIDEO_GROUPS.filter((candidate) => hasProfile || candidate !== "watch").map(
+    (candidate) => ({ value: candidate, label: t(`classifications.${candidate}`) }),
+  );
+  const sortOptions = SORT_CHOICES.map((choice) => ({
+    value: choice.id,
+    label: t(choice.labelKey),
+  }));
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-2">
-        <ClassificationMenu
-          value={by}
-          offerWatch={hasProfile}
-          onChange={onClassification}
-        />
-        <SortChoiceMenu value={sortId} onChange={onSort} />
-      </div>
+      <LibraryControlRow>
+        <GroupMenu options={groupOptions} value={group} onChange={onGroup} />
+        <SortMenu options={sortOptions} value={sortId} onChange={onSort} />
+      </LibraryControlRow>
 
       <div>
-        {empty || (shelves.phase === "ready" && shelves.items.length === 0) ? (
+        {none ? (
+          <VideoPagedGrid paged={flat} empty={empty} />
+        ) : empty || (shelves.phase === "ready" && shelves.items.length === 0) ? (
           <EmptyState variant="no-files" />
         ) : shelves.phase === "failed" ? (
           <RetryButton onRetry={shelves.retry} />
@@ -115,13 +142,13 @@ export function LibraryFace({
           <>
             <div className="space-y-10">
               {shelves.items.map((shelf) => {
-                const title = shelfTitle({ by, shelf, drive, locale, t: (key) => t(key) });
+                const title = shelfTitle({ by: group, shelf, drive, locale, t: (key) => t(key) });
                 return (
                   <ShelfBlock
                     key={shelf.key}
                     title={title}
                     count={number.format(shelf.count)}
-                    seeAllHref={seeAllHref(drive, by, shelf.key, sortId)}
+                    seeAllHref={seeAllHref(drive, group, shelf.key, sortId)}
                     view={{ status: "loaded", items: shelf.items }}
                     onRetry={shelves.retry}
                     renderItem={(item) => <VideoCard item={item} />}

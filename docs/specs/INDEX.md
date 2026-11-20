@@ -301,5 +301,16 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-144 | implemented | docs/specs/scene-frames-ten-second-fill.md | sha256:b8f691c32fc88fc84869d121b1c2945d83df8d78b4267924e12bca7a92bedda1 |
 | SPEC-ADDON-145 | implemented | docs/specs/scene-frames-ten-second-fill.md | sha256:b8f691c32fc88fc84869d121b1c2945d83df8d78b4267924e12bca7a92bedda1 |
 | SPEC-ADDON-146 | implemented | docs/specs/scene-frames-ten-second-fill.md | sha256:b8f691c32fc88fc84869d121b1c2945d83df8d78b4267924e12bca7a92bedda1 |
+| SPEC-ADDON-149 | implemented | docs/specs/pickup-coverage.md | sha256:d3bc6dc01ac9e71a4db340786e5caa0253003b9847f7f9b2ca20909347013d73 |
+| SPEC-ADDON-150 | implemented | docs/specs/pickup-coverage.md | sha256:d3bc6dc01ac9e71a4db340786e5caa0253003b9847f7f9b2ca20909347013d73 |
+| SPEC-CORE-142 | implemented | docs/specs/pickup-coverage.md | sha256:d3bc6dc01ac9e71a4db340786e5caa0253003b9847f7f9b2ca20909347013d73 |
+| SPEC-CORE-149 | implemented | docs/specs/ci-browser-container.md | sha256:f57295929c9e8a4c02f7e011575865e6ae46bfe6ee148b957e2776667b83d5c2 |
+| SPEC-ADDON-154 | implemented | docs/specs/pickup-not-interested.md | sha256:6a49d17c10729d5ba6fb104c92677e932c6049b6fa2900645273998567da55c2 |
+| SPEC-CORE-150 | implemented | docs/specs/pickup-not-interested.md | sha256:6a49d17c10729d5ba6fb104c92677e932c6049b6fa2900645273998567da55c2 |
+| SPEC-CORE-145 | implemented | docs/specs/app-view-per-target.md | sha256:926ef39f97e4137c1499212982a2f5dab80c44f41cb1cb75ea7c2f65552200d6 |
+| SPEC-CORE-146 | implemented | docs/specs/app-view-per-target.md | sha256:926ef39f97e4137c1499212982a2f5dab80c44f41cb1cb75ea7c2f65552200d6 |
+| SPEC-ADDON-147 | implemented | docs/specs/app-view-per-target.md | sha256:926ef39f97e4137c1499212982a2f5dab80c44f41cb1cb75ea7c2f65552200d6 |
+| SPEC-ADDON-148 | implemented | docs/specs/app-view-per-target.md | sha256:926ef39f97e4137c1499212982a2f5dab80c44f41cb1cb75ea7c2f65552200d6 |
+| SPEC-CORE-151 | implemented | docs/specs/peak-jump.md | sha256:0a67582136afa051544144984d1d172a874727be87bfb69a7c0080c1a4f5fcfc |
 | SPEC-ADDON-152 | implemented | docs/specs/scenes-scroll-list.md | sha256:a36a7442854e2ce379a5d3930f5103bbd5421dc414d28b477267cc31cee4e958 |
 | SPEC-ADDON-153 | implemented | docs/specs/scenes-scroll-list.md | sha256:a36a7442854e2ce379a5d3930f5103bbd5421dc414d28b477267cc31cee4e958 |

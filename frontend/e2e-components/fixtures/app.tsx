@@ -101,6 +101,7 @@ import {
 } from "./fileHeaderRow";
 import { PlayedRangesArrangement } from "./playedRanges";
 import { WatchedBandArrangement, WatchedRangeCardsArrangement } from "./watchedRanges";
+import { PeakJumpArrangement } from "./peakJump";
 import { TextResumeArrangement } from "./textResume";
 import { HomeAppEntriesArrangement } from "./homeAppEntries";
 import { DiscoverPrefixArrangement } from "./discoverPrefix";
@@ -122,6 +123,7 @@ import { READING_ARRANGEMENTS } from "./readingTextSize";
 import { FRAME_CROP_ARRANGEMENTS } from "./frameCrop";
 import { FRAME_OUTLINE_ARRANGEMENTS } from "./frameOutline";
 import { NAME_IN_USE_ARRANGEMENTS } from "./nameInUse";
+import { FILE_MENU_DIVIDER_ARRANGEMENTS } from "./fileMenuDivider";
 import { BATCH_PROGRESS_ARRANGEMENTS } from "./batchProgress";
 import { FOCUS_MODE_ARRANGEMENTS } from "./focusMode";
 import { TRANSCRIPT_TOUCH_ARRANGEMENTS } from "./transcriptTouch";
@@ -2838,6 +2840,7 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "played-ranges": PlayedRangesArrangement,
   "watched-band": WatchedBandArrangement,
   "watched-range-cards": WatchedRangeCardsArrangement,
+  "peak-jump": PeakJumpArrangement,
   "text-resume": TextResumeArrangement,
   "home-app-entries": HomeAppEntriesArrangement,
   "clips-page": ClipsPageArrangement,
@@ -2923,6 +2926,7 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   ...FRAME_CROP_ARRANGEMENTS,
   ...FRAME_OUTLINE_ARRANGEMENTS,
   ...NAME_IN_USE_ARRANGEMENTS,
+  ...FILE_MENU_DIVIDER_ARRANGEMENTS,
   ...BATCH_PROGRESS_ARRANGEMENTS,
   ...FOCUS_MODE_ARRANGEMENTS,
   ...TRANSCRIPT_TOUCH_ARRANGEMENTS,

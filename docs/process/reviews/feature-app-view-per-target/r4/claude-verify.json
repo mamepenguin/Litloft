@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "V1",
+      "origin": "verifier",
+      "claim": "Take a Clips Library whose Target is a member Smart Folder that evaluates to tooLarge or failed. On the commit where that Target first becomes ready as `default`, `switchTo` is still set and the URL is unchanged, so `switchPending` is true. `effectiveParams` therefore strips `group`/`sort`, and `Library` mounts with the `default` Target's stored view and sends a grouped-shelves request with it. The effect then clears `switchTo` without a rewrite. The next render reads the old URL's `group`/`sort`, aborts that request and sends another with the previous Target's values. The first request carries a grouping or sort that is not the one finally shown.",
+      "impact": "An extra Library request goes out with a grouping or sort that is never the one shown, and a loading or wrong-view frame can flash. This is an I8 violation in normal use: picking a member Target that turns out to be too large while on the Library.",
+      "evidence": "useNotesTarget.ts:127,138,162-166: when the member is unusable, the target is `{status:'ready', key:'default'}` and `selectedId` is 'default'. clips.tsx:154: `switchPending` is true while `switchTo.search === search`. clips.tsx:155-163: `group`/`sort` are stripped, so `view` is the `default` Target's resolved view. clips.tsx:254-255,289-303: `bodyDrawn` is true and `Library` renders, because a new `useScopedLoad` scope gives null data (useScopedLoad.ts:33-37), so `targetHasNone` is false. useGroupedShelves.ts:44-66: the request is sent in an effect keyed on the scope, which includes `by` and `sort`. clips.tsx:211-216: `switchSettled` is true because `targetId` ('default') !== `switchTo.id`. The effect only calls `setSwitchTo(null)`, so the next render reads the old URL's `group`/`sort` (clips.tsx:154-163) and the scope changes again.",
+      "repro": "Traced in code, not run. On drive D, on Target P (not `default`), choose group=folder. The URL is ?view=all&group=folder&sort=added_desc. The `default` Target's stored group is tag. Choose a member Smart Folder M that evaluates to tooLarge. While M is evaluated the body is a skeleton. When the evaluation answers, the first committed render mounts GroupShelves with by=tag and sends that request. The next render switches to by=folder from the URL, aborts the first request and sends a second. This happens only when P is not `default` and the URL's view differs from the `default` Target's stored view.",
+      "introduced": "unverified",
+      "bucket_proposal": {
+        "bucket": "A",
+        "invariant_ref": "I8",
+        "reason": "Normal single-user flow; no crafted input needed. I8 forbids any Library body request with a grouping or sort other than the one finally shown after a Target change."
+      },
+      "severity": "LOW",
+      "proposed_fix": "When the switch settles because a different Target came into force, decide which values apply in the same render that first shows that Target, before Library mounts. One way is to compute `switchSettled` for the fallback case during render and stop stripping the URL then. Another is to rewrite the URL to the `default` Target's view, if I13 is revised."
+    }
+  ],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R1",
+      "status": "confirmed",
+      "note": "Reproduced by trace. Next 16.2.1 `router.replace` runs `dispatchNavigateAction` inside `startTransition` (frontend/node_modules/next/dist/client/components/app-router-instance.js:339-341), so the search-param change is a transition. `setSwitchTo(null)` at clips.tsx:220 is an ordinary update and commits first. On that commit `switchPending` is false (clips.tsx:154) and `effectiveParams` keeps the old URL's `group`/`sort` (155-162). `view` is therefore the previous Target's view. `Library` -> `GroupShelves` -> `useGroupShelves` (useGroupedShelves.ts:36,44-66) has a scope that includes `by`/`sort`, so a request goes out with the new Target and the old view. When the transition commits, the scope changes again and a third request goes out. `fillHref` (clips.tsx:256-259) stays null because the old URL is readable. Notes shows the same pattern. The onChoose handler sets `setSwitchingFor(id)` (NotesPage.tsx:165-170), and the effect calls `setSwitchingFor(null)` before `router.replace(...)` (NotesPage.tsx:60-64). After that `ignoreUrlSort` is false (NotesPage.tsx:128), NotesLibrary.tsx:76-78 takes the URL's old `sort`, and `useNotesList` (useNotesList.ts:62, keyed on `sort`) requests with it. The test harness hides this: notesAppHarness.tsx:44-53,64-66,79 applies replace synchronously through `useSyncExternalStore`, so the URL change and the flag change land in one render. This only shows when the previous Target's URL view differs from the new Target's view."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R2",
+      "status": "confirmed",
+      "note": "The code does what the finding states. useNotesTarget.ts:127,138,162-166 put `default` in force (target key 'default', selectedId 'default') when the member evaluates to tooLarge/failed. clips.tsx:211-212 then makes `switchSettled` true because 'default' !== `switchTo.id`. The effect at 213-217 only clears `switchTo` and never rewrites, so the URL keeps the previous Target's `group`/`sort`, and readClipsView shows them (clips.tsx:163; I3 gives the URL precedence). Whether this is a defect depends on the spec. I13's last clause says 'a fallback to `default` ... leave[s] the URL's `group` and `sort` as they were', which appears to require this behaviour. That conflicts with I4 (no view parameter left over from the previous Target) and I6 (the view read is the `default` Target's). A human should resolve which invariant governs. A separate transient request in this path is filed as verifier finding V1."
+    }
+  ],
+  "specification_compliance": [
+    "I8: violated transiently after a Target change in Clips and Notes, because the real router commits replace as a transition after the flag clear (R1). Also violated in the Clips fallback-to-default path (V1).",
+    "I4/I6 vs I13: in the Clips fallback to `default` (R2), the URL keeps the previous Target's `group`/`sort`. I13 appears to require this; I4 and I6 appear to forbid it."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "The spec does not say which view is shown when a chosen Clips Target falls back to `default` while the URL still holds the previous Target's `group`/`sort`. I13 says to leave the URL as it is, which by I3 shows the previous Target's view; I4 and I6 imply the `default` Target's view."
+  ],
+  "regression_risks": [
+    "Any fix that clears the switch flag only after the URL changes must still clear it when the replace targets an identical URL; the Next router treats a same-URL replace as a no-op for search params."
+  ],
+  "test_coverage": [
+    "notesAppHarness.tsx applies router.replace synchronously through useSyncExternalStore. The search-param change and the state updates in the same effect land in one render, so no unit test can observe the intermediate render described in R1.",
+    "No test was found covering a Clips Target switch to a member Target that becomes tooLarge/failed while on the Library (R2/V1). Not exhaustively searched."
+  ],
+  "not_verified": [
+    "The real Next.js commit ordering (transition vs. default-lane update) was traced in source, not observed in a browser.",
+    "Did not check whether an e2e suite exercises Target switching on the Clips or Notes Library with the real router.",
+    "Did not diff against origin/develop, so whether R1/R2/V1 were introduced by this branch is unverified.",
+    "Did not review the Video and Reading apps for the same pattern."
+  ],
+  "confidence": 82
+}

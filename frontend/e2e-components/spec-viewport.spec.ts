@@ -46,6 +46,7 @@ const AT_THE_PHONE_WIDTH = [
   "header-row-crowding.spec.ts",
   "immersive-viewer-layer.spec.ts",
   "chrome-buttons.spec.ts",
+  "file-menu-divider.spec.ts",
   "fixture-origin.spec.ts",
   "frame-crop.spec.ts",
   "page-frame.spec.ts",
@@ -79,7 +80,10 @@ const AT_THE_PHONE_WIDTH = [
   "discover-prefix.spec.ts",
   "video-card-byline.spec.ts",
   "video-card-spacing.spec.ts",
+  "view-menus.spec.ts",
+  "notes-view-menus.spec.ts",
   "clips-primary-action.spec.ts",
+  "clips-view-menus.spec.ts",
   "clips-row.spec.ts",
   "name-in-use.spec.ts",
   "file-header-row.spec.ts",
@@ -89,11 +93,13 @@ const AT_THE_PHONE_WIDTH = [
   "drive-unavailable.spec.ts",
   "transcript-touch.spec.ts",
   "watched-band.spec.ts",
+  "peak-jump.spec.ts",
   "watched-range-cards.spec.ts",
 ] as const;
 
 const AT_THE_DESKTOP_WIDTH = [
   "frame-crop-desktop.spec.ts",
+  "view-menus-desktop.spec.ts",
   "frame-outline-desktop.spec.ts",
   "add-menu-desktop.spec.ts",
   "condition-menu-desktop.spec.ts",
@@ -136,9 +142,12 @@ const AT_THE_DESKTOP_WIDTH = [
   "focus-mode-touch-desktop.spec.ts",
   "document-summary-inspector-desktop.spec.ts",
   "notes-library-desktop.spec.ts",
+  "notes-view-menus-desktop.spec.ts",
   "clips-primary-action-desktop.spec.ts",
+  "clips-view-menus-desktop.spec.ts",
   "pdf-toolbar-row-desktop.spec.ts",
   "watched-band-desktop.spec.ts",
+  "peak-jump-desktop.spec.ts",
 ] as const;
 
 test.describe("the component fixture lays out at the width it was given", () => {

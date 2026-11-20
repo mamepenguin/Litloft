@@ -106,6 +106,7 @@ Also works for YouTube videos imported with the media_import addon.
 | `↓` | Back 60 s |
 | `M` | Mute / unmute |
 | `F` | Full screen |
+| `P` | Jump to the next part you watched most |
 
 Media keys on your keyboard and the lock screen also control playback.
 
@@ -258,6 +259,8 @@ In the question field on a file page's Ask tab and on the Ask page.
 | `Cmd/Ctrl`+click a file | Add or remove it from the selection |
 | Drag a file onto a folder | Move it there |
 | Hold a drag over a closed folder in the tree | Open it, so you can drop inside |
+
+On the video app's **Recommended** cards, right-click or long-press opens a short menu (**Open in new tab**, **Not interested**) instead of the browser's own.
 
 ## Video player gestures
 

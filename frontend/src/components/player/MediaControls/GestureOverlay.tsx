@@ -14,6 +14,8 @@ export interface GestureOverlayProps {
   skip: SkipFeedback | null;
   boosting: boolean;
   boostRate: number;
+  /** Which most-watched spot the last jump went to, while its label shows. */
+  mostWatched?: { index: number; count: number } | null;
   handlers: GestureHandlers;
 }
 
@@ -29,6 +31,7 @@ export function GestureOverlay({
   skip,
   boosting,
   boostRate,
+  mostWatched = null,
   handlers,
 }: GestureOverlayProps) {
   const t = useTranslations("player");
@@ -67,18 +70,35 @@ export function GestureOverlay({
         </div>
       )}
 
-      {interactive && boosting && (
-        <div
-          data-testid="boost-pill"
-          aria-hidden="true"
-          className={[
-            "absolute left-1/2 top-4 flex -translate-x-1/2 items-center gap-1",
-            "rounded-2xl bg-black/70 px-3 py-1.5 text-sm font-medium text-white",
-            "animate-fade-in",
-          ].join(" ")}
-        >
-          <span className="tabular-nums">{t("speedBoost", { rate: boostRate })}</span>
-          <ChevronsRight size={16} />
+      {interactive && (boosting || mostWatched) && (
+        <div className="pointer-events-none absolute left-1/2 top-4 flex -translate-x-1/2 flex-col items-center gap-1">
+          {boosting && (
+            <div
+              data-testid="boost-pill"
+              aria-hidden="true"
+              className={[
+                "flex items-center gap-1",
+                "rounded-2xl bg-black/70 px-3 py-1.5 text-sm font-medium text-white",
+                "animate-fade-in",
+              ].join(" ")}
+            >
+              <span className="tabular-nums">{t("speedBoost", { rate: boostRate })}</span>
+              <ChevronsRight size={16} />
+            </div>
+          )}
+
+          {mostWatched && (
+            <div
+              role="status"
+              aria-live="polite"
+              className={[
+                "rounded-2xl bg-black/70 px-3 py-1.5 text-sm font-medium text-white",
+                "tabular-nums animate-fade-in",
+              ].join(" ")}
+            >
+              {t("mostWatchedPosition", mostWatched)}
+            </div>
+          )}
         </div>
       )}
     </div>

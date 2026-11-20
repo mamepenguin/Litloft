@@ -26,6 +26,8 @@
     "loadFailed": "Failed to load: {error}",
     "working": "Working",
     "wholeListFailed": "Could not complete. Please try again.",
+    "undo": "Undo",
+    "saveFailed": "Couldn't save the change",
     "discardUnsaved": {
       "title": "Unsaved changes",
       "message": "This file has unsaved edits. Navigating away may discard them.",
@@ -568,6 +570,8 @@
     "seek": "Seek",
     "skipBack10": "Back 10 seconds",
     "skipForward10": "Forward 10 seconds",
+    "jumpToMostWatched": "Jump to most watched",
+    "mostWatchedPosition": "Most watched {index} / {count}",
     "adBreak": "Ad",
     "speedBoost": "Playing at {rate}x",
     "skipSeconds": "{seconds}s",
@@ -1180,6 +1184,7 @@
     "seekForward10": "+10 sec",
     "seekForward60": "+60 sec",
     "seekBack60": "−60 sec",
+    "jumpToMostWatched": "Jump to most watched",
     "mute": "Toggle mute",
     "fullscreen": "Toggle fullscreen",
     "prevImage": "Previous image",
@@ -1451,6 +1456,10 @@
     "browseUp": "Up one level",
     "suggestions": "Suggestions"
   },
+  "appView": {
+    "groupBy": "Group By",
+    "sortBy": "Sort By"
+  },
   "videoApp": {
     "title": "Video",
     "tabsLabel": "Video views",
@@ -1461,13 +1470,13 @@
     "allVideos": "All videos",
     "targetUnavailable": "Not available as a target",
     "targetUnusable": "This target cannot be used",
-    "classification": "Classification",
     "classifications": {
       "folder": "Folder",
       "tag": "Tag",
-      "month": "Month added",
+      "month": "Date Added",
       "duration": "Length",
-      "watch": "Watch state"
+      "watch": "Watch State",
+      "all": "None"
     },
     "shelves": {
       "continue": "Continue",
@@ -1486,10 +1495,10 @@
       "30m_plus": "30 min or more"
     },
     "sort": {
-      "label": "Sort",
-      "lastOpened": "Last opened",
-      "addedNewest": "Added (newest first)",
-      "addedOldest": "Added (oldest first)",
+      "label": "Sort By",
+      "lastOpened": "Date Last Opened",
+      "addedNewest": "Date Added (Newest First)",
+      "addedOldest": "Date Added (Oldest First)",
       "title": "Title",
       "size": "Size"
     },
@@ -1516,9 +1525,10 @@
     },
     "all": "All",
     "group": {
-      "label": "Group",
-      "none": "None",
-      "byTag": "By tag"
+      "tag": "Tag",
+      "folder": "Folder",
+      "month": "Date Added",
+      "none": "None"
     },
     "state": {
       "label": "State",
@@ -1532,10 +1542,10 @@
     "noTags": "No tags",
     "noTag": "No tag",
     "sort": {
-      "label": "Sort",
-      "lastOpened": "Last opened",
-      "addedNewest": "Added (newest first)",
-      "addedOldest": "Added (oldest first)",
+      "label": "Sort By",
+      "lastOpened": "Date Last Opened",
+      "addedNewest": "Date Added (Newest First)",
+      "addedOldest": "Date Added (Oldest First)",
       "title": "Title",
       "size": "Size"
     },

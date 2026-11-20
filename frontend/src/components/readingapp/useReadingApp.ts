@@ -9,12 +9,20 @@ import { ApiStatusError, getCollections, getSmartFolders } from "@/lib/api";
 import { collectionTargetId, parseAppTargetId } from "@/lib/appTarget";
 import {
   readAppPrefs,
-  readReadingGroup,
+  readLegacyGroup,
+  readTargetView,
   writeAppPrefs,
-  writeReadingGroup,
+  writeTargetView,
   type AppPrefs,
-  type ReadingGroup,
+  type TargetView,
 } from "@/lib/appPrefs";
+import {
+  DEFAULT_READING_GROUP,
+  isReadingGroup,
+  isSortId,
+  type ReadingGroup,
+  type SortId,
+} from "./labels";
 import { appRequests, type AppRequests, type MemberTarget } from "@/lib/memberTarget";
 import {
   readingMemberParams,
@@ -37,8 +45,10 @@ export interface ReadingAppState {
   /** `null` until the stored values are read, so no request goes out for a default. */
   prefs: AppPrefs | null;
   updatePrefs: (changes: Partial<AppPrefs>) => void;
-  group: ReadingGroup;
+  /** The grouping and the sort in force for the target shown. */
+  view: { group: ReadingGroup; sort: SortId };
   setGroup: (group: ReadingGroup) => void;
+  setSort: (sort: SortId) => void;
   /** The profile exists and the server has not turned it away. */
   hasProfile: boolean;
   /** Call when a request answered `viewer_required`. */
@@ -81,29 +91,33 @@ interface Resolution {
   member: MemberTarget | null;
 }
 
+interface ChosenView {
+  drive: string;
+  targetId: string;
+  view: TargetView;
+}
+
+function pickReadingGroup(held: string | undefined, legacy: string | null): ReadingGroup {
+  if (isReadingGroup(held)) return held;
+  if (isReadingGroup(legacy)) return legacy;
+  return DEFAULT_READING_GROUP;
+}
+
 export function useReadingApp(drive: string): ReadingAppState {
   const { nickname } = useProfile();
   const [prefs, setPrefs] = useState<AppPrefs | null>(null);
-  const [group, setGroupState] = useState<ReadingGroup>("none");
+  const [chosen, setChosen] = useState<ChosenView | null>(null);
   const [rejectedFor, setRejectedFor] = useState<string | null>(null);
 
   useEffect(() => {
     setPrefs(readAppPrefs(drive, "reading"));
-    setGroupState(readReadingGroup(drive));
+    setChosen(null);
   }, [drive]);
 
   const updatePrefs = useCallback(
     (changes: Partial<AppPrefs>) => {
       writeAppPrefs(drive, changes, "reading");
       setPrefs((held) => (held ? { ...held, ...changes } : held));
-    },
-    [drive],
-  );
-
-  const setGroup = useCallback(
-    (next: ReadingGroup) => {
-      writeReadingGroup(drive, next);
-      setGroupState(next);
     },
     [drive],
   );
@@ -201,14 +215,72 @@ export function useReadingApp(drive: string): ReadingAppState {
   const targetName = resolved.collection?.name ?? resolved.folder?.name ?? null;
 
   const hasProfile = nickname !== null && rejectedFor !== nickname;
+
+  const storedView = useMemo(
+    () => readTargetView("reading", drive, targetId),
+    [drive, targetId],
+  );
+  const view = useMemo(() => {
+    const held =
+      chosen !== null && chosen.drive === drive && chosen.targetId === targetId
+        ? { ...storedView, ...chosen.view }
+        : storedView;
+    const legacy = targetId === "default" ? readLegacyGroup(drive, "reading") : null;
+    return {
+      group: pickReadingGroup(held.group, legacy),
+      sort: isSortId(held.sort) ? held.sort : "newest",
+    };
+  }, [chosen, drive, targetId, storedView]);
+
+  const setGroup = useCallback(
+    (group: ReadingGroup) => {
+      writeTargetView("reading", drive, targetId, { group });
+      setChosen((held) => ({
+        drive,
+        targetId,
+        view: {
+          ...(held !== null && held.drive === drive && held.targetId === targetId
+            ? held.view
+            : {}),
+          group,
+        },
+      }));
+    },
+    [drive, targetId],
+  );
+  const setSort = useCallback(
+    (sort: SortId) => {
+      writeTargetView("reading", drive, targetId, { sort });
+      setChosen((held) => ({
+        drive,
+        targetId,
+        view: {
+          ...(held !== null && held.drive === drive && held.targetId === targetId
+            ? held.view
+            : {}),
+          sort,
+        },
+      }));
+    },
+    [drive, targetId],
+  );
+
   const rejectViewer = useCallback(() => setRejectedFor(nickname), [nickname]);
-  const chooseTarget = useCallback((id: string) => updatePrefs({ target: id }), [updatePrefs]);
+  const chooseTarget = useCallback(
+    (id: string) => {
+      if (id === targetId) return;
+      setChosen(null);
+      updatePrefs({ target: id });
+    },
+    [targetId, updatePrefs],
+  );
 
   return {
     prefs,
     updatePrefs,
-    group,
+    view,
     setGroup,
+    setSort,
     hasProfile,
     rejectViewer,
     smartFolders,

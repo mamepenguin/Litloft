@@ -1,0 +1,8 @@
+addons/intelligence/app/pickup/evaluate.py
+addons/intelligence/app/pickup/profile.py
+addons/intelligence/app/routers/pickup.py
+addons/intelligence/app/workers/pickup.py
+addons/intelligence/frontend/messages/en.json
+addons/intelligence/frontend/messages/ja.json
+frontend/src/components/videoapp/useDiscover.ts
+frontend/src/components/videoapp/useProviderShelfPage.ts

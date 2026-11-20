@@ -71,8 +71,6 @@ describe("the shared toolbar menu has one home", () => {
   it("is imported by the callers that exist", () => {
     expect(menuImporters().map((i) => i.file)).toEqual([
       "addons/intelligence/frontend/RegenerateWithMenu.tsx",
-      "addons/knowledge/frontend/clipsapp/Library.tsx",
-      "addons/knowledge/frontend/library/LibraryList.tsx",
       "addons/knowledge/frontend/library/LibraryRail.tsx",
       "frontend/src/components/OverflowMenu.tsx",
       "frontend/src/components/PdfPreview.tsx",
@@ -84,6 +82,7 @@ describe("the shared toolbar menu has one home", () => {
       "frontend/src/components/__tests__/readingVideoLayoutFixtureParity.test.tsx",
       "frontend/src/components/__tests__/toolbarMenuFixtureParity.test.tsx",
       "frontend/src/components/appshell/TargetMenu.tsx",
+      "frontend/src/components/appshell/ViewMenus.tsx",
       "frontend/src/components/archive/ArchiveToolbar.tsx",
       "frontend/src/components/archive/ArchiveToolbar.tsx",
       "frontend/src/components/folder/FilterMenu.tsx",

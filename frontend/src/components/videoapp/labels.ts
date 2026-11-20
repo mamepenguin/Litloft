@@ -1,6 +1,16 @@
 import type { ShelfGrouping, Shelf } from "@/lib/api";
+import { formatMonth } from "@/lib/formatMonth";
 
 type Translate = (key: string) => string;
+
+export const VIDEO_GROUPS = ["folder", "tag", "month", "duration", "watch", "all"] as const;
+export type VideoGroup = (typeof VIDEO_GROUPS)[number];
+
+export const DEFAULT_VIDEO_GROUP: VideoGroup = "folder";
+
+export function isVideoGroup(value: string | null | undefined): value is VideoGroup {
+  return VIDEO_GROUPS.some((group) => group === value);
+}
 
 /**
  * Fixed shelves and the shelves the server leaves unlabelled get their text
@@ -34,17 +44,6 @@ export function shelfTitle({
   return t(`watch.${shelf.key}`);
 }
 
-function formatMonth(yearMonth: string, locale: string): string {
-  const match = /^(\d{4})-(\d{2})$/.exec(yearMonth);
-  if (!match) return yearMonth;
-  const date = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, 1));
-  return new Intl.DateTimeFormat(locale, {
-    year: "numeric",
-    month: "short",
-    timeZone: "UTC",
-  }).format(date);
-}
-
 export interface SortChoice {
   id: "newest" | "oldest" | "title" | "size";
   labelKey: string;
@@ -58,6 +57,16 @@ export const SORT_CHOICES: readonly SortChoice[] = [
   { id: "title", labelKey: "sort.title", sort: "title", order: "asc" },
   { id: "size", labelKey: "sort.size", sort: "file_size", order: "desc" },
 ];
+
+export type SortId = SortChoice["id"];
+
+export function isSortId(value: string | null | undefined): value is SortId {
+  return SORT_CHOICES.some((choice) => choice.id === value);
+}
+
+export function sortChoiceOf(id: SortId): SortChoice {
+  return SORT_CHOICES.find((choice) => choice.id === id) ?? SORT_CHOICES[0];
+}
 
 export function parseSortId(raw: string | null): SortChoice["id"] | null {
   return SORT_CHOICES.find((choice) => choice.id === raw)?.id ?? null;

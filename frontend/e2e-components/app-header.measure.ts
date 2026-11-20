@@ -63,7 +63,7 @@ export function targetButton(page: Page) {
 }
 
 export function sortButton(page: Page) {
-  return page.locator("header").getByRole("button", { name: /^Sort: / });
+  return page.locator("header").getByRole("button", { name: /^(Sort By|並び順): / });
 }
 
 export type Box = { left: number; right: number; top: number; bottom: number; width: number; height: number };
@@ -151,7 +151,7 @@ export async function snapshot(
       /^(Target|対象): /.test(b.getAttribute("aria-label") ?? ""),
     )!;
     const sort = Array.from(header.querySelectorAll("button")).find((b) =>
-      /^Sort: /.test(b.getAttribute("aria-label") ?? ""),
+      /^(Sort By|並び順): /.test(b.getAttribute("aria-label") ?? ""),
     );
     const tabs = header.querySelector('[role="tablist"]');
     const icon = h1.closest("header")!.querySelector(".lucide-film, .lucide-book-open");

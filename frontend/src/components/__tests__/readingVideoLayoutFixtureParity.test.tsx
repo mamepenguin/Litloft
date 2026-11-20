@@ -102,7 +102,7 @@ const SHAPES: Record<string, Markup> = JSON.parse(
   )![1],
 );
 
-const SHAPE_COUNT = 15;
+const SHAPE_COUNT = 14;
 
 const SOURCES = [
   "AppTabs",
@@ -272,18 +272,18 @@ async function renderShape(name: string): Promise<Element> {
       if (name === "readingChipSelected") return chips.children[0];
       if (name === "readingChipIdle") return chips.children[1];
       if (name === "readingControls") {
-        const tag = screen.getByRole("button", { name: /^Tag/ });
-        return tag.parentElement!.parentElement!;
+        const group = screen.getByRole("button", { name: /^Group By/ });
+        return group.parentElement!.parentElement!;
       }
       return container;
     }
 
     case "VideoLibraryFace": {
       render(<VideoApp drive={DRIVE} />);
-      const classification = await screen.findByRole("button", {
-        name: /^Classification/,
+      const group = await screen.findByRole("button", {
+        name: /^Group By/,
       });
-      return classification.parentElement!.parentElement!;
+      return group.parentElement!.parentElement!;
     }
 
     case "AppTabs": {
@@ -313,7 +313,8 @@ async function renderShape(name: string): Promise<Element> {
           icon={Tag}
           showLabel
           filled={filled}
-          className={name === "menuButtonFilledEnd" ? "min-w-0 ml-auto" : "min-w-0"}
+          fullWidth={name === "menuButton"}
+          className="min-w-0"
         >
           {() => null}
         </ToolbarMenu>,

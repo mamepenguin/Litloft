@@ -1,0 +1,1 @@
+{"v":3,"createdOnFiles":{"v":1,"at":"2026-11-19T15:00:00Z"},"title":"興味なし","launch":{"view":"canvas"},"pages":[],"boards":{"Main.dc.html":{"x":0,"y":0,"w":880,"h":480,"title":"ホームのピックアップ行（ピックアップページも同じメニュー）"},"VideoApp.dc.html":{"x":960,"y":0,"w":880,"h":480,"title":"動画アプリの「おすすめ」（一覧ページも同じ。長押しでも同じメニュー）"}},"order":["Main.dc.html","VideoApp.dc.html"],"notes":{},"designSystems":[]}

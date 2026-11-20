@@ -3,7 +3,8 @@
  * `page` picks the page; `drive` names the drive; `key` names a shelf page's shelf, which
  * is its title; `target=long`, `target=camera` or `target=trips` makes a smart folder of
  * that name the saved target; `locale` picks the messages; `targets=both` lists two Smart
- * Collections and two collections, one of each with a long name.
+ * Collections and two collections, one of each with a long name; `face=library` opens the
+ * app on its Library, whose shelves then hold one item each.
  */
 
 import { useEffect, type ReactElement } from "react";
@@ -69,13 +70,41 @@ function folder(drive: string, key: TargetKey) {
 
 let installed = false;
 
-function install(drive: string, page: string, target: TargetKey | null, bothKinds: boolean): void {
+function libraryItem(drive: string, by: string) {
+  return {
+    id: `item-${by}`,
+    filename: "Item.mp4",
+    title: "Item",
+    description: "",
+    drive,
+    folder_path: "",
+    file_type: "video",
+    mime_type: "video/mp4",
+    thumbnail_url: "",
+    has_thumbnail: false,
+    file_size: 1,
+    duration: 60,
+    image_width: null,
+    image_height: null,
+    liked_at: null,
+    is_favorite: false,
+    tags: [],
+    subtitles: [],
+    deleted_at: null,
+    missing_since: null,
+    trust_tier: "verified",
+    trust_reviewed_at: null,
+    created_at: "2026-01-01T00:00:00Z",
+    updated_at: "2026-01-01T00:00:00Z",
+  };
+}
+
+function install(drive: string, page: string, target: TargetKey | null, bothKinds: boolean, library: boolean): void {
   if (installed) return;
   installed = true;
-  if (target) {
-    const app = page.startsWith("reading") ? "reading" : "video";
-    writeAppPrefs(drive, { target: FOLDERS[target].id }, app);
-  }
+  const app = page.startsWith("reading") ? "reading" : "video";
+  if (target) writeAppPrefs(drive, { target: FOLDERS[target].id }, app);
+  if (library) writeAppPrefs(drive, { face: "library" }, app);
   window.fetch = (input: RequestInfo | URL) => {
     const raw = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
     const url = new URL(raw, "http://fixture.invalid");
@@ -89,6 +118,11 @@ function install(drive: string, page: string, target: TargetKey | null, bothKind
     if (url.pathname.endsWith("/collections")) return json([]);
     if (url.pathname.endsWith("/files")) {
       return json({ data: [], meta: { total: APP_HEADER_COUNT, page: 1, limit: 1 } });
+    }
+    if (url.pathname.endsWith("/shelves") && library) {
+      const by = url.searchParams.get("by") ?? "";
+      const key = by === "all" ? "all" : "Shelf";
+      return json({ by, base: "", total_shelves: 1, shelves: [{ key, label: key, count: 1, items: [libraryItem(drive, by)] }] });
     }
     if (url.pathname.endsWith("/shelves")) {
       return json({ by: url.searchParams.get("by") ?? "", base: "", total_shelves: 0, shelves: [] });
@@ -134,6 +168,7 @@ export function AppHeaderArrangement(): ReactElement {
     page,
     target === "long" || target === "camera" || target === "trips" || target === "summer" ? target : null,
     q.get("targets") === "both",
+    q.get("face") === "library",
   );
 
   useEffect(() => {

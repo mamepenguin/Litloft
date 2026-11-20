@@ -3,6 +3,7 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import type { FileItem, FileItemWithMatch } from "@/types";
 import { useContextMenu } from "@/hooks/useContextMenu";
+import type { ExtraMenuItems } from "@/hooks/useFileMenuItems";
 import { useJustifiedFlip } from "@/hooks/useJustifiedFlip";
 import { useJustifiedHold } from "@/hooks/useJustifiedHold";
 import { cardGridTemplate, useCardColumns } from "@/lib/cardGrid";
@@ -27,6 +28,7 @@ export function FileGrid({
   draggedIds,
   onDragStart,
   onDragEnd,
+  extraMenuItems,
 }: {
   files: FileItemWithMatch[];
   /** Whether a later page may still be appended to `files`. */
@@ -50,6 +52,8 @@ export function FileGrid({
   draggedIds?: ReadonlySet<string>;
   onDragStart?: (e: React.DragEvent, fileId: string) => void;
   onDragEnd?: () => void;
+  /** Rows a caller draws above the shared file menu's own rows. */
+  extraMenuItems?: ExtraMenuItems;
 }) {
   const { menuState, close, handlers } = useContextMenu();
   const [target, setTarget] = useState<FileItem | null>(null);
@@ -136,6 +140,7 @@ export function FileGrid({
           target={target}
           onClose={close}
           onUpdate={onRefresh}
+          extraMenuItems={extraMenuItems}
         />
       </>
     );
@@ -168,6 +173,7 @@ export function FileGrid({
         target={target}
         onClose={close}
         onUpdate={onRefresh}
+        extraMenuItems={extraMenuItems}
       />
     </>
   );

@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { BookOpen } from "lucide-react";
 import { useTranslations } from "next-intl";
 
@@ -11,7 +10,6 @@ import { ShelfBlock } from "@/components/appshell/ShelfBlock";
 import { PageFrame } from "@/components/PageFrame";
 import { DiscoverFace } from "./DiscoverFace";
 import { LibraryFace } from "./LibraryFace";
-import type { SortChoice } from "./labels";
 import { ReadingAppHeader } from "./ReadingAppHeader";
 import { useDiscover } from "./useDiscover";
 import { useReadingApp } from "./useReadingApp";
@@ -21,7 +19,6 @@ const PANEL_ID = "reading-app-panel";
 export function ReadingApp({ drive }: { drive: string }) {
   const t = useTranslations("readingApp");
   const state = useReadingApp(drive);
-  const [sortId, setSortId] = useState<SortChoice["id"]>("newest");
   const face = state.prefs?.face;
 
   const discover = useDiscover({
@@ -72,10 +69,10 @@ export function ReadingApp({ drive }: { drive: string }) {
             requests={state.requests}
             empty={state.empty}
             hasProfile={state.hasProfile}
-            group={state.group}
-            sortId={sortId}
+            group={state.view.group}
+            sortId={state.view.sort}
             onGroup={state.setGroup}
-            onSort={setSortId}
+            onSort={state.setSort}
             onViewerRejected={state.rejectViewer}
           />
         ) : (

@@ -161,10 +161,10 @@ function Face({ face }: { face: string }): ReactElement {
           params={{ type: ["video"] }}
           requests={appRequests(null, null)}
           empty={false}
-          savedClassification="folder"
+          group="folder"
           hasProfile
           sortId="newest"
-          onClassification={noop}
+          onGroup={noop}
           onSort={noop}
           onViewerRejected={noop}
         />

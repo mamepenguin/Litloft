@@ -1,6 +1,16 @@
 import type { ShelfGrouping } from "@/lib/api";
+import { formatMonth } from "@/lib/formatMonth";
 
 type Translate = (key: string) => string;
+
+export const READING_GROUPS = ["tag", "folder", "month", "none"] as const;
+export type ReadingGroup = (typeof READING_GROUPS)[number];
+
+export const DEFAULT_READING_GROUP: ReadingGroup = "none";
+
+export function isReadingGroup(value: string | null | undefined): value is ReadingGroup {
+  return READING_GROUPS.some((group) => group === value);
+}
 
 export interface SortChoice {
   id: "newest" | "oldest" | "title" | "size";
@@ -15,6 +25,12 @@ export const SORT_CHOICES: readonly SortChoice[] = [
   { id: "title", labelKey: "sort.title", sort: "title", order: "asc" },
   { id: "size", labelKey: "sort.size", sort: "file_size", order: "desc" },
 ];
+
+export type SortId = SortChoice["id"];
+
+export function isSortId(value: string | null | undefined): value is SortId {
+  return SORT_CHOICES.some((choice) => choice.id === value);
+}
 
 export function parseSortId(raw: string | null): SortChoice["id"] | null {
   return SORT_CHOICES.find((choice) => choice.id === raw)?.id ?? null;
@@ -58,25 +74,28 @@ export function bookFormat(item: { mime_type: string; filename: string }): BookF
 }
 
 /**
- * Fixed shelves carry client text; a tag shelf is named by its tag, and a
- * folder shelf by its last path segment.
+ * Fixed shelves carry client text; a tag shelf is named by its tag, a folder
+ * shelf by its last path segment, and a month shelf by its year and month.
  */
 export function shelfTitle({
   by,
   key,
   drive,
+  locale,
   from,
   t,
 }: {
   by: ShelfGrouping;
   key: string;
   drive: string;
+  locale: string;
   from?: string | null;
   t: Translate;
 }): string {
   if (by === "all") return from === "discover" ? t("shelves.new") : t("allBooks");
   if (by === "folder") return folderLabel(key, drive);
   if (by === "tag") return key === "no_tag" ? t("noTag") : key;
+  if (by === "month") return formatMonth(key, locale);
   if (by === "watch") return t(`shelves.${key}`);
   return key;
 }

@@ -837,7 +837,7 @@ trustReviewedAt, onFileChange }` plus what its row lists.
 | `header-actions` | App header | `{ drive }` |
 | `active-summary-view` | File detail, with the summaries | `{ fileId, drive, summaryNote }`. Drawn only when `GET /api/addons/knowledge/file_active_summary/{id}/note` reports an active summary; without an entry the core draws the note itself |
 | `drive-home-sections` | Drive home, between **Continue** and **Recently Viewed** | `{ drive }` |
-| `video-discover-recommended` | Video app, **Discover** face, the **Recommended** shelf | A provider slot; see [Frontend slot providers](#frontend-slot-providers). The first entry by `priority` whose `slotProviders` has a function under its `id` supplies Recommended. Called only with a profile; its `restrict` adds `watch=unwatched`. **See all** opens the core page `/drive/{drive}/apps/video/shelf?entry={id}&slot=recommended` when that entry also has a page provider (below), and is absent otherwise |
+| `video-discover-recommended` | Video app, **Discover** face, the **Recommended** shelf | A provider slot; see [Frontend slot providers](#frontend-slot-providers). The first entry by `priority` whose `slotProviders` has a function under its `id` supplies Recommended. Called only with a profile; its `restrict` narrows to the target only and adds no watch condition, so the provider decides which videos the viewer has watched. **See all** opens the core page `/drive/{drive}/apps/video/shelf?entry={id}&slot=recommended` when that entry also has a page provider (below), and is absent otherwise |
 | `video-discover-shelves` | Video app, **Discover** face, one shelf per entry between Recommended and New | A provider slot, with or without a profile. Each entry's provider supplies one shelf, in `priority` order. `i18n_key` (or `label`) titles it. **See all** opens the core page `/drive/{drive}/apps/video/shelf?entry={id}` when the entry has a page provider (below), otherwise the entry's `href` relative to `/drive/{drive}/`, and is absent when it has neither |
 | `sidebar-sections` | Sidebar, end of the library section | No props |
 | `dashboard-widgets` | Admin dashboard (`/admin`) | No props. Cards |
@@ -1260,12 +1260,97 @@ that addon's `slots.ts` → `slotPageProviders[entry.id]`. For
 `video-discover-shelves` it is consulted on Discover and by the core page. For
 `video-discover-recommended` it is consulted only by the core page that **See
 all** opens, `/drive/{drive}/apps/video/shelf?entry={id}&slot=recommended`,
-which asks with the same target and `watch=unwatched` restrict as Discover;
-Discover itself never calls it. A list provider receives no `locale`. On
+which asks with the same target-only restrict as Discover, without a watch
+condition; Discover itself never calls it. A list provider receives no `locale`. On
 Discover a page provider is called with `cursor: null` and `limit: 12`, and its
 cursor is not followed. The entry's **See all** opens the core page; a module
 that fails to import counts as having no page provider, and for
 `video-discover-shelves` the list provider is tried next.
+
+### Item actions on Recommended cards
+
+A `video-discover-recommended` entry may attach actions to the cards the video
+app draws for it, on Discover's **Recommended** shelf and on its **See all** page.
+Export `slotItemActions` beside `slotProviders`, keyed by the entry id:
+
+```typescript
+// addons/{name}/frontend/slots.ts
+import { Ban } from "lucide-react";
+import { markNotInterested, clearNotInterested } from "./api";
+
+export const slotItemActions = {
+  pickup: ({ drive, locale, t }) => [
+    {
+      id: "not-interested",
+      label: t("myAddon.notInterested"),
+      icon: Ban,
+      run: async (fileId) => {
+        await markNotInterested(drive, fileId, locale);
+        return {
+          message: t("myAddon.removed"),
+          undo: () => clearNotInterested(drive, fileId),
+        };
+      },
+    },
+  ],
+};
+```
+
+A factory is `({ drive, locale, t }) => ShelfItemAction[]`:
+
+| Argument | Meaning |
+|---|---|
+| `drive` | The drive the cards belong to |
+| `locale` | The viewer's UI locale, e.g. `"ja"` |
+| `t` | The core's translator over the merged catalogue, so the addon's own keys resolve |
+
+An action is `{ id, label, icon?, run }`. `label` is drawn as given. `icon` is a
+component drawn at 14px; omit it and the row keeps an empty 14px slot.
+`run(fileId)` must resolve with `{ message, undo? }`:
+
+- A string `message` is shown in the core's success toast, with an Undo action
+  when `undo` is a function. On that resolution the card leaves the shelf at
+  once.
+- `undo()` is called when the viewer chooses Undo. The card returns only when it
+  resolves, at the position it left; a rejection shows the core's save-failed
+  toast and leaves the card removed.
+- A rejection, or a resolution without a string `message`, leaves the card where
+  it is and shows the core's save-failed toast.
+
+The core reads item actions only for `video-discover-recommended` entries, and
+only with a profile set. The card gets a right-click / 500 ms long-press menu of
+「新しいタブで開く」 followed by the actions; a factory that is missing, throws or
+returns anything but an array gives the card no menu, so the browser's own menu
+is left alone. Within the array, an element without a string `id` and `label` or
+a function `run`, and a repeated `id`, is dropped on its own.
+
+### Leading rows in the shared file menu
+
+An addon that draws `CarouselSection` or `FileGrid` (either layout) passes
+`extraMenuItems(file)` to put its own rows above the shared file menu's rows:
+
+```tsx
+<CarouselSection
+  title={t("pickup")}
+  files={files}
+  loading={loading}
+  extraMenuItems={(file) => [
+    {
+      id: "not-interested",
+      label: t("notInterested"),
+      icon: Ban,
+      onSelect: () => markNotInterested(file.id),
+      disabled: pending.has(file.id),
+    },
+  ]}
+/>
+```
+
+A row is `{ id, label, icon, onSelect, disabled? }`. The rows come first, then one
+divider, then the menu's own rows. The core only invokes `onSelect`; it does not
+await it, catch it, or show a toast for it, so the addon owns the pending state,
+the toast and the failure. Without `extraMenuItems` the menu draws exactly its
+own rows and no divider.
 
 ### Registering a `.loft` player
 
@@ -1444,6 +1529,9 @@ const targetProps: TargetMenuProps = {
 | `AppHeader`, `AppHeaderProps` | `@/components/appshell/AppHeader` |
 | `TargetMenuProps` | `@/components/appshell/TargetMenu` |
 | `AppKey`, `readAppTarget`, `writeAppTarget` | `@/lib/appPrefs` |
+| `readTargetView`, `writeTargetView`, `readLegacyGroup`, `TargetView` | `@/lib/appPrefs` |
+| `GroupMenu`, `SortMenu`, `LibraryControlRow`, `ViewMenuOption` | `@/components/appshell/ViewMenus` |
+| `formatMonth`, `isMonthKey` | `@/lib/formatMonth` |
 | `resolveAppTarget`, `resolveCollectionTarget`, `parseAppTargetId`, `collectionTargetId`, `AppTarget`, `AppTargetParams` | `@/lib/appTarget` |
 | `useLoad`, `LoadState` | `@/components/appshell/useLoad` |
 | `getSmartFolders`, `getCollections` | `@/lib/api` |
@@ -1493,6 +1581,31 @@ choice. Both use the keys below, with `<d>` = `encodeURIComponent(drive)`:
 - The saved id is not checked against the drive's folders. Fall back to the
   default target when the folder is gone or unusable and keep the saved id, as
   the built-in apps do.
+
+### Remembering the view per Target
+
+An app that has a grouping and a sort keeps them per Target with the same store the
+built-in apps use. `readTargetView(app, drive, targetId)` answers `{ group?, sort? }`,
+and `writeTargetView(app, drive, targetId, change)` merges one field into that Target's
+entry and leaves every other entry alone. Both use one JSON object from target id to
+view, under `litloft.<app>.view.<encodeURIComponent(drive)>` — or
+`litloft.addon.<name>.view.<d>` for an addon. The target id is the one in force, not the
+saved one: a saved Target that is gone or unusable reads and writes `default` while the
+saved id stays stored. A key that cannot be parsed reads as `{}`, and the next write
+replaces it with an object holding only the new entry.
+
+Resolve the view in this order: a URL parameter where the page has one; the Target's
+stored value if the app offers it in the current state; only for the default Target, the
+app's old per-drive grouping from `readLegacyGroup(drive, app)` (read only, never
+written); then the app's default. Keep the value chosen in this mount beside the stored
+one so a failed write still shows the choice, and clear it on a drive or Target change.
+Resolve it synchronously, before the page's first listing request.
+
+`GroupMenu`, `SortMenu` and `LibraryControlRow` describe the shared controls: the menu
+labels come from the `appView.groupBy` / `appView.sortBy` keys in the merged messages,
+and each app passes its own options as `{ value, label }`. `SortMenu` takes `showLabel`,
+default true. `formatMonth(key, locale)` formats a `YYYY-MM` month shelf title, and
+`isMonthKey(key)` validates one.
 
 ### Resolving the chosen folder
 
@@ -1790,6 +1903,7 @@ Adding a slot, a prop, a field or an endpoint is not breaking and gets no row.
 
 | Date | What changed | What an addon does instead |
 |---|---|---|
+| 2026-11-19 | Recommended's `restrict` no longer carries `watch=unwatched`; it narrows only to the app's target | A `video-discover-recommended` provider must leave out the videos the viewer has watched itself |
 | 2026-11-18 | A new `document-side` slot; on the file page of a file without a player, an id that is a `document-side` entry is drawn only as that slot's tab and no longer from `file-detail-sections`, and the canvas no longer draws `detailed-summary` or the summary note for such a file | Register a document tab in `document-side` with an `i18n_key` and report its availability; do not expect `file-detail-sections` to draw it on those files |
 | 2026-11-12 | `player-side` entries are panels under the player on the wide forms, not tabs beside it; the core chooses the placement, passes `active`, and no longer mounts an entry whose id collides with a core panel or tab id | Treat one entry as one panel, read `active` where it changes what you do, and rename any id that collides with `active-summary`, `chapters`, `info`, `find`, `pages` or `related` |
 | 2026-11-12 | On the wide forms of a player file, `file-preview-actions` entries move from the player box to the trailing end of the panel-toggle row under the player | Draw inline buttons as before; do not position them relative to the player box |

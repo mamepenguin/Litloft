@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState, type ReactNode } from "react";
 import { BookOpen, ChevronLeft } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 
 import { EmptyState } from "@/components/EmptyState";
 import { RetryButton } from "@/components/appshell/RetryButton";
@@ -12,6 +12,7 @@ import { useNearEnd } from "@/components/appshell/useNearEnd";
 import { usePaged } from "@/components/appshell/usePaged";
 import { PageFrame } from "@/components/PageFrame";
 import { type ShelfGrouping, type ShelfItem, type ShelfWatchState } from "@/lib/api";
+import { isMonthKey } from "@/lib/formatMonth";
 import { ReadingGrid } from "./ReadingGrid";
 import {
   CONTINUE_SORT_CHOICES,
@@ -28,7 +29,7 @@ import { isViewerRequired, useReadingApp } from "./useReadingApp";
 
 export const SHELF_PAGE_SIZE = 60;
 
-const GROUPINGS: readonly ShelfGrouping[] = ["all", "folder", "tag", "watch"];
+const GROUPINGS: readonly ShelfGrouping[] = ["all", "folder", "tag", "month", "watch"];
 const WATCH_STATES: readonly ShelfWatchState[] = ["in_progress", "unwatched", "finished"];
 
 export function parseGrouping(raw: string | null): ShelfGrouping | null {
@@ -72,6 +73,7 @@ export function ReadingShelfPage({
   from?: string | null;
 }) {
   const t = useTranslations("readingApp");
+  const locale = useLocale();
   const state = useReadingApp(drive);
   const offered: readonly ShelfSortChoice[] =
     by === "watch" && shelfKey === "continue" ? CONTINUE_SORT_CHOICES : SORT_CHOICES;
@@ -90,7 +92,9 @@ export function ReadingShelfPage({
     by === "all" ||
     (by === "watch"
       ? parseWatchState(shelfKey) !== null || shelfKey === "continue"
-      : shelfKey !== "");
+      : by === "month"
+        ? isMonthKey(shelfKey)
+        : shelfKey !== "");
 
   // Watch state reads the viewer's rows; without a profile there is no shelf to open.
   const watchBlocked = by === "watch" && !state.hasProfile;
@@ -153,7 +157,7 @@ export function ReadingShelfPage({
   const title =
     by === null
       ? t("title")
-      : shelfTitle({ by, key: shelfKey, drive, from, t: (key) => t(key) });
+      : shelfTitle({ by, key: shelfKey, drive, locale, from, t: (key) => t(key) });
 
   let body: ReactNode;
   if (state.targetFailed) {
