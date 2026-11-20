@@ -59,6 +59,9 @@ Checkable decisions:
 - D7. A position with no files keeps the crumbs and shows the Library's empty state below
   them.
 - D8. Video draws the crumbs and chips under every grouping, Folder included.
+- D9. On a fine pointer the chip row keeps Reading's current cap: it wraps inside a box
+  8 rem tall that scrolls vertically.
+- D10. The header's count stays the target's total under any position.
 
 ## Required items
 
@@ -68,20 +71,34 @@ Checkable decisions:
    of the target.
 2. The page asks for the chips: the shelves endpoint with the target's own conditions,
    the position narrowed into them as the `folder` condition, and `by=folder`, 24 shelves
-   per request up to 120, as Reading's chip loader does today (`useFolderChips`). The
-   response's `base` and its shelves other than the one holding files directly in `base`
-   are the crumbs' end and the chips. The tag, state and name filters are not sent.
+   per request up to 120, as Reading's chip loader does today (`useFolderChips`): one
+   paging sequence per position. When the position changes, the answers still arriving
+   for the old one are dropped (the requests are not aborted). The response's `base` and
+   its shelves other than the one holding files directly in `base` are the crumbs' end
+   and the chips. The tag, state and name filters are not sent. While the first page is
+   in flight the crumbs are drawn from the position (none at the top) and no chips are
+   drawn.
 3. The viewer chooses the chip `学問`. The app pushes the URL with `folder=動画/学問`
    (one history entry).
 4. Every Library request (grouped shelves, the None grid, the tag candidates) and every
    See all link carries the position as a `folder` condition narrowed into the target's
    own folders, with Reading's existing narrowing (`narrowFolders` in
-   `readingapp/folders.ts`). The chips are asked for again under the new position.
+   `readingapp/folders.ts`). The chips are asked for again under the new position. The
+   narrowed folder is added inside the Library face; the app's target params, which
+   Discover also reads, never carry it. A See all link carries the narrowed folders, not
+   the raw position, because the shelf page uses the URL's folders in place of the
+   target's.
 5. The crumbs are drawn from `base` when `base` is the position or lies under it, and from
-   the position otherwise (`base` can only be deeper). Each ancestor crumb pushes the URL
-   with that folder; the home crumb pushes the URL without `folder`.
+   the position otherwise (`base` can only be deeper). A segment at or above the
+   position, other than the last one drawn, is a link that pushes the URL with that
+   folder; a segment between the position and `base` is plain text, because choosing it
+   would show the same view. The home crumb pushes the URL without `folder`, and is plain
+   when there is no `folder` already.
 6. Back and Forward move between positions, because the position is read from the URL.
-   Reloading keeps it.
+   A position reached by Back is applied to the target in force, even if it was set
+   under another target: the target is not in the URL, so the app cannot tell, and a
+   position the target does not contain shows the empty state with the crumbs (I2).
+   Reloading keeps the position.
 7. Choosing another target in the target menu removes `folder` from the URL with replace,
    in the same step that changes the target. Choosing the target already in force does
    nothing to the position. A Home shortcut's `?target=` is a target choice and does the
@@ -147,7 +164,9 @@ drive-scoped, so a position cannot reach another drive.
 - See all pages: Reading's shelf page already takes `folder` from the URL; Video's shelf
   page gains the same `folder` parameter, with the same behaviour Reading's has when a
   target is chosen there (the URL conditions are dropped). See all pages draw no crumbs
-  or chips.
+  or chips. Their in-page link back to the Library carries the position the See all page
+  was opened from (a `folder` the Library link passes along as `from_folder`), and opens
+  at the top when there is none or a target was chosen on the See all page.
 - Saved grouping and sort per target (SPEC-CORE-145/146), the tag and state filters
   (SPEC-CORE-147/148) and the name filter (SPEC-CORE-156, in flight) keep their own
   rules. Changing the position does not reset them.
@@ -164,16 +183,17 @@ today.
 - The rows of D1–D8.
 - New strings in `messages-core/{ja,en}.json`: the crumbs' accessible name (ja
   `フォルダの位置`, en `Folder position`) and the home crumb's accessible name
-  (ja `一番上`, en `Top`). Reading's `all` chip string is no longer used.
+  (ja `一番上`, en `Top`). Reading's `readingApp.all` key is deleted from both files.
 - A chip's count is the number of files under that folder that the target contains,
   before the tag, state and name filters.
 - Chips are ordered as the folder shelves are today: most files first, then name.
-- Choosing a chip or crumb scrolls the page to the top of the Library.
+- Choosing a chip or crumb scrolls the window to the top (scrollY 0), explicitly, since a
+  query-only router push does not. Back and Forward leave scrolling to the browser.
 
 ### 10. Non-functional
 
 - Chips: at most 120 per level, 24 per request (Reading's current limits).
-- One chip request per position change, cancelled when the position changes again.
+- One chip paging sequence per position; a stale sequence's answers are dropped.
 - No new endpoint, no new query parameter on the backend.
 
 ## Touch points
@@ -183,8 +203,22 @@ today.
 - `frontend/src/components/videoapp/LibraryFace.tsx`, `VideoShelfPage.tsx`,
   `shelfLinks.ts`, `useVideoApp.ts` (target change clears the position)
 - `frontend/src/components/readingapp/useReadingApp.ts` (the same)
+- `frontend/src/components/videoapp/VideoApp.tsx`, `readingapp/ReadingApp.tsx` (passing
+  the position to the Library face, and the page's callback that replaces the URL
+  without `folder` when the target changes, alongside the existing `onTargetHandled`)
 - `frontend/src/app/drive/[name]/apps/{video,reading}/page.tsx` and `…/shelf/page.tsx`
-  (reading `folder` from the URL)
+  (reading `folder` and `from_folder` from the URL, owning the router)
+- `frontend/e2e-layout/reading-video-faces.spec.ts` and
+  `frontend/e2e-layout/fixtures/reading-video-faces.html`: the Video Library's
+  `chipRow` is null today and is asserted present after this change, on purpose. The
+  same case measures D4 and D9 for the crumbs row and the chips row in both apps: on a
+  coarse pointer one line each with sideways scroll and every item at least 44 px tall,
+  on a fine pointer wrapping inside the 8 rem box, and no horizontal page scroll at
+  390 px.
+- `frontend/src/components/__tests__/readingVideoLayoutFixtureParity.test.tsx`: the
+  parity shapes of the old toggle chip row are replaced by the crumbs and link chips.
+- The existing Reading tests built on the `すべて` chip and `aria-pressed` are replaced
+  by position tests covering the same conditions, not deleted.
 - `frontend/src/components/appshell/` (a shared crumbs-and-chips row, moving
   `folders.ts` and `useFolderChips.ts` there)
 - `frontend/src/messages-core/{ja,en}.json`
@@ -201,7 +235,7 @@ excludes.
 I2. A position that leaves no folder inside the target shows the empty state and sends no
 Library request without a folder condition.
 I3. Discover's requests are the same with or without a position.
-I4. Choosing a chip or a crumb adds exactly one history entry, and Back restores the
+I4. Choosing a chip or a link crumb adds exactly one history entry, and Back restores the
 previous position with its shelves.
 I5. Reloading keeps the position; choosing another target removes it without adding a
 history entry; choosing the target already in force keeps it.
@@ -210,6 +244,13 @@ I7. Moving the position changes neither the grouping and sort saved for the targ
 the chosen tag, state and name filters.
 I8. A chip's link goes to a folder one level below the crumbs' last folder, and every
 crumb's link goes to an ancestor of it.
+I9. The position is stored nowhere but the URL: opening the Library without `folder`
+always shows the top of the target.
+I10. A `folder` value the backend would reject is removed from the URL with replace, and
+no request carries it.
+I11. A failed chip request leaves the shelves or grid requested and drawn.
+I12. Video's See all page applies the `folder` in its URL to every request, and drops it
+when a target is chosen there.
 
 ## Checked, no action
 
