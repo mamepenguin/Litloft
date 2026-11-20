@@ -68,6 +68,7 @@ describe("watch history deletion", () => {
     expect(
       reaches("deleteWatchProgress", "frontend/src/lib/api.ts"),
     ).toEqual([
+      "addons/knowledge/frontend/cardMenu/PageFileMenu.tsx",
       "frontend/src/components/ContinueWatchingSection.tsx",
       "frontend/src/components/appshell/CardFileMenu.tsx",
     ]);
