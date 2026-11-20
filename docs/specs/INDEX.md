@@ -318,6 +318,6 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-CORE-147 | implemented | docs/specs/app-library-filters.md | sha256:f643aa489b12cc08965cfbd7bd99d9c8fb658f7620d00de33fc6842b813428d6 |
 | SPEC-CORE-148 | implemented | docs/specs/app-library-filters.md | sha256:f643aa489b12cc08965cfbd7bd99d9c8fb658f7620d00de33fc6842b813428d6 |
 | SPEC-ADDON-151 | implemented | docs/specs/app-library-filters.md | sha256:f643aa489b12cc08965cfbd7bd99d9c8fb658f7620d00de33fc6842b813428d6 |
-| SPEC-CORE-153 | draft | docs/specs/home-app-shortcuts.md | |
-| SPEC-CORE-154 | draft | docs/specs/home-app-shortcuts.md | |
-| SPEC-ADDON-157 | draft | docs/specs/home-app-shortcuts.md | |
+| SPEC-CORE-153 | approved | docs/specs/home-app-shortcuts.md | sha256:8a3fc2c0a1bd84aa50b45215780fde9f349ca53144bf79ae78638b9980db3128 |
+| SPEC-CORE-154 | approved | docs/specs/home-app-shortcuts.md | sha256:8a3fc2c0a1bd84aa50b45215780fde9f349ca53144bf79ae78638b9980db3128 |
+| SPEC-ADDON-157 | approved | docs/specs/home-app-shortcuts.md | sha256:8a3fc2c0a1bd84aa50b45215780fde9f349ca53144bf79ae78638b9980db3128 |
