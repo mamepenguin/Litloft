@@ -1,0 +1,330 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "F1",
+      "origin": "reviewer",
+      "claim": "The diff edits frontend/e2e-components/app-header.spec.ts, which the touch-point list does not name, and rewrites the SPEC-CORE-099 I13 assertion from 'sort at the header's right end' to 'sort at the content's start' on 375px shelf pages, while the spec's Revises section does not revise SPEC-CORE-099 I13.",
+      "impact": "On a phone, every listing-mode Video/Reading See all page now draws the sort at the left under the name field. This contradicts the implemented SPEC-CORE-099 I13 ('on the header's last row at its right end'), which still stands unrevised in docs/specs/addon-app-header.md:334-336. The only test that guarded that invariant was changed to match the new placement, so nothing now checks SPEC-CORE-099 I13 as written for those pages. Non-listing shelf pages keep the old placement, so one implemented invariant now holds on some shelf pages and not on others.",
+      "evidence": "frontend/e2e-components/app-header.spec.ts:196,206 (diff): the test title changed to 'at its start' and the assertion changed to `Math.abs(sort.left - m.contentLeft) <= 1`. The cause is frontend/src/components/videoapp/VideoShelfPage.tsx:315 and frontend/src/components/readingapp/ReadingShelfPage.tsx:274: in listing mode `actions` is a `flex-col items-start` wrapper below sm. docs/specs/addon-app-header.md:334-336 still says right end. app-library-name-filter.md 'Revises' lists SPEC-CORE-147 I10/I5/I12, SPEC-CORE-145 I11/I14 and SPEC-CORE-063 I16b, but not SPEC-CORE-099 I13. Touch points list neither app-header.spec.ts nor addon-app-header.md.",
+      "repro": "Static reading: compare the app-header.spec.ts hunk with addon-app-header.md:334 and the spec's Revises list. Mutation: restoring the old assertion (svg right edge == contentRight) would fail against the new listing-mode wrapper.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "C",
+        "reason": "The design deliberately moves the sort to the start (§1 'Field width', PhoneSeeAll) but neither declares the revision of the implemented SPEC-CORE-099 I13 nor lists the test it rewrites. The spec set now contradicts itself; no SPEC-CORE-156 invariant is broken.",
+        "invariant_ref": null
+      },
+      "severity": "MEDIUM",
+      "proposed_fix": "Add 'SPEC-CORE-099 I13' to the Revises section, worded for listing-mode shelf pages: below 640px the sort is on its own line under the name field, at the start. List frontend/e2e-components/app-header.spec.ts in the touch points."
+    },
+    {
+      "id": "F2",
+      "origin": "reviewer",
+      "claim": "The diff changes addons/knowledge/frontend/clipsapp/ClipShelfBlock.tsx (FilteredEmpty is moved there from Library.tsx and exported), a product file that is not in the touch-point list.",
+      "impact": "There is no user-visible defect: the Library's empty state renders the same component, and ShelfPage now shares it. A reader who trusts the touch-point list would miss that a shared Clips module changed.",
+      "evidence": "addons/knowledge/frontend/clipsapp/ClipShelfBlock.tsx:49-53 adds `export function FilteredEmpty()`. Library.tsx:23 and ShelfPage.tsx:9 import it, and Library.tsx's local copy is removed. The touch points list clipsapp/{clipsUrl.ts, Library.tsx, ShelfPage.tsx, requests.ts, useGroupedShelves.ts, useShelfData.ts, usePagedClips.ts}, without ClipShelfBlock.tsx.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "It is a refactor that supports I9 on shelf pages and breaks no invariant. The only problem is that the touch-point list is incomplete.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add clipsapp/ClipShelfBlock.tsx to the touch points."
+    },
+    {
+      "id": "F3",
+      "origin": "reviewer",
+      "claim": "The diff extends frontend/src/__tests__/ime-enter-guard.test.ts, a source-scanning test not in the touch-point list: NameFilter.tsx is registered as a text-field Enter handler and the declared count goes from 20 to 21.",
+      "impact": "There is no user impact. A planner reading the list would not expect a repository-wide source scan to need changing.",
+      "evidence": "ime-enter-guard.test.ts:40 adds 'components/appshell/NameFilter.tsx' to TEXT_FIELD_ENTER and line 106 changes toHaveLength(20) to 21. The touch points name only tab-styles.test.ts and section-rows.test.tsx as the source-scanning tests.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is an omission from the touch-point list only. The registration is correct: NameFilter guards Enter with useImeKeyGuard.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    },
+    {
+      "id": "F4",
+      "origin": "reviewer",
+      "claim": "The diff adds SPEC-CORE-156 I4 cases to frontend/src/__tests__/appTargetParam.test.tsx, the SPEC-CORE-154 Home-shortcut suite, which is not among the touch-point tests.",
+      "impact": "There is no user impact. The I4 Home-shortcut tests sit in another spec's suite that the list does not point to.",
+      "evidence": "appTargetParam.test.tsx:469-495 (diff): 'a Home-shortcut landing on another Target empties the name' and 'a Home-shortcut landing on the Target in force keeps the name'. The touch-point list names only 'the Video, Reading and Clips Library and See all / shelf-page tests'.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is an omission from the touch-point list only.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    },
+    {
+      "id": "F5",
+      "origin": "reviewer",
+      "claim": "The diff reaches e2e and test infrastructure the touch-point list does not name: frontend/e2e-components/projects.ts (DESKTOP_ONLY), frontend/e2e-components/spec-viewport.spec.ts (the AT_THE_PHONE_WIDTH and AT_THE_DESKTOP_WIDTH registries), the shared helper name-filter.measure.ts, and the shared Clips harness addons/knowledge/frontend/__tests__/clipsAppHarness.tsx (new `matchSearch`).",
+      "impact": "There is no user impact. The registries and the harness are shared by other suites. clipsAppHarness's `matchSearch` defaults to false, so earlier suites see the same server.",
+      "evidence": "projects.ts:11, spec-viewport.spec.ts:86,107, clipsAppHarness.tsx:133-134,191-196,335 (diff). The touch points name e2e fixtures/clipsPage.tsx, fixtures/clipsData.ts and 'new specs for the name field', but not these registries or the harness.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is an omission from the touch-point list only. The registrations are needed for the new specs to run in the right viewport project.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    }
+  ],
+  "specification_compliance": [
+    "Answer to the question: the diff reaches these places outside the declared touch points: addons/knowledge/frontend/clipsapp/ClipShelfBlock.tsx (F2), frontend/e2e-components/app-header.spec.ts with its SPEC-CORE-099 I13 assertion (F1), frontend/src/__tests__/ime-enter-guard.test.ts (F3), frontend/src/__tests__/appTargetParam.test.tsx (F4), and frontend/e2e-components/projects.ts, spec-viewport.spec.ts, name-filter.measure.ts and addons/knowledge/frontend/__tests__/clipsAppHarness.tsx (F5).",
+    "Not unplanned: docs/specs/*, INDEX.md and docs/process/reviews/* are implicit touch points. The docs/user-guide, docs/addons/knowledge.md and docs/ADDON-DEVELOPMENT.md changes are listed.",
+    "Listed touch points the diff does not reach: VideoPagedGrid.tsx (its `filtered` prop already exists; VideoPagedGrid.tsx:49-62), useGroupedShelves.ts, useShelfData.ts and usePagedClips.ts (they follow clipFiltersKey, which now includes name), the libraryFilters tests, the fixture-parity tests, the e2e-layout fixtures, clipsPage.tsx, clipsData.ts, and the clips-view-menus*/library-filters* specs. They may have changed in other commits on the branch; that was not checked.",
+    "PageTabs without `trailing` returns the same `nav` with the same WRAP_ROW_CLASS/ROW_CLASS as before (PageTabs.tsx:79-87,135), consistent with I8's first clause.",
+    "Clips' Target choice deletes q in the replace (clips.tsx:283) and in effectiveParams (clips.tsx:173). A Home-shortcut landing on another Target strips q through targetApplied → effectiveParams → fillHref, consistent with I6 as revised."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "On phone-width listing-mode See all pages the sort moves from the header's right end to the start of its own row. This contradicts SPEC-CORE-099 I13, which the spec does not revise (F1). Non-listing shelf pages keep the right-end placement.",
+    "Clips: the q normalisation effect (clips.tsx:197-205) and the fillHref replace (clips.tsx:363-371) can both fire on one render when q is untrimmed and group/sort are missing. The last replace wins, and both carry the normalised q, so the end URL looks right, but two replaces are issued."
+  ],
+  "regression_risks": [
+    "SPEC-CORE-099 I13 now holds only for non-listing shelf pages, and its e2e guard was rewritten, so a later change to the header's phone layout has no test pinning the original right-end rule.",
+    "ime-enter-guard.test.ts has a hard-coded count (21); any other branch that adds an Enter handler will conflict on this number at merge."
+  ],
+  "test_coverage": [
+    "The app-header.spec.ts change covers only the listing-mode placement. No test asserts where the sort sits on a non-listing shelf page at 375px after this change.",
+    "ClipShelfBlock's FilteredEmpty is exercised through clipsNameFilter.test.tsx (I9, Library and folder shelf page).",
+    "The Home-shortcut I4 cases for Video/Reading are in appTargetParam.test.tsx; the Clips counterpart is in clipsNameFilter.test.tsx (I6 drop/keep after a landing)."
+  ],
+  "not_verified": [
+    "Whether the listed-but-unreached touch points (VideoPagedGrid.tsx, useGroupedShelves.ts, useShelfData.ts, usePagedClips.ts, fixture-parity tests, e2e-layout fixtures, clipsPage.tsx/clipsData.ts, library-filters*/clips-view-menus* specs) changed in earlier commits on the branch outside this diff.",
+    "Whether the app-header.spec.ts fixture page is in listing mode at 375px; I inferred it from the assertion change, without running Playwright.",
+    "No test, typecheck or e2e run (read-only tools).",
+    "The decisions.md text omitted as long lines, which may record an accepted change to the SPEC-CORE-099 sort placement."
+  ],
+  "coverage": [
+    {
+      "path": "addons/knowledge/frontend/clipsapp/ClipShelfBlock.tsx",
+      "read": "full",
+      "reason": "Opened the whole file."
+    },
+    {
+      "path": "addons/knowledge/frontend/clipsapp/Library.tsx",
+      "read": "full",
+      "reason": "Opened lines 1-160, which contain every changed hunk (imports, Menus conditionsKey, removed FilteredEmpty) and their enclosing functions."
+    },
+    {
+      "path": "addons/knowledge/frontend/clipsapp/ShelfPage.tsx",
+      "read": "full",
+      "reason": "Opened the whole file."
+    },
+    {
+      "path": "addons/knowledge/frontend/clipsapp/clipsUrl.ts",
+      "read": "full",
+      "reason": "Opened the whole file."
+    },
+    {
+      "path": "addons/knowledge/frontend/clipsapp/requests.ts",
+      "read": "full",
+      "reason": "Opened the whole file."
+    },
+    {
+      "path": "addons/knowledge/frontend/pages/clips.tsx",
+      "read": "full",
+      "reason": "Opened the whole file."
+    },
+    {
+      "path": "frontend/e2e-components/app-header.spec.ts",
+      "read": "full",
+      "reason": "Read the changed hunk with its enclosing test (lines 193-209) in the supplied diff, and checked it against addon-app-header.md:334-336."
+    },
+    {
+      "path": "frontend/e2e-components/name-filter-desktop.spec.ts",
+      "read": "full",
+      "reason": "New file, read in full in the supplied diff."
+    },
+    {
+      "path": "frontend/e2e-components/name-filter.measure.ts",
+      "read": "full",
+      "reason": "New file, read in full in the supplied diff."
+    },
+    {
+      "path": "frontend/e2e-components/name-filter.spec.ts",
+      "read": "full",
+      "reason": "New file, read in full in the supplied diff."
+    },
+    {
+      "path": "frontend/e2e-components/projects.ts",
+      "read": "full",
+      "reason": "Read the single changed hunk in the supplied diff; it adds one list entry."
+    },
+    {
+      "path": "frontend/e2e-components/spec-viewport.spec.ts",
+      "read": "full",
+      "reason": "Read both changed hunks (list entries) in the supplied diff."
+    },
+    {
+      "path": "frontend/src/app/drive/[name]/apps/reading/shelf/page.tsx",
+      "read": "full",
+      "reason": "The supplied diff covers the whole component (imports, replaceQuery, effects, callbacks, JSX)."
+    },
+    {
+      "path": "frontend/src/app/drive/[name]/apps/video/shelf/page.tsx",
+      "read": "full",
+      "reason": "The supplied diff covers the whole component."
+    },
+    {
+      "path": "frontend/src/components/PageTabs.tsx",
+      "read": "full",
+      "reason": "Opened the whole file."
+    },
+    {
+      "path": "frontend/src/components/appshell/AppTabs.tsx",
+      "read": "full",
+      "reason": "The supplied diff shows the props interface and the whole AppTabs function body."
+    },
+    {
+      "path": "frontend/src/components/appshell/NameFilter.tsx",
+      "read": "full",
+      "reason": "Opened the whole file."
+    },
+    {
+      "path": "frontend/src/components/appshell/libraryFilters.ts",
+      "read": "full",
+      "reason": "Opened the whole file."
+    },
+    {
+      "path": "frontend/src/components/readingapp/LibraryFace.tsx",
+      "read": "partial",
+      "reason": "Opened lines 80-219, covering the name, query, filtersActive and conditions hunks. Did not read the rest of the component's JSX below line 219."
+    },
+    {
+      "path": "frontend/src/components/readingapp/ReadingApp.tsx",
+      "read": "full",
+      "reason": "Opened the whole file."
+    },
+    {
+      "path": "frontend/src/components/readingapp/ReadingShelfPage.tsx",
+      "read": "full",
+      "reason": "Opened lines 85-299, which contain every changed hunk; the props hunk was read in the diff."
+    },
+    {
+      "path": "frontend/src/components/readingapp/shelfLinks.ts",
+      "read": "full",
+      "reason": "Read both changed hunks with the enclosing readingShelfHref in the supplied diff."
+    },
+    {
+      "path": "frontend/src/components/videoapp/LibraryFace.tsx",
+      "read": "partial",
+      "reason": "Opened lines 55-184, covering the name, query, filtersActive and conditions hunks. Did not read the JSX below line 184."
+    },
+    {
+      "path": "frontend/src/components/videoapp/VideoApp.tsx",
+      "read": "full",
+      "reason": "Opened the whole file."
+    },
+    {
+      "path": "frontend/src/components/videoapp/VideoShelfPage.tsx",
+      "read": "full",
+      "reason": "Opened the whole file."
+    },
+    {
+      "path": "frontend/src/components/videoapp/shelfLinks.ts",
+      "read": "full",
+      "reason": "Read the changed hunks with the enclosing videoShelfHref in the supplied diff."
+    },
+    {
+      "path": "frontend/src/messages-core/en.json",
+      "read": "partial",
+      "reason": "Only the appFilters hunk in the supplied diff."
+    },
+    {
+      "path": "frontend/src/messages-core/ja.json",
+      "read": "partial",
+      "reason": "Only the appFilters hunk in the supplied diff."
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/clipsAppHarness.tsx",
+      "read": "partial",
+      "reason": "Only the changed hunks in the supplied diff (matchSearch field, filter, init)."
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/clipsNameFilter.test.tsx",
+      "read": "full",
+      "reason": "New file, read in the supplied diff."
+    },
+    {
+      "path": "addons/knowledge/frontend/clipsapp/__tests__/clipsUrl.test.ts",
+      "read": "partial",
+      "reason": "Only the changed hunks in the supplied diff."
+    },
+    {
+      "path": "addons/knowledge/frontend/clipsapp/__tests__/requests.test.ts",
+      "read": "partial",
+      "reason": "Only the one changed line in the supplied diff."
+    },
+    {
+      "path": "frontend/src/__tests__/appTargetParam.test.tsx",
+      "read": "partial",
+      "reason": "Only the added I4 cases in the supplied diff."
+    },
+    {
+      "path": "frontend/src/__tests__/ime-enter-guard.test.ts",
+      "read": "partial",
+      "reason": "Only the two changed hunks in the supplied diff."
+    },
+    {
+      "path": "frontend/src/__tests__/nameFilterMemberTarget.test.tsx",
+      "read": "full",
+      "reason": "New file, read in the supplied diff."
+    },
+    {
+      "path": "frontend/src/__tests__/nameFilterRetention.test.tsx",
+      "read": "full",
+      "reason": "New file, read in the supplied diff."
+    },
+    {
+      "path": "frontend/src/components/__tests__/PageTabs.test.tsx",
+      "read": "partial",
+      "reason": "Only the added trailing-slot describe block in the supplied diff."
+    },
+    {
+      "path": "frontend/src/components/__tests__/seeAllNameFilter.listing.test.tsx",
+      "read": "full",
+      "reason": "New file, read in the supplied diff."
+    },
+    {
+      "path": "frontend/src/components/__tests__/seeAllNameFilter.test.tsx",
+      "read": "full",
+      "reason": "New file, read in the supplied diff."
+    },
+    {
+      "path": "frontend/src/components/appshell/__tests__/NameFilter.normalise.test.tsx",
+      "read": "full",
+      "reason": "New file, read in the supplied diff."
+    },
+    {
+      "path": "frontend/src/components/appshell/__tests__/NameFilter.test.tsx",
+      "read": "full",
+      "reason": "New file, read in the supplied diff."
+    },
+    {
+      "path": "frontend/src/components/readingapp/__tests__/ReadingApp.nameFilter.test.tsx",
+      "read": "full",
+      "reason": "New file, read in the supplied diff."
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoApp.nameFilter.test.tsx",
+      "read": "full",
+      "reason": "New file, read in the supplied diff."
+    }
+  ],
+  "confidence": 80
+}

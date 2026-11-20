@@ -8,6 +8,7 @@ export const DESKTOP_ONLY = [
   "**/frame-crop-desktop.spec.ts",
   "**/view-menus-desktop.spec.ts",
   "**/library-filters-desktop.spec.ts",
+  "**/name-filter-desktop.spec.ts",
   "**/frame-outline-desktop.spec.ts",
   "**/add-menu-desktop.spec.ts",
   "**/condition-menu-desktop.spec.ts",

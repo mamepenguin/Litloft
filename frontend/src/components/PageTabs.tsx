@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import type { ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 
 export interface PageTabItem {
@@ -28,6 +29,8 @@ export interface PageTabsProps {
   label: string;
   /** Wrap onto further lines instead of scrolling sideways. */
   wrap?: boolean;
+  /** Drawn after the tabs, in the row but outside the nav and its tablist. */
+  trailing?: ReactNode;
 }
 
 const BASE_CLASS =
@@ -43,6 +46,12 @@ const ROW_CLASS =
   "flex flex-wrap gap-1 border-b border-bg-border " +
   "pointer-coarse:flex-nowrap pointer-coarse:overflow-x-auto";
 
+const TRAILING_ROW_CLASS = "flex items-center gap-1 border-b border-bg-border";
+const TRAILING_NAV_WRAP_CLASS = "flex flex-shrink-0 gap-1 flex-wrap";
+const TRAILING_NAV_CLASS =
+  "flex flex-shrink-0 flex-wrap gap-1 pointer-coarse:flex-nowrap pointer-coarse:overflow-x-auto";
+const TRAILING_SLOT_CLASS = "flex min-w-0 flex-1 justify-end";
+
 /**
  * A row that navigates is not a tablist: `role="tab"` promises a screen
  * reader that activating it swaps a panel in the same view, and a `<Link>`
@@ -53,14 +62,29 @@ function navigates(items: readonly PageTabItem[]): boolean {
   return items.some((item) => item.href !== undefined);
 }
 
-export function PageTabs({ items, current, onSelect, label, wrap = false }: PageTabsProps) {
+export function PageTabs({
+  items,
+  current,
+  onSelect,
+  label,
+  wrap = false,
+  trailing,
+}: PageTabsProps) {
   const isNav = navigates(items);
 
-  return (
+  const nav = (
     <nav
       aria-label={label}
       role={isNav ? undefined : "tablist"}
-      className={wrap ? WRAP_ROW_CLASS : ROW_CLASS}
+      className={
+        trailing === undefined
+          ? wrap
+            ? WRAP_ROW_CLASS
+            : ROW_CLASS
+          : wrap
+            ? TRAILING_NAV_WRAP_CLASS
+            : TRAILING_NAV_CLASS
+      }
     >
       {/* The icons carry no `aria-hidden`: lucide-react adds it itself unless
           an a11y prop is passed. */}
@@ -106,6 +130,15 @@ export function PageTabs({ items, current, onSelect, label, wrap = false }: Page
         );
       })}
     </nav>
+  );
+
+  if (trailing === undefined) return nav;
+
+  return (
+    <div className={TRAILING_ROW_CLASS}>
+      {nav}
+      <div className={TRAILING_SLOT_CLASS}>{trailing}</div>
+    </div>
   );
 }
 

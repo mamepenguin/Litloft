@@ -70,6 +70,11 @@ The chosen tags and state are not saved: they last while the page is open, throu
 Discover/Library switch and a round trip through **See all**, and they reset on a full page
 load, when you open Reading on another drive, and when you choose another target.
 
+A name filter beside the view menus narrows the same shelves about 300 ms after you stop
+typing: books whose title or folder path contains the text, chosen from a field that the
+search icon at the right end of the tab row opens. A **See all** page opened from the
+Library carries the text with it, and the text lasts with the tag and state filters.
+
 **See all** on a shelf opens it as a grid, 60 books at a time, under the same target,
 chips, tag, state and sort. The shelf page has its own sort menu and its own target
 control; choosing another target keeps the shelf.

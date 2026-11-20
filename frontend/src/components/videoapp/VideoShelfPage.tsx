@@ -6,6 +6,7 @@ import { ChevronLeft, Film } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 
 import { EmptyState } from "@/components/EmptyState";
+import { NameFilter } from "@/components/appshell/NameFilter";
 import { RetryButton } from "@/components/appshell/RetryButton";
 import { mergeLibraryTags } from "@/components/appshell/libraryFilters";
 import { useNearEnd } from "@/components/appshell/useNearEnd";
@@ -56,6 +57,9 @@ export function VideoShelfPage({
   initialSort,
   tags: urlTags,
   watch: urlWatch,
+  name,
+  onNameChange,
+  onLeavePending,
   onTargetChosen,
   from,
   entry,
@@ -68,6 +72,12 @@ export function VideoShelfPage({
   initialSort?: string | null;
   tags?: readonly string[];
   watch?: string | null;
+  /** The URL's normalised `q`. */
+  name?: string | null;
+  /** An applied name; the caller replaces the URL and keeps the store. */
+  onNameChange?: (name: string) => void;
+  /** Called on unmount while an apply is still pending. */
+  onLeavePending?: (name: string) => void;
   /** Called after a Target is chosen on this page, to drop the URL's filters. */
   onTargetChosen?: () => void;
   from?: string | null;
@@ -85,7 +95,7 @@ export function VideoShelfPage({
   const { chooseTarget: chooseAppTarget, targetId } = appState;
   // The URL's filters stop applying in the render that shows the new Target;
   // the replace that removes them from the URL lands later.
-  const urlFilters = JSON.stringify([urlTags ?? [], urlWatch ?? null]);
+  const urlFilters = JSON.stringify([urlTags ?? [], urlWatch ?? null, name ?? ""]);
   const [droppedFor, setDroppedFor] = useState<string | null>(null);
   const filtersDropped = droppedFor === urlFilters;
   const chooseTarget = useCallback(
@@ -123,6 +133,13 @@ export function VideoShelfPage({
   }, [params, urlTags, filtersDropped]);
 
   const watch = state.hasProfile && !filtersDropped ? parseWatchState(urlWatch ?? null) : null;
+  const requestedName = filtersDropped ? "" : (name ?? "");
+  const listing = !entryMode && by !== null && query !== null && !watchBlocked;
+  const filtersActive =
+    !filtersDropped &&
+    (requestedName !== "" ||
+      (urlTags?.length ?? 0) > 0 ||
+      parseWatchState(urlWatch ?? null) !== null);
 
   const fetchPage = useMemo(
     () =>
@@ -133,6 +150,7 @@ export function VideoShelfPage({
               .shelves(drive, {
                 ...query,
                 ...(watch ? { watch } : {}),
+                ...(requestedName ? { search: requestedName } : {}),
                 by,
                 key: shelfKey,
                 sort: sort.sort,
@@ -150,7 +168,7 @@ export function VideoShelfPage({
                   throw error;
                 },
               ),
-    [entryMode, drive, by, shelfKey, query, requests, watch, watchBlocked, sort.sort, sort.order, rejectViewer],
+    [entryMode, drive, by, shelfKey, query, requests, watch, watchBlocked, requestedName, sort.sort, sort.order, rejectViewer],
   );
   const paged = usePaged<ShelfItem>(fetchPage);
   const provider = useProviderShelfPage({
@@ -267,7 +285,11 @@ export function VideoShelfPage({
       <SkeletonGrid rows={2} />
     )
   ) : (
-    <VideoPagedGrid paged={paged} empty={by === null || state.empty || watchBlocked} />
+    <VideoPagedGrid
+      paged={paged}
+      empty={by === null || state.empty || watchBlocked}
+      filtered={filtersActive}
+    />
   );
 
   return (
@@ -289,7 +311,24 @@ export function VideoShelfPage({
             </Link>
           }
           actions={
-            entryMode ? undefined : (
+            entryMode ? undefined : listing ? (
+              <div className="flex w-full min-w-0 flex-col items-start gap-2 max-sm:pr-2 sm:w-auto md:flex-row md:items-center">
+                <NameFilter
+                  value={requestedName}
+                  alwaysOpen
+                  onApply={(next) => onNameChange?.(next)}
+                  onLeavePending={onLeavePending}
+                />
+                <div className="shrink-0">
+                  <SortChoiceMenu
+                    choices={offered}
+                    value={sortId}
+                    quiet
+                    onChange={(id) => setSelection({ scope, id })}
+                  />
+                </div>
+              </div>
+            ) : (
               <SortChoiceMenu
                 choices={offered}
                 value={sortId}

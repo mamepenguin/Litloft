@@ -1,5 +1,7 @@
 "use client";
 
+import type { ReactNode } from "react";
+
 import { PageTabs } from "@/components/PageTabs";
 import type { AppFace } from "@/lib/appPrefs";
 
@@ -11,6 +13,8 @@ export interface AppTabsProps {
   libraryLabel: string;
   panelId: string;
   idPrefix: string;
+  /** Drawn after the tabs, outside the tablist. */
+  trailing?: ReactNode;
 }
 
 export function AppTabs({
@@ -21,6 +25,7 @@ export function AppTabs({
   libraryLabel,
   panelId,
   idPrefix,
+  trailing,
 }: AppTabsProps) {
   return (
     <PageTabs
@@ -28,6 +33,7 @@ export function AppTabs({
       current={current}
       onSelect={(key) => onSelect(key as AppFace)}
       wrap
+      trailing={trailing}
       items={[
         {
           key: "discover",

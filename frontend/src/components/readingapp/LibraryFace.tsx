@@ -95,6 +95,7 @@ export function LibraryFace({
   const sort = sortChoiceOf(sortId);
   const [chip, setChip] = useState<string>("all");
   const filters = useLibraryFilters("reading", drive, hasProfile);
+  const name = filters.name;
 
   // A chip lasts only for the target it was chosen under.
   useEffect(() => {
@@ -119,8 +120,9 @@ export function LibraryFace({
     const merged = mergeLibraryTags(listOf(params.tag), filters.tags);
     if (merged.length > 0) next.tag = merged;
     if (watch) next.watch = watch;
+    if (name) next.search = name;
     return next;
-  }, [params, folders, filters.tags, watch]);
+  }, [params, folders, filters.tags, name, watch]);
   const excludedTags = useMemo(() => listOf(params?.tag), [params]);
   const conditionsKey = useMemo(() => JSON.stringify(query ?? null), [query]);
   const loadCandidates = useCallback(
@@ -128,7 +130,7 @@ export function LibraryFace({
       query === null ? Promise.resolve([]) : requests.tagCounts(drive, query, { signal }),
     [drive, query, requests],
   );
-  const filtersActive = filters.tags.length > 0 || watch !== undefined;
+  const filtersActive = filters.tags.length > 0 || watch !== undefined || name !== "";
 
   const blocked = empty || (chip !== "all" && folders !== undefined && folders.length === 0);
 
@@ -203,6 +205,7 @@ export function LibraryFace({
     ...(folders !== undefined && folders.length > 0 ? { folder: folders } : {}),
     ...(filters.tags.length > 0 ? { tag: filters.tags } : {}),
     ...(watch ? { watch } : {}),
+    ...(name ? { name } : {}),
   };
   const filteredEmpty = <EmptyState icon={Search} title={tFilters("filterEmpty")} />;
 

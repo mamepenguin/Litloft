@@ -5,6 +5,8 @@ import { useTranslations } from "next-intl";
 
 import { EmptyState } from "@/components/EmptyState";
 import { AppTabs } from "@/components/appshell/AppTabs";
+import { NameFilter } from "@/components/appshell/NameFilter";
+import { useLibraryFilters } from "@/components/appshell/libraryFilters";
 import { RetryButton } from "@/components/appshell/RetryButton";
 import { ShelfBlock } from "@/components/appshell/ShelfBlock";
 import { PageFrame } from "@/components/PageFrame";
@@ -33,6 +35,9 @@ export function ReadingApp({
   const t = useTranslations("readingApp");
   const state = useReadingApp(drive, target, onTargetHandled);
   const face = state.prefs?.face;
+  const filters = useLibraryFilters("reading", drive, state.hasProfile);
+  const showName =
+    face === "library" && state.ready && !state.empty && state.count !== 0;
 
   const discover = useDiscover({
     drive,
@@ -52,6 +57,15 @@ export function ReadingApp({
       libraryLabel={t("library")}
       panelId={PANEL_ID}
       idPrefix="reading-app"
+      trailing={
+        showName ? (
+          <NameFilter
+            value={filters.name}
+            onApply={filters.setName}
+            onLeavePending={filters.setName}
+          />
+        ) : undefined
+      }
     />
   );
 

@@ -64,6 +64,11 @@ open, through the Discover/Library switch and a round trip through **See all**, 
 reset on a full page load, when you open Video on another drive, and when you choose
 another target. Clearing the profile also clears the state.
 
+A name filter narrows the same shelves about 300 ms after you stop typing: the search icon
+at the right end of the tab row opens a field that keeps videos whose title or folder path
+contains the text, and a **See all** page opened from the Library carries the text with it.
+It lasts with the tag and state filters and empties with them.
+
 When the filters leave no video, the Library says **条件に合う項目はありません** /
 **Nothing matches these filters**. A target that matches nothing, and an empty drive, keep
 their own empty state.

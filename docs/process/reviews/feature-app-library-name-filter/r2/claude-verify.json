@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1",
+      "status": "confirmed",
+      "note": "invariants.md:7 has a separate clause: on a non-listing shelf page below 640px, the sort menu sits on the header's last row at its right end. The only phone-width I13 test is app-header.spec.ts:195-209. It runs over SHELF_PAGES = ['video-shelf','reading-shelf'] (app-header.measure.ts:22) and asserts `Math.abs(sort.left - m.contentLeft) <= 1` at :206. Its fixture (fixtures/appHeader.tsx:140-154) mounts VideoShelfPage and ReadingShelfPage with by='folder', no entry and no watch. Once params resolve, that gives listing mode: VideoShelfPage.tsx:137 sets `listing = !entryMode && by !== null && query !== null && !watchBlocked`, and ReadingShelfPage.tsx:147 is equivalent. So only the listing branch is measured (VideoShelfPage.tsx:314-328, ReadingShelfPage.tsx:273-288). The non-listing branch (VideoShelfPage.tsx:329-335, ReadingShelfPage.tsx:289) is reachable, for example with by=watch and no profile (watchBlocked). In e2e-components, a grep for a sort-versus-contentRight assertion or 'right end' finds only unrelated SPEC-CORE-098 and 105 tests. The other I13 test (app-header-desktop.spec.ts:63) covers widths of 640px and up. frontend/e2e-layout has no SPEC-CORE-099 reference. The right-end clause below 640px has no test."
+    }
+  ],
+  "specification_compliance": [
+    "SPEC-CORE-099 I13 (r1): the listing-mode phone placement has a test (app-header.spec.ts:206). The non-listing phone 'right end' clause has no test anywhere in e2e-components or e2e-layout."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "A future change to the non-listing SortChoiceMenu/ReadingSortMenu branch could move the sort menu off the right end below 640px, and no test would catch it."
+  ],
+  "test_coverage": [
+    "app-header.spec.ts I13 phone test covers only listing-mode shelf pages (fixture by='folder').",
+    "No fixture page opens a shelf page in non-listing mode, such as by=watch without a profile or a Reading shelf with an invalid key."
+  ],
+  "not_verified": [
+    "I did not read git history to confirm that the earlier version of app-header.spec.ts asserted the right-end placement. 'Any more' is inferred from the claim, not checked.",
+    "I ran no tests and did not measure the actual rendered position of the non-listing sort menu.",
+    "I did not check whether a vitest source-scanning test pins the non-listing branch's classes."
+  ],
+  "confidence": 88
+}

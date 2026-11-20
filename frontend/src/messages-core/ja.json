@@ -1588,6 +1588,9 @@
     "noMatchingTags": "一致するタグはありません",
     "noTags": "タグはありません",
     "tryAgain": "再試行",
-    "filterEmpty": "条件に合う項目はありません"
+    "filterEmpty": "条件に合う項目はありません",
+    "nameFilter": "名前で絞り込み",
+    "nameFilterPlaceholder": "名前で絞り込み...",
+    "clearName": "入力をクリア"
   }
 }

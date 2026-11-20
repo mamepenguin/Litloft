@@ -59,16 +59,27 @@ for (const app of APP_PAGES) {
 }
 
 for (const app of SHELF_PAGES) {
-  for (const width of [640, 1280]) {
-    test(`SPEC-CORE-099 I13 I14 ${app} at ${width}px: the quiet sort menu is on the title row, left of the Target`, async ({
+  for (const width of [640, 768, 1280]) {
+    const stacked = width < 768;
+    test(`SPEC-CORE-099 I13 I14 ${app} at ${width}px: the quiet sort menu is ${stacked ? "under the name field" : "on the title row"}, left of the Target`, async ({
       page,
     }) => {
       await openAppHeader(page, width, { app });
       const m = await snapshot(page, { drive: DRIVE, targetName: DEFAULT_TARGET_NAME[app] });
       const elevated = await colourOf(page, "elevated");
+      const field = await page.locator("header input[type=search]").evaluate((el) => {
+        const r = el.parentElement!.getBoundingClientRect();
+        return { top: r.top, bottom: r.bottom, left: r.left, right: r.right, width: r.width, height: r.height };
+      });
 
       expect(m.sort).not.toBeNull();
-      expect(sameRow(m.sort!, m.h1)).toBe(true);
+      expect(sameRow(field, m.h1)).toBe(true);
+      if (stacked) {
+        expect(m.sort!.top).toBeGreaterThanOrEqual(field.bottom);
+        expect(Math.abs(m.sort!.left - field.left)).toBeLessThanOrEqual(1);
+      } else {
+        expect(sameRow(m.sort!, m.h1)).toBe(true);
+      }
       expect(m.sort!.right).toBeLessThanOrEqual(m.target.left);
       expect(m.sort!.text).toContain(SORT_CHOICE);
 

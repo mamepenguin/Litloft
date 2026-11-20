@@ -70,6 +70,7 @@ export function LibraryFace({
   const sort = SORT_CHOICES.find((choice) => choice.id === sortId) ?? SORT_CHOICES[0];
   const none = group === "all";
   const filters = useLibraryFilters("video", drive, hasProfile);
+  const name = filters.name;
   const watch = hasProfile && filters.state !== "all" ? (filters.state as ShelfWatchState) : undefined;
 
   const query = useMemo<VideoTargetParams | null>(() => {
@@ -79,8 +80,9 @@ export function LibraryFace({
       ...params,
       ...(merged.length > 0 ? { tag: merged } : {}),
       ...(watch ? { watch } : {}),
+      ...(name ? { search: name } : {}),
     };
-  }, [params, filters.tags, watch]);
+  }, [params, filters.tags, name, watch]);
   const excludedTags = useMemo(() => listOf(params?.tag), [params]);
   const conditionsKey = useMemo(() => JSON.stringify(query ?? null), [query]);
   const loadCandidates = useCallback(
@@ -88,7 +90,7 @@ export function LibraryFace({
       query === null ? Promise.resolve([]) : requests.tagCounts(drive, query, { signal }),
     [drive, query, requests],
   );
-  const filtersActive = filters.tags.length > 0 || watch !== undefined;
+  const filtersActive = filters.tags.length > 0 || watch !== undefined || name !== "";
 
   const fetchGrouped = useMemo(
     () =>
@@ -162,6 +164,7 @@ export function LibraryFace({
   const conditions: ShelfLinkConditions = {
     ...(filters.tags.length > 0 ? { tag: filters.tags } : {}),
     ...(watch ? { watch } : {}),
+    ...(name ? { name } : {}),
   };
   const filteredEmpty = <EmptyState icon={Search} title={tFilters("filterEmpty")} />;
 
