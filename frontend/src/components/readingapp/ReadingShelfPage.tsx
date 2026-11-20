@@ -213,7 +213,7 @@ export function ReadingShelfPage({
       rejectViewer,
     ],
   );
-  const paged = usePaged<ShelfItem>(fetchPage);
+  const paged = usePaged<ShelfItem>(fetchPage, cards.context.version);
   removedBefore.current = cards.removedCount("page", paged.items);
   const pageItems = cards.filter("page", paged.items);
   const sentinel = useNearEnd(paged.hasMore && paged.more === "idle", paged.loadMore);

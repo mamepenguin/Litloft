@@ -190,7 +190,7 @@ export function VideoShelfPage({
               ),
     [entryMode, drive, by, shelfKey, query, requests, watch, watchBlocked, requestedName, sort.sort, sort.order, rejectViewer],
   );
-  const paged = usePaged<ShelfItem>(fetchPage);
+  const paged = usePaged<ShelfItem>(fetchPage, cards.context.version);
   removedBefore.current = cards.removedCount("page", paged.items);
   const pageItems = cards.filter("page", paged.items);
   const provider = useProviderShelfPage({

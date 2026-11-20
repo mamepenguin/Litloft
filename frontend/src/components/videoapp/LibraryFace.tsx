@@ -120,7 +120,7 @@ export function LibraryFace({
               ),
     [drive, query, requests, none, group, sort.sort, sort.order, onViewerRejected],
   );
-  const shelves = usePaged<Shelf>(fetchGrouped);
+  const shelves = usePaged<Shelf>(fetchGrouped, lists.version);
   const sentinel = useNearEnd(shelves.hasMore && shelves.more === "idle", shelves.loadMore);
 
   const fetchFlat = useMemo(
@@ -150,7 +150,7 @@ export function LibraryFace({
               ),
     [drive, query, requests, none, sort.sort, sort.order, onViewerRejected],
   );
-  const flat = usePaged(fetchFlat);
+  const flat = usePaged(fetchFlat, lists.version);
   removedBefore.current = lists.removedCount("grid", flat.items);
   const flatItems = lists.filter("grid", flat.items);
 

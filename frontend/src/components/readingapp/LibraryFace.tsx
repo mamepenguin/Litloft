@@ -193,10 +193,10 @@ export function LibraryFace({
     [drive, query, requests, blocked, groupedBy, sort.sort, sort.order, onViewerRejected],
   );
 
-  const flat = usePaged<ShelfItem>(groupedBy === null ? fetchFlat : null);
+  const flat = usePaged<ShelfItem>(groupedBy === null ? fetchFlat : null, lists.version);
   removedBefore.current = lists.removedCount("grid", flat.items);
   const flatItems = lists.filter("grid", flat.items);
-  const grouped = usePaged<Shelf>(groupedBy === null ? null : fetchGrouped);
+  const grouped = usePaged<Shelf>(groupedBy === null ? null : fetchGrouped, lists.version);
   const flatSentinel = useNearEnd(flat.hasMore && flat.more === "idle", flat.loadMore);
   const groupedSentinel = useNearEnd(
     grouped.hasMore && grouped.more === "idle",

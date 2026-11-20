@@ -224,6 +224,12 @@ async function choose(label: string) {
   await flush();
 }
 
+async function trash(id: string) {
+  await rightClick(card(id));
+  await choose("Move to Trash");
+  await submit("submit-trash");
+}
+
 async function submit(label: string) {
   for (let waited = 0; !screen.queryByText(label) && waited < 500; waited += 10) {
     await act(async () => {
@@ -466,6 +472,61 @@ describe("I4 a later page never draws an id the list already holds", () => {
 
     const shown = drawn();
     expect(shown.length).toBeGreaterThan(first.length);
+    expect(new Set(shown).size).toBe(shown.length);
+  });
+
+  it("a page in flight when a card leaves is dropped and asked again from the new offset", async () => {
+    const ids = Array.from({ length: 130 }, (_, i) => `p${i}`);
+    server.continue = [];
+    server.all = ids;
+    writeAppPrefs(drive, { face: "library", target: "default" });
+    writeTargetView("video", drive, "default", { group: "all", sort: "title" });
+    const pending = deferred<unknown>();
+    let pageTwo = true;
+    getShelves.mockImplementation(async (d, p: Params) => {
+      if (p.ids !== undefined) return answerShelves(d, p);
+      if (p.by === "all" && p.offset === undefined && Number(p.page ?? 1) === 2) {
+        pageTwo = false;
+        return pending.promise;
+      }
+      if (p.by === "all") {
+        const start = Number(p.offset ?? (Number(p.page ?? 1) - 1) * PAGE);
+        const items = server.all.slice(start, start + PAGE).map(asItem);
+        return {
+          by: "all",
+          total_shelves: 1,
+          base: "",
+          shelves: [{ key: "all", label: "", count: server.all.length, items }],
+        };
+      }
+      return answerShelves(d, p);
+    });
+    await visit();
+    await screen.findByText(title("p0"));
+    expect(pageTwo).toBe(true);
+
+    await act(async () => {
+      FakeObserver.instances.filter((observer) => observer.live).at(-1)!.trigger();
+    });
+    await flush();
+
+    await trash("p3");
+    expect(deleteFile).toHaveBeenCalledWith("p3");
+    const shifted = ids.filter((id) => id !== "p3").slice(60, 120).map(asItem);
+    await act(async () => pending.resolve({
+      by: "all",
+      total_shelves: 1,
+      base: "",
+      shelves: [{ key: "all", label: "", count: ids.length - 1, items: shifted }],
+    }));
+    await flush();
+    expect(pageTwo).toBe(false);
+
+    await nextPage();
+
+    const shown = drawn();
+    const fresh = ids.filter((id) => id !== "p3");
+    expect(shown).toEqual(fresh.slice(0, shown.length));
     expect(new Set(shown).size).toBe(shown.length);
   });
 

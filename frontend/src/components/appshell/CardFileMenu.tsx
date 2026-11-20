@@ -32,6 +32,8 @@ export interface CardItemActions {
 }
 
 export interface CardFileLists {
+  /** Bumps on every removal, so a page in flight can be dropped and asked again. */
+  version: number;
   /** The list's items with menu removals and re-read answers applied, in order. */
   filter: (listKey: string, items: readonly ShelfItem[]) => ShelfItem[];
   /** How many of the held items this list has lost, for a drawn count and offset paging. */
@@ -69,12 +71,14 @@ export function pagedParams(
 
 const CardFileMenuContext = createContext<CardFileMenuContextValue | null>(null);
 const NO_LISTS: CardFileLists = {
+  version: 0,
   filter: (_listKey, items) => [...items],
   removedCount: () => 0,
 };
 
 interface PageState {
   scope: string;
+  version: number;
   trashed: ReadonlySet<string>;
   removed: ReadonlyMap<string, ReadonlySet<string>>;
   overrides: ReadonlyMap<string, ShelfItem>;
@@ -100,6 +104,7 @@ const NO_LIST: ReadonlySet<string> = new Set();
 function freshPage(scope: string): PageState {
   return {
     scope,
+    version: 0,
     trashed: new Set(),
     removed: new Map(),
     overrides: new Map(),
@@ -180,7 +185,7 @@ export function useCardFileMenu({
     change(captured, (held) => {
       const removed = new Map(held.removed);
       removed.set(listKey, new Set(removed.get(listKey) ?? NO_LIST).add(id));
-      return { ...held, removed };
+      return { ...held, version: held.version + 1, removed };
     });
   };
 
@@ -326,6 +331,7 @@ export function useCardFileMenu({
     if (target === null || scopeRef.current !== target.scope) return;
     change(target.scope, (held) => ({
       ...held,
+      version: held.version + 1,
       trashed: new Set(held.trashed).add(file.id),
     }));
   };
@@ -353,7 +359,12 @@ export function useCardFileMenu({
     );
   };
 
-  const context: CardFileMenuContextValue = { open, filter, removedCount };
+  const context: CardFileMenuContextValue = {
+    version: livePage.version,
+    open,
+    filter,
+    removedCount,
+  };
 
   const menu =
     liveOpened === null ? null : (
