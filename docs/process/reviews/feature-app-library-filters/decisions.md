@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: D-1, D-2, D-3, D-4 and D-6 of design-check.md accepted by the human (2026-11-20): they are the shipped ToolbarMenu size and chevron-less outlined button, the chosen-row fill Reading's tag menu already uses, and the browser's search field; D-5 (the search placeholder, added in 860752997) is checked by the next R-5.
 ran_in_app: yes
 at: bc390056532248bd1a83aaebd94349155efcc059
 by: agent
