@@ -2,7 +2,7 @@
 
 SPEC-ID: SPEC-CORE-152
 
-Approval:
+Approval: sha256:84ed425d591c26b46508b2e8dca5b50b75d58a9d012decba97bd32e16d4b00dc Yuichi Senga 2026-11-20
 
 ## Summary
 
