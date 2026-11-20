@@ -1,6 +1,7 @@
 /**
  * SPEC-CORE-141 D4, D5: the real FileCard and VideoCard bars with watched
  * ranges, beside the same cards with none, in both themes.
+ * SPEC-CORE-152 D6: a finished card's bar on the same cards.
  */
 
 import { test, expect, type Page } from "@playwright/test";
@@ -144,6 +145,43 @@ for (const theme of ["light", "dark"] as const) {
       expect(tick.topRadius).toBeGreaterThan(0);
       expect(tick.bottomRadius).toBe(0);
       expect(tick.outline).toBe("1px 0,0,0,0.50");
+    });
+  }
+}
+
+for (const theme of ["light", "dark"] as const) {
+  for (const kind of ["file", "video"] as const) {
+    test(`SPEC-CORE-152 D6 ${kind} card in ${theme}: a finished card fills its whole track in the in-progress fill colour, with no tick`, async ({
+      page,
+    }) => {
+      await open(page, theme);
+      const counts = await page.evaluate((caseName) => {
+        const card = document.querySelector(`[data-case="${caseName}"]`)!;
+        return {
+          ranges: card.querySelectorAll('[data-testid="watched-range"]').length,
+          fills: card.querySelectorAll('[data-testid="progress-fill"]').length,
+          widths: card.querySelectorAll('[style*="width"]').length,
+          ticks: card.querySelectorAll('[data-testid="resume-tick"]').length,
+        };
+      }, `${kind}-finished`);
+      expect(counts).toEqual({ ranges: 0, fills: 1, widths: 1, ticks: 0 });
+
+      const today = await measureCard(page, `${kind}-today`);
+      const ranged = await measureCard(page, `${kind}-ranges`);
+      const finished = await measureCard(page, `${kind}-finished`);
+
+      expect(finished.tick).toBeNull();
+      expect(finished.fills).toHaveLength(1);
+      const fill = finished.fills[0];
+      expect(Math.abs(fill.x - finished.track.x)).toBeLessThan(1);
+      expect(Math.abs(fill.width - finished.track.width)).toBeLessThan(1);
+      expect(fill.height).toBeCloseTo(finished.track.height, 0);
+
+      expect(finished.track.height).toBeCloseTo(ranged.track.height, 1);
+      expect(finished.track.height).toBeCloseTo(today.track.height, 1);
+      expect(finished.track.background).toBe(ranged.track.background);
+      expect(fill.background).toBe(ranged.fills[0].background);
+      expect(fill.background).toBe(today.fills[0].background);
     });
   }
 }

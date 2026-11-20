@@ -255,6 +255,45 @@ class TestWatchState:
         assert "b1.mp4" in _names(by["unwatched"])
         assert "b2.mp4" in _names(by["unwatched"])
 
+    # SPEC-CORE-152 I3: kept row for row with the card's table in
+    # frontend/src/components/__tests__/watchedRangesCards.test.tsx.
+    @pytest.mark.parametrize(
+        ("duration", "position", "finished"),
+        [
+            (100, 95, True),
+            (100, 92, True),
+            (100, 90, True),
+            (100, 89.9, False),
+            (100, 50, False),
+            (1.1, 0.99, True),
+            (40, 35.5, False),
+            (40, 34.9, False),
+        ],
+    )
+    def test_spec_core_152_finished_boundary_matches_the_card(
+        self, client, duration, position, finished
+    ):
+        c, db, *_ = client
+        row = _file("edge.mp4", "Movies", duration, _t(1, 10))
+        db.add(row)
+        db.commit()
+        db.add(
+            WatchHistory(
+                viewer_id=nickname_to_viewer_id("alice"),
+                file_id=row.id,
+                playback_position=position,
+                duration=duration,
+                last_played_at=_t(5, 1),
+            )
+        )
+        db.commit()
+
+        by = _by_key(_get(c, "by=watch&type=video&per_shelf=10", ALICE))
+
+        expected = "finished" if finished else "in_progress"
+        assert list(by) == [expected]
+        assert _names(by[expected]) == ["edge.mp4"]
+
     def test_another_viewers_history_does_not_move_a_file(self, client):
         c, db, *_ = client
         _seed(db)
