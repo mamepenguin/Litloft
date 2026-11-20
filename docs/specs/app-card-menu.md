@@ -244,6 +244,10 @@ pins:
 - Docs: `docs/user-guide/notes.md`, `docs/addons/knowledge.md` (core repo).
 
 Landing order: core PR (SPEC-CORE-157) → knowledge PR (SPEC-ADDON-164) → core pointer bump.
+Implementation starts after the app Library name filter (core `feature/app-library-name-filter`
+and its knowledge change) has merged, on top of it: both edit the Video and Reading
+`LibraryFace.tsx`, `VideoShelfPage.tsx`, `ReadingShelfPage.tsx` and the Clips Library. "A
+fresh load" in I4 is a fresh load with the same name filter in force.
 
 No protected path, table, endpoint, event or Internal API is touched.
 
@@ -285,6 +289,8 @@ SPEC-CORE-069 I9. Home's Continue row is headed 続きから / Continue and requ
   `FileItem`s (`RelatedFileSummary`, `NoteSource`, `FindResultEntry`), and they are search
   results or note details, not app lists.
 - **media_import channel view.** Already has the file menu (SPEC-ADDON-163).
+- **Photo Diary.** It is being reworked to match the other apps in parallel; its cards get
+  the file menu in a spec of their own once that rework has landed.
 - **Multiple selection in apps.** Out of scope; one card at a time.
 - **Design canvas.** No new visual: the cards, `ContextMenu` and its dialogs are existing
   components. The one agreed design this contradicts, SPEC-CORE-150 D2 (Recommended's menu
