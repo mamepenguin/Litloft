@@ -56,6 +56,7 @@ export function VideoShelfPage({
   initialSort,
   tags: urlTags,
   watch: urlWatch,
+  onTargetChosen,
   from,
   entry,
   slot,
@@ -66,6 +67,8 @@ export function VideoShelfPage({
   initialSort?: string | null;
   tags?: readonly string[];
   watch?: string | null;
+  /** Called after a Target is chosen on this page, to drop the URL's filters. */
+  onTargetChosen?: () => void;
   from?: string | null;
   /** An addon shelf to page through its page provider. */
   entry?: string | null;
@@ -75,7 +78,16 @@ export function VideoShelfPage({
   const t = useTranslations("videoApp");
   const tGlobal = useTranslations();
   const locale = useLocale();
-  const state = useVideoApp(drive);
+  const appState = useVideoApp(drive);
+  const { chooseTarget: chooseAppTarget } = appState;
+  const chooseTarget = useCallback(
+    (id: string) => {
+      chooseAppTarget(id);
+      onTargetChosen?.();
+    },
+    [chooseAppTarget, onTargetChosen],
+  );
+  const state = useMemo(() => ({ ...appState, chooseTarget }), [appState, chooseTarget]);
   const entryMode = typeof entry === "string" && entry !== "";
   const recommendedMode = entryMode && slot === "recommended";
   const offered: readonly ShelfSortChoice[] =

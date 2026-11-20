@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState, type ReactNode } from "react";
+import { useCallback, useMemo, useState, type ReactNode } from "react";
 import { BookOpen, ChevronLeft } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 
@@ -61,6 +61,7 @@ export function ReadingShelfPage({
   folders: urlFolders,
   tags: urlTags,
   watch: urlWatch,
+  onTargetChosen,
   from,
 }: {
   drive: string;
@@ -70,11 +71,22 @@ export function ReadingShelfPage({
   folders?: readonly string[];
   tags?: readonly string[];
   watch?: string | null;
+  /** Called after a Target is chosen on this page, to drop the URL's filters. */
+  onTargetChosen?: () => void;
   from?: string | null;
 }) {
   const t = useTranslations("readingApp");
   const locale = useLocale();
-  const state = useReadingApp(drive);
+  const appState = useReadingApp(drive);
+  const { chooseTarget: chooseAppTarget } = appState;
+  const chooseTarget = useCallback(
+    (id: string) => {
+      chooseAppTarget(id);
+      onTargetChosen?.();
+    },
+    [chooseAppTarget, onTargetChosen],
+  );
+  const state = useMemo(() => ({ ...appState, chooseTarget }), [appState, chooseTarget]);
   const offered: readonly ShelfSortChoice[] =
     by === "watch" && shelfKey === "continue" ? CONTINUE_SORT_CHOICES : SORT_CHOICES;
   const initialChoice = parseShelfSortId(initialSort ?? null, offered) ?? offered[0].id;

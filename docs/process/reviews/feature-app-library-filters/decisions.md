@@ -1,6 +1,6 @@
 # Decisions
 
-decision: D-1, D-2, D-3, D-4 and D-6 of design-check.md accepted by the human (2026-11-20): they are the shipped ToolbarMenu size and chevron-less outlined button, the chosen-row fill Reading's tag menu already uses, and the browser's search field; D-5 (the search placeholder, added in 860752997) is checked by the next R-5. r1 HUMAN_REVIEW_REQUIRED: the human said "続ける" (continue, 2026-11-20), with the fixes proposed: restore the Video tag See all title with a test, restore the functional toggle in ToolbarMenu, and add the Clips filters to docs/addons/knowledge.md and docs/user-guide/notes.md.
+decision: D-1, D-2, D-3, D-4 and D-6 of design-check.md accepted by the human (2026-11-20): they are the shipped ToolbarMenu size and chevron-less outlined button, the chosen-row fill Reading's tag menu already uses, and the browser's search field; D-5 (the search placeholder, added in 860752997) is checked by the next R-5. r1 HUMAN_REVIEW_REQUIRED: the human said "続ける" (continue, 2026-11-20), with the fixes proposed: restore the Video tag See all title with a test, restore the functional toggle in ToolbarMenu, and add the Clips filters to docs/addons/knowledge.md and docs/user-guide/notes.md. r2 FAIL follow-up: on the unspecified Target choice made on a Video or Reading See all page, the human chose "外す" (2026-11-20): the page drops `tag` and `watch` from its URL by replace.
 ran_in_app: yes
 at: ae05085f529bb412b2231411296ed4a0d478b53a
 by: agent

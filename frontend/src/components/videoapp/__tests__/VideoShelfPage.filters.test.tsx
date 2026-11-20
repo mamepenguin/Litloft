@@ -4,7 +4,7 @@
  */
 
 import type { ReactElement } from "react";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const DRIVE = "main";
@@ -175,5 +175,23 @@ describe("SPEC-CORE-147 I4 I6 the Video See all route reads its filters", () => 
     expect(shelfCall()).toMatchObject({ tag: ["Trip"] });
     expect(getShelves.mock.calls.every(([, p]) => (p as Params).watch === undefined)).toBe(true);
     expect(replace).not.toHaveBeenCalled();
+  });
+
+  it("SPEC-CORE-147 I5 choosing another Target on the page drops tag and watch from its URL by replace", async () => {
+    getSmartFolders.mockResolvedValue([
+      { id: "sf", drive: DRIVE, name: "Trips", query: "path:Movies", file_type: null, sort_by: null, sort_order: null, created_at: "", updated_at: null },
+    ]);
+    await renderRoute("by=folder&key=Movies&from=library&tag=Trip&watch=finished");
+    await screen.findByText("Video v1");
+
+    fireEvent.click(await screen.findByRole("button", { name: /Target/ }));
+    fireEvent.click(await screen.findByRole("menuitemradio", { name: /Trips/ }));
+
+    await waitFor(() => expect(replace).toHaveBeenCalled());
+    const href = new URL(String(replace.mock.calls.at(-1)?.[0]), "http://localhost");
+    expect(href.searchParams.has("tag")).toBe(false);
+    expect(href.searchParams.has("watch")).toBe(false);
+    expect(href.searchParams.get("key")).toBe("Movies");
+    expect(push).not.toHaveBeenCalled();
   });
 });
