@@ -16,8 +16,8 @@ household's one user knows fill in pictures as rows come into view.
 
 This change asks for pictures sooner, in the browser only:
 
-- While the panel is opening (until the reader or playback first moves the list), the
-  tiles near the visible area are asked for at once.
+- While the panel is opening (until the reader first scrolls the list or uses the
+  ruler), the tiles near the visible area are asked for at once.
 - After that, each tile is judged on its own: a tile that has stayed near the visible
   area for a dwell time is asked for, whether or not the list is still moving. A tile
   that passes through faster is not asked for, so a fast fling does not queue pictures
@@ -44,15 +44,21 @@ scroller, visible area, row step, visible row, shown, place a row, reader's scro
   skeleton, including the reload of a hosted native panel). While not active, this rule
   asks for nothing and keeps no dwell.
 - **Start events**: the section becoming active, a file change, and the frames arriving
-  (a `.loft` reads them on mount and can be shown before they arrive).
+  (a `.loft` reads them on mount and can be shown before they arrive). Frames that
+  arrive again with the same start times, in the same order, as the frames drawn are not
+  an arrival; **the same frames** means the same list of start times.
 - **Start placement**: the placement SPEC-ADDON-152 §1.3 makes after a start event (the
   playing row placed with a `mediaController`, the list's top otherwise), done before
   the first paint of the shown list.
-- **Opening**: from a start event until the first of: a reader's scroll input, ruler
-  input, the chip, a tile or the card being played, or a placement made because the
-  playback time changed. Re-placements during opening because `c`, the row step or the
-  visible area's size changed (for example the first picture's ratio, §1.15) do not end
-  it.
+- **Own scroll**: a scroll of the scroller to the `scrollTop` the section itself last
+  wrote (a placement). Any other scroll event of the scroller (wheel, touch, keys,
+  scrollbar, find-in-page, scroll anchoring, a script) is **not own**.
+- **Opening**: from a start event until the first of: a scroll event that is not own, a
+  pointer press on the ruler, or a ruler key (`←`, `→`, `Home`, `End`, `Enter`), whether
+  or not the scroller can scroll. Nothing else ends it: hovering the ruler, own scrolls
+  (the start placement, re-placements because `c`, the row step or the visible area's
+  size changed, following during playback, a controller appearing, a resume seek), the
+  chip, and a tile or the card being played keep it going.
 - **Reading**: the near set the section computes when it observes the list: after the
   start placement, on each scroll event of the scroller, on each resize observation and
   on each commit that changes `c` or the row step. A reading taken before the start
@@ -77,8 +83,8 @@ scroller, visible area, row step, visible row, shown, place a row, reader's scro
    become near starts a dwell, a tile no longer near ends its dwell, and a tile that
    stays near keeps its dwell running, including across a change of `c` or the row step.
    A tile whose dwell reaches `D` has its picture asked for. This holds while the
-   scroller is still moving, and for placements the section makes (ruler, keys, chip,
-   following during playback).
+   scroller is still moving, and for placements the section makes after opening (ruler,
+   keys, chip, following during playback).
 3. A tile that stops being near before `D` is not asked for; if it becomes near again, a
    new dwell starts from zero. Time from earlier dwells is never added up.
 4. A picture is asked for at most once while the section stays active with the same file
@@ -149,9 +155,10 @@ Unchanged: the host proxy's `file_access` pre_check on both picture routes.
   (`scenes-section.cases.ts`, the SPEC-ADDON-152 I8 / 153 I6 cases) poll for the request
   instead, so `D` does not make them flaky. The `settled()` helper in
   `scenes-scroll-list.cases.ts` waits for layout readings, not pictures, and stays.
-- Following during playback: the rows it places are dwelt and asked for `D` after they
-  come near, also while playback keeps placing; the old rule asked for them only once
-  the list had been still for 150 ms.
+- Following during playback: during opening the rows it places are asked for at once
+  (one row at a time as playback advances); after opening they are dwelt and asked for
+  `D` after they come near. The old rule asked for them once the list had been still
+  for 150 ms.
 - Hovering the ruler moves nothing, so it still asks for nothing (SPEC-ADDON-153 I9).
 - Dropping the per-scroll `scrollVersion` render: the band, the card's top-row point and
   the chip update from the visible rows (`syncVisible`), not from that render, and must
@@ -182,7 +189,8 @@ Unchanged. Nothing new is shown or logged.
   list moves slower than about that height per `D` (for example about 2,900 px/s on a
   390 px phone sheet and about 4,500 px/s on a 700 px workbench list).
 - Measured in a real browser (`frontend/e2e-components/`, the bounded fixture and the
-  flow fixture on the phone project). The test records, from inside the page, the time
+  flow fixture on the phone project). Each case scrolls by script after opening, so its
+  first step is a scroll that is not own and ends opening. The test records, from inside the page, the time
   of each scroll event and each tile's near set at that event (the same rule as Terms),
   and judges every tile from those observed durations, not from the nominal schedule:
   - **Slow scroll**: the scroller moves 4 px every animation frame for 2 s. Every tile
@@ -234,6 +242,7 @@ I5. A picture is asked for at most once while the section stays active with the 
 I6. Leaving the active state, a file change or the frames arriving discards every running dwell: no picture is asked for afterwards because of a dwell begun before it, and while not active no picture is asked for and no timer of this rule is pending.
 I7. A tile's `<img>` has no `loading` attribute, for a native video and for a `.loft`.
 I8. A failed native frame or `.loft` tile stays drawn empty for the rest of the active period and is asked for again after the next start event; a failure changes no other tile's `<img>`.
+I9. Opening ends at the first scroll event that is not own, pointer press on the ruler or ruler key: a tile that first becomes near after it has no `src` at `D` − 1 ms. An own scroll during opening (a re-placement for `c`, the row step or the visible area's size, a following placement, a controller appearing) does not end it: the tiles it makes near have `src` with no timer elapsing. Hovering the ruler does not end it.
 
 ## Revises
 
@@ -268,6 +277,14 @@ SPEC-ADDON-089 I8. Pictures are requested as SPEC-ADDON-152 I6, as revised by SP
 - **Removing `loading="lazy"` asks for the rows one step outside the view on opening**:
   the same set the old rule asked for 150 ms later; the browser's lazy margin was
   already wider than one row.
+- **Pictures dwelt during a long slow scroll queuing ahead of the stop point's**:
+  accepted. The browser runs 6 requests at once and a native frame takes about 160 ms,
+  about 37 pictures a second; a reading-speed scroll (4 px a frame, a 110 px row step,
+  8 columns) dwells about 17 tiles a second, so the queue keeps up. A fast fling's tiles
+  are not dwelt at all.
+- **Asking for rows at once during opening for every own scroll** (a resume seek, a
+  controller appearing, following during playback): these place one region at a time,
+  so the cost is the rows the reader is shown.
 - **Timer and render counts** (one pending timer for the rule rather than one per tile,
   no tile re-render from a clock tick): design notes for the implementation, not tested.
 - **Changing the server's per-request cost** (thread pool size, ffmpeg options): not part
