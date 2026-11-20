@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { useCallback, useMemo, useState, type ReactNode } from "react";
-import { BookOpen, ChevronLeft } from "lucide-react";
+import { BookOpen, ChevronLeft, Search } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 
 import { EmptyState } from "@/components/EmptyState";
+import { NameFilter } from "@/components/appshell/NameFilter";
 import { RetryButton } from "@/components/appshell/RetryButton";
 import { ShelfBlock } from "@/components/appshell/ShelfBlock";
 import { useNearEnd } from "@/components/appshell/useNearEnd";
@@ -61,6 +62,9 @@ export function ReadingShelfPage({
   folders: urlFolders,
   tags: urlTags,
   watch: urlWatch,
+  name,
+  onNameChange,
+  onLeavePending,
   onTargetChosen,
   from,
   homeEntry,
@@ -72,6 +76,12 @@ export function ReadingShelfPage({
   folders?: readonly string[];
   tags?: readonly string[];
   watch?: string | null;
+  /** The URL's normalised `q`. */
+  name?: string | null;
+  /** An applied name; the caller replaces the URL and keeps the store. */
+  onNameChange?: (name: string) => void;
+  /** Called on unmount while an apply is still pending. */
+  onLeavePending?: (name: string) => void;
   /** Called after a Target is chosen on this page, to drop the URL's filters. */
   onTargetChosen?: () => void;
   from?: string | null;
@@ -79,12 +89,13 @@ export function ReadingShelfPage({
   homeEntry?: string;
 }) {
   const t = useTranslations("readingApp");
+  const tFilters = useTranslations("appFilters");
   const locale = useLocale();
   const appState = useReadingApp(drive);
   const { chooseTarget: chooseAppTarget, targetId } = appState;
   // The URL's filters stop applying in the render that shows the new Target;
   // the replace that removes them from the URL lands later.
-  const urlFilters = JSON.stringify([urlTags ?? [], urlWatch ?? null, urlFolders ?? []]);
+  const urlFilters = JSON.stringify([urlTags ?? [], urlWatch ?? null, urlFolders ?? [], name ?? ""]);
   const [droppedFor, setDroppedFor] = useState<string | null>(null);
   const filtersDropped = droppedFor === urlFilters;
   const chooseTarget = useCallback(
@@ -132,6 +143,14 @@ export function ReadingShelfPage({
   }, [params, urlFolders, urlTags, filtersDropped]);
 
   const watch = state.hasProfile ? requestedWatch : null;
+  const requestedName = filtersDropped ? "" : (name ?? "");
+  const listing = by !== null && query !== null && keyValid && !watchBlocked;
+  const filtersActive =
+    !filtersDropped &&
+    (requestedName !== "" ||
+      (urlTags?.length ?? 0) > 0 ||
+      (urlFolders?.length ?? 0) > 0 ||
+      requestedWatch !== null);
 
   const fetchPage = useMemo(
     () =>
@@ -142,6 +161,7 @@ export function ReadingShelfPage({
               .shelves(drive, {
                 ...query,
                 ...(watch ? { watch } : {}),
+                ...(requestedName ? { search: requestedName } : {}),
                 by,
                 key: shelfKey,
                 sort: sort.sort,
@@ -168,6 +188,7 @@ export function ReadingShelfPage({
       watch,
       watchBlocked,
       keyValid,
+      requestedName,
       sort.sort,
       sort.order,
       rejectViewer,
@@ -193,7 +214,11 @@ export function ReadingShelfPage({
   } else if (paged.phase === "failed") {
     body = <RetryButton onRetry={paged.retry} />;
   } else if (paged.phase === "ready" && paged.items.length === 0) {
-    body = <EmptyState icon={BookOpen} title={t("noBooks")} />;
+    body = filtersActive ? (
+      <EmptyState icon={Search} title={tFilters("filterEmpty")} />
+    ) : (
+      <EmptyState icon={BookOpen} title={t("noBooks")} />
+    );
   } else if (paged.phase === "ready") {
     body = (
       <>
@@ -245,12 +270,29 @@ export function ReadingShelfPage({
             </Link>
           }
           actions={
-            <ReadingSortMenu
-              choices={offered}
-              value={sortId}
-              quiet
-              onChange={(id) => setSelection({ scope, id })}
-            />
+            listing ? (
+              <div className="flex w-full min-w-0 flex-col items-start gap-2 sm:w-auto sm:flex-row sm:items-center">
+                <NameFilter
+                  value={requestedName}
+                  alwaysOpen
+                  onApply={(next) => onNameChange?.(next)}
+                  onLeavePending={onLeavePending}
+                />
+                <ReadingSortMenu
+                  choices={offered}
+                  value={sortId}
+                  quiet
+                  onChange={(id) => setSelection({ scope, id })}
+                />
+              </div>
+            ) : (
+              <ReadingSortMenu
+                choices={offered}
+                value={sortId}
+                quiet
+                onChange={(id) => setSelection({ scope, id })}
+              />
+            )
           }
         />
       }
