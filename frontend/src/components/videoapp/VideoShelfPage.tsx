@@ -79,13 +79,20 @@ export function VideoShelfPage({
   const tGlobal = useTranslations();
   const locale = useLocale();
   const appState = useVideoApp(drive);
-  const { chooseTarget: chooseAppTarget } = appState;
+  const { chooseTarget: chooseAppTarget, targetId } = appState;
+  // The URL's filters stop applying in the render that shows the new Target;
+  // the replace that removes them from the URL lands later.
+  const urlFilters = JSON.stringify([urlTags ?? [], urlWatch ?? null]);
+  const [droppedFor, setDroppedFor] = useState<string | null>(null);
+  const filtersDropped = droppedFor === urlFilters;
   const chooseTarget = useCallback(
     (id: string) => {
+      if (id === targetId) return;
+      setDroppedFor(urlFilters);
       chooseAppTarget(id);
       onTargetChosen?.();
     },
-    [chooseAppTarget, onTargetChosen],
+    [chooseAppTarget, onTargetChosen, targetId, urlFilters],
   );
   const state = useMemo(() => ({ ...appState, chooseTarget }), [appState, chooseTarget]);
   const entryMode = typeof entry === "string" && entry !== "";
@@ -108,11 +115,11 @@ export function VideoShelfPage({
 
   const query = useMemo<typeof params>(() => {
     if (params === null) return null;
-    const merged = mergeLibraryTags(listOf(params.tag), urlTags ?? []);
+    const merged = mergeLibraryTags(listOf(params.tag), filtersDropped ? [] : (urlTags ?? []));
     return { ...params, ...(merged.length > 0 ? { tag: merged } : {}) };
-  }, [params, urlTags]);
+  }, [params, urlTags, filtersDropped]);
 
-  const watch = state.hasProfile ? parseWatchState(urlWatch ?? null) : null;
+  const watch = state.hasProfile && !filtersDropped ? parseWatchState(urlWatch ?? null) : null;
 
   const fetchPage = useMemo(
     () =>

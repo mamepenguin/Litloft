@@ -78,13 +78,20 @@ export function ReadingShelfPage({
   const t = useTranslations("readingApp");
   const locale = useLocale();
   const appState = useReadingApp(drive);
-  const { chooseTarget: chooseAppTarget } = appState;
+  const { chooseTarget: chooseAppTarget, targetId } = appState;
+  // The URL's filters stop applying in the render that shows the new Target;
+  // the replace that removes them from the URL lands later.
+  const urlFilters = JSON.stringify([urlTags ?? [], urlWatch ?? null]);
+  const [droppedFor, setDroppedFor] = useState<string | null>(null);
+  const filtersDropped = droppedFor === urlFilters;
   const chooseTarget = useCallback(
     (id: string) => {
+      if (id === targetId) return;
+      setDroppedFor(urlFilters);
       chooseAppTarget(id);
       onTargetChosen?.();
     },
-    [chooseAppTarget, onTargetChosen],
+    [chooseAppTarget, onTargetChosen, targetId, urlFilters],
   );
   const state = useMemo(() => ({ ...appState, chooseTarget }), [appState, chooseTarget]);
   const offered: readonly ShelfSortChoice[] =
@@ -98,7 +105,7 @@ export function ReadingShelfPage({
   if (selection.scope !== scope) setSelection(active);
   const sortId = active.id;
   const sort = offered.find((choice) => choice.id === sortId) ?? offered[0];
-  const requestedWatch = parseWatchState(urlWatch ?? null);
+  const requestedWatch = filtersDropped ? null : parseWatchState(urlWatch ?? null);
   const keyValid =
     by === "folder" ||
     by === "all" ||
@@ -116,10 +123,10 @@ export function ReadingShelfPage({
     if (params === null) return null;
     const next: ReadingTargetParams = { ...params };
     if (urlFolders && urlFolders.length > 0) next.folder = [...urlFolders];
-    const merged = mergeTags(listOf(params.tag), urlTags ?? []);
+    const merged = mergeTags(listOf(params.tag), filtersDropped ? [] : (urlTags ?? []));
     if (merged.length > 0) next.tag = merged;
     return next;
-  }, [params, urlFolders, urlTags]);
+  }, [params, urlFolders, urlTags, filtersDropped]);
 
   const watch = state.hasProfile ? requestedWatch : null;
 

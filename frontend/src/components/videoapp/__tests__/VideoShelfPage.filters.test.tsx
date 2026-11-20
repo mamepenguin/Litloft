@@ -194,4 +194,34 @@ describe("SPEC-CORE-147 I4 I6 the Video See all route reads its filters", () => 
     expect(href.searchParams.get("key")).toBe("Movies");
     expect(push).not.toHaveBeenCalled();
   });
+
+  it("SPEC-CORE-147 I5 re-choosing the Target in force on the page keeps its URL filters", async () => {
+    await renderRoute("by=folder&key=Movies&from=library&tag=Trip&watch=finished");
+    await screen.findByText("Video v1");
+
+    fireEvent.click(await screen.findByRole("button", { name: /Target/ }));
+    fireEvent.click(await screen.findByRole("menuitemradio", { name: /All videos/ }));
+
+    await new Promise((r) => setTimeout(r, 50));
+    expect(replace).not.toHaveBeenCalled();
+    expect(shelfCall()).toMatchObject({ tag: ["Trip"], watch: "finished" });
+  });
+
+  it("SPEC-CORE-147 I5 after another Target is chosen on the page no request carries the URL filters", async () => {
+    getSmartFolders.mockResolvedValue([
+      { id: "sf", drive: DRIVE, name: "Trips", query: "path:Movies", file_type: null, sort_by: null, sort_order: null, created_at: "", updated_at: null },
+    ]);
+    await renderRoute("by=folder&key=Movies&from=library&tag=Trip&watch=finished");
+    await screen.findByText("Video v1");
+    const before = getShelves.mock.calls.length;
+
+    fireEvent.click(await screen.findByRole("button", { name: /Target/ }));
+    fireEvent.click(await screen.findByRole("menuitemradio", { name: /Trips/ }));
+
+    await waitFor(() => expect(getShelves.mock.calls.length).toBeGreaterThan(before));
+    for (const [, p] of getShelves.mock.calls.slice(before)) {
+      expect((p as Params).tag).toBeUndefined();
+      expect((p as Params).watch).toBeUndefined();
+    }
+  });
 });
