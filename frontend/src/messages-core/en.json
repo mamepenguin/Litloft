@@ -209,6 +209,7 @@
     "actionsFor": "Actions for {name}",
     "pdfThumbnails": "Page thumbnails",
     "officeExcerpt": "Extracted text, first lines",
+    "officeViewer": "Document",
     "pdfZoomMode": "Zoom mode",
     "pdfZoomMode_fit-width": "Fit width",
     "pdfZoomMode_fit-page": "Whole page",

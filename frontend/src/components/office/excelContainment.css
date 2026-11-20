@@ -1,0 +1,26 @@
+/*
+ * `@js-preview/excel` ships three unscoped `form fieldset` rules. A later rule
+ * of higher specificity hands each property back to the layers beneath —
+ * Litloft's Tailwind styles — so setup and settings forms look as they did
+ * without the library's sheet. `revert-layer` is what makes that possible: an
+ * unlayered declaration would otherwise win over every layered utility.
+ */
+html form fieldset {
+  border: revert-layer;
+}
+
+html form fieldset label {
+  display: revert-layer;
+  margin-bottom: revert-layer;
+  font-size: revert-layer;
+  color: revert-layer;
+}
+
+html form fieldset select {
+  font-size: revert-layer;
+  width: revert-layer;
+  background-color: revert-layer;
+  border: revert-layer;
+  padding: revert-layer;
+  border-radius: revert-layer;
+}

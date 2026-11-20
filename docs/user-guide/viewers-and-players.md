@@ -168,7 +168,11 @@ A note longer than two screens reopens where you left it, and one you read nearl
 
 ## Office files (DOCX / XLSX / PPTX)
 
-There is no viewer for Office files. The page offers **Download** and **Open in new tab**, and shows the first lines of the document's text so you can tell similar files apart. Files over 20 MB and the old `.doc` / `.xls` / `.ppt` formats show no text. The text also makes the file findable in search.
+A `.docx` opens as pages in the page, and a `.xlsx` as a spreadsheet grid with row and column headings and sheet tabs along the bottom. Both are read-only: cells can be selected but not changed, and a row or column edge can be dragged as a view change that lasts while the page is open. On a phone the drawing scrolls inside its frame. Web links in a Word document open in a new tab. A large workbook takes a few seconds to appear.
+
+What the viewers draw is what their libraries draw. A cell's text that overflows into an empty neighbour is cut at its own cell, shapes and charts in a workbook are not shown, and a Word document can lay out differently from Word. Dates and numbers follow the library's formatting.
+
+**PowerPoint** (`.pptx`) and the old `.doc` / `.xls` / `.ppt` formats have no viewer: the page offers **Download** and **Open in new tab**, and for `.pptx` shows the first lines of the document's text, which also makes the file findable in search. Files over 20 MB and files missing from the drive keep that panel.
 
 ## ZIP archives
 
@@ -195,7 +199,7 @@ Markdown notes can be edited in the app (see above), and so can a `.txt` file up
 
 A `.loft` file from the [media_import addon](../addons/media-import.md) plays the original:
 
-- **YouTube**: in Litloft's own player, with the channel, publication date, description and caption status in the **Info** tab. The **Player** setting switches between **Litloft** and **YouTube** controls. During an ad, Litloft's controls step aside. If the owner does not allow embedding, you get **Watch on YouTube** instead.
+- **YouTube**: in Litloft's own player, with the channel, publication date, description and caption status in the **Info** tab. The channel name opens that channel's videos in this drive. The **Player** setting switches between **Litloft** and **YouTube** controls. During an ad, Litloft's controls step aside. If the owner does not allow embedding, you get **Watch on YouTube** instead.
 - **Vimeo**: in Vimeo's player.
 - **Other sites**: a link to the original.
 

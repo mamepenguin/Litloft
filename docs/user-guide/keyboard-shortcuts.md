@@ -127,7 +127,7 @@ On a video's page, the ruler in the **Scenes** panel is one tab stop; these keys
 | `←` | Previous file in the folder |
 | `→` | Next file in the folder |
 
-On video and audio pages the arrows seek instead. On PDF and EPUB pages they turn pages; use the previous / next buttons to change file.
+On video and audio pages the arrows seek instead. On PDF and EPUB pages they turn pages; use the previous / next buttons to change file. On an Excel file, after you click the grid the arrows move the selected cell; click outside the grid to step files again.
 
 ## PDF viewer
 
