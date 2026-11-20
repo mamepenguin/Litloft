@@ -7,13 +7,14 @@ import { useLocale, useTranslations } from "next-intl";
 
 import { EmptyState } from "@/components/EmptyState";
 import { RetryButton } from "@/components/appshell/RetryButton";
+import { mergeLibraryTags } from "@/components/appshell/libraryFilters";
 import { useNearEnd } from "@/components/appshell/useNearEnd";
 import { usePaged } from "@/components/appshell/usePaged";
 import { VideoGrid } from "@/components/appshell/VideoGrid";
 import { PageFrame } from "@/components/PageFrame";
 import { builtinApps } from "@/lib/builtinApps";
 import { loadSlotItemActions, type ShelfItemAction } from "@/lib/addons";
-import { type ShelfGrouping, type ShelfItem } from "@/lib/api";
+import { type ShelfGrouping, type ShelfItem, type ShelfWatchState } from "@/lib/api";
 import { slotEntryLabel } from "@/lib/slotLabel";
 import { SortChoiceMenu } from "./LibraryControls";
 import {
@@ -33,9 +34,18 @@ import { SkeletonGrid, VideoPagedGrid } from "./VideoPagedGrid";
 export const SHELF_PAGE_SIZE = 60;
 
 const GROUPINGS: readonly ShelfGrouping[] = ["all", "folder", "tag", "month", "duration", "watch"];
+const WATCH_STATES: readonly ShelfWatchState[] = ["in_progress", "unwatched", "finished"];
 
 export function parseGrouping(raw: string | null): ShelfGrouping | null {
   return GROUPINGS.find((grouping) => grouping === raw) ?? null;
+}
+
+export function parseWatchState(raw: string | null): ShelfWatchState | null {
+  return WATCH_STATES.find((state) => state === raw) ?? null;
+}
+
+function listOf(value: string | readonly string[] | undefined): string[] {
+  return value === undefined ? [] : ([value].flat() as string[]);
 }
 
 /** One shelf of the Library, as a grid paged 60 at a time. */
@@ -44,6 +54,9 @@ export function VideoShelfPage({
   by,
   shelfKey,
   initialSort,
+  tags: urlTags,
+  watch: urlWatch,
+  onTargetChosen,
   from,
   entry,
   slot,
@@ -52,6 +65,10 @@ export function VideoShelfPage({
   by: ShelfGrouping | null;
   shelfKey: string;
   initialSort?: string | null;
+  tags?: readonly string[];
+  watch?: string | null;
+  /** Called after a Target is chosen on this page, to drop the URL's filters. */
+  onTargetChosen?: () => void;
   from?: string | null;
   /** An addon shelf to page through its page provider. */
   entry?: string | null;
@@ -61,7 +78,23 @@ export function VideoShelfPage({
   const t = useTranslations("videoApp");
   const tGlobal = useTranslations();
   const locale = useLocale();
-  const state = useVideoApp(drive);
+  const appState = useVideoApp(drive);
+  const { chooseTarget: chooseAppTarget, targetId } = appState;
+  // The URL's filters stop applying in the render that shows the new Target;
+  // the replace that removes them from the URL lands later.
+  const urlFilters = JSON.stringify([urlTags ?? [], urlWatch ?? null]);
+  const [droppedFor, setDroppedFor] = useState<string | null>(null);
+  const filtersDropped = droppedFor === urlFilters;
+  const chooseTarget = useCallback(
+    (id: string) => {
+      if (id === targetId) return;
+      setDroppedFor(urlFilters);
+      chooseAppTarget(id);
+      onTargetChosen?.();
+    },
+    [chooseAppTarget, onTargetChosen, targetId, urlFilters],
+  );
+  const state = useMemo(() => ({ ...appState, chooseTarget }), [appState, chooseTarget]);
   const entryMode = typeof entry === "string" && entry !== "";
   const recommendedMode = entryMode && slot === "recommended";
   const offered: readonly ShelfSortChoice[] =
@@ -79,14 +112,24 @@ export function VideoShelfPage({
   // Watch state reads the viewer's rows; without a profile there is no shelf to open.
   const watchBlocked = !entryMode && by === "watch" && !state.hasProfile;
   const { params, requests, rejectViewer } = state;
+
+  const query = useMemo<typeof params>(() => {
+    if (params === null) return null;
+    const merged = mergeLibraryTags(listOf(params.tag), filtersDropped ? [] : (urlTags ?? []));
+    return { ...params, ...(merged.length > 0 ? { tag: merged } : {}) };
+  }, [params, urlTags, filtersDropped]);
+
+  const watch = state.hasProfile && !filtersDropped ? parseWatchState(urlWatch ?? null) : null;
+
   const fetchPage = useMemo(
     () =>
-      entryMode || by === null || params === null || watchBlocked
+      entryMode || by === null || query === null || watchBlocked
         ? null
         : (page: number) =>
             requests
               .shelves(drive, {
-                ...params,
+                ...query,
+                ...(watch ? { watch } : {}),
                 by,
                 key: shelfKey,
                 sort: sort.sort,
@@ -104,7 +147,7 @@ export function VideoShelfPage({
                   throw error;
                 },
               ),
-    [entryMode, drive, by, shelfKey, params, requests, watchBlocked, sort.sort, sort.order, rejectViewer],
+    [entryMode, drive, by, shelfKey, query, requests, watch, watchBlocked, sort.sort, sort.order, rejectViewer],
   );
   const paged = usePaged<ShelfItem>(fetchPage);
   const provider = useProviderShelfPage({
@@ -174,7 +217,7 @@ export function VideoShelfPage({
         : t("title")
     : by === null
       ? t("title")
-      : shelfTitle({ by, shelf: { key: shelfKey, label: shelfKey }, drive, locale, from, t: (key) => t(key) });
+      : shelfTitle({ by, shelf: { key: shelfKey, label: "" }, drive, locale, from, t: (key) => t(key) });
   const app = builtinApps.find((candidate) => candidate.id === "video")!;
 
   const body = state.targetFailed ? (

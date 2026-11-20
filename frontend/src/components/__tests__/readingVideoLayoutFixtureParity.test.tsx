@@ -102,7 +102,7 @@ const SHAPES: Record<string, Markup> = JSON.parse(
   )![1],
 );
 
-const SHAPE_COUNT = 14;
+const SHAPE_COUNT = 13;
 
 const SOURCES = [
   "AppTabs",
@@ -273,7 +273,7 @@ async function renderShape(name: string): Promise<Element> {
       if (name === "readingChipIdle") return chips.children[1];
       if (name === "readingControls") {
         const group = screen.getByRole("button", { name: /^Group By/ });
-        return group.parentElement!.parentElement!;
+        return group.parentElement!.parentElement!.parentElement!;
       }
       return container;
     }
@@ -283,7 +283,7 @@ async function renderShape(name: string): Promise<Element> {
       const group = await screen.findByRole("button", {
         name: /^Group By/,
       });
-      return group.parentElement!.parentElement!;
+      return group.parentElement!.parentElement!.parentElement!;
     }
 
     case "AppTabs": {

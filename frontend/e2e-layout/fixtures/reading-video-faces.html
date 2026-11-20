@@ -193,25 +193,36 @@
         "readingControls": {
           "source": "ReadingLibraryFace",
           "tag": "div",
-          "class": "grid grid-cols-2 items-center gap-2 sm:flex sm:flex-wrap",
+          "class": "flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-5",
           "children": [
             {
               "tag": "div",
-              "class": "col-span-2 flex min-w-0 flex-wrap items-center gap-2 sm:col-span-1 sm:flex-nowrap",
-              "children": [
-                { "ref": "menuButtonFilled" },
-                { "ref": "menuButtonFilled" }
-              ]
+              "class": "grid grid-cols-2 items-center gap-2 sm:flex sm:shrink-0 sm:flex-nowrap",
+              "children": [{ "ref": "menuButton" }, { "ref": "menuButton" }]
             },
-            { "ref": "menuButton" },
-            { "ref": "menuButton" }
+            {
+              "tag": "div",
+              "class": "grid grid-cols-2 items-center gap-2 sm:flex sm:shrink-0 sm:flex-nowrap",
+              "children": [{ "ref": "menuButton" }, { "ref": "menuButton" }]
+            }
           ]
         },
         "videoControls": {
           "source": "VideoLibraryFace",
           "tag": "div",
-          "class": "grid grid-cols-2 items-center gap-2 sm:flex sm:flex-wrap",
-          "children": [{ "ref": "menuButton" }, { "ref": "menuButton" }]
+          "class": "flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-5",
+          "children": [
+            {
+              "tag": "div",
+              "class": "grid grid-cols-2 items-center gap-2 sm:flex sm:shrink-0 sm:flex-nowrap",
+              "children": [{ "ref": "menuButton" }, { "ref": "menuButton" }]
+            },
+            {
+              "tag": "div",
+              "class": "grid grid-cols-2 items-center gap-2 sm:flex sm:shrink-0 sm:flex-nowrap",
+              "children": [{ "ref": "menuButton" }, { "ref": "menuButton" }]
+            }
+          ]
         },
         "menuButton": {
           "source": "ToolbarMenu",
@@ -221,22 +232,6 @@
             {
               "tag": "button",
               "class": "flex items-center gap-1.5 [&>svg]:flex-shrink-0 rounded-2xl border border-bg-border bg-bg-card px-3 py-2 text-sm text-text-muted transition-colors hover:text-text-primary pointer-coarse:min-h-11 max-w-full w-full",
-              "attrs": {
-                "aria-haspopup": "menu",
-                "aria-expanded": "false",
-                "aria-label": "*"
-              }
-            }
-          ]
-        },
-        "menuButtonFilled": {
-          "source": "ToolbarMenu",
-          "tag": "div",
-          "class": "relative min-w-0",
-          "children": [
-            {
-              "tag": "button",
-              "class": "flex max-w-full items-center gap-1.5 rounded-2xl bg-sand px-4 py-2 text-sm text-text-muted transition-colors hover:bg-sand-hover pointer-coarse:min-h-11",
               "attrs": {
                 "aria-haspopup": "menu",
                 "aria-expanded": "false",
@@ -433,12 +428,14 @@
 
         const controls = build({ ref: "videoControls" });
         controls.dataset.controls = "";
-        controls.querySelectorAll(":scope > div").forEach((wrapper, i) => {
-          menu(
-            wrapper,
-            i === 0 ? "Group By" : "Sort By",
-            i === 0 ? "Folder" : "Date Added (Newest First)",
-          );
+        const labels = [
+          ["Tag", "Tag"],
+          ["State", "In progress"],
+          ["Group By", "Folder"],
+          ["Sort By", "Date Added (Newest First)"],
+        ];
+        controls.querySelectorAll("button").forEach((button, i) => {
+          menu(button.parentElement, labels[i][0], labels[i][1]);
         });
 
         stack.append(

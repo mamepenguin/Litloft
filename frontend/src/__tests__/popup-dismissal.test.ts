@@ -168,7 +168,7 @@ const POPUPS: Record<string, PopupEntry> = {
       "draws its rows inside ToolbarMenu, which owns the scrim; Manage opens " +
       "the modal above, which has its own backdrop",
   },
-  "frontend/src/components/readingapp/LibraryControls.tsx": {
+  "frontend/src/components/appshell/FilterMenus.tsx": {
     dismissedIn: "frontend/src/components/ToolbarMenu.tsx",
     why: "draws its tag rows inside ToolbarMenu, which owns the scrim",
   },

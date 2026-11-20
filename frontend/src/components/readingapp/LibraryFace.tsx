@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { BookOpen } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { BookOpen, Search } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 
 import { EmptyState } from "@/components/EmptyState";
+import { FilterMenus } from "@/components/appshell/FilterMenus";
+import { mergeLibraryTags, useLibraryFilters } from "@/components/appshell/libraryFilters";
 import { RetryButton } from "@/components/appshell/RetryButton";
 import { ShelfBlock } from "@/components/appshell/ShelfBlock";
 import { GroupMenu, LibraryControlRow, SortMenu } from "@/components/appshell/ViewMenus";
@@ -22,7 +24,6 @@ import {
   type ReadingGroup,
   type SortId,
 } from "./labels";
-import { StateMenu, TagMenu, type ReadingState } from "./LibraryControls";
 import { ReadingCard } from "./ReadingCard";
 import { ReadingGrid } from "./ReadingGrid";
 import { narrowFolders, normalizeFolder } from "./folders";
@@ -38,14 +39,6 @@ type LibraryParams = ReadingTargetParams & { watch?: ShelfWatchState };
 
 function listOf(value: string | readonly string[] | undefined): string[] {
   return value === undefined ? [] : ([value].flat() as string[]);
-}
-
-function mergeTags(base: readonly string[], added: readonly string[]): string[] {
-  const merged = [...base];
-  for (const tag of added) {
-    if (!merged.some((held) => held.toLowerCase() === tag.toLowerCase())) merged.push(tag);
-  }
-  return merged;
 }
 
 /** The chips of the target alone, never the face's own conditions. */
@@ -96,22 +89,17 @@ export function LibraryFace({
   onViewerRejected: () => void;
 }) {
   const t = useTranslations("readingApp");
+  const tFilters = useTranslations("appFilters");
   const locale = useLocale();
   const number = useMemo(() => new Intl.NumberFormat(locale), [locale]);
   const sort = sortChoiceOf(sortId);
   const [chip, setChip] = useState<string>("all");
-  const [tags, setTags] = useState<string[]>([]);
-  const [state, setState] = useState<ReadingState>("all");
+  const filters = useLibraryFilters("reading", drive, hasProfile);
 
   // A chip lasts only for the target it was chosen under.
   useEffect(() => {
     setChip("all");
   }, [params]);
-
-  // Watch state reads the viewer's rows, so losing the profile loses it.
-  useEffect(() => {
-    if (!hasProfile) setState("all");
-  }, [hasProfile]);
 
   const chips = useLibraryChips(drive, params, requests);
 
@@ -121,17 +109,26 @@ export function LibraryFace({
     return narrowFolders(listOf(params.folder), chip);
   }, [params, chip]);
 
-  const watch = hasProfile && state !== "all" ? state : undefined;
+  const watch =
+    hasProfile && filters.state !== "all" ? (filters.state as ShelfWatchState) : undefined;
 
   const query = useMemo<LibraryParams | null>(() => {
     if (params === null) return null;
     const next: LibraryParams = { ...params };
     if (folders !== undefined) next.folder = folders;
-    const merged = mergeTags(listOf(params.tag), tags);
+    const merged = mergeLibraryTags(listOf(params.tag), filters.tags);
     if (merged.length > 0) next.tag = merged;
     if (watch) next.watch = watch;
     return next;
-  }, [params, folders, tags, watch]);
+  }, [params, folders, filters.tags, watch]);
+  const excludedTags = useMemo(() => listOf(params?.tag), [params]);
+  const conditionsKey = useMemo(() => JSON.stringify(query ?? null), [query]);
+  const loadCandidates = useCallback(
+    (signal: AbortSignal) =>
+      query === null ? Promise.resolve([]) : requests.tagCounts(drive, query, { signal }),
+    [drive, query, requests],
+  );
+  const filtersActive = filters.tags.length > 0 || watch !== undefined;
 
   const blocked = empty || (chip !== "all" && folders !== undefined && folders.length === 0);
 
@@ -198,18 +195,16 @@ export function LibraryFace({
     grouped.loadMore,
   );
 
-  const toggleTag = (tag: string) =>
-    setTags((held) => (held.includes(tag) ? held.filter((name) => name !== tag) : [...held, tag]));
-
   if (empty) {
     return <EmptyState icon={BookOpen} title={t("targetUnusable")} />;
   }
 
   const conditions = {
     ...(folders !== undefined && folders.length > 0 ? { folder: folders } : {}),
-    ...(tags.length > 0 ? { tag: tags } : {}),
+    ...(filters.tags.length > 0 ? { tag: filters.tags } : {}),
     ...(watch ? { watch } : {}),
   };
+  const filteredEmpty = <EmptyState icon={Search} title={tFilters("filterEmpty")} />;
 
   const chipRow = (
     <div
@@ -242,12 +237,33 @@ export function LibraryFace({
     label: t(choice.labelKey),
   }));
 
+  const stateOptions = [
+    { value: "all", label: t("state.all") },
+    ...(["unwatched", "in_progress", "finished"] as const).map((value) => ({
+      value,
+      label: t(`state.${value}`),
+    })),
+  ];
+
   const controls = (
-    <LibraryControlRow>
-      <div className="col-span-2 flex min-w-0 flex-wrap items-center gap-2 sm:col-span-1 sm:flex-nowrap">
-        <TagMenu drive={drive} selected={tags} onToggle={toggleTag} />
-        {hasProfile && <StateMenu value={state} onChange={setState} />}
-      </div>
+    <LibraryControlRow
+      filters={
+        <FilterMenus
+          tags={filters.tags}
+          onToggle={filters.toggleTag}
+          onClear={filters.clearTags}
+          loadCandidates={loadCandidates}
+          conditionsKey={conditionsKey}
+          excludeTags={excludedTags}
+          state={
+            hasProfile
+              ? { options: stateOptions, value: filters.state, onChange: filters.setState }
+              : null
+          }
+          onViewerRejected={onViewerRejected}
+        />
+      }
+    >
       <GroupMenu options={groupOptions} value={group} onChange={onGroup} />
       <SortMenu options={sortOptions} value={sortId} onChange={onSort} />
     </LibraryControlRow>
@@ -262,7 +278,11 @@ export function LibraryFace({
     } else if (flat.phase === "ready") {
       body =
         flat.items.length === 0 ? (
-          <EmptyState icon={BookOpen} title={t("noBooks")} />
+          filtersActive ? (
+            filteredEmpty
+          ) : (
+            <EmptyState icon={BookOpen} title={t("noBooks")} />
+          )
         ) : (
           <>
             <ReadingGrid
@@ -304,7 +324,11 @@ export function LibraryFace({
   } else if (grouped.phase === "ready") {
     body =
       grouped.items.length === 0 ? (
-        <EmptyState icon={BookOpen} title={t("noBooks")} />
+        filtersActive ? (
+          filteredEmpty
+        ) : (
+          <EmptyState icon={BookOpen} title={t("noBooks")} />
+        )
       ) : (
         <>
           <div className="space-y-10">

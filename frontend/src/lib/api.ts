@@ -257,6 +257,63 @@ export async function getDriveTags(
   return fetchJSON<Tag[]>(`${API_BASE}/drives/${encodeURIComponent(drive)}/tags${qs ? `?${qs}` : ""}`);
 }
 
+export type TagCountsParams = ListingFilters & { watch?: ShelfWatchState };
+
+function tagCountsSearchParams(params: TagCountsParams): string {
+  const searchParams = new URLSearchParams();
+  appendListingFilters(searchParams, params);
+  if (params.watch) searchParams.set("watch", params.watch);
+  return searchParams.toString();
+}
+
+async function readTagCounts(res: Response): Promise<Tag[]> {
+  if (!res.ok) {
+    const body: unknown = await res.json().catch(() => null);
+    const detail =
+      typeof body === "object" && body !== null && "detail" in body
+        ? (body as { detail: unknown }).detail
+        : undefined;
+    throw new ApiStatusError(
+      res.status,
+      `API error: ${res.status} ${res.statusText}`,
+      typeof detail === "string" ? detail : undefined,
+    );
+  }
+  return (await res.json()) as Tag[];
+}
+
+/** The tags of the files matching these conditions, with distinct file counts. */
+export async function getTagCounts(
+  drive: string,
+  params: TagCountsParams,
+  options?: RequestOptions,
+): Promise<Tag[]> {
+  const res = await fetch(
+    `${API_BASE}/drives/${encodeURIComponent(drive)}/tag-counts?${tagCountsSearchParams(params)}`,
+    { credentials: "include", ...(options?.signal ? { signal: options.signal } : {}) },
+  );
+  return readTagCounts(res);
+}
+
+export async function getTagCountsWithFileIds(
+  drive: string,
+  params: TagCountsParams,
+  fileIds: readonly string[],
+  options?: RequestOptions,
+): Promise<Tag[]> {
+  const res = await fetch(
+    `${API_BASE}/drives/${encodeURIComponent(drive)}/tag-counts/query?${tagCountsSearchParams(params)}`,
+    {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ file_ids: fileIds }),
+      ...(options?.signal ? { signal: options.signal } : {}),
+    },
+  );
+  return readTagCounts(res);
+}
+
 export async function getFolderCounts(
   drive: string,
   type?: FileKind,

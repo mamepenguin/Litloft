@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R1",
+      "status": "confirmed",
+      "note": "Traced in code. frontend/src/app/drive/[name]/apps/video/shelf/page.tsx:18-19 passes the URL's tag and watch to VideoShelfPage. VideoShelfPage.tsx:97-101 merges urlTags into `query`. :103 parses urlWatch. :105-120 sends both on every shelves request. VideoShelfPage renders VideoAppHeader (:255), whose target menu calls state.chooseTarget (VideoAppHeader.tsx:67). useVideoApp.ts:273-280 chooseTarget only does setChosen(null), resetLibraryFilters and updatePrefs. Nothing in videoapp/ or appshell/ calls router.replace/push or history.*State (grep found none). So after a Target choice on the See all page, the URL keeps tag/watch, and the next fetchPage, built from the new Target's params, still carries them. The in-memory store is empty, so the Library that the back link opens shows no filter while the See all page still applies one. Reading's See all route (reading/shelf/page.tsx:19-20) reads tag/watch from its URL in the same way. The spec (app-library-filters.md:122-123, 174-177) says a Target choice empties the store and the See all page reads its URL. It does not say whether a Target choice on the See all page must drop the URL filters, so whether this breaks I5 is a judgement call. The behaviour itself is as claimed."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R2",
+      "status": "rejected_with_evidence",
+      "note": "The mechanism is real, but no normal-use trigger was found. A new `tags` array (page.tsx:18) gives a new `query` (VideoShelfPage.tsx:97-101) and a new fetchPage (:105-132), and usePaged.ts:32-60 then restarts. However, VideoShelfRoute (page.tsx:7-25) has no state and reads only useParams/useSearchParams. In the App Router, the page element is held by the router, so parent re-renders do not re-render it. It re-renders only when those contexts change, which means a URL change. Nothing on the See all page changes the URL: sort uses local state (VideoShelfPage.tsx:87-89, 274), and grep finds no router.replace/push or history.*State in components/videoapp or components/appshell. Any URL change that does happen changes by/key/sort/tag/watch, and the shelf has to refetch for those anyway. Reading's route (reading/shelf/page.tsx:18-19) and ReadingShelfPage.tsx:107-110 have the same pattern. Runtime re-render behaviour of Next 16.2.1 was not observed directly."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R3",
+      "status": "rejected_with_evidence",
+      "note": "In Video and Reading, a member re-evaluation does change conditionsKey. A retry or a Target change changes `key` in useMemberTarget.ts:36 (attempt or target id). `evaluation` is then null (:50, held.key !== key), so `evaluating` is true (useVideoApp.ts:171-172) and `ready` is false (:182). `params` becomes null (:188-189), so `query` is null and conditionsKey becomes the string \"null\" (videoapp/LibraryFace.tsx:85). FilterMenus' effect on [open, conditionsKey, attempt] (FilterMenus.tsx:68-97) re-runs and bumps `generation`, which drops the earlier answer. When the evaluation lands, params is set again, the key changes back, and the menu requests again with the new member ids. useReadingApp.ts:162,184 does the same. The only re-evaluation that keeps `key` is a new folder object from a smart-folder list reload (useMemberTarget.ts:47 deps). That list loads only on a drive change, or on retry after a failure (useVideoApp.ts:131-132), not while a menu is open in normal use. In Clips, target.key for a member target is `member:<id>:<fileIds.length>` (useNotesTarget.ts:151), and during evaluation the target is `lookingUp` (:137), not a ReadyNotesTarget. A changed member set of a different size changes the key, and a re-evaluation passes through lookingUp."
+    }
+  ],
+  "specification_compliance": [
+    "I5 (Video/Reading): a Target choice empties the in-memory filter store (useVideoApp.ts:277, useReadingApp.ts:278). On the See all page the URL's filters stay in force after a Target choice (R1); the spec does not say whether they should."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "Target choice made on a Video/Reading See all page: the spec does not say whether the URL's tag/watch filters should then be dropped or kept."
+  ],
+  "regression_risks": [
+    "The See all page can apply URL filters to a different Target from the one they were chosen under (R1)."
+  ],
+  "test_coverage": [
+    "Found no test that makes a Target choice on the Video See all page and checks the request's tag/watch; this was searched by name only, and the test files were not read."
+  ],
+  "not_verified": [
+    "Did not observe at runtime whether Next 16.2.1 re-renders the See all route component without a URL change (R2).",
+    "Did not run any tests or a browser.",
+    "Did not read the Clips Library mount conditions in full to confirm FilterMenus unmounts while the target is lookingUp.",
+    "Backend tag-counts invariants (I1, I2, I13) were not examined."
+  ],
+  "confidence": 78
+}

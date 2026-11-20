@@ -6,7 +6,7 @@ from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import Field
-from sqlalchemy import Integer, and_, case, cast, false, func, select, true
+from sqlalchemy import Integer, case, cast, false, func, select, true
 from sqlalchemy.orm import Session
 
 from app.auth import get_unlocked_groups
@@ -27,6 +27,7 @@ from app.schemas import (
     WatchProgressInfo,
     file_to_response,
 )
+from app.services.watch_state import WATCH_KEYS, WatchState, join_watch, watch_bucket
 from app.services.watched_ranges import watched_ranges_by_file
 
 logger = logging.getLogger(__name__)
@@ -36,8 +37,6 @@ ShelfBy = Literal["all", "folder", "tag", "month", "duration", "watch"]
 
 NO_TAG = "no_tag"
 DURATION_KEYS = ("under_10m", "10_to_30m", "30m_plus")
-WatchState = Literal["in_progress", "unwatched", "finished"]
-WATCH_KEYS: tuple[WatchState, ...] = ("in_progress", "unwatched", "finished")
 FIXED_KEYS = {"duration": DURATION_KEYS, "watch": WATCH_KEYS}
 
 _UNDER_10M_SECONDS = 600
@@ -65,33 +64,11 @@ def _duration_bucket():
     )
 
 
-def _watch_bucket():
-    known = WatchHistory.duration > 0
-    # Multiplied out so the 90% boundary involves no float rounding.
-    finished = and_(
-        known, WatchHistory.playback_position * 10 >= WatchHistory.duration * 9
-    )
-    started = and_(known, WatchHistory.playback_position > 0)
-    return case(
-        (finished, "finished"), (started, "in_progress"), else_="unwatched"
-    )
-
-
 def _drive_tag_links(drive: str):
     return (
         select(file_tags.c.file_id)
         .select_from(file_tags.join(Tag, Tag.id == file_tags.c.tag_id))
         .where(Tag.drive == drive)
-    )
-
-
-def _join_watch(query, viewer_id: str):
-    return query.outerjoin(
-        WatchHistory,
-        and_(
-            WatchHistory.file_id == File.id,
-            WatchHistory.viewer_id == viewer_id,
-        ),
     )
 
 
@@ -102,7 +79,7 @@ def _key_expr(by: str):
         return func.strftime("%Y-%m", File.created_at)
     if by == "duration":
         return _duration_bucket()
-    return _watch_bucket()
+    return watch_bucket()
 
 
 def _grouping(query, by: str, drive: str):
@@ -199,6 +176,18 @@ def _progress_of(row) -> tuple[float, float] | None:
     return position, duration
 
 
+def _rows(query, with_progress: bool) -> list[tuple[File, tuple[float, float] | None]]:
+    """Pair each file with the viewer's progress; requires the watch join to be on."""
+    if not with_progress:
+        return [(file, None) for file in query.all()]
+    return [
+        (row[0], _progress_of(row))
+        for row in query.add_columns(
+            WatchHistory.playback_position, WatchHistory.duration
+        ).all()
+    ]
+
+
 def _folder_base(counts: dict[str, int]) -> str:
     """The deepest folder every matching file lies under, with none at it."""
     base = ""
@@ -228,7 +217,7 @@ def _folder_shelf_key(base: str, folder: str) -> str:
 
 
 def _folder_shelves(
-    base_query, *, sort, order, per_shelf, shelf_limit, offset
+    base_query, *, sort, order, per_shelf, shelf_limit, offset, with_progress
 ) -> tuple[list[ShelfResponse], int, str]:
     """Child folders of the base, plus the files sitting in it.
 
@@ -264,11 +253,13 @@ def _folder_shelves(
             label=_label("folder", key),
             count=shelf_counts[key],
             items=[
-                _item(file, None)
-                for file in base_query.filter(File.folder_path.in_(shelf_paths[key]))
-                .order_by(*_item_order(sort, order))
-                .limit(per_shelf)
-                .all()
+                _item(file, progress)
+                for file, progress in _rows(
+                    base_query.filter(File.folder_path.in_(shelf_paths[key]))
+                    .order_by(*_item_order(sort, order))
+                    .limit(per_shelf),
+                    with_progress,
+                )
             ],
         )
         for key in ordered[offset : offset + shelf_limit]
@@ -286,21 +277,19 @@ def _keyed_shelf(
     order,
     page,
     per_shelf,
+    with_progress,
 ) -> ShelfResponse:
     query = base.filter(_key_filter(by, key, drive))
     count = query.count()
-    rows_query = query.order_by(*_item_order(sort, order))
-    if by == "watch":
-        rows_query = rows_query.add_columns(
-            WatchHistory.playback_position, WatchHistory.duration
+    items = [
+        _item(file, progress)
+        for file, progress in _rows(
+            query.order_by(*_item_order(sort, order))
+            .offset((page - 1) * per_shelf)
+            .limit(per_shelf),
+            with_progress,
         )
-    rows = (
-        rows_query.offset((page - 1) * per_shelf).limit(per_shelf).all()
-    )
-    if by == "watch":
-        items = [_item(row[0], _progress_of(row)) for row in rows]
-    else:
-        items = [_item(file, None) for file in rows]
+    ]
     return ShelfResponse(
         key=key, label=_label(by, key), count=count, items=items
     )
@@ -316,6 +305,7 @@ def _unkeyed_shelves(
     per_shelf,
     shelf_limit,
     offset,
+    with_progress,
 ) -> tuple[list[ShelfResponse], int, str]:
     if by == "folder":
         return _folder_shelves(
@@ -325,6 +315,7 @@ def _unkeyed_shelves(
             per_shelf=per_shelf,
             shelf_limit=shelf_limit,
             offset=offset,
+            with_progress=with_progress,
         )
     grouped, key_expr = _grouping(base, by, drive)
     counts = dict(
@@ -342,7 +333,7 @@ def _unkeyed_shelves(
         partition_by=key_expr, order_by=_item_order(sort, order)
     )
     columns = [File.id.label("fid"), key_expr.label("shelf_key"), rank.label("rank")]
-    if by == "watch":
+    if with_progress:
         columns += [
             WatchHistory.playback_position.label("position"),
             WatchHistory.duration.label("duration"),
@@ -351,7 +342,7 @@ def _unkeyed_shelves(
         grouped.with_entities(*columns).filter(key_expr.in_(chosen)).subquery()
     )
     outer_columns = [File, ranked.c.shelf_key]
-    if by == "watch":
+    if with_progress:
         outer_columns += [ranked.c.position, ranked.c.duration]
     rows = (
         base.session.query(*outer_columns)
@@ -362,7 +353,7 @@ def _unkeyed_shelves(
     )
     items: dict[str, list[ShelfItemResponse]] = {key: [] for key in chosen}
     for row in rows:
-        progress = _progress_of(row) if by == "watch" else None
+        progress = _progress_of(row) if with_progress else None
         items[row[1]].append(_item(row[0], progress))
     shelves = [
         ShelfResponse(
@@ -498,18 +489,20 @@ def _shelves(
     )
     if params.ids is not None:
         base = base.filter(File.id.in_(params.ids))
+    # Joined for every `by`: the viewer's progress is attached to each item
+    # whatever the grouping, and the watch filters read the same row.
+    if viewer_id is not None:
+        base = join_watch(base, viewer_id)
     if params.opened is not None:
         # A row exists whatever its position, so the join is the whole answer.
-        base = _join_watch(base, viewer_id)
         base = base.filter(
             WatchHistory.file_id.isnot(None)
             if params.opened
             else WatchHistory.file_id.is_(None)
         )
-    if params.by == "watch" or params.watch is not None:
-        base = _join_watch(base, viewer_id)
     if params.watch is not None:
-        base = base.filter(_watch_bucket() == params.watch)
+        base = base.filter(watch_bucket() == params.watch)
+    with_progress = viewer_id is not None
     try:
         if params.by == "all" or params.key is not None:
             shelf = _keyed_shelf(
@@ -521,6 +514,7 @@ def _shelves(
                 order=params.order,
                 page=params.page or 1,
                 per_shelf=params.per_shelf,
+                with_progress=with_progress,
             )
             response = ShelvesResponse(
                 by=params.by, shelves=[shelf], total_shelves=1
@@ -535,6 +529,7 @@ def _shelves(
                 per_shelf=params.per_shelf,
                 shelf_limit=params.shelf_limit,
                 offset=params.offset,
+                with_progress=with_progress,
             )
             response = ShelvesResponse(
                 by=params.by,

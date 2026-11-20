@@ -52,6 +52,22 @@ page opens most recently played first, with **最後に開いた日** /
 
 ## Library
 
+**タグ** / **Tag** keeps only videos carrying every chosen tag. The menu lists the tags
+that are usable under the current target, grouping and state, with how many videos carry
+each, and has a search field; **指定なし** / **Any** clears the choice. **状態** / **State**
+keeps **未視聴** / **Unwatched**, **視聴中** / **In progress** or **視聴済み** / **Watched**
+videos, and needs a profile.
+
+The chosen tags and state apply to every shelf, to the **なし** / **None** grid, and to each
+**See all** page opened from the Library. They are not saved: they last while the page is
+open, through the Discover/Library switch and a round trip through **See all**, and they
+reset on a full page load, when you open Video on another drive, and when you choose
+another target. Clearing the profile also clears the state.
+
+When the filters leave no video, the Library says **条件に合う項目はありません** /
+**Nothing matches these filters**. A target that matches nothing, and an empty drive, keep
+their own empty state.
+
 **分類** / **Group By** chooses how the drive's videos are grouped into shelves, and
 **並び順** / **Sort By** next to it orders the videos inside each shelf or grid: **追加日
 （新しい順）** / **Date Added (Newest First)** (the default), **追加日（古い順）** /
@@ -66,7 +82,6 @@ you scroll.
 | **タグ** / **Tag** | One per tag, most videos first. A video with several tags is in each of them. Videos with no tag are in **タグなし** / **No tag**. |
 | **追加日** / **Date Added** | One per month, newest first. Months are counted in UTC, so a video added late in the evening can land in the next month. |
 | **長さ** / **Length** | Under 10 min, 10 to 30 min, 30 min or more. A video whose length is unknown is in none of them. |
-| **視聴状態** / **Watch State** | In progress, Unwatched, Finished. |
 | **なし** / **None** | One grid of every video under the target, 60 at a time, loading as you scroll. |
 
 The grouping and the sort are remembered for each target in this browser, so a Smart
@@ -114,8 +129,10 @@ With no profile set:
 - **Continue** is not shown, because there is no history to read.
 - **Recommended** is not shown: it needs a profile to know what you have watched.
 - The addon shelves still appear, because they do not need a profile.
-- **Watch State** is not offered under **Group By**. If you had chosen it earlier,
-  the page shows Folder meanwhile and it comes back when you set a profile.
+- **State** is not drawn, and no state is sent. Clearing the profile sets the state back to
+  **すべて** / **All**, and the control comes back when you set a profile.
+- A **視聴状態** / **Watch State** grouping saved before this change shows **Folder**
+  instead; it stays saved and is not offered again.
 
 Setting or clearing a profile takes effect on the page without a reload.
 

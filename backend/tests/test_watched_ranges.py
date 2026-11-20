@@ -261,6 +261,7 @@ class TestKeys:
     def test_spec_core_141_shelves_without_progress_carry_no_ranges_key(self, client):
         c, db, *_ = client
         watched = _add_file(db, "watched.mp4")
+        never = _add_file(db, "never.mp4")
         _watch(db, watched, 40, 100)
         _segments(db, watched, {0: 5.0})
 
@@ -270,7 +271,16 @@ class TestKeys:
             c.get(f"/api/drives/{TEST_DRIVE}/shelves?by=folder&per_shelf=60", headers=ALICE)
         )
         assert folder_items
-        for item in folder_items:
+        by_id = {item["id"]: item for item in folder_items}
+        assert _ranges(by_id[watched.id]) == [(0, 5)]
+        assert "watch_progress" not in by_id[never.id]
+        assert "watched_ranges" not in by_id[never.id]
+
+        anonymous_items = _shelf_items(
+            c.get(f"/api/drives/{TEST_DRIVE}/shelves?by=folder&per_shelf=60")
+        )
+        assert anonymous_items
+        for item in anonymous_items:
             assert "watch_progress" not in item
             assert "watched_ranges" not in item
 

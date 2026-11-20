@@ -259,7 +259,7 @@ describe("SPEC-CORE-145 choosing the view in force", () => {
     expect(JSON.parse(localStorage.getItem(VIEW_KEY)!).default.group).toBe("artist");
   });
 
-  it("SPEC-CORE-145 a stored Watch State without a profile shows Folder, stays stored, and applies once a profile exists", async () => {
+  it("SPEC-CORE-147 I7 a stored Watch State shows Folder with or without a profile and stays stored", async () => {
     nickname = null;
     localStorage.setItem(VIEW_KEY, JSON.stringify({ default: { group: "watch" } }));
     const { unmount } = openLibrary();
@@ -271,8 +271,9 @@ describe("SPEC-CORE-145 choosing the view in force", () => {
 
     nickname = "alice";
     render(<VideoApp drive={DRIVE} />);
-    expect(await screen.findByText("Watch one")).toBeInTheDocument();
-    expect(lastLibrary()).toMatchObject({ by: "watch" });
+    expect(await screen.findByText("Movie one")).toBeInTheDocument();
+    expect(screen.queryByText("Watch one")).not.toBeInTheDocument();
+    expect(lastLibrary()).toMatchObject({ by: "folder" });
   });
 
   it("SPEC-CORE-145 I6 a saved Target that is gone reads and writes the default Target's view and stays stored", async () => {
@@ -497,14 +498,14 @@ describe("SPEC-CORE-145 I16 None lists every video as one grid", () => {
 });
 
 describe("SPEC-CORE-146 the Video Library's menus", () => {
-  it("SPEC-CORE-146 I15 I9 the Group By menu lists Folder, Tag, Date Added, Length, Watch State and None, in that order", async () => {
+  it("SPEC-CORE-145 I15 SPEC-CORE-147 I7 the Group By menu lists Folder, Tag, Date Added, Length and None, in that order, with a profile", async () => {
     openLibrary();
     await screen.findByText("Movie one");
 
     fireEvent.click(groupButton());
     const options = (await screen.findAllByRole("menuitemradio")).map((o) => o.textContent?.trim());
 
-    expect(options).toEqual(["Folder", "Tag", "Date Added", "Length", "Watch State", "None"]);
+    expect(options).toEqual(["Folder", "Tag", "Date Added", "Length", "None"]);
   });
 
   it("SPEC-CORE-146 I15 without a profile the Group By menu omits Watch State", async () => {

@@ -1475,7 +1475,6 @@
       "tag": "タグ",
       "month": "追加日",
       "duration": "長さ",
-      "watch": "視聴状態",
       "all": "なし"
     },
     "shelves": {
@@ -1502,7 +1501,13 @@
       "title": "タイトル",
       "size": "サイズ"
     },
-    "seeAllIn": "すべて見る: {name}"
+    "seeAllIn": "すべて見る: {name}",
+    "state": {
+      "all": "すべて",
+      "unwatched": "未視聴",
+      "in_progress": "視聴中",
+      "finished": "視聴済み"
+    }
   },
   "readingApp": {
     "title": "読む",
@@ -1531,15 +1536,11 @@
       "none": "なし"
     },
     "state": {
-      "label": "状態",
       "all": "すべて",
       "unwatched": "未読",
       "in_progress": "読書中",
       "finished": "読了"
     },
-    "tag": "タグ",
-    "tagNone": "指定なし",
-    "noTags": "タグがありません",
     "noTag": "タグなし",
     "sort": {
       "label": "並び順",
@@ -1575,5 +1576,16 @@
     "reveal": "ヘッダーを表示",
     "title": "集中モード",
     "toggle": "集中モードの切り替え"
+  },
+  "appFilters": {
+    "tag": "タグ",
+    "tagNone": "指定なし",
+    "state": "状態",
+    "any": "指定なし",
+    "searchTags": "タグを検索",
+    "noMatchingTags": "一致するタグはありません",
+    "noTags": "タグはありません",
+    "tryAgain": "再試行",
+    "filterEmpty": "条件に合う項目はありません"
   }
 }

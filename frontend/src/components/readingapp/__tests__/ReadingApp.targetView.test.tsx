@@ -41,7 +41,7 @@ const getShelves = vi.fn();
 const getDriveFiles = vi.fn();
 const getSmartFolders = vi.fn();
 const getCollections = vi.fn();
-const getDriveTags = vi.fn();
+const getTagCounts = vi.fn();
 
 vi.mock("@/lib/api", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/api")>()),
@@ -49,7 +49,7 @@ vi.mock("@/lib/api", async (importOriginal) => ({
   getDriveFiles: (...args: unknown[]) => getDriveFiles(...args),
   getSmartFolders: (...args: unknown[]) => getSmartFolders(...args),
   getCollections: (...args: unknown[]) => getCollections(...args),
-  getDriveTags: (...args: unknown[]) => getDriveTags(...args),
+  getTagCounts: (...args: unknown[]) => getTagCounts(...args),
 }));
 
 type Params = Record<string, unknown>;
@@ -208,7 +208,7 @@ beforeEach(() => {
   getDriveFiles.mockReset().mockResolvedValue({ data: [], meta: { total: 0, page: 1, limit: 12 } });
   getSmartFolders.mockReset().mockResolvedValue([BOOKS, LATER]);
   getCollections.mockReset().mockResolvedValue([]);
-  getDriveTags.mockReset().mockResolvedValue([{ name: "read", count: 4 }]);
+  getTagCounts.mockReset().mockResolvedValue([{ name: "read", count: 4 }]);
 });
 
 afterEach(() => {

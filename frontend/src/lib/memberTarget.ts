@@ -4,15 +4,19 @@ import {
   getDriveFilesWithFileIds,
   getShelves,
   getShelvesWithFileIds,
+  getTagCounts,
+  getTagCountsWithFileIds,
+  type RequestOptions,
   type ShelvesParams,
   type ShelvesResponse,
+  type TagCountsParams,
 } from "./api";
 import { getSemanticAvailability } from "./addons";
 import { MEMBER_ID_LIMIT } from "./inNameResolution";
 import { kindHolds, parseSearchQuery, resolveKinds } from "./searchQuery";
 import { fetchSemanticHits } from "./semanticSearch";
 import { evaluateSmartCollection } from "./smartCollectionEval";
-import type { FileKind, PaginatedResponse } from "@/types";
+import type { FileKind, PaginatedResponse, Tag } from "@/types";
 import type { SmartFolder } from "@/types/smartFolder";
 
 /** A Smart Collection target the app sends the evaluated members of. */
@@ -30,6 +34,11 @@ export interface AppRequests {
   fileIds: readonly string[] | null;
   files: (drive: string, params: ListingRequestParams) => Promise<PaginatedResponse>;
   shelves: (drive: string, params: ShelvesParams) => Promise<ShelvesResponse>;
+  tagCounts: (
+    drive: string,
+    params: TagCountsParams,
+    options?: RequestOptions,
+  ) => Promise<Tag[]>;
 }
 
 export type MemberEvaluation =
@@ -42,6 +51,7 @@ const LISTING_REQUESTS: AppRequests = {
   fileIds: null,
   files: getDriveFiles,
   shelves: getShelves,
+  tagCounts: getTagCounts,
 };
 
 export function appRequests(
@@ -55,6 +65,8 @@ export function appRequests(
     fileIds: members,
     files: (drive, params) => getDriveFilesWithFileIds(drive, params, members),
     shelves: (drive, params) => getShelvesWithFileIds(drive, params, members),
+    tagCounts: (drive, params, options) =>
+      getTagCountsWithFileIds(drive, params, members, options),
   };
 }
 

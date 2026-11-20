@@ -315,3 +315,6 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-CORE-152 | implemented | docs/specs/finished-card-full-bar.md | sha256:84ed425d591c26b46508b2e8dca5b50b75d58a9d012decba97bd32e16d4b00dc |
 | SPEC-ADDON-152 | implemented | docs/specs/scenes-scroll-list.md | sha256:a36a7442854e2ce379a5d3930f5103bbd5421dc414d28b477267cc31cee4e958 |
 | SPEC-ADDON-153 | implemented | docs/specs/scenes-scroll-list.md | sha256:a36a7442854e2ce379a5d3930f5103bbd5421dc414d28b477267cc31cee4e958 |
+| SPEC-CORE-147 | implemented | docs/specs/app-library-filters.md | sha256:f643aa489b12cc08965cfbd7bd99d9c8fb658f7620d00de33fc6842b813428d6 |
+| SPEC-CORE-148 | implemented | docs/specs/app-library-filters.md | sha256:f643aa489b12cc08965cfbd7bd99d9c8fb658f7620d00de33fc6842b813428d6 |
+| SPEC-ADDON-151 | approved | docs/specs/app-library-filters.md | sha256:f643aa489b12cc08965cfbd7bd99d9c8fb658f7620d00de33fc6842b813428d6 |
