@@ -40,8 +40,8 @@ follow the core components named in item 8 and SPEC-ADDON-163 without a drawing.
 2. When `metadata.channel` is a string with at least one non-whitespace character, it is
    drawn as a Next `Link` to
    `/drive/<drive>/addons/media_import?provider=<metadata.provider>&channel=<metadata.channel>`.
-   Each value is percent-encoded; the channel is the raw stored value, untrimmed. The
-   drive is the panel's `drive` prop.
+   The drive segment and both query values are encoded with `encodeURIComponent`; the
+   channel is the raw stored value, untrimmed. The drive is the panel's `drive` prop.
 3. Clicking it is a client-side navigation (no full reload).
 4. The Media Import page reads `provider` and `channel` from the query. When both have at
    least one non-whitespace character it draws the channel view: it does not call
@@ -65,11 +65,16 @@ follow the core components named in item 8 and SPEC-ADDON-163 without a drawing.
 8. Each card's byline is the item's publication date, formatted as the Watch shelves
    format the date part of their byline (`calendarDate` +
    `Intl.DateTimeFormat(locale, {year: "numeric", month: "short", day: "numeric",
-   timeZone: "UTC"})`), moved to a function both use. No byline when `published_at` is
-   null or `calendarDate` returns null. The channel name is not in the byline.
+   timeZone: "UTC"})`). That date formatting becomes `formatPublishedDate(publishedAt,
+   locale)`, exported from a new `addons/media_import/frontend/lib/publishedDate.ts` and
+   used by both `bylineOf` and the channel view. The channel view's locale is next-intl's
+   active locale (`useLocale()`). No byline when `published_at` is null or
+   `calendarDate` returns null. The channel name is not in the byline.
 9. Clicking a card opens the file as `VideoCard` does everywhere else (client-side).
 10. The back link is a Next `Link` to `/drive/<drive>/addons/media_import` with no query
-    (client-side).
+    (client-side), the drive segment encoded with `encodeURIComponent`.
+11. Ids are read in one pass: a read position moves past a batch only after its
+    `getShelves` call succeeded. A failed batch is the one the retry requests again.
 
 ### 2. Failure cases
 
@@ -101,8 +106,8 @@ Allowed transitions:
 - `loading` → `ready` | `empty` | `failed`
 - `ready` (not exhausted) → `loading-more` (near end)
 - `loading-more` → `ready` | `more-failed`
-- `more-failed` → `loading-more` (retry)
-- `failed` → `loading` (retry)
+- `more-failed` → `loading-more` (retry; requests the batch that failed again)
+- `failed` → `loading` (retry; calls the endpoint again and starts from the first id)
 - any → `loading` after a successful rename, move or trash from the context menu
   (SPEC-ADDON-163)
 
@@ -114,9 +119,10 @@ Not allowed:
 - `empty` or `failed` changing except by retry (`failed`), a context-menu reload, or a
   query change (which mounts a new view).
 
-On a query change or unmount, the endpoint call and any `getShelves` call in flight are
-aborted (`AbortController`; `getShelves` takes `signal`). An answer that arrives for an
-earlier view or an earlier load is never drawn.
+On a query change, unmount, retry of `failed`, or a menu-triggered reload, the endpoint
+call and any `getShelves` call in flight are aborted (`AbortController`; `getShelves`
+takes `signal`). An answer that arrives for an earlier view or an earlier load is never
+drawn.
 
 ### 4. Data read and written
 
@@ -161,14 +167,16 @@ stored.
 
 ### 8. Error behavior
 
-- `loading`: the channel header, then the core `SkeletonGrid`.
+These follow the core `VideoPagedGrid` (the video app's See all page):
+
+- `loading`: the channel header, then the core `SkeletonGrid` with `rows={2}`.
+- `loading-more`: the drawn cards, then `SkeletonGrid rows={1}` under them (`mt-8`).
 - `empty`: the core `EmptyState` with icon `Film` (lucide) and title
   `mediaImport.channelView.empty`; no description, no action.
-- `failed`: the core `EmptyState` with icon `CircleAlert` (lucide), title
-  `mediaImport.channelView.loadFailed`, and `primaryAction` labelled with the core
-  `tree.errorRetry` string, which re-runs the load. Offered for every failure, 404
+- `failed`: the core `RetryButton` alone under the header, for every failure, 404
   included.
-- `more-failed`: the core `RetryButton`, centered under the grid, no other text.
+- `more-failed`: the drawn cards, then the core `RetryButton` under them (`mt-8`), no
+  other text.
 - The endpoint logs nothing beyond FastAPI's own request handling.
 
 ### 9. User-visible behavior
@@ -178,6 +186,10 @@ From the agreed design and the human's decisions:
 - Info tab: the channel name keeps its current weight and color (`font-medium
   text-text-primary`, 12 px) and its place before ` · <published_at>`; it gains an
   underline on hover and the pointer cursor. Nothing else in the panel moves.
+- Frame: the same as the management view, `PageFrame width="full"` with the
+  `PageHeader` as its `header`, and the content in a `px-4 pb-6 pt-6` box. The design's
+  32 px side padding is drawn at 16 px to match; the grid, skeleton, empty state and
+  retry button all sit in that box.
 - Channel view header: the core `PageHeader`. The back link (chevron-left icon + the
   `mediaImport.sidebar.label` text, muted 13 px) is its `breadcrumb`; `title` is the
   channel name (PageHeader's bold title); `scope` is the drive name, below the title. No
@@ -193,7 +205,7 @@ From the agreed design and the human's decisions:
   (`YYYYMMDD` normalised to `YYYY-MM-DD`, otherwise its first 10 characters), and the
   date part of `files.created_at` where `published_at` is NULL or empty; descending. Ties
   by `files.created_at` descending, then file id descending.
-- Strings (ja / en) added under `mediaImport.channelView`: `empty`, `loadFailed`.
+- Strings (ja / en) added under `mediaImport.channelView`: `empty`.
 - The browser tab title stays the Media Import page's.
 
 ### 10. Non-functional
@@ -205,10 +217,19 @@ From the agreed design and the human's decisions:
   batch that drew nothing).
 - Matching is exact on the stored strings: `provider` equal, `channel` equal
   (case-sensitive, no trimming on either side).
-- Layout is checked in a real browser at R-5: column count and the header's order
-  (back link, title, drive name) measured with `getBoundingClientRect` at a 1440 px
-  window with the sidebar (3 columns) and at 390 px (2 columns), with screenshots of
-  `loading`, `ready`, `empty`, `failed`, `more-failed` and the open context menu.
+- Layout is checked in a real browser at R-5:
+  - Channel view: column count and the header's order (back link, title, drive name)
+    measured with `getBoundingClientRect` at a 1440 px window with the sidebar
+    (3 columns) and at 390 px (2 columns). Screenshots of `loading`, `ready`,
+    `loading-more`, `empty`, `failed`, `more-failed` and the open context menu.
+  - Info tab (the `Inspector` artboard): the file page at 1440 px and 390 px, the link
+    at rest and on hover. Measured: the channel name's computed `font-weight`, `color`
+    and `font-size` equal those of the same span on develop, `text-decoration-line` is
+    `underline` only on hover, `cursor` is `pointer`, and the bounding boxes of the title,
+    the channel line and the description match develop's within 1 px.
+  - The native touch callout cannot be observed at R-5 (iOS on a device is in
+    `agent_cannot_verify`); it is checked by the computed `-webkit-touch-callout: none`
+    on the card link in a WebKit browser.
 
 ### SPEC-ADDON-163: the card's context menu
 
@@ -228,7 +249,12 @@ From the agreed design and the human's decisions:
 5. Add to collection, copy, cut, copy ID, download and open in new tab do not reload the
    view.
 6. The menu is attached by wrapping each `VideoCard` in the addon; `VideoCard` itself is
-   not given a `menu`.
+   not given a `menu`. The wrapper sets `-webkit-touch-callout: none` and
+   `user-select: none` (inherited by the card link), so a long press shows neither the
+   platform's link preview nor a text selection.
+7. The view holds one `FileContextMenu` and one `useContextMenu`, with the pressed card's
+   file as the target, as the home shelves (`CarouselSection`) do. A right-click while
+   the menu is open behaves as it does on those shelves.
 
 ## Touch points
 
@@ -243,8 +269,15 @@ From the agreed design and the human's decisions:
 - `addons/media_import/frontend/ChannelVideos.tsx` (new): the channel view and its card
   wrapper with the context menu.
 - `addons/media_import/frontend/api.ts`: `listChannelVideos` (takes a `signal`).
-- `addons/media_import/frontend/watchShelfProviders.ts`: the date formatting moved to a
-  shared function.
+- `addons/media_import/frontend/watchShelfProviders.ts`: `bylineOf` calls
+  `formatPublishedDate`.
+- `addons/media_import/frontend/lib/publishedDate.ts` (new): `formatPublishedDate` and
+  `calendarDate`.
+- Existing addon tests that change, without weakening any assertion:
+  `frontend/Page.test.tsx` (its `next/navigation` mock gains `useSearchParams`, returning
+  no query for the existing cases; channel-mode cases added) and
+  `frontend/LoftMetadataPanel.test.tsx` (link cases added, including whitespace-only;
+  existing assertions on the channel text kept).
 - `addons/media_import/frontend/messages/{ja,en}.json`: `mediaImport.channelView.*`.
 - Core frontend modules the addon starts importing (not edited): `components/PageHeader`,
   `components/appshell/VideoGrid`, `components/videoapp/VideoCard`,
@@ -252,8 +285,13 @@ From the agreed design and the human's decisions:
   `components/appshell/RetryButton`, `components/appshell/useNearEnd`,
   `components/FileContextMenu`, `hooks/useContextMenu`, `lib/api` (`getShelves`),
   `lib/canonicalFileUrl` (`fileLinkHref`).
-- Core inventory tests that read addon sources: `frontend/src/__tests__/page-headings`,
-  `section-headings`, `card-grid`.
+- Core inventory tests that read addon sources, which the new and changed addon files
+  must pass with no change to any core list or count: `frontend/src/__tests__/`
+  `page-headings`, `section-headings`, `card-grid`, `page-container-width`,
+  `design-tokens`, `escape-listeners`, `popup-dismissal`, `line-clamp-display`,
+  `addon-name-neutral-hosts`, `button-adoption`. If one can only pass by editing a core
+  list or count, implementation stops and asks: that is a core change this spec does not
+  cover.
 - Tables read: core `files`, addon `loft_metadata`. Tables written: none by this change;
   the context menu writes only through existing core endpoints.
 - Rules passed through: drive boundary and 404 hiding
@@ -271,34 +309,38 @@ From the agreed design and the human's decisions:
 I1. The endpoint returns only files whose `drive` equals the verified `X-Lit-Drive`
 drive; a locked or unknown drive answers 404 with `{"detail": "Drive not found: <drive>"}`
 and returns no ids, whatever the other parameters are.
-I2. The endpoint returns only Active files: a file with `deleted_at` or `missing_since`
-set is never in the answer.
-I3. The endpoint returns a file only when its `loft_metadata.provider` equals `provider`
-and its `loft_metadata.channel` equals `channel` exactly; a file of another channel, or
-the same channel name under another provider, is never in the answer.
-I4. The endpoint writes nothing: no row, column or file changes in the core DB, the
-addon tables or the drive.
-I5. Cards appear in the endpoint's order (the `_PUBLISHED_SORT_KEY` date descending,
+I2. The endpoint returns only Active files (`deleted_at` and `missing_since` both NULL)
+whose `loft_metadata.provider` equals `provider` and whose `loft_metadata.channel` equals
+`channel` exactly; another channel, or the same channel name under another provider, is
+never in the answer.
+I3. The endpoint writes nothing to the core DB, the addon tables or the drive, and on an
+accessible drive a missing, empty or whitespace-only `provider` or `channel` answers 422
+with no ids.
+I4. Cards appear in the endpoint's order (the `_PUBLISHED_SORT_KEY` date descending,
 then `files.created_at` descending, then file id descending), regardless of the order
 `getShelves` answers in.
-I6. Every matching id that `getShelves` returns becomes a card by scrolling to the end,
-including when a batch of 60 returns no card; `empty` is shown only when the whole list
-resolved to zero cards.
-I7. The link's target carries the panel's own drive and the metadata's own provider and
-raw channel, percent-encoded; a null, empty or whitespace-only channel draws no link.
-I8. Without both `provider` and `channel` (each with a non-whitespace character) in the
-query, the Media Import page draws what it draws today.
-I9. An answer for an earlier channel, an earlier load, or the management view never
-replaces the cards of the view now shown.
-I10. The channel link, the back link and a card open their target by client-side
-navigation, without a full page reload.
-I11. A channel-view card's byline is its publication date alone (no channel), absent
-when the date is null or unparseable; the Watch shelves' byline stays "channel · date"
-in the same format.
-I12. Right-click or a 500 ms press on a card opens the file context menu for that card's
-file, and that press does not also open the file.
-I13. After a rename, move or trash from the menu succeeds, the view reloads; a trashed
-file is no longer listed.
+I5. Every matching id that `getShelves` returns becomes a card by scrolling to the end,
+including when a batch of 60 returns no card and across a failed step and its retry;
+at most one load step runs at a time, none runs once every id has been read, and `empty`
+is shown only when the whole list resolved to zero cards.
+I6. A later load step that fails keeps every drawn card and offers a retry; a failed
+first load offers a retry for every failure, 404 included; an answer for an earlier
+channel, an earlier load or the management view never replaces what is shown.
+I7. The channel link targets the panel's own drive and the metadata's own provider and
+raw channel, each `encodeURIComponent`-encoded, and is absent for a null, empty or
+whitespace-only channel; the channel link, the back link and a card navigate client-side,
+without a full page reload.
+I8. Without both `provider` and `channel` (each with a non-whitespace character) the
+Media Import page draws what it draws today; with both, it does not call
+`listSubscriptions` and draws no Composer, subscriptions dashboard, activity or
+management header.
+I9. A channel-view card's byline is its publication date alone (no channel), absent when
+the date is null or unparseable; the Watch shelves' byline stays "channel · date" in the
+same format.
+I10. Right-click or a 500 ms still press on a card opens the file context menu for that
+card's file without also opening the file; after a rename, move or trash from it
+succeeds, the view reloads and a trashed file is no longer listed, while the other rows
+do not reload it.
 
 ## Checked, no action
 
@@ -330,3 +372,8 @@ file is no longer listed.
 - Filtering by `drives.json.addons.media_import` policy: the existing Media Import
   endpoints do not apply it in-process, and this one follows them.
 - The mobile inspector sheet: the link navigates away like any other link in it.
+- Playback when the channel link is clicked under a playing player: it is an ordinary
+  client-side navigation away from the file, and playback does what it does for any other
+  link on that page today. Nothing special is added. (Human to confirm at approval.)
+- Coming back from a card to the channel view: it mounts fresh and starts at the top with
+  the first batch; the scroll position is not restored. (Human to confirm at approval.)
