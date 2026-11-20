@@ -271,7 +271,7 @@ export function ReadingShelfPage({
           }
           actions={
             listing ? (
-              <div className="flex w-full min-w-0 flex-col items-start gap-2 sm:w-auto sm:flex-row sm:items-center">
+              <div className="flex w-full min-w-0 flex-col items-start gap-2 max-sm:pr-2 sm:w-auto sm:flex-row sm:items-center">
                 <NameFilter
                   value={requestedName}
                   alwaysOpen

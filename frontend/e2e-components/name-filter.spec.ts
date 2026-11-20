@@ -94,7 +94,10 @@ for (const app of ["video", "reading"] as const) {
       });
       expect(field.y).toBeGreaterThanOrEqual(heading.y + heading.height);
       expect(Math.abs(field.x - row.x), "the field starts at the row's start").toBeLessThanOrEqual(1);
-      expect(Math.abs(field.width - row.width), "the field fills the row").toBeLessThanOrEqual(1);
+      expect(
+        Math.abs(WIDTH - (field.x + field.width) - field.x),
+        "the field fills the row and keeps the page's gutter on both sides",
+      ).toBeLessThanOrEqual(1);
       expect(Math.round(field.height), "44px tall on a coarse pointer").toBe(44);
       expect(sort.y, "the sort is on the line below").toBeGreaterThanOrEqual(field.y + field.height);
       expect(Math.abs(sort.x - field.x), "the sort starts where the field starts").toBeLessThanOrEqual(1);
