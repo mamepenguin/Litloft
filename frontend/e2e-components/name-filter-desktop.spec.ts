@@ -73,6 +73,26 @@ for (const app of ["video", "reading"] as const) {
   }
 }
 
+for (const app of ["video", "reading"] as const) {
+  for (const locale of ["en", "ja"] as const) {
+    for (const width of [640, 768] as const) {
+      test(`SPEC-CORE-156 I8 ${app} ${locale} See all at ${width}px: the sort keeps its whole value inside its box, short of the Target`, async ({ page }) => {
+        await page.setViewportSize({ width, height: 800 });
+        await openSeeAll(page, app, locale);
+        await fieldInput(page, locale).fill(NAME_40);
+
+        const sortButton = page.getByRole("button", { name: LABELS[locale].sort }).first();
+        const overflow = await sortButton.evaluate((el) => el.scrollWidth - el.clientWidth);
+        const sort = await box(sortButton);
+        const target = await box(page.locator("header").getByRole("button", { name: /^(Target|対象): / }));
+        expect(overflow, "the value does not spill out of the sort button").toBeLessThanOrEqual(0);
+        expect(sort.x + sort.width, "the sort ends before the Target").toBeLessThanOrEqual(target.x);
+        await noSidewaysScroll(page);
+      });
+    }
+  }
+}
+
 for (const locale of ["en", "ja"] as const) {
   for (const width of WIDTHS) {
     test(`SPEC-ADDON-159 I8 clips ${locale} at ${width}px: a 40-character name in the tab row, the tabs keep their width`, async ({ page }) => {

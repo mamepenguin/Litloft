@@ -319,12 +319,14 @@ export function VideoShelfPage({
                   onApply={(next) => onNameChange?.(next)}
                   onLeavePending={onLeavePending}
                 />
-                <SortChoiceMenu
-                  choices={offered}
-                  value={sortId}
-                  quiet
-                  onChange={(id) => setSelection({ scope, id })}
-                />
+                <div className="shrink-0">
+                  <SortChoiceMenu
+                    choices={offered}
+                    value={sortId}
+                    quiet
+                    onChange={(id) => setSelection({ scope, id })}
+                  />
+                </div>
               </div>
             ) : (
               <SortChoiceMenu

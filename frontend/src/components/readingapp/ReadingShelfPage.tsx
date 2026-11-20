@@ -278,12 +278,14 @@ export function ReadingShelfPage({
                   onApply={(next) => onNameChange?.(next)}
                   onLeavePending={onLeavePending}
                 />
-                <ReadingSortMenu
-                  choices={offered}
-                  value={sortId}
-                  quiet
-                  onChange={(id) => setSelection({ scope, id })}
-                />
+                <div className="shrink-0">
+                  <ReadingSortMenu
+                    choices={offered}
+                    value={sortId}
+                    quiet
+                    onChange={(id) => setSelection({ scope, id })}
+                  />
+                </div>
               </div>
             ) : (
               <ReadingSortMenu
