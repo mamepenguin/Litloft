@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [],
+  "specification_compliance": [
+    "Every path the diff reaches is covered by the declared touch-point list or is an implicit touch point. frontend/src/components/CardProgress.tsx is the finished branch. frontend/src/components/__tests__/watchedRangesCards.test.tsx is the rewritten vitest: the 94.75 and 95 rows were removed from the SPEC-CORE-141 tick table, then added again under SPEC-CORE-152 I1 as full-bar rows, and the 40-duration tick rows were added. frontend/e2e-components/fixtures/watchedRanges.tsx and frontend/e2e-components/watched-range-cards.spec.ts add the finished cases for each card kind in both themes. backend/tests/test_api_shelves.py is the backend pytest beside the shelf watch-state tests (TestWatchState). DESIGN.md is §Cards and docs/user-guide/video.md is §Watching a video. docs/specs/finished-card-full-bar.md and docs/specs/INDEX.md are implicit touch points. Nothing is outside the list.",
+    "FileCard.tsx, VideoCard.tsx and backend/app/routers/shelves.py are not in the diff, which matches 'expected unchanged' and 'read only'.",
+    "CardProgress.tsx:25 uses `position * 10 >= duration * 9`, the same expression as shelves.py:72 `_watch_bucket` (I3). When finished, `watched` is forced to null (line 26), so the single progress-fill is drawn at width 100% (line 40) and no tick is drawn, because the tick needs a non-null `watched` (I1). The non-finished path is unchanged (I2). The `!(duration > 0)` guard still comes first (I4). The fill keeps the same className and the track is unchanged (I5)."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "CardProgress.tsx:25 with a NaN position and a duration above 0: NaN*10 >= d*9 is false, so the card falls through to the in-progress path, as it did before. A NaN position is not reachable from normal API data under the threat model."
+  ],
+  "regression_risks": [
+    "The SQL comparison in _watch_bucket and the JS comparison in CardProgress both use IEEE double multiplication. If the WatchHistory columns were ever changed to a Numeric or decimal type, the backend could disagree with the card at boundaries such as 0.99/1.1. The paired tables would catch that in the pytest."
+  ],
+  "test_coverage": [
+    "The vitest covers I1 (gapped, one, empty and absent ranges, and position past the duration), the I3 boundary table, I2 at 89.9/100 and at 35.5 and 34.9 of 40, and I4 with zero, negative and NaN durations, for both FileCard and VideoCard.",
+    "The backend pytest carries the same 8 boundary rows through _watch_bucket by way of GET shelves?by=watch.",
+    "The Playwright test checks the finished card on each kind in light and dark: one fill spanning the track, the same track height and colour, the same fill colour, and no tick.",
+    "The mutations I reasoned through would fail a test: changing the comparison to `position / duration >= 0.9` fails the 1.1/0.99 row; dropping `!finished` from `watched` fails expectFullBar; using a fraction width instead of 100 for finished fails the position-120 and 92/empty rows only partly (it clamps to 100 at or above the duration), but the 90 and 92 rows fail."
+  ],
+  "not_verified": [
+    "I did not run vitest, pytest or Playwright. All results are reasoned from reading the code.",
+    "I did not read FileCard.tsx or VideoCard.tsx to confirm how they pass ranges and classNames to CardProgress.",
+    "I did not read the repository's process or rules documents in full.",
+    "I did not verify the column types of WatchHistory.playback_position and duration (Float compared with Numeric)."
+  ],
+  "coverage": [
+    {
+      "path": "frontend/e2e-components/fixtures/watchedRanges.tsx",
+      "read": "full",
+      "reason": "Read the whole file."
+    },
+    {
+      "path": "frontend/e2e-components/watched-range-cards.spec.ts",
+      "read": "full",
+      "reason": "Read the whole file."
+    },
+    {
+      "path": "frontend/src/components/CardProgress.tsx",
+      "read": "full",
+      "reason": "Read the whole file."
+    },
+    {
+      "path": "backend/tests/test_api_shelves.py",
+      "read": "partial",
+      "reason": "Read lines 1-300, which cover the helpers, TestWatchState and the whole added parametrized test."
+    },
+    {
+      "path": "frontend/src/components/__tests__/watchedRangesCards.test.tsx",
+      "read": "full",
+      "reason": "Read lines 1-180 from the file and the remainder (177-371) through the diff hunks, which cover every added and changed line."
+    }
+  ],
+  "confidence": 85
+}

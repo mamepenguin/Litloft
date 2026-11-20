@@ -137,5 +137,5 @@ While a video plays, the list follows the playing frame. After you scroll the li
 
 The thin band above the seek bar, and the bars on Continue and Recently viewed cards, fill
 the parts you have already watched; only continuous playing of 10 seconds or more is
-recorded. The jump button and `P` go to the parts you played most, and appear once you
+recorded. A card for a video you have played past 90 % of shows a full bar. The jump button and `P` go to the parts you played most, and appear once you
 have replayed a part.

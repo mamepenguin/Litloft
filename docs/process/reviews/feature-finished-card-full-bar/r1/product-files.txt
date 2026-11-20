@@ -1,0 +1,3 @@
+frontend/e2e-components/fixtures/watchedRanges.tsx
+frontend/e2e-components/watched-range-cards.spec.ts
+frontend/src/components/CardProgress.tsx

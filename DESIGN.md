@@ -688,7 +688,10 @@ with a **border in the accent colour**, never a fill.
 - **A media card's progress bar fills only the watched ranges**, on the bar's
   existing track and fill colour (video shelf 4px, black 50 % track, white
   fill; continue-watching 3px, white 20 % track, accent fill). An empty range
-  list keeps the old fill from the start to the resume point.
+  list keeps the old fill from the start to the resume point. **A finished
+  card (position at least 90 % of the duration, the shelf's Finished state)
+  fills its whole bar and has no tick**: gaps left by deliberately skipped
+  parts would otherwise read as unfinished work.
 - **The resume tick** is a 3px by 10px white bar with 2px rounded top corners
   and a 1px black 50 % outline, rising from the thumbnail's bottom edge and
   centred on the resume point. It is drawn only when the ranges are (so the

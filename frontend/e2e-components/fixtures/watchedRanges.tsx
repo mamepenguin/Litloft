@@ -23,8 +23,9 @@ export const CARD_RANGES = [
   { start: 95, end: 100 },
 ];
 export const CARD_PROGRESS = { position: 40, duration: 100 };
+export const FINISHED_PROGRESS = { position: 95, duration: 100 };
 
-function file(id: string): Record<string, unknown> {
+function file(id: string, progress = CARD_PROGRESS): Record<string, unknown> {
   return {
     id,
     filename: `${id}.mp4`,
@@ -50,15 +51,22 @@ function file(id: string): Record<string, unknown> {
     trust_reviewed_at: null,
     created_at: "2026-01-01T00:00:00",
     updated_at: "2026-01-01T00:00:00",
-    watch_progress: CARD_PROGRESS,
+    watch_progress: progress,
   };
 }
 
-function withRanges(id: string, ranges: typeof CARD_RANGES): Record<string, unknown> {
-  return { ...file(id), watched_ranges: ranges };
+function withRanges(
+  id: string,
+  ranges: typeof CARD_RANGES,
+  progress = CARD_PROGRESS,
+): Record<string, unknown> {
+  return { ...file(id, progress), watched_ranges: ranges };
 }
 
-/** `data-case`: `file-ranges`, `file-today`, `video-ranges`, `video-today`. */
+/**
+ * `data-case`: `file-ranges`, `file-today`, `file-finished`, `video-ranges`,
+ * `video-today`, `video-finished`.
+ */
 export function WatchedRangeCardsArrangement(): ReactElement {
   return (
     <NextIntlClientProvider locale="en" messages={enMessages}>
@@ -76,11 +84,24 @@ export function WatchedRangeCardsArrangement(): ReactElement {
               loading={false}
             />
           </div>
+          <div data-case="file-finished">
+            <ContinueWatchingSection
+              items={[
+                withRanges("file-finished", CARD_RANGES, FINISHED_PROGRESS) as unknown as WatchHistoryItem,
+              ]}
+              loading={false}
+            />
+          </div>
           <div data-case="video-ranges">
             <VideoCard item={withRanges("video-ranges", CARD_RANGES) as unknown as ShelfItem} />
           </div>
           <div data-case="video-today">
             <VideoCard item={withRanges("video-today", []) as unknown as ShelfItem} />
+          </div>
+          <div data-case="video-finished">
+            <VideoCard
+              item={withRanges("video-finished", CARD_RANGES, FINISHED_PROGRESS) as unknown as ShelfItem}
+            />
           </div>
         </div>
       </ClipboardProvider>
