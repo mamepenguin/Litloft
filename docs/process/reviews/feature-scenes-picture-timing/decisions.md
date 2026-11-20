@@ -2,102 +2,87 @@
 
 decision:
 ran_in_app: yes
-at: 4352a8da9f0d21ef75900d49cbd7140e8803f699
+at: 75bc701c6667726e5affb718a7292609f4aa18b8
 by: agent
 evidence: |
-  Core 4352a8da9, which pins addons/intelligence at 4d07264. Stack started with `r5_stack.py
-  clone` and `up` (http://video-share-scenes-pictures.localhost:3101), then `down` and `destroy`.
-  This was done twice because the clone was rebuilt for a second pass.
-  - Files: native video KtVKUiry6S_d (143 tiles; the frame cache was empty for it in the clone)
-    and YouTube .loft opuf2121Nfxq (235 tiles, stored tiles).
-  - Workbench (bounded form): desktop Chrome at 1184x825 for the first pass, Playwright Chromium
-    at 1184x825 for the second, and Playwright with the Chrome channel for .loft playback. The
-    panel was under the player with "Enlarge panels".
-  - Phone sheet (flow form): Playwright Chromium at 390x844 with touch and mobile emulation, on
-    the Scenes tab of the bottom sheet.
-  - Method: the page recorded when each tile `<img>` was inserted (a MutationObserver), when
-    each `/frame?` and `scene-tile` request started and ended (a resource PerformanceObserver),
-    and each scroll event of the scroller. Times are in ms.
-  - Near set used for the scroll checks: the rows touching the scroller box, plus one row on
-    each side. This is a superset of the spec's near set (scenes-scroll-list.md Terms: a visible
-    row has at least half its tile height inside the visible area, and in flow form the visible
-    area starts below the pinned ruler). So "requested" checks are stricter than the spec, and
-    rows outside the spec's near set can show up as near-but-not-requested; those are named
-    below.
+  Rerun after addons/intelligence 0068a3e ("place and open the list again on every showing").
+  Core 75bc701c6, which pins addons/intelligence at 0068a3e. Stack started with `r5_stack.py
+  clone --port 3101` and `up` (http://video-share-scenes-pictures.localhost:3101), then `down`
+  and `destroy`. Scope was narrowed to the re-show path; the rest is summarised from the
+  earlier run below.
+  - Files: native video KtVKUiry6S_d (143 tiles) and YouTube .loft opuf2121Nfxq (235 tiles).
+  - Workbench: Playwright Chromium at 1184x825, panel under the player, "Enlarge panels" on.
+    Hide = "Close Scenes", show = the "Scenes" button.
+  - Phone sheet: Playwright Chromium at 390x844 with touch and mobile emulation. Hide = the
+    sheet's "Info" tab, show = its "Scenes" tab.
+  - Method as before: a MutationObserver timed each tile `<img>` insert, a resource
+    PerformanceObserver timed `/frame?` and `scene-tile` requests, and scroll events of the
+    scroller were logged. The log was cleared just before the show click or tap; times are ms
+    from it. "Near (superset)" means rows touching the scroller box plus one row each side.
 
-  Opening (expected: the near tiles are asked for at once, with no 150 ms wait):
-  - Workbench, native, cold cache: 12 tiles (rows 0-1) got `<img>` 12 ms after the tiles were
-    drawn. Requests started at 12-13 ms and finished at 319-827 ms (the server cut the frames).
-    "Enlarge panels" during opening (a re-placement for size): all 24 near tiles had pictures.
-    Closing and reopening the panel: 24 tiles at 5 ms.
-  - Workbench, .loft: 24 tiles at 0-1 ms. My superset counted 30 near; the other 6 are a row
-    with less than half its height inside the list, so they are not near by the spec.
-  - Phone, native: 18 tiles at 8 ms (requests finished 53-147 ms). Phone, .loft: 18 tiles at
-    5 ms (finished 58-153 ms).
-  - The first phone run measured 9424 ms from the tab tap to the first tile; the rerun measured
-    63 ms. The first number is unattributed: the timer includes Playwright waiting for the tab,
-    on a cold page.
-  - Reload with a resume position (workbench, native): the top rows 0:00-1:46 (24 tiles) were
-    asked for at once. 473 ms later the resume placement scrolled to 10:12, and its 29 new near
-    tiles were asked for in the same update, before the scroll event fired.
+  Sequence per cell: open the panel; for the native video, click the player's seek bar at 50%
+  (paused, 6:40); scroll the list with the wheel (workbench) or a touch scroll gesture (phone),
+  which ends opening; hide; show again; scroll 400 px again.
 
-  Own scrolls during opening (expected: the new near tiles at once, opening keeps going):
-  - Workbench, native, while the mouse moved across the ruler the whole time (hover): after a
-    seek with the player's seek bar, three following placements. Each new row was asked for
-    1-2 ms before its scroll event.
-  - Phone, native: a seek-bar tap placed 21 tiles at once (the tiles and the scroll event in the
-    same ms). During playback, a following placement put 9 tiles 2 ms after its scroll event.
-  - Workbench, .loft (Chrome channel): a seek-bar click placed 30 tiles 3-7 ms before the scroll
-    event. The 40 s of playback after it did not reach the next row (10 s per frame, 6 per row).
+  Step 1, show again (expected: placed again, the playing row with a player and the top
+  otherwise; near pictures asked for at once; for the native video, no request for rows 0-2):
+  - Workbench, native: the user scroll had left scrollTop at 473. On re-show the tiles were
+    drawn at 402 ms, the list scrolled to 973 (the same place the seek placement had used, row
+    with 6:39 highlighted) in the same ms, and all 30 near tiles got `<img>` 4 ms later. Rows
+    0-2 (0:00-1:10): no `<img>`. Screenshot: reshow-workbench-native.jpg.
+  - Phone, native: user scroll left 1618. On re-show tiles at 258 ms, scroll to 2116 at 260 ms
+    (the seek placement's position), 21 pictures at 260 ms. Rows 0-2 (0:00-0:34): none. My
+    superset counted 27 near; the other 6 are rows 5:18 and 5:34, above the top edge (5:34 has
+    20 of 83 px showing), so they are not near by the spec. reshow-phone-native.jpg.
+  - Workbench, .loft (not played, so no position): user scroll left 500. On re-show the list
+    was at the top, tiles at 32 ms, 24 pictures at 47 ms (rows 0:00-2:59; row 3:58 starts below
+    the box and is outside the spec's near set). reshow-workbench-loft.jpg.
+  - Phone, .loft: user scroll left 528. On re-show the list was placed at the top (scrollTop 30,
+    as on the first opening), tiles at 32 ms, 18 pictures at 36 ms. reshow-phone-loft.jpg.
+  - An earlier pass of the workbench native cell gave the same result (tiles 86 ms, 30
+    pictures 97 ms, scroll to 973, rows 0-2 not requested).
 
-  What ends opening (expected: after it, newly near tiles wait the dwell D = 200 ms):
-  - Ruler press as the first action on a fresh load (workbench, native): 24 tiles at 208 ms. Six
-    more came at 566 ms; they first came near when the row step changed, after the first
-    pictures arrived.
-  - `End` key on the focused ruler as the first action (workbench, native): 22 tiles at 209 ms.
-  - Ruler click as the first action (workbench, .loft): 30 tiles at 214 ms.
-  - A wheel or touch scroll of the list: see the following items.
+  Step 2, scroll after the re-show (expected: newly near tiles wait about D = 200 ms). Latency
+  is from the scroll event at which the tile first entered my superset to its `<img>`:
+  - Workbench, native (wheel, 100 px steps): 24 newly near, all asked for, 203-204 ms.
+  - Phone, native (touch gesture): 12 newly near, all asked for, 235-238 ms.
+  - Workbench, .loft: 18 asked for at 237 ms. 6 more (row 7:57) entered my superset at the last
+    scroll event and were not asked for. At the stop the row before it (6:58) had 19 of 85 px
+    inside the box, so 6:58 is not visible and 7:57 is not near by the spec.
+  - Phone, .loft: 12 newly near, all asked for, 238-245 ms.
+  - The phone and .loft numbers are about 35-45 ms above 200. My superset admits a row when it
+    first touches the box edge, which is before the spec's half-height visibility, so this
+    latency is an upper bound; at the gesture's 1200 px/s half a row (about 42 px) is about
+    35 ms. No tile was asked for before about 200 ms.
+  Screenshots: reshow-*-after-scroll.jpg.
 
-  After opening (expected: about D after the tile comes near):
-  - Ruler click, workbench native (first pass): 18 new tiles at 217 ms after pointerdown.
-  - Ruler tap, phone: 213 ms (native) and 215 ms (.loft).
-  - Chip "Back to current position", workbench native: 210 ms after the click. Workbench .loft:
-    the placement scrolled at 40 ms and the tiles came at 233 ms (193 ms after it). Phone native,
-    after a touch scroll gesture: the placement scrolled at 31 ms and the tiles came at 228 ms
-    (197 ms after it).
-  - Following during playback: workbench native, 202 ms after the placement's scroll event.
-    Phone native, 203 ms after it.
+  Step 3, spot checks:
+  - First opening still at once: workbench native 12 pictures 4 ms after the tiles; phone
+    native 18 at 4 ms; workbench .loft 24 at 41 ms; phone .loft 18 at 5 ms. (Tap-to-tiles on the
+    phone includes Playwright's wait for the tab, 1.4 s and 12.4 s here, as in the earlier run.)
+  - Slow scroll (4 px a frame for 2 s, 240 events) on the phone, native, after the re-show:
+    26/26 tiles near for 300 ms or more were asked for before the stop.
 
-  Slow scroll (4 px a frame for 2 s, 240 scroll events). Expected: every tile near for D + 100 ms
-  is asked for before the scroll stops. Result: every tile near for 300 ms or more was asked for
-  before the stop: workbench native 48/48, workbench .loft 54/54, phone native 27/27, phone
-  .loft 27/27.
+  Earlier run (core 4352a8da9, addon 4d07264), summarised. Same files, workbench at 1184x825
+  (desktop Chrome and Playwright) and phone sheet at 390x844:
+  - Opening asked for near tiles at once (5-13 ms after the tiles on every cell), including a
+    re-placement for size ("Enlarge panels"), close and reopen, and the resume placement after
+    reload (its new near tiles in the same update, before the scroll event).
+  - The list's own placements during opening (seek bar, following playback, hover on the
+    ruler) asked for new rows at once.
+  - Ruler press, ruler `End` key, ruler click/tap, the "Back to current position" chip and
+    following during playback after opening waited 193-217 ms.
+  - Slow scroll: every tile near for 300 ms or more asked for before the stop (48/48, 54/54,
+    27/27, 27/27). Fast scroll: no crossing tile under 150 ms was asked for; stop tiles at
+    104-162 ms after the stop; superset-only rows were not near by the spec.
+  - No `loading` attribute on any tile `<img>`.
+  - Not exercised: a failing picture load and a browser-cancelled ruler touch drag.
+  Earlier screenshots are the non-reshow files in r5/.
 
-  Fast scroll (one visible-area height every 50 ms to the end). Expected: tiles that only cross
-  are not asked for, and the tiles where it stops are asked for within D + 300 ms.
-  - No tile near for under 150 ms while crossing was asked for: workbench native 36, workbench
-    .loft 126, phone native 77, phone .loft 168.
-  - Tiles near at the stop were asked for 104-162 ms after the stop. Their dwell began one or
-    two 50 ms steps before the stop, at the step that first brought them near.
-  - Tiles near only in my superset were not asked for, and none of them is near by the spec:
-    - workbench .loft: row 35:50 had 6 of 85 px inside the list, so it is not visible, and its
-      neighbour row 34:51 is not near;
-    - phone .loft: rows 35:50 and 36:20 were under or above the pinned ruler, and row 36:50 had
-      about 10 of 83 px below the ruler, so 37:20 is the first visible row and 36:50 is the row
-      before it (asked for);
-    - phone native: row 11:16 in the same position.
-    Row boxes at the stop: r5/phone-loft-fast-stop-rows.jpg.
-
-  `loading` attribute (expected: none on any tile `<img>`): 0 of 71 (workbench native), 0 of 77
-  (phone native), 0 of 82 (phone .loft), and 0 on workbench .loft.
-
-  Not exercised:
-  - A picture that fails to load (§2): no failing frame in ordinary use.
-  - A browser-cancelled ruler touch drag (§2): needs a real touch cancel.
-
+  Not exercised in this rerun: re-show with a playing .loft (YouTube embed playback needs the
+  Chrome channel; the .loft cells used the top placement only).
   Screenshots, in docs/process/reviews/feature-scenes-picture-timing/r5/:
-  - workbench-native-opening.jpg, workbench-loft-after-fast.jpg, workbench-loft-play.jpg;
-  - phone-native-opening.jpg, phone-native-after-fast.jpg, phone-native-after-ruler.jpg,
-    phone-native-follow-chip.jpg;
-  - phone-loft-opening.jpg, phone-loft-after-fast.jpg, phone-loft-fast-stop-rows.jpg.
-pending: Real touch momentum on the iOS app after deploy (PROJECT.md agent_cannot_verify). On the phone sheet, a fling's tiles fill in while it slows down, before the list stops, and opening the panel shows pictures without a visible pause.
+  reshow-workbench-native.jpg, reshow-workbench-native-after-scroll.jpg,
+  reshow-workbench-loft.jpg, reshow-workbench-loft-after-scroll.jpg, reshow-phone-native.jpg,
+  reshow-phone-native-after-scroll.jpg, reshow-phone-loft.jpg, reshow-phone-loft-after-scroll.jpg.
+pending: Real touch momentum on the iOS app after deploy (PROJECT.md agent_cannot_verify). On the phone sheet, a fling's tiles fill in while it slows down, before the list stops, opening the panel shows pictures without a visible pause, and showing the panel again after switching tabs places it and shows pictures without a pause.
