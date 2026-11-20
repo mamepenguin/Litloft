@@ -1,0 +1,7 @@
+frontend/src/__tests__/helpers/officeLazyLoadCases.ts
+frontend/src/__tests__/helpers/officeViewer.ts
+frontend/src/__tests__/officeMimes.test.ts
+frontend/src/components/__tests__/FilePreview.office.test.tsx
+frontend/src/components/__tests__/FilePreview.officeArrowKeys.test.tsx
+frontend/src/components/__tests__/FilePreview.officeLazyLoad.word.test.tsx
+frontend/src/components/__tests__/FilePreview.test.tsx

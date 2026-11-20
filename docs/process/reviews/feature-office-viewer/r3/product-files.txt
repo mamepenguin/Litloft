@@ -1,0 +1,12 @@
+frontend/package.json
+frontend/pnpm-lock.yaml
+frontend/src/components/FilePreview.tsx
+frontend/src/components/office/OfficePreview.tsx
+frontend/src/components/office/excelAdapter.ts
+frontend/src/components/office/excelContainment.css
+frontend/src/components/office/officeGridActive.ts
+frontend/src/components/office/wordAdapter.ts
+frontend/src/hooks/useFileNav.ts
+frontend/src/lib/officeFiles.ts
+frontend/src/messages-core/en.json
+frontend/src/messages-core/ja.json
