@@ -1,0 +1,2 @@
+addons/media_import/backend/tests/test_channel_videos.py
+addons/media_import/backend/tests/test_drive_scope.py

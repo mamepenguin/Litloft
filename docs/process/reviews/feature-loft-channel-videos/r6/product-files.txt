@@ -1,0 +1,16 @@
+addons/media_import/.github/workflows/ci.yml
+addons/media_import/backend/router.py
+addons/media_import/backend/schemas.py
+addons/media_import/backend/subscription/db.py
+addons/media_import/frontend/ChannelVideos.test.tsx
+addons/media_import/frontend/ChannelVideos.tsx
+addons/media_import/frontend/LoftMetadataPanel.test.tsx
+addons/media_import/frontend/LoftMetadataPanel.tsx
+addons/media_import/frontend/Page.test.tsx
+addons/media_import/frontend/Page.tsx
+addons/media_import/frontend/api.ts
+addons/media_import/frontend/lib/publishedDate.test.ts
+addons/media_import/frontend/lib/publishedDate.ts
+addons/media_import/frontend/messages/en.json
+addons/media_import/frontend/messages/ja.json
+addons/media_import/frontend/watchShelfProviders.ts
