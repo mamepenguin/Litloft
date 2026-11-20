@@ -76,7 +76,7 @@ for (const app of ["video", "reading"] as const) {
 for (const app of ["video", "reading"] as const) {
   for (const locale of ["en", "ja"] as const) {
     for (const width of [640, 768] as const) {
-      test(`SPEC-CORE-156 I8 ${app} ${locale} See all at ${width}px: the sort keeps its whole value inside its box, short of the Target`, async ({ page }) => {
+      test(`SPEC-CORE-156 I8 ${app} ${locale} See all at ${width}px: the sort keeps its whole value inside its box, short of the Target, and the field stays readable`, async ({ page }) => {
         await page.setViewportSize({ width, height: 800 });
         await openSeeAll(page, app, locale);
         await fieldInput(page, locale).fill(NAME_40);
@@ -85,8 +85,15 @@ for (const app of ["video", "reading"] as const) {
         const overflow = await sortButton.evaluate((el) => el.scrollWidth - el.clientWidth);
         const sort = await box(sortButton);
         const target = await box(page.locator("header").getByRole("button", { name: /^(Target|対象): / }));
+        const field = await fieldBox(page, locale);
         expect(overflow, "the value does not spill out of the sort button").toBeLessThanOrEqual(0);
         expect(sort.x + sort.width, "the sort ends before the Target").toBeLessThanOrEqual(target.x);
+        if (width < 768) {
+          expect(Math.round(field.width), "a 260px field above the sort").toBe(260);
+          expect(sort.y, "the sort is on the line below the field").toBeGreaterThanOrEqual(field.y + field.height);
+        } else {
+          expect(field.x + field.width).toBeLessThanOrEqual(sort.x);
+        }
         await noSidewaysScroll(page);
       });
     }
