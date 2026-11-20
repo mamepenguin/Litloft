@@ -2,6 +2,7 @@ import "@testing-library/jest-dom/vitest";
 import { configure } from "@testing-library/react";
 import { afterEach, vi } from "vitest";
 import enMessages from "../messages/en.json";
+import { resetLibraryFilters } from "../components/appshell/libraryFilters";
 import { resetWorkbenchPanels } from "../lib/workbenchPanels";
 import { resetWorkbenchPlayerFocus } from "../lib/workbenchPlayerFocus";
 import { resetWorkbenchSplit } from "../lib/workbenchSplit";
@@ -145,6 +146,10 @@ afterEach(() => {
   if (typeof document !== "undefined") {
     document.dispatchEvent(new Event("pointercancel"));
   }
+  // Each test renders a fresh page, while the filter store is meant to outlive
+  // an unmount. Clear it between tests, not between the renders inside one.
+  resetLibraryFilters("video", "");
+  resetLibraryFilters("reading", "");
   resetWorkbenchPanels();
   resetWorkbenchPlayerFocus();
   resetWorkbenchSplit();

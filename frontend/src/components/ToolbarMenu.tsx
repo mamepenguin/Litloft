@@ -136,6 +136,8 @@ interface ToolbarMenuProps {
   portalOnPhone?: boolean;
   /** Draws the label before the value, for a control whose value alone would not say what it sets. */
   showLabel?: boolean;
+  /** Draws the label and value as one cut-off run, rather than two text nodes. */
+  inlineLabel?: boolean;
   /** Filled label-value form: no leading icon, muted label, value, trailing chevron. */
   filled?: boolean;
   /**
@@ -151,6 +153,8 @@ interface ToolbarMenuProps {
   fullValue?: boolean;
   /** Added to the visible value, for example to hide it where the bar is narrow. */
   valueClassName?: string;
+  /** Tells a menu whose body loads on open when it is drawn and dropped. */
+  onOpenChange?: (open: boolean) => void;
   children: (close: () => void) => ReactNode;
 }
 
@@ -167,20 +171,27 @@ export function ToolbarMenu({
   align = "end",
   portalOnPhone = false,
   showLabel = false,
+  inlineLabel = false,
   filled = false,
   quiet = false,
   truncateValue = false,
   fullWidth = false,
   fullValue = false,
   valueClassName,
+  onOpenChange,
   children,
 }: ToolbarMenuProps) {
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const surface = useMenuSurface(open, align, undefined, { portalOnPhone });
 
+  const changeOpen = (next: boolean) => {
+    setOpen(next);
+    onOpenChange?.(next);
+  };
+
   const close = () => {
-    setOpen(false);
+    changeOpen(false);
     triggerRef.current?.focus();
   };
 
@@ -206,7 +217,7 @@ export function ToolbarMenu({
           // Focusing the pressed button is what a browser does, and the box's
           // Escape handler above relies on it.
           triggerRef.current?.focus();
-          setOpen((s) => !s);
+          changeOpen(!open);
         }}
         // `label: state`, except where the state *is* the label. A sort
         // order outside the offered table falls back to naming the control,
@@ -241,6 +252,13 @@ export function ToolbarMenu({
             <span className="text-text-muted">{label}</span>
             <span className="min-w-0 truncate text-text-primary">{value}</span>
             <ChevronDown size={16} className="flex-shrink-0" aria-hidden="true" />
+          </>
+        ) : inlineLabel ? (
+          <>
+            <Icon size={16} />
+            <span className="max-w-[12rem] min-w-0 truncate text-text-primary">
+              {`${label} ${value}`}
+            </span>
           </>
         ) : (
           <>
