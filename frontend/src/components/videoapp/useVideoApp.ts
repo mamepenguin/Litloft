@@ -36,6 +36,7 @@ import {
 import type { CollectionSummary } from "@/types";
 import type { SmartFolder } from "@/types/smartFolder";
 import { useLoad, type LoadState } from "@/components/appshell/useLoad";
+import { resetLibraryFilters } from "@/components/appshell/libraryFilters";
 import { useMemberTarget } from "@/components/appshell/useMemberTarget";
 
 export const VIEWER_REQUIRED = "viewer_required";
@@ -102,13 +103,9 @@ interface ChosenView {
   view: TargetView;
 }
 
-function pickVideoGroup(
-  held: string | undefined,
-  legacy: string | null,
-  hasProfile: boolean,
-): VideoGroup {
-  if (isVideoGroup(held)) return held === "watch" && !hasProfile ? "folder" : held;
-  if (isVideoGroup(legacy)) return legacy === "watch" && !hasProfile ? "folder" : legacy;
+function pickVideoGroup(held: string | undefined, legacy: string | null): VideoGroup {
+  if (isVideoGroup(held)) return held;
+  if (isVideoGroup(legacy)) return legacy;
   return DEFAULT_VIDEO_GROUP;
 }
 
@@ -230,10 +227,10 @@ export function useVideoApp(drive: string): VideoAppState {
         : storedView;
     const legacy = targetId === "default" ? readLegacyGroup(drive, "video") : null;
     return {
-      group: pickVideoGroup(held.group, legacy, hasProfile),
+      group: pickVideoGroup(held.group, legacy),
       sort: isSortId(held.sort) ? held.sort : "newest",
     };
-  }, [chosen, drive, targetId, storedView, hasProfile]);
+  }, [chosen, drive, targetId, storedView]);
 
   const setGroup = useCallback(
     (group: VideoGroup) => {
@@ -273,9 +270,10 @@ export function useVideoApp(drive: string): VideoAppState {
     (id: string) => {
       if (id === targetId) return;
       setChosen(null);
+      resetLibraryFilters("video", drive);
       updatePrefs({ target: id });
     },
-    [targetId, updatePrefs],
+    [drive, targetId, updatePrefs],
   );
 
   return {
