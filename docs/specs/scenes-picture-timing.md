@@ -2,7 +2,7 @@
 
 SPEC-ID: SPEC-ADDON-155
 
-Approval:
+Approval: sha256:0c103e91a79555a4268a0760f57ff28bf63b286ed85aab8d8fda1668aba44c14 Yuichi Senga 2026-11-20
 
 ## Summary
 
