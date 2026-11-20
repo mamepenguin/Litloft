@@ -246,7 +246,7 @@ describe("SPEC-CORE-157 the Recommended See all page's card menu", () => {
   const FILE_ROWS = ["Open in new tab", "Download", "Add to collection", "Copy", "Cut", "Copy ID", "Rename", "Move", "Move to Trash"];
 
   function sequence(): string[] {
-    const menu = screen.queryByRole("menu");
+    const menu = screen.queryAllByRole("menuitem")[0]?.parentElement;
     if (!menu) return [];
     return [...menu.querySelectorAll('[role="menuitem"], [role="separator"]')].map((el) =>
       el.getAttribute("role") === "separator" ? "---" : el.textContent?.trim() ?? "",

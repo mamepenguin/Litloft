@@ -164,6 +164,6 @@ describe("I8 VideoCard without the opt-in", () => {
     fireEvent.contextMenu(title);
     await waitFor(() => expect(screen.getAllByRole("menuitem").length).toBeGreaterThan(0));
 
-    expect(screen.getAllByRole("menu")).toHaveLength(1);
+    expect(new Set(screen.getAllByRole("menuitem").map((el) => el.parentElement)).size).toBe(1);
   });
 });

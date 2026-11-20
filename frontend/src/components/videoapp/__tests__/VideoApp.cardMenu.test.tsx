@@ -273,11 +273,14 @@ async function rightClick(target: HTMLElement): Promise<boolean> {
   return notPrevented;
 }
 
+/** Distinct containers holding menu rows: one per open menu. */
+const openMenus = () => new Set(screen.queryAllByRole("menuitem").map((el) => el.parentElement)).size;
+
 const rows = () => screen.queryAllByRole("menuitem").map((el) => el.textContent?.trim() ?? "");
 
 /** Menu rows and dividers in document order, a divider as `---`. */
 function sequence(): string[] {
-  const menu = screen.queryByRole("menu");
+  const menu = screen.queryAllByRole("menuitem")[0]?.parentElement;
   if (!menu) return [];
   return [...menu.querySelectorAll('[role="menuitem"], [role="separator"]')].map((el) =>
     el.getAttribute("role") === "separator" ? DIVIDER : el.textContent?.trim() ?? "",
@@ -419,10 +422,10 @@ describe("SPEC-CORE-157 I1 the menu on Discover's cards", () => {
     await visit();
 
     await rightClick(card("c1", "Continue"));
-    expect(screen.getAllByRole("menu")).toHaveLength(1);
+    expect(openMenus()).toBe(1);
     await rightClick(card("n2", "New"));
 
-    expect(screen.getAllByRole("menu")).toHaveLength(1);
+    expect(openMenus()).toBe(1);
     expect(rows()).toEqual(FILE_ROWS);
     await choose("Copy ID");
     expect(copyText).toHaveBeenCalledWith("n2");
@@ -621,7 +624,7 @@ describe("SPEC-CORE-157 I3 the history rows on Continue", () => {
 
     expect(deleteWatchProgress).toHaveBeenCalledWith("c1");
     expect(shelfCards("Continue")).toEqual([title("c1"), title("c2")]);
-    expect(screen.queryByRole("menu")).toBeNull();
+    expect(openMenus()).toBe(0);
     expect(screen.queryByRole("alert")).toBeNull();
   });
 

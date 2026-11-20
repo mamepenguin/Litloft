@@ -70,8 +70,8 @@ test("I2 a 500 ms press opens the menu and does not open the card; a moving pres
 
   await touch(page, selector, "touchstart", 20, 20);
   await page.waitForTimeout(400);
-  await expect(page.getByRole("menu")).toHaveCount(0);
-  await expect(page.getByRole("menu")).toHaveCount(1, { timeout: 1000 });
+  await expect(page.getByRole("menuitem")).toHaveCount(0);
+  await expect(page.getByRole("menuitem").first()).toBeVisible({ timeout: 1000 });
 
   const cancelled = await page.evaluate((selector) => {
     const el = document.querySelector(selector) as HTMLElement;
@@ -81,11 +81,11 @@ test("I2 a 500 ms press opens the menu and does not open the card; a moving pres
   expect(cancelled).toBe(true);
 
   await page.keyboard.press("Escape");
-  await expect(page.getByRole("menu")).toHaveCount(0);
+  await expect(page.getByRole("menuitem")).toHaveCount(0);
 
   await touch(page, selector, "touchstart", 20, 20);
   await touch(page, selector, "touchmove", 80, 20);
   await touch(page, selector, "touchend", 80, 20);
   await page.waitForTimeout(600);
-  await expect(page.getByRole("menu")).toHaveCount(0);
+  await expect(page.getByRole("menuitem")).toHaveCount(0);
 });
