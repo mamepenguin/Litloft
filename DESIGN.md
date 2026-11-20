@@ -726,8 +726,9 @@ holds arrivals.
   the link's own name carries the number.
 - **Home shortcuts come after the addon entries and before the Inbox**, in
   the order the drive placed them, with no heading or separator. A shortcut
-  is a tile like the others and leads where the sidebar's row for that item
-  leads.
+  is a tile like the others: a Smart Collection, pin or collection leads
+  where the sidebar's row for that item leads; an app shortcut leads to its app
+  with that Target in force, which is not a sidebar row.
 - **Every tile's label follows one rule**: at or above `36rem` a tile is at
   most `16rem` wide and its label is a single truncated line; below it the
   label wraps to at most two clamped lines. Either way the tile's accessible

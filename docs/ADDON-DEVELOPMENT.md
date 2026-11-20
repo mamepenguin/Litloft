@@ -1557,6 +1557,22 @@ menu and the page agree.
 `TargetMenuProps.defaultTargetOrigin` is its counterpart: when set, the count
 covers only files of that `origin`; it may be combined with the exclude prop.
 
+`TargetMenuProps.homeEntry` is optional and names the key of this app's own
+entry in the drive's Home row: the addon name, or `<addon name>/<path>` for a
+manifest entry that has a `path`. With it, and a Target other than the default
+in force, the menu shows **Put on Home** / **Remove from Home** after the
+separator and before **Manage…**. Put on Home stores
+`{kind: "app_target", app: <homeEntry>, id: <Target id>, on_home: true}`; the
+tile then links to this entry's href followed by `?target=<id>`.
+
+Read `target` on the app's root route only and remove it with
+`router.replace`: hold every listing, shelf, count and tag-counts request until
+the id resolves to a usable Target, then save it as the app's Target exactly as
+a menu choice does. An id the page cannot use (`default`, an empty value, a
+Target missing from the list, a failed list) leaves the saved Target in force,
+writes nothing, and is removed from the URL too. The shelf and other routes
+leave `target` alone.
+
 ### The app key and its storage keys
 
 `TargetMenuProps.app` and the target helpers take an `AppKey`: a built-in app

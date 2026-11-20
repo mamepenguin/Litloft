@@ -15,6 +15,8 @@ The sidebar is the same on every screen of a drive.
 
 To keep a Smart Collection, a pinned folder or a collection at hand, open it and choose **Put on Home** in its `…` menu (on a folder, the row appears under **Unpin this folder**); its tile then sits after the addons' entries on Home. Choose **Remove from Home** the same way.
 
+To keep an app already narrowed to one of its targets at hand, open that target in the app and choose **Put on Home** in the target menu, after the separator and before **Manage…**. The tile uses the app's icon and the label `<app>・<target>`, and opening it lands in the app on that target. **Remove from Home** in the same menu puts it away.
+
 ## The breadcrumb trail
 
 The row above a listing shows where you are. Every part of it is a link back to that folder. On a deep path the middle folders fold into **…**; press it to go to the deepest hidden folder.
