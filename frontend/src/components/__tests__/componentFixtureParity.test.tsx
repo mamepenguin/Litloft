@@ -328,6 +328,7 @@ describe("the component fixture's page", () => {
       "played-ranges",
       "watched-band",
       "watched-range-cards",
+      "peak-jump",
       "text-resume",
       "home-app-entries",
       "clips-page",

@@ -20,6 +20,9 @@ export interface MediaControlsPresenterProps {
   watchedPieces?: WatchedPiece[];
   /** Whether a skip or scrub is showing the band, independently of hover. */
   bandVisible?: boolean;
+  /** Whether this layout has room for the jump-to-most-watched button. */
+  showJump?: boolean;
+  onJump?: () => void;
   /** Keyboard focus reached the chrome; it is no longer bottom-only. */
   onChromeFocus?: () => void;
   isFullscreen: boolean;

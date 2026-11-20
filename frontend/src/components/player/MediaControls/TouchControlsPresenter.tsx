@@ -7,6 +7,7 @@ import {
   Pause,
   Play,
   Settings,
+  Target,
   Volume2,
   VolumeX,
 } from "lucide-react";
@@ -53,6 +54,8 @@ export function TouchControlsPresenter({
   onSettingsOpenChange,
   settingsExtra,
   settingsToggles,
+  showJump = false,
+  onJump,
 }: MediaControlsPresenterProps) {
   const t = useTranslations("player");
 
@@ -209,6 +212,11 @@ export function TouchControlsPresenter({
             )}
 
             <div className="ml-auto flex items-center gap-0.5">
+              {showJump && onJump && (
+                <ControlButton label={t("jumpToMostWatched")} onClick={onJump}>
+                  <Target size={20} />
+                </ControlButton>
+              )}
               <ControlButton
                 label={isFullscreen ? t("exitFullscreen") : t("fullscreen")}
                 onClick={onToggleFullscreen}

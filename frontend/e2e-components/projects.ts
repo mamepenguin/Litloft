@@ -28,8 +28,9 @@ export const DESKTOP_ONLY = [
   "**/home-app-entries-desktop.spec.ts",
   "**/discover-prefix-desktop.spec.ts",
   "**/scenes-section-desktop.spec.ts",
-  "**/scenes-section-rows-desktop.spec.ts",
-  "**/scenes-section-rows-scrollbar-desktop.spec.ts",
+  "**/scenes-scroll-list-card-form-desktop.spec.ts",
+  "**/scenes-scroll-list-desktop.spec.ts",
+  "**/scenes-scroll-list-scrollbar-desktop.spec.ts",
   "**/video-card-byline-desktop.spec.ts",
   "**/video-card-spacing-desktop.spec.ts",
   "**/inspector-responsive-layout-desktop.spec.ts",
@@ -54,6 +55,7 @@ export const DESKTOP_ONLY = [
   "**/clips-view-menus-desktop.spec.ts",
   "**/pdf-toolbar-row-desktop.spec.ts",
   "**/watched-band-desktop.spec.ts",
+  "**/peak-jump-desktop.spec.ts",
 ];
 
 /** Literals rather than a device preset, which can change under it. */

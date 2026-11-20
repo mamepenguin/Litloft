@@ -72,7 +72,9 @@ const AT_THE_PHONE_WIDTH = [
   "plain-text-document.spec.ts",
   "played-ranges.spec.ts",
   "scenes-section.spec.ts",
-  "scenes-section-rows.spec.ts",
+  "scenes-scroll-list-flow.spec.ts",
+  "scenes-scroll-list-ruler-touch.spec.ts",
+  "scenes-scroll-list.spec.ts",
   "spec-viewport.spec.ts",
   "home-app-entries.spec.ts",
   "discover-prefix.spec.ts",
@@ -92,6 +94,7 @@ const AT_THE_PHONE_WIDTH = [
   "drive-unavailable.spec.ts",
   "transcript-touch.spec.ts",
   "watched-band.spec.ts",
+  "peak-jump.spec.ts",
   "watched-range-cards.spec.ts",
 ] as const;
 
@@ -119,8 +122,9 @@ const AT_THE_DESKTOP_WIDTH = [
   "home-app-entries-desktop.spec.ts",
   "discover-prefix-desktop.spec.ts",
   "scenes-section-desktop.spec.ts",
-  "scenes-section-rows-desktop.spec.ts",
-  "scenes-section-rows-scrollbar-desktop.spec.ts",
+  "scenes-scroll-list-card-form-desktop.spec.ts",
+  "scenes-scroll-list-desktop.spec.ts",
+  "scenes-scroll-list-scrollbar-desktop.spec.ts",
   "video-card-byline-desktop.spec.ts",
   "video-card-spacing-desktop.spec.ts",
   "inspector-responsive-layout-desktop.spec.ts",
@@ -145,6 +149,7 @@ const AT_THE_DESKTOP_WIDTH = [
   "clips-view-menus-desktop.spec.ts",
   "pdf-toolbar-row-desktop.spec.ts",
   "watched-band-desktop.spec.ts",
+  "peak-jump-desktop.spec.ts",
 ] as const;
 
 test.describe("the component fixture lays out at the width it was given", () => {

@@ -106,6 +106,7 @@ Also works for YouTube videos imported with the media_import addon.
 | `↓` | Back 60 s |
 | `M` | Mute / unmute |
 | `F` | Full screen |
+| `P` | Jump to the next part you watched most |
 
 Media keys on your keyboard and the lock screen also control playback.
 
@@ -115,9 +116,9 @@ On a video's page, the ruler in the **Scenes** panel is one tab stop; these keys
 
 | Key | Action |
 |---|---|
-| `←` / `→` | Move the point you are browsing one frame back / forward (the first press starts from the playing frame) |
-| `Home` / `End` | Move it to the first / last frame |
-| `Enter` | Play from the point you are browsing; with none set, nothing happens |
+| `←` / `→` | Move the ruler point one frame back / forward and scroll the list to it (the first press starts from the playing frame while following, otherwise from the list's top row) |
+| `Home` / `End` | Move the point to the first / last frame |
+| `Enter` | Play from the ruler point; with none set, nothing happens |
 
 ## File navigation
 
