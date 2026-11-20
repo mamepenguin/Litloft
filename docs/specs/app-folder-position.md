@@ -237,13 +237,6 @@ today.
   app through the page's URL wiring, not a component rendered with no URL.
 - `frontend/src/components/readingapp/__tests__/folders.test.ts` moves with
   `folders.ts`.
-
-Implementation notes the reviewers raised:
-- The page removes `target` (a Home shortcut) and `folder` in one URL replace built from
-  one snapshot of the search params, so neither removal undoes the other.
-- Both shelf routes' handling of a target chosen on the See all page drops `folder` and
-  `from_folder` with the other URL conditions.
-- At the top, Video's See all links carry no `folder`; only a position adds one.
 - `frontend/src/components/appshell/` (a shared crumbs-and-chips row, moving
   `folders.ts` and `useFolderChips.ts` there)
 - `frontend/src/messages-core/{ja,en}.json`
@@ -251,6 +244,13 @@ Implementation notes the reviewers raised:
 - Rules passed through: `.claude/rules/frontend-conventions.md` (DESIGN.md, i18n),
   `DESIGN.md` §6 Tabs and Selected-state controls, the SPA navigation rule (router
   navigation only).
+
+Implementation notes the reviewers raised:
+- The page removes `target` (a Home shortcut) and `folder` in one URL replace built from
+  one snapshot of the search params, so neither removal undoes the other.
+- Both shelf routes' handling of a target chosen on the See all page drops `folder` and
+  `from_folder` with the other URL conditions.
+- At the top, Video's See all links carry no `folder`; only a position adds one.
 
 ## Invariants
 
