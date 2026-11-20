@@ -1967,7 +1967,6 @@ Slot entries each addon declares, for reference when designing your own.
 
 | Addon | Slot | Entry IDs |
 |-------|------|-----------|
-| `intelligence` | `search-modes` | `find-mode` |
 | `intelligence` | `smart-collection-actions` | `smart-collection-ask` |
 | `intelligence` | `search-results-top` | `scene-segments` |
 | `intelligence` | `file-detail-sections` | `unverified-source`, `suggested-tags`, `suggested-chapters`, `summary`, `detailed-summary`, `visual-description` |

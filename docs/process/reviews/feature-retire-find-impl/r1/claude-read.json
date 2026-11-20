@@ -1,0 +1,247 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "MEDIUM",
+  "findings": [
+    {
+      "id": "CR-1",
+      "origin": "reviewer",
+      "claim": "Four new test files that the diff adds do not appear in the Touch points list of docs/specs/retire-find.md: addons/intelligence/frontend/__tests__/retireFind.manifest.test.ts, addons/intelligence/frontend/__tests__/retireFind.searchModes.test.tsx, the new test_undeclared_route_is_404_without_calling_upstream in backend/tests/test_addon_proxy_drive_scope.py, and frontend/src/app/drive/[name]/addons/[addon]/[slug]/__tests__/page.retireFind.test.tsx.",
+      "impact": "None for the user. The paragraph 'Where the SPEC-ADDON-158 tests live' (retire-find.md:219-223) names the repository for each invariant's test (I1, I2, I3 grep and I5 in the addon; I3 proxy 404 and I4 in core), but the Touch points section names no file for them, and its core list says only 'No core frontend or backend production code changes'. The new files are test code that matches that paragraph, so this is a gap in the list, not a change nobody planned.",
+      "evidence": "retire-find.md:141-197 lists the touch points, and none of these four paths is in it. retire-find.md:219-223 assigns the invariant tests to repositories without file names. The diff adds the four tests, each labelled SPEC-ADDON-158 I2, I3, I4 or I5 (grep for SPEC-ADDON-158).",
+      "repro": "not_reproduced (compared the diff's file list with the spec's Touch points section)",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariants file is declared. The tests are the planned invariant tests, and only their file names are missing from the touch-point list.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    },
+    {
+      "id": "CR-2",
+      "origin": "reviewer",
+      "claim": "addons/intelligence/app/rag/service.py changes its import line to drop TimeRange from the query_decomposer import. That line is not among the items the spec allows to change in service.py ('the functions and constants item 7 lists, and only those', plus docstrings on kept code).",
+      "impact": "None. TimeRange was used only by the deleted _build_decomposed_from_overrides. Grep finds no other use in service.py and no test that patches service.TimeRange; tests import it from app.rag.query_decomposer.",
+      "evidence": "service.py:59 changes from 'DecomposedQuery, TimeRange, decompose_query' to 'DecomposedQuery, decompose_query'. retire-find.md:162 limits service.py changes to the item-7 list. retire-find.md:96-97 allows only docstring edits on kept code, which covers the _rrf_merge_candidates docstring edit at service.py:464.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is a mechanical consequence of a listed removal (an unused import), with no behaviour change. It falls outside the literal touch-point wording only.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    }
+  ],
+  "specification_compliance": [
+    "The manifest drops the search-modes key and the POST /find proxy route, as the touch points require (I5 absence half).",
+    "slots.ts drops the find-mode registration. FindModeSlot.tsx, FindChip.tsx, ModeTabs.tsx and pages/find.tsx are deleted.",
+    "AskFindHeader passes scope, smartCollectionScope and smartMemberCount to useScopeFileCount unconditionally, the same values the old current==='ask' branch passed. Page.tsx call site updated.",
+    "rag.py drops find_endpoint and the FindRequest import. schemas.py drops FindRequest and FindResponse. api.ts drops findFiles and the Find types. en.json and ja.json drop the modeTabs and find blocks.",
+    "service.py removes exactly the 11 symbols item 7 lists. Kept helpers (_rrf_merge_candidates, _category_expansion_weights, _resolve_category_expansion, transform_query_structured, etc.) are still referenced.",
+    "The test deletions and edits match the 'Tests deleted' and 'Tests edited' lists, including the test_search_file_kind_filter split that keeps the document-vs-TEXT assertion.",
+    "No remaining non-test reference to /addons/intelligence/find, ModeTabs, findFiles, FindModeSlot or the modeTabs/find message keys in frontend/src, addons/*/frontend, mcp-server/src or ios. The only matches are test mock hrefs that the spec accepts."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The core addon subpage route (frontend/src/app/drive/[name]/addons/[addon]/[slug]/page.tsx) renders null while the dynamic import is pending and calls notFound only after the import rejects. With pages/find deleted, the bundler's import context no longer contains find, so the import rejects. This is unchanged code and matches spec item 2."
+  ],
+  "regression_risks": [
+    "Coverage floors (addon COV_FLOOR, core vitest thresholds) may drop because tested code was removed. Spec D3 covers this, but I did not check whether the floors were adjusted.",
+    "Merge order D2: the addon's CI depends on frontend/src/__tests__/search-modes-entries.test.ts having been deleted from core develop first (commit b9b776446 appears to do this)."
+  ],
+  "test_coverage": [
+    "I1: Page.test.tsx 'SPEC-ADDON-158 I1' renders the Ask page with a drive and without one. It asserts no tablist, no tab, no Ask/Find link and no href containing /addons/intelligence/find, plus the title and icon. Reinstating the ModeTabs render would fail it.",
+    "I2 (addon side): retireFind.searchModes.test.tsx renders AddonSlot search-modes from the manifest and from a stale catalogue naming find-mode. Re-adding find-mode to slots.ts would render a menuitem and fail the test.",
+    "I3: the backend test uses a synthetic _test addon, so it proves the generic proxy 404s an undeclared route, not the intelligence manifest specifically. Together with I5's manifest check it covers the claim. The grep test walks the four client roots and excludes test files.",
+    "I4: page.retireFind.test.tsx checks that the find slug reaches notFound and that pickup still loads.",
+    "I5: the test asserts only the absence half. 'Every other slots entry and proxy.routes entry is unchanged' has no test, so an accidental edit to another route in this diff would not be caught (by reading, the diff touches no other entry).",
+    "I6 (in-file find unchanged): no new SPEC-ADDON-158 test exists. It relies on the existing file_find tests."
+  ],
+  "not_verified": [
+    "Did not run any test suite (Python, vitest), so pass/fail is inferred by reading only.",
+    "Did not check whether the coverage floors were changed or still pass after the deletions (D3).",
+    "Did not read the whole of service.py, rag.py or schemas.py beyond the diff hunks and grep checks for leftover symbols.",
+    "Did not verify that the Next.js build's dynamic import context excludes the deleted pages/find at build time."
+  ],
+  "coverage": [
+    {
+      "path": "addons/intelligence/app/rag/service.py",
+      "read": "full",
+      "reason": "Read every changed hunk in the diff (import line, docstring, removed Find block, removed find_files wrapper). Grepped for remaining uses of the removed and kept helpers."
+    },
+    {
+      "path": "addons/intelligence/app/routers/rag.py",
+      "read": "full",
+      "reason": "Read the changed hunks (imports, removed find_endpoint) in the diff. Grepped the remaining imports."
+    },
+    {
+      "path": "addons/intelligence/app/schemas.py",
+      "read": "full",
+      "reason": "Read the changed hunk (removed FindRequest and FindResponse) in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/AskFindHeader.test.tsx",
+      "read": "full",
+      "reason": "Read all hunks in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/AskFindHeader.tsx",
+      "read": "full",
+      "reason": "Read the file from line 10 to the end, plus the import hunk in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/FindChip.test.tsx",
+      "read": "full",
+      "reason": "Deleted file. Its whole content appears in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/FindChip.tsx",
+      "read": "full",
+      "reason": "Deleted file. Its whole content appears in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/FindModeSlot.menuRow.test.tsx",
+      "read": "full",
+      "reason": "Deleted file. Its whole content appears in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/FindModeSlot.test.tsx",
+      "read": "full",
+      "reason": "Deleted file. Its whole content appears in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/FindModeSlot.tsx",
+      "read": "full",
+      "reason": "Deleted file. Its whole content appears in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/ModeTabs.scope.test.tsx",
+      "read": "full",
+      "reason": "Deleted file. Its whole content appears in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/ModeTabs.test.tsx",
+      "read": "full",
+      "reason": "Deleted file. Its whole content appears in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/ModeTabs.tsx",
+      "read": "full",
+      "reason": "Deleted file. Its whole content appears in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/Page.scope.test.tsx",
+      "read": "full",
+      "reason": "Read the changed hunk (removed link loop) in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/Page.test.tsx",
+      "read": "full",
+      "reason": "Read the changed hunks (imports, describe rename, new I1 test) in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/Page.tsx",
+      "read": "full",
+      "reason": "Read the changed hunk at the AskFindHeader call site. Grepped for the call site."
+    },
+    {
+      "path": "addons/intelligence/frontend/api.ts",
+      "read": "full",
+      "reason": "Read the changed hunk (removed findFiles and Find types). Grepped for leftover references."
+    },
+    {
+      "path": "addons/intelligence/frontend/findFiles.api.test.ts",
+      "read": "full",
+      "reason": "Deleted file. Its whole content appears in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/messages/en.json",
+      "read": "full",
+      "reason": "Read the changed hunk (removed modeTabs and find blocks). Grepped for remaining key users."
+    },
+    {
+      "path": "addons/intelligence/frontend/messages/ja.json",
+      "read": "full",
+      "reason": "Read the changed hunk (removed modeTabs and find blocks)."
+    },
+    {
+      "path": "addons/intelligence/frontend/pages/find.test.tsx",
+      "read": "full",
+      "reason": "Deleted file. Its whole content appears in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/pages/find.tsx",
+      "read": "full",
+      "reason": "Deleted file. Its whole content appears in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/slots.ts",
+      "read": "full",
+      "reason": "Read the changed hunk (removed find-mode registration) in the diff."
+    },
+    {
+      "path": "addons/intelligence/manifest.json",
+      "read": "full",
+      "reason": "Read both changed hunks (search-modes slot and /find route removals) in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/__tests__/retireFind.manifest.test.ts",
+      "read": "full",
+      "reason": "New file. Its whole content appears in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/__tests__/retireFind.searchModes.test.tsx",
+      "read": "full",
+      "reason": "New file. Its whole content appears in the diff."
+    },
+    {
+      "path": "addons/intelligence/tests/test_find_router.py",
+      "read": "full",
+      "reason": "Deleted file. Its whole content appears in the diff."
+    },
+    {
+      "path": "addons/intelligence/tests/test_find_service.py",
+      "read": "full",
+      "reason": "Deleted file. Its whole content appears in the diff."
+    },
+    {
+      "path": "addons/intelligence/tests/test_llm_routing_callers.py",
+      "read": "partial",
+      "reason": "Read only the changed hunks in the diff (Ask/Find parametrization and the removed Find tests)."
+    },
+    {
+      "path": "addons/intelligence/tests/test_rag_trust_filter.py",
+      "read": "partial",
+      "reason": "Read only the removed test hunk in the diff."
+    },
+    {
+      "path": "addons/intelligence/tests/test_read_paths_skip_write_lock.py",
+      "read": "partial",
+      "reason": "Read only the _READ_POSTS hunk in the diff."
+    },
+    {
+      "path": "addons/intelligence/tests/test_search_file_kind_filter.py",
+      "read": "partial",
+      "reason": "Read only the changed test function hunk in the diff."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_071_validation_body.py",
+      "read": "partial",
+      "reason": "Read only the BODIES and ROWS hunk in the diff."
+    },
+    {
+      "path": "backend/tests/test_addon_proxy_drive_scope.py",
+      "read": "full",
+      "reason": "Read lines 1-180, including the fixtures and the new test."
+    },
+    {
+      "path": "frontend/src/app/drive/[name]/addons/[addon]/[slug]/__tests__/page.retireFind.test.tsx",
+      "read": "full",
+      "reason": "New file. Its whole content appears in the diff. Also read the page.tsx it exercises."
+    }
+  ],
+  "confidence": 82
+}
