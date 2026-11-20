@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R1",
+      "status": "confirmed",
+      "note": "Confirmed. ReadingShelfRoute.targetChoice.test.tsx:14-21 mocks ReadingShelfPage with a single button that only calls onTargetChosen, so it exercises only the route's dropFilters (page.tsx:13-19). ReadingShelfPage.test.tsx:175-189 renders without tags or watch and checks only that the key survives. The other renders with tags (ReadingShelfPage.test.tsx:143, ShelfPage.collectionTarget.test.tsx:213, ShelfPage.memberTarget.test.tsx:133) never choose a Target. So the component's droppedFor/filtersDropped logic (ReadingShelfPage.tsx:84-95), requestedWatch (:108) and the merge of tags under filtersDropped (:126) are not covered for 'another Target chosen' or 're-choosing the Target in force' (:89 early return)."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R2",
+      "status": "confirmed",
+      "note": "The code behaves as claimed. reading/shelf/page.tsx:13-19 deletes only `tag` and `watch` and still passes folders={search.getAll(\"folder\")} at :27. ReadingShelfPage.tsx:125 applies urlFolders to the query with no filtersDropped check, so a carried folder chip still narrows the new Target's shelf after a Target choice. Caveats for triage: this behavior predates the branch, because the folder pass-through existed before the onTargetChosen fix. Also, I16b's 'chip resets on a target change' (app-library-filters.md:386, reading-app.md:419-420) is written about the Library's chip, and the See all page has no chip UI. Whether it covers a See all page's carried `folder` is a spec-reading question."
+    }
+  ],
+  "specification_compliance": [
+    "The I5 Target-choice drop on Reading's See all page covers tag and watch (route and component). The URL folder chip is not dropped. Whether I16b covers that is open to interpretation."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "Reading See all page: after a Target choice, the carried `folder` conditions keep applying to the new Target and may silently narrow or empty its shelf."
+  ],
+  "regression_risks": [
+    "The ReadingShelfPage filtersDropped logic has no component test. A regression there (for example, re-sending the tags after a Target choice, or dropping them when the Target in force is re-chosen) would pass CI."
+  ],
+  "test_coverage": [
+    "ReadingShelfRoute.targetChoice.test.tsx tests only the URL replace, with a mocked page.",
+    "No Reading test chooses a Target while tags or watch are set."
+  ],
+  "not_verified": [
+    "Did not run any tests; all conclusions come from reading the code.",
+    "Did not check git history to confirm the exact commit where the folder pass-through on the shelf page was introduced.",
+    "Did not review the Video equivalents (VideoShelfPage.filters.test.tsx) beyond what the finding cites."
+  ],
+  "confidence": 85
+}

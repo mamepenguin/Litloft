@@ -11,10 +11,11 @@ export default function ReadingShelfRoute() {
   const router = useRouter();
   const pathname = usePathname();
   const dropFilters = () => {
-    if (!search.has("tag") && !search.has("watch")) return;
+    if (!search.has("tag") && !search.has("watch") && !search.has("folder")) return;
     const next = new URLSearchParams(search);
     next.delete("tag");
     next.delete("watch");
+    next.delete("folder");
     router.replace(`${pathname}?${next}`);
   };
   return (

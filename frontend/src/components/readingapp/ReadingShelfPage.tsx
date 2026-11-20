@@ -81,7 +81,7 @@ export function ReadingShelfPage({
   const { chooseTarget: chooseAppTarget, targetId } = appState;
   // The URL's filters stop applying in the render that shows the new Target;
   // the replace that removes them from the URL lands later.
-  const urlFilters = JSON.stringify([urlTags ?? [], urlWatch ?? null]);
+  const urlFilters = JSON.stringify([urlTags ?? [], urlWatch ?? null, urlFolders ?? []]);
   const [droppedFor, setDroppedFor] = useState<string | null>(null);
   const filtersDropped = droppedFor === urlFilters;
   const chooseTarget = useCallback(
@@ -122,7 +122,7 @@ export function ReadingShelfPage({
   const query = useMemo<ReadingTargetParams | null>(() => {
     if (params === null) return null;
     const next: ReadingTargetParams = { ...params };
-    if (urlFolders && urlFolders.length > 0) next.folder = [...urlFolders];
+    if (!filtersDropped && urlFolders && urlFolders.length > 0) next.folder = [...urlFolders];
     const merged = mergeTags(listOf(params.tag), filtersDropped ? [] : (urlTags ?? []));
     if (merged.length > 0) next.tag = merged;
     return next;

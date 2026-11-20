@@ -27,8 +27,8 @@ beforeEach(() => {
 });
 
 describe("SPEC-CORE-147 I5 a Target chosen on Reading's See all page", () => {
-  it("drops tag and watch from the URL by replace and keeps the rest", () => {
-    search = new URLSearchParams("by=folder&key=Novels&tag=SF&watch=finished&sort=title");
+  it("drops tag, watch and folder from the URL by replace and keeps the rest", () => {
+    search = new URLSearchParams("by=folder&key=Novels&tag=SF&watch=finished&folder=Comics&sort=title");
     render(<Route />);
 
     fireEvent.click(screen.getByRole("button", { name: "choose a Target" }));
@@ -37,6 +37,7 @@ describe("SPEC-CORE-147 I5 a Target chosen on Reading's See all page", () => {
     const href = new URL(String(replace.mock.calls[0][0]), "http://localhost");
     expect(href.searchParams.has("tag")).toBe(false);
     expect(href.searchParams.has("watch")).toBe(false);
+    expect(href.searchParams.has("folder")).toBe(false);
     expect(href.searchParams.get("key")).toBe("Novels");
     expect(href.searchParams.get("sort")).toBe("title");
   });
