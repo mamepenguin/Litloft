@@ -1,0 +1,151 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "F1",
+      "origin": "reviewer",
+      "claim": "The diff changes the start-placement trigger in useSceneList, which is outside the touch points. The placement now runs once per resetKey (placedKeyRef), no longer on every shown/fileId/rows change, and it is now gated on a new `layoutSettled` input fed from the Container's awaitingVisual. Because placedKeyRef is never cleared on hide, a .loft that is hidden and shown again with the same frames gets no start placement and no new opening.",
+      "impact": "Hiding and re-showing the Scenes panel of a YouTube .loft (the host turns `active` off and on, so the frames are kept) leaves opening ended once the reader has scrolled. The re-shown list's near tiles then wait D (200 ms) instead of loading at once. A failed tile is not asked for at once after that start event. The playing row is not placed again on re-show: the list comes back at its top, and if following was off it does not move to the playing row.",
+      "evidence": "useSceneList.ts:163-165: resetKey = `${fileId}|${shown?1:0}|${starts}`. useSceneList.ts:348 returns early while !shown, so placedKeyRef keeps the shown key 'f|1|…'. useSceneList.ts:351-354: on re-show the key equals placedKeyRef, so it only calls syncVisible; openingRef/setOpening(true) (355-357) and setFollowing(true)/placeRow (358-368) are skipped. For a .loft, the Container keeps rows on hide (ScenesSectionContainer.tsx:296 returns before any reset; rows are set to null only on collapse and file change for native). So resetKey is identical on re-show. Native panels are not affected, because loadNative (ScenesSectionContainer.tsx:249) sets rows to null and the intermediate key 'f|1|' differs. useScenePictures.ts:98-112 then resets `requested` and calls read() with opening=false, so every near tile starts a dwell. Before this change the placement effect depended on [shown, fileId, rows] and placed again on every show.",
+      "repro": "Not run (read-only reviewer). Mental trace of the I8 `.loft` row of ScenesSectionPictureTiming.test.tsx: open, wheelTo(6*ROW) ends opening, rerender active:false then active:true, now() twice with no time advanced. read() runs with opening=false, so t=5 only starts a dwell, and `expect(srcs()).toContain('/scene-tile/f1?t=5')` should fail. If that test passes, something I did not see resets placedKeyRef. Mutation check: clearing placedKeyRef.current when !shown at useSceneList.ts:348 would restore the per-show placement and opening.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "A",
+        "invariant_ref": "I8",
+        "reason": "I8 requires a failed .loft tile to be asked for again after the next start event. Becoming active is a start event (Terms), so §1.5 and I1 opening behaviour should apply; on a .loft re-show this code gives a dwell instead, and does no start placement."
+      },
+      "severity": "HIGH",
+      "proposed_fix": "Reset placedKeyRef and pendingSettleRef when shown turns false, e.g. in the placement effect's `!shown` branch, so that every showing is a new start event; or keep `shown` transitions out of the dedup key."
+    },
+    {
+      "id": "F2",
+      "origin": "reviewer",
+      "claim": "The diff adds a new unit-test file, `__tests__/ScenesSectionPictureTiming.test.tsx`, that is not in the touch-point list. The list names only ScrollList, Requests, OneList and LoftVisualIndex as addon tests, and OneList and LoftVisualIndex are not changed by this diff.",
+      "impact": "None for a user. The planned list is incomplete: the I1–I9 tests live in an unlisted file, and the listed OneList/LoftVisualIndex `.loft` settle cases were not changed.",
+      "evidence": "The diff adds addons/intelligence/frontend/ScenesSection/__tests__/ScenesSectionPictureTiming.test.tsx (693 lines). The touch points list `__tests__/ScenesSectionScrollList.test.tsx`, `__tests__/ScenesSectionRequests.test.tsx`, `__tests__/ScenesSectionOneList.test.tsx` and `__tests__/ScenesSectionLoftVisualIndex.test.tsx`.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "An unplanned touch point; it breaks no invariant."
+      },
+      "severity": "INFO"
+    },
+    {
+      "id": "F3",
+      "origin": "reviewer",
+      "claim": "The diff changes the shared test layout stub `__tests__/scrollListLayout.tsx`, which is not in the touch-point list. ROW becomes a mutable `export let`, and the diff adds `setRowStep`, which resetLayout resets.",
+      "impact": "No user impact. Every suite that imports ROW from this helper now shares mutable module state. A suite that calls setRowStep without resetLayout in beforeEach would leak the row step into later tests in the same file.",
+      "evidence": "scrollListLayout.tsx: `export let ROW = 88;`, `export function setRowStep(px)`, and `ROW = 88` inside resetLayout.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "An unplanned touch point in shared test infrastructure; it breaks no invariant."
+      },
+      "severity": "INFO"
+    },
+    {
+      "id": "F4",
+      "origin": "reviewer",
+      "claim": "The diff adds a new input to useSceneList, `layoutSettled` (from the Container's `awaitingVisual`), which holds the start reading until the Visual Index answer arrives. The touch points describe useSceneList's readings only as 'after the start placement, scroll, resize, c or row-step change' and do not mention a wait on the Visual Index.",
+      "impact": "With the policy on and a slow Visual Index answer, `ready` stays false during opening for a native panel. No picture is asked for until that answer lands, which delays the 'at once' opening pictures by the server's Visual Index latency.",
+      "evidence": "ScenesSectionContainer.tsx:450-458 passes layoutSettled: !awaitingVisual. useSceneList.ts:374-375 defers placedKey while !layoutSettled. useSceneList.ts:399 keeps deferring while !layoutSettled && opening. useScenePictures.ts:63 returns while !ready.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "Unplanned coupling; under the spec's definition, a reading before the start placement's own measurement is not a reading, so this arguably fits I1."
+      },
+      "severity": "LOW"
+    }
+  ],
+  "specification_compliance": [
+    "Touch-point comparison: the changes to useScenePictures.ts, useSceneList.ts (scrollVersion removed; opening, ready and resetKey added), ScenesSectionContainer.tsx (endOpening on ruler press and keys, near set) and ScenesSectionPresenter.tsx (loading=\"lazy\" removed) are all within the listed touch points.",
+    "Places not in the touch-point list: the new ScenesSectionPictureTiming.test.tsx (F2), the scrollListLayout.tsx test helper (F3), the change to the start-placement trigger and its deduplication in useSceneList (F1), and the layoutSettled/Visual Index gate (F4).",
+    "Listed but not touched: ScenesSectionOneList.test.tsx, ScenesSectionLoftVisualIndex.test.tsx and projects.ts. projects.ts does not need a change, because non-desktop specs run in the phone project by default.",
+    "The new e2e file scenes-picture-timing.spec.ts is registered in spec-viewport.spec.ts AT_THE_PHONE_WIDTH, as the touch points require."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "Start placement is now deduplicated by resetKey, including the frame start times. Frames refetched with the same starts no longer place the list again; the spec's Terms treat this as not an arrival, but it also changes SPEC-ADDON-152 §1.3 placement behaviour.",
+    "The opening's at-once request waits for the Visual Index answer on native panels with the policy on (F4)."
+  ],
+  "regression_risks": [
+    "A .loft panel hidden and re-shown by the host: no start placement and no new opening (F1).",
+    "Start placement now depends on layoutSettled: when the Visual Index answer arrives during opening and the pending reading has not completed, the placement effect re-runs and places the list again."
+  ],
+  "test_coverage": [
+    "The I6 re-show test covers only a native panel, where loadNative nulls the rows and so changes resetKey. No test re-shows a .loft after opening has ended and asserts the at-once request or the placement, apart from the I8 .loft row, which by my reading should fail.",
+    "No test covers a slow Visual Index answer delaying the opening pictures."
+  ],
+  "not_verified": [
+    "I did not run the vitest or Playwright suites, so whether the I8 .loft case actually fails is inferred from reading the code, not observed.",
+    "I did not read the Presenter beyond lines 290-380 and the diff hunk.",
+    "I did not check whether the host (inspector panel) unmounts ScenesSection on hide in production, which would mask F1."
+  ],
+  "coverage": [
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/ScenesSectionContainer.tsx",
+      "read": "partial",
+      "reason": "Read lines 100-817, which cover every changed hunk and its enclosing function; did not read lines 1-99 or 818 onwards."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/ScenesSectionPresenter.tsx",
+      "read": "partial",
+      "reason": "Read lines 290-380 and the one-line hunk at ~720 through the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/hooks/useSceneList.ts",
+      "read": "full",
+      "reason": "Read the whole file."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/hooks/useScenePictures.ts",
+      "read": "full",
+      "reason": "Read the whole file."
+    },
+    {
+      "path": "frontend/e2e-components/scenes-picture-timing.spec.ts",
+      "read": "full",
+      "reason": "New file; read in full through the diff."
+    },
+    {
+      "path": "frontend/e2e-components/scenes-section.cases.ts",
+      "read": "partial",
+      "reason": "Read the changed hunks and the recordFrameRequests function through the diff; did not read the rest of the file."
+    },
+    {
+      "path": "frontend/e2e-components/spec-viewport.spec.ts",
+      "read": "partial",
+      "reason": "Read the one-line hunk in the AT_THE_PHONE_WIDTH list through the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/__tests__/ScenesSectionPictureTiming.test.tsx",
+      "read": "full",
+      "reason": "New file; read in full through the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/__tests__/ScenesSectionRequests.test.tsx",
+      "read": "partial",
+      "reason": "Read the changed hunk only, through the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/__tests__/ScenesSectionScrollList.test.tsx",
+      "read": "partial",
+      "reason": "Read the changed hunks only, through the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/__tests__/scrollListLayout.tsx",
+      "read": "partial",
+      "reason": "Read the changed hunks only, through the diff."
+    }
+  ],
+  "confidence": 72
+}
