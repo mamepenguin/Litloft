@@ -45,6 +45,9 @@ that the design depends on:
   closes). The grid's handlers act only while its `focusing` flag is true; a click on
   the grid sets it, a `window` click outside the grid clears it. While set, `paste` and
   `copy` are `preventDefault`ed and keys are handled by the grid.
+- `@js-preview/excel` creates the grid with `mode: "read"` and `showToolbar: false`;
+  in read mode x-data-spreadsheet's cell-text setter returns without changing the cell,
+  and the sheet-tab context menu and "add sheet" do nothing.
 - The grid takes its size from its wrapper element when it draws (300 px tall when the
   wrapper has no height) and redraws only on a `window` `resize`.
 - Apart from its own `.x-spreadsheet*` classes, the stylesheet holds exactly three
@@ -64,18 +67,23 @@ that the design depends on:
    `application/vnd.openxmlformats-officedocument.wordprocessingml.document` (Word) or
    `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet` (Excel), whose
    `file_size` is at most 20 MB (`OFFICE_PREVIEW_MAX_BYTES`, the cap the excerpt already
-   uses) and which is not missing. The hosts are every place `FilePreview` is drawn
-   today: the canonical file page (`MediaCanvas`, `fillCanvas`), the collection route
-   `/files/{id}` (`FileDetailCanvas`), the full-screen file view (`FileDetailFullScreen`)
-   and the folder's right pane (`RightPaneFile`).
-   "File page" below means any of them.
+   uses) and which is not missing. `FilePreview` is drawn on two surfaces today, and
+   "file page" below means either:
+   - the canonical file page, `RightPaneFile` → `ShellLayout` → `MediaCanvas` with
+     `fillCanvas`, shown in the folder's two-pane layout and full-width on the
+     cross-folder routes; ← / → change file there through `useFileNav`;
+   - the collection route `/files/{id}?collection=…`, `FileDetailFullScreen` →
+     `FileDetailContent` → `FileDetailCanvas` without `fillCanvas`; `useFileNav` is
+     disabled there, so ← / → never change file, for any kind.
 2. `FilePreview` asks `lib/officeFiles.ts` which viewer the file gets and renders the
    Office viewer (`components/office/`), a component in the normal bundle that draws the
    frame and the loading look. Inside an effect it imports its library with a dynamic
    `import()` (for Excel, the stylesheet with it), so the library never runs during
    server rendering and is not in any route's first load.
 3. The frame's height follows the PDF viewer's rule: with `fillCanvas`, the height
-   `useFillHeight` gives it (the PDF viewer's measured fit); otherwise 80vh. Until the
+   `useFillHeight` gives it (the PDF viewer's measured fit); otherwise the whole frame is
+   80vh (the PDF viewer's page box is 80vh under its toolbar; the Office frame has no
+   toolbar, so it is not compared with the PDF frame on this path). Until the
    drawing is done the frame shows one loading look throughout (module, fetch and
    drawing): the PDF viewer's pulse block (`animate-pulse rounded-xl bg-bg-card`) filling
    the frame. The frame is the same element in loading and shown, so the drawing
@@ -94,7 +102,9 @@ that the design depends on:
    without a window resize (the inspector opening or closing, a height measurement, a
    split change).
 7. The rest of the page is unchanged: the header, the `⋮` menu with **Download**, the
-   inspector, comments and the previous / next buttons.
+   inspector and comments. On the canonical file page a Word or Excel file has no
+   previous / next buttons today (they are drawn for pictures and the inbox walk only);
+   ← / → are how a viewer steps to the next file there, and they stay so (§7).
 
 ### 2. Failure cases
 
@@ -117,8 +127,8 @@ object it was last given.
 - `loading` → `failed` on any failure in §2 that leads to the fallback; `failed` renders
   today's fallback panel and excerpt.
 - Any state → `loading` for the new identity when the identity changes. This happens
-  when the host hands a file object with another `id` (the previous / next buttons, a
-  tree click), or the same `id` with another `file_size` or `modified_at` (the page
+  when the host hands a file object with another `id` (← / →, a tree click, the inbox
+  walk's buttons), or the same `id` with another `file_size` or `modified_at` (the page
   replaced the list's copy with the detail answer, or refetched after a tag, metadata
   or rename save and the file had changed). The previous drawing is removed before
   anything of the new one is drawn.
@@ -166,14 +176,16 @@ answers 404 and the viewer falls back (§2).
 - Card excerpts (`TextThumbnail`, `lib/textExcerpt.ts`), thumbnails, search indexing and
   `read_document` are unchanged.
 - `lib/officeFiles.ts` stays the only file that spells an OOXML mime. It gains an export
-  that names the viewer a file gets (Word, Excel or none, from mime, size and missing)
-  and an export of the Excel mime. `FilePreview.tsx` and `hooks/useFileNav.ts` import
-  them.
-- `useFileNav`'s `PAGED_MIMES` gains the Excel mime. Every host that uses `useFileNav`
-  (the file page, its full-screen form, the right pane) therefore stops changing file
-  on ← / → for Excel files. Word files keep ← / → for changing file.
-- On an Excel file, before the grid is clicked, ← / → do nothing; after a click they
-  move the selected cell. The user guide says so.
+  that names the viewer a file gets (Word, Excel or none, from mime, size and missing).
+  `FilePreview.tsx` imports it.
+- ← / → on an Excel file. `PAGED_MIMES` is not changed. Instead the Excel grid is
+  *active* from a click inside the grid until a click outside it, focus moving to an
+  element outside the frame, or the viewer unmounting. While the grid is active, ← / →
+  move the selected cell (the library's handling) and `useFileNav` does not change file;
+  otherwise ← / → change file as they do today for every document. `useFileNav` learns
+  of the active grid through a signal the Office viewer sets (`components/office/`),
+  not through the mime. Word files, Excel files in the fallback and every other kind are
+  unaffected. On the collection route ← / → change no file for any kind, as today.
 - Find in this file (intelligence) still lists Office hits with no place to go.
 - The PDF / EPUB viewers, `isDocumentViewer` and the document shell are not touched.
 - Forms with `<fieldset>` (setup wizard, addon settings) look the same whether or not an
@@ -198,8 +210,8 @@ error, so a file that always falls back can be told apart from one that never tr
   copy from the grid puts on the clipboard is the library's and is not promised. Rows
   and columns can be resized by dragging their edge (a view change, kept only while the
   page is open). On a phone the grid scrolls by touch inside the frame (the library's
-  own handling); the page header, the previous / next buttons and the inspector sheet
-  stay reachable outside the frame.
+  own handling); the page header and the inspector sheet stay reachable outside the
+  frame.
 - Both appear after the loading look; a large workbook takes seconds.
 - With the grid clicked, the app's shortcuts (`t`, `?`, `n`, `Ctrl/Cmd+F`,
   `Ctrl/Cmd+K`, `Ctrl/Cmd+\`, `Esc`) still work. Once focus is outside the grid, moved by
@@ -242,14 +254,15 @@ error, so a file that always falls back can be told apart from one that never tr
   shared loading / fetch / fallback handling, the Word link rewrite, and the containment
   of the Excel library's window listeners and unscoped stylesheet rules. It does not
   import `@/lib/officeFiles`.
-- `frontend/src/lib/officeFiles.ts`: the export naming a file's viewer and the export of
-  the Excel mime, sharing `OFFICE_PREVIEW_MAX_BYTES`.
-- `frontend/src/hooks/useFileNav.ts`: `PAGED_MIMES` gains the Excel mime, imported from
-  `lib/officeFiles.ts`, never spelled out.
+- `frontend/src/lib/officeFiles.ts`: the export naming a file's viewer, sharing
+  `OFFICE_PREVIEW_MAX_BYTES`.
+- `frontend/src/hooks/useFileNav.ts`: ← / → do not change file while an Excel grid is
+  active, read from the Office viewer's signal. `PAGED_MIMES` is unchanged, and the
+  file does not import `@/lib/officeFiles`.
 - `frontend/src/__tests__/officeMimes.test.ts`: the expected importer list of
   `@/lib/officeFiles` becomes exactly `frontend/src/components/FilePreview.tsx`,
   `frontend/src/components/OfficeExcerpt.tsx`, `frontend/src/components/TextThumbnail.tsx`,
-  `frontend/src/hooks/useFileNav.ts`, `frontend/src/lib/textExcerpt.ts`. The "written
+  `frontend/src/lib/textExcerpt.ts`. The "written
   down once" check is unchanged and must still pass.
 - `frontend/src/components/__tests__/FilePreview.test.tsx`: the test "puts the extracted
   text under the panel that says there is no preview" keeps its assertions and moves its
@@ -269,18 +282,18 @@ error, so a file that always falls back can be told apart from one that never tr
 
 I1. A Word file at or under 20 MB that is not missing shows the document drawn by `docx-preview` inside a region named 「文書」 / "Document", and the **No preview** panel is not rendered. (SPEC-CORE-029)
 I2. An Excel file at or under 20 MB that is not missing shows the workbook drawn by `@js-preview/excel` with its sheet tabs inside a region named 「文書」 / "Document", and the **No preview** panel is not rendered. (SPEC-CORE-155)
-I3. When the fetch fails or answers non-2xx, the library module or stylesheet fails to load, or the library rejects or throws while drawing, the page shows the **No preview** panel with **Download**, **Open in new tab** and the text excerpt, nothing the library drew remains, and the failure is logged once with `console.warn` naming the file id.
-I4. A `.pptx`, `.doc`, `.xls` or `.ppt` file, an Office file over 20 MB and a missing Office file render the **No preview** panel as today, without requesting the file's stream or either library.
-I5. A page that shows no Word or Excel file (a video, a PDF, a folder) requests neither library's code nor the Excel stylesheet.
-I6. After the viewer's identity changes (`id`, `file_size` or `modified_at`), nothing of the previous drawing is visible at any point, and a fetch or drawing for the previous identity that completes later changes nothing on the page and logs nothing.
-I7. While the identity is unchanged (re-render, a file object replaced with equal `id`, `file_size` and `modified_at`, inspector toggle, resize), the viewer makes no new stream request and does not redraw; after `failed`, it makes no new stream request in the same mount.
-I8. On an Excel file, ← and → do not change file and the previous / next buttons still do, in every host that uses `useFileNav`; on a Word file ← and → still change file.
-I9. After leaving an Excel file, by any means and whether or not the grid was clicked, keys, paste, copy and clicks on the next page behave as they would had the Excel file never been opened.
-I10. On an Excel file, once focus is outside the grid (moved by a click or by a shortcut that focuses a field), keys and paste reach the focused element unchanged, and the app shortcuts fire with the grid clicked or not.
-I11. The viewer itself makes no request other than the stream GET and the library and stylesheet chunks, and `/preview-text` is requested only in the fallback; no keyboard, clipboard or mouse action in the Excel grid (typing, Delete, Backspace, cut, paste, undo, redo, double-click, right-click, dragging a selection's corner) changes what any cell shows.
-I12. With `fillCanvas` the frame's height equals the height `useFillHeight` gives it, otherwise 80vh; the drawing scrolls inside the frame and never makes the page scroll by growing it; the Excel grid fills the frame after every change in the frame's size, including ones without a window resize.
-I13. Forms with a `<fieldset>` look the same after an Excel file has been opened in the session as before it.
-I14. In a Word drawing, every link whose `href` starts with `http://` or `https://` has `target="_blank"` and `rel="noopener noreferrer"`, and no other link is changed.
+I3. (SPEC-CORE-029, SPEC-CORE-155) When the fetch fails or answers non-2xx, the library module or stylesheet fails to load, or the library rejects or throws while drawing, the page shows the **No preview** panel with **Download**, **Open in new tab** and the text excerpt, nothing the library drew remains, and the failure is logged once with `console.warn` naming the file id.
+I4. (SPEC-CORE-029, SPEC-CORE-155) A `.pptx`, `.doc`, `.xls` or `.ppt` file, an Office file over 20 MB and a missing Office file render the **No preview** panel as today, without requesting the file's stream or either library.
+I5. (SPEC-CORE-029, SPEC-CORE-155) A page that shows no Word or Excel file (a video, a PDF, a folder) requests neither library's code nor the Excel stylesheet; a Word file requests neither `@js-preview/excel` nor its stylesheet, and an Excel file does not request `docx-preview`.
+I6. (SPEC-CORE-029, SPEC-CORE-155) After the viewer's identity changes (`id`, `file_size` or `modified_at`), nothing of the previous drawing is visible at any point, and a fetch or drawing for the previous identity that completes later changes nothing on the page and logs nothing.
+I7. (SPEC-CORE-029, SPEC-CORE-155) While the identity is unchanged (re-render, a file object replaced with equal `id`, `file_size` and `modified_at`, inspector toggle, resize), the viewer makes no new stream request and does not redraw; after `failed`, it makes no new stream request in the same mount.
+I8. (SPEC-CORE-155) On the canonical file page, ← and → change file on an Excel file whose grid is not active (never clicked, or clicked outside since, or focus moved out of the frame) and do not change file while the grid is active; on a Word file, and on an Excel file in the fallback, ← and → change file as today.
+I9. (SPEC-CORE-155) After leaving an Excel file, by any means and whether or not the grid was clicked, keys, paste, copy and clicks on the next page behave as they would had the Excel file never been opened.
+I10. (SPEC-CORE-155) On an Excel file, once focus is outside the grid (moved by a click or by a shortcut that focuses a field), keys and paste reach the focused element unchanged, and the app shortcuts fire with the grid clicked or not.
+I11. (SPEC-CORE-029, SPEC-CORE-155) The viewer itself makes no request other than the stream GET and the library and stylesheet chunks, and `/preview-text` is requested only in the fallback; no keyboard, clipboard or mouse action in the Excel grid (typing, Delete, Backspace, cut, paste, undo, redo, double-click, right-click, dragging a selection's corner) changes what any cell shows.
+I12. (SPEC-CORE-029, SPEC-CORE-155) With `fillCanvas` the frame's height equals the height `useFillHeight` gives it, otherwise 80vh; the drawing scrolls inside the frame and never makes the page scroll by growing it; the Excel grid fills the frame after every change in the frame's size, including ones without a window resize.
+I13. (SPEC-CORE-155) Forms with a `<fieldset>` look the same after an Excel file has been opened in the session as before it.
+I14. (SPEC-CORE-029) In a Word drawing, every link whose `href` starts with `http://` or `https://` has `target="_blank"` and `rel="noopener noreferrer"`, and no other link is changed.
 
 ## Checked, no action
 
@@ -292,23 +305,25 @@ I14. In a Word drawing, every link whose `href` starts with `http://` or `https:
   that renders a real document. CI tests cover only Litloft's side, with the libraries
   mocked: which file gets which viewer at 20 MB and 20 MB + 1 (I1, I2, I4), the fallback
   for each failure (I3), identity changes and their absence (I6, I7), the arrow keys
-  (I8), the viewer's requests (I11, first clause) and the link rewrite on a stand-in
+  (I8, with the grid's active signal set directly), the viewer's requests (I11, first clause) and the link rewrite on a stand-in
   drawing (I14). The rest needs the real libraries in a real browser and is R-5's, at
-  1280px and 390px, on the canonical file page and the folder's right pane, and once on
-  the collection route:
+  1280px and 390px, on the canonical file page in the folder's two-pane layout and once
+  full-width on a cross-folder route, and once on the collection route:
   - I5: the network panel on a video page and a PDF page, and the build's chunk list.
-  - I9, I10: click the grid, then leave by the previous / next button, by a tree click,
-    by a keyboard shortcut and by browser back; and, staying, focus the comment field by
+  - I8: ← / → before clicking the grid, after clicking it, and after clicking outside it.
+  - I9, I10: click the grid, then leave by a click outside then →, by a tree click, by a
+    keyboard shortcut and by browser back; and, staying, focus the comment field by
     a click and the find field by `Ctrl/Cmd+F`. Type, paste and press the shortcuts each
     time.
   - I11, second clause: the editing keys, clipboard actions and mouse actions on a
     clicked cell.
-  - I12: the frame's box against the PDF viewer's on the same page, the page not
+  - I12: on the canonical page, the frame's box against a PDF viewer's on the same
+    layout; on the collection route, 80vh; on both, the page not
     scrolling while the drawing does, and the grid's size after opening and closing the
     inspector.
   - I13: a setup or settings fieldset before and after opening an Excel file.
-  - Excel on a phone (390px): the grid scrolls by touch, and the header, the previous /
-    next buttons and the inspector sheet are reachable.
+  - Excel on a phone (390px): the grid scrolls by touch, and the header and the inspector
+    sheet are reachable.
 - **Why I9, I10 and I13 exist.** They are the library's side effects (see *Summary*), not
   its drawing. How the viewer contains them (clearing the grid's focus when focus leaves
   it or the viewer unmounts, scoping or rewriting the three rules, or anything else) is
