@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>インスペクタ 情報タブ</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:#211922;text-decoration:none}a:hover{color:#211922;text-decoration:underline;text-underline-offset:2px}
+</style>
+</helmet>
+<div style="width: 360px; height: 520px; box-sizing: border-box; background: #ffffff; border-left: 1px solid rgba(145,145,140,0.2); font-family: -apple-system, system-ui, 'Segoe UI', Roboto, sans-serif; color: #211922; display: flex; flex-direction: column">
+  <div role="tablist" style="display: flex; gap: 4px; padding: 12px 16px; border-bottom: 1px solid rgba(145,145,140,0.2)">
+    <button role="tab" aria-selected="true" style="font: inherit; font-size: 13px; font-weight: 500; color: #211922; background: #f6f6f3; border: 0; border-radius: 999px; padding: 6px 12px">情報</button>
+    <button role="tab" aria-selected="false" style="font: inherit; font-size: 13px; color: #62625b; background: transparent; border: 0; border-radius: 999px; padding: 6px 12px">文字起こし</button>
+    <button role="tab" aria-selected="false" style="font: inherit; font-size: 13px; color: #62625b; background: transparent; border: 0; border-radius: 999px; padding: 6px 12px">コメント</button>
+  </div>
+  <div style="padding: 16px; display: flex; flex-direction: column">
+    <h2 style="margin: 0; font-size: 17px; line-height: 24px; font-weight: 600">設計レビューの進め方 ─ 実例で見る 12 のポイント</h2>
+    <div style="margin-top: 12px; font-size: 12px; color: #62625b">
+      <a href="Main.dc.html" style="font-weight: 500; color: #211922">[チャンネル名]</a>
+      <span> · 2026-11-18</span>
+    </div>
+    <p style="margin: 8px 0 0; font-size: 12px; line-height: 18px; color: #62625b">今回はこれまでの設計レビューで実際にあった指摘をもとに、見落としやすい点を 12 個に分けて紹介します。…</p>
+    <div style="margin-top: 12px; align-self: flex-start; font-size: 11px; font-weight: 500; color: #0f766e; background: rgba(20,184,166,0.15); border-radius: 999px; padding: 2px 8px">字幕あり</div>
+    <div style="margin-top: 24px; border-top: 1px solid rgba(145,145,140,0.2); padding-top: 16px; display: grid; grid-template-columns: 96px minmax(0, 1fr); row-gap: 8px; font-size: 12px">
+      <span style="color: #62625b">種類</span><span>動画（YouTube）</span>
+      <span style="color: #62625b">場所</span><span>/Watch/設計</span>
+      <span style="color: #62625b">追加日</span><span>2026-11-19</span>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":360,"height":520}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>
