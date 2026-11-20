@@ -341,14 +341,26 @@ async function recordFrameRequests(page: Page): Promise<void> {
     const store = window as unknown as { __frameRequests: number[] };
     store.__frameRequests = [];
     const remember = (node: Node) => {
-      if (!(node instanceof HTMLImageElement)) return;
-      const match = /[?&]t=(\d+)/.exec(node.getAttribute("src") ?? "");
-      if (match) store.__frameRequests.push(Number(match[1]));
+      if (!(node instanceof Element)) return;
+      const imgs =
+        node instanceof HTMLImageElement ? [node] : Array.from(node.querySelectorAll("img"));
+      for (const img of imgs) {
+        const match = /[?&]t=(\d+)/.exec(img.getAttribute("src") ?? "");
+        if (match) store.__frameRequests.push(Number(match[1]));
+      }
     };
     // `document`, not `documentElement`: this runs before the parser has made one.
     new MutationObserver((records) => {
-      for (const record of records) record.addedNodes.forEach(remember);
-    }).observe(document, { childList: true, subtree: true });
+      for (const record of records) {
+        if (record.type === "attributes") remember(record.target);
+        else record.addedNodes.forEach(remember);
+      }
+    }).observe(document, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["src"],
+    });
   });
 }
 
@@ -448,7 +460,6 @@ export function scenesPlacementCases(): void {
       document.getElementById("scenes-host")!.style.height = "1400px";
     });
     const after = await settled(page, BOUNDED_STEP);
-    await page.waitForTimeout(300);
 
     expect(after.visibleRows.length).toBeGreaterThan(before.visibleRows.length);
     expect(after.list!.scrollTop, "the resize scrolled the list").toBe(
@@ -456,12 +467,13 @@ export function scenesPlacementCases(): void {
     );
     expectBandCoversVisible(after, BOUNDED_STEP, "after the bounded host grew");
 
-    const requested = await frameRequests(page);
     const newlyVisible = after.visibleRows.filter(
       (row) => !before.visibleRows.includes(row),
     );
     expect(newlyVisible.length).toBeGreaterThan(0);
-    expect(unrequestedRows(after, BOUNDED_STEP, requested)).toEqual([]);
+    await expect
+      .poll(async () => unrequestedRows(after, BOUNDED_STEP, await frameRequests(page)))
+      .toEqual([]);
   });
 
   test("SPEC-ADDON-153 I6, SPEC-ADDON-152 I8 — growing the flow scroller without a scroll shows the new rows in the band and asks for their pictures", async ({
@@ -480,7 +492,6 @@ export function scenesPlacementCases(): void {
       [SHARED] as const,
     );
     const after = await settled(page, BOUNDED_STEP);
-    await page.waitForTimeout(300);
 
     expect(after.visibleRows.length).toBeGreaterThan(before.visibleRows.length);
     expect(after.host.scrollTop, "the resize scrolled the section").toBe(
@@ -488,12 +499,13 @@ export function scenesPlacementCases(): void {
     );
     expectBandCoversVisible(after, BOUNDED_STEP, "after the flow scroller grew");
 
-    const requested = await frameRequests(page);
     const newlyVisible = after.visibleRows.filter(
       (row) => !before.visibleRows.includes(row),
     );
     expect(newlyVisible.length).toBeGreaterThan(0);
-    expect(unrequestedRows(after, BOUNDED_STEP, requested)).toEqual([]);
+    await expect
+      .poll(async () => unrequestedRows(after, BOUNDED_STEP, await frameRequests(page)))
+      .toEqual([]);
   });
 
   test("SPEC-ADDON-152 I5 — the placeholder never changes form while the Visual Index answer is outstanding", async ({
