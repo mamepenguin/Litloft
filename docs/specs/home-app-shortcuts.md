@@ -53,8 +53,10 @@ menu: the Target is saved, and the app keeps it the next time it is opened plain
    - puts it in force with that Target's saved view (SPEC-CORE-145);
    - in Video and Reading, when it differs from the Target saved before, resets the tag
      and state filters, as a Target choice does (SPEC-CORE-147 I5);
-   - removes `target` from the URL with `router.replace` (no history entry). In Notes
-     and Clips this removal is the same replace as the existing view fill-in.
+   - removes `target` from the URL with `router.replace` (no history entry). When the
+     landing also needs the Notes or Clips view fill-in (SPEC-CORE-145), the removal is
+     part of that same replace; otherwise (Home face, an empty Target, an empty drive)
+     it is a replace of its own that removes only `target`.
 4. Back from the app returns to Home.
 
 **Entry key.** Each app passes `TargetMenu` the key of its own Home entry, through a new
@@ -63,11 +65,18 @@ optional prop `homeEntry`:
 - Notes `knowledge`, Clips `knowledge/clips` (the keys `addonNavEntries` gives their
   manifest navigation entries), passed by the knowledge addon itself.
 
+`?target=` is read by the app's root page only (Video and Reading pass it from
+`apps/{video,reading}/page.tsx` into the app; Notes' root page and the Clips page read
+it themselves). See all and shelf pages pass `homeEntry` (their Target menu has the
+row) but never read `?target=`.
+
 Without `homeEntry` the menu has no Home row. Core stores and compares the key as an
 opaque string and maps no key to an app; it never names an addon.
 
 ### 2. Failure cases
 
+- **`PUT on_home:false` for an existing Target with no row** (a stale menu, a second
+  Remove): 204, nothing changes.
 - **`PUT` fails** (network, 404, 422): the toast `drive.homeShortcutFailed`; nothing
   else changes. The next menu open asks the server again.
 - **The `GET` behind the menu row fails**: the row is not drawn for that open; the rest
@@ -100,10 +109,25 @@ The menu row per open: **not drawn** (no `homeEntry`, default Target, `GET` pend
 failed, a `PUT` in flight) → **Put on Home** or **Remove from Home** once `GET` answers.
 
 `?target=` per app load: **pending** (its list is loading; no request carries a Target)
-→ **applied** (written, in force, removed from the URL) or **ignored** (saved Target
-used, removed from the URL).
+→ **applied** (written, then the existing fallback rules decide what is in force, as
+after a menu choice; removed from the URL) or **ignored** (saved Target used, removed
+from the URL). Not allowed: an ignored id applied later (a later retry of the list
+applies the saved Target, never the ignored one); a pending id applied after the
+viewer navigated to another page of the app (navigating away drops it, unwritten).
+
+A stored, undrawn shortcut becomes drawn on the next Home load, not while Home is open.
+
+The menu row is keyed by the Target in force (`selectedId`): no row while the default
+is in force, including a fallback to the default from a saved Target that is gone,
+`failed` or `tooLarge`, and no row while the Target is still being looked up.
 
 ### 4. Data read and written
+
+An `app_target` item of the `GET` response is `{kind: "app_target", id: <target id as
+saved, with the collection: prefix for a collection>, app: <entry key>, name: <the
+target's current name>, query: null, file_type: null}`; every other kind has `app:
+null`. A shortcut's identity is (`kind`, `app`, `id`): Notes and Clips on the same
+collection are two shortcuts and two tiles.
 
 - New table `home_app_shortcuts`: `id` (integer primary key), `drive`, `app`
   (String(64)), `target` (String(64)), `home_added_at` (DateTime, not null), with
@@ -185,7 +209,11 @@ shortcuts, these are shared within the drive.
 - `frontend/src/types/index.ts` — `HomeShortcut`.
 - `frontend/src/lib/api.ts` — `setHomeShortcut` accepts `app`.
 - `frontend/src/components/home/HomeAppEntries.tsx` — the `app_target` branch of
-  `shortcutHref`, its icon and label, and the "drawn only with its entry" filter.
+  `shortcutHref`, its icon and label, the "drawn only with its entry" filter, and a
+  React key that includes `app`.
+- Frontend tests: `frontend/src/__tests__/homeShortcuts.test.tsx`,
+  `homeAppEntries.test.tsx`, the `TargetMenu`, Video and Reading app tests, and the
+  e2e-components fixture `frontend/e2e-components/fixtures/homeAppEntries.tsx` (I10).
 - `frontend/src/components/DriveHome.tsx` — passes what `HomeAppEntries` needs.
 - `frontend/src/components/appshell/TargetMenu.tsx` — `homeEntry` prop and the row.
 - `frontend/src/components/videoapp/` (`useVideoApp.ts`, `VideoAppHeader.tsx`),
@@ -199,6 +227,8 @@ shortcuts, these are shared within the drive.
 - `addons/knowledge/frontend/notesapp/useNotesTarget.ts`, `NotesPage.tsx`,
   `pages/clips.tsx`, `clipsapp/clipsUrl.ts`, Notes `library/libraryUrl.ts` — read and
   remove `?target=`, pass `homeEntry`.
+- `addons/knowledge` gitlink: bumped in a later core PR after the knowledge PR merges;
+  SPEC-ADDON-157 is implemented only with that bump.
 - `DESIGN.md` — Home entry row: app shortcuts lead to the app, not to a sidebar row.
 - Docs: `docs/reference/api.md` (home-shortcuts), `docs/user-guide/` (Home shortcuts
   page and the apps' Target section), `docs/ADDON-DEVELOPMENT.md` (`TargetMenu`'s
@@ -220,28 +250,37 @@ no row.
 I3. Home draws an `app_target` tile only when its `app` equals the key of a built-in or
 addon entry that Home is drawing on that drive, and then links it to exactly that
 entry's href followed by `?target=` and the URL-encoded id, with that entry's icon.
-I4. Opening an app route (`/apps/video`, `/apps/reading`, Notes' and Clips' routes)
+I4. Opening an app's root page (`/apps/video`, `/apps/reading`, Notes' root, Clips)
 with `?target=<id>` sends no listing, shelf, count or tag-counts request carrying any
-Target until the id has resolved or been ignored, and afterwards every such request
-carries that Target if it resolved and the previously saved Target if it did not.
+Target until the id has been applied or ignored; afterwards the requests carry the
+Target the existing rules put in force after writing that id if it was applied, and
+after the saved Target if it was ignored. A See all or shelf page with `?target=`
+behaves as without it.
 I5. A resolved `?target=` writes the app's Target key for that drive and no other key,
 and puts in force the view saved for that Target; an ignored one writes nothing.
-I6. After `?target=` is resolved or ignored the URL has no `target`, the removal added
-no history entry, and in Notes and Clips it happens in the same `replace` as the view
-fill-in, with every other parameter kept.
+I6. After `?target=` is applied or ignored the URL has no `target`, the removal added
+no history entry and kept every other parameter, and when the Notes or Clips landing
+also needs the view fill-in both happen in one `replace`.
 I7. In Video and Reading, applying a `?target=` that differs from the Target saved before
 shows tag and state すべて; applying the Target already saved leaves the filters as they
 were.
-I8. `TargetMenu` with `homeEntry` and a non-default Target in force shows Put on Home
+I8. `TargetMenu` with `homeEntry` and a non-default Target in force (`selectedId`) shows Put on Home
 when `GET` lists no `app_target` for (`homeEntry`, that id) and Remove from Home when it
 does, after the separator and before 管理…; with the default Target, without
 `homeEntry`, before `GET` answers, after it fails, or while a `PUT` is in flight it shows
-neither.
-I9. Measured in a real browser in containers 358 and 960px wide, with an app shortcut
+neither. A failed `PUT` from the row shows `drive.homeShortcutFailed` and changes no
+stored Target, view or filter.
+I9. An `app_target` tile's label is exactly `drive.appShortcutLabel` with the entry's
+current label and the target's current name (ja `<app>・<target>`, en
+`<app> · <target>`), and two shortcuts with the same id in different apps draw two
+tiles.
+I10. Measured in a real browser in containers 358 and 960px wide, with an app shortcut
 whose target name is 80 characters: at 960px the tile is at most 16rem wide with a
 one-line label that starts with the app's label; at 358px the label is at most two
 lines; the tile's accessible name is the full label.
-I10. The migration only adds `home_app_shortcuts`; every existing table and row keeps
+I11. `PUT` with `on_home: false` for an existing Target with no row answers 204 and
+changes no row.
+I12. The migration only adds `home_app_shortcuts`; every existing table and row keeps
 its values.
 
 ## Revises
