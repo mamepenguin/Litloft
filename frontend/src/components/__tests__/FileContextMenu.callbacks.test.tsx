@@ -105,14 +105,14 @@ function callbacks(): Callbacks {
 }
 
 function mount(cb: Callbacks, onUpdate = vi.fn()) {
-  const props = {
+  const props: Props = {
     open: true,
     position: { x: 10, y: 10 },
     target: file,
     onClose: vi.fn(),
     onUpdate,
     ...cb,
-  } as unknown as Props;
+  };
   render(<FileContextMenu {...props} />);
   return { onUpdate };
 }

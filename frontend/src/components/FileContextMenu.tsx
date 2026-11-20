@@ -27,6 +27,14 @@ interface FileContextMenuProps {
   onStartInlineRename?: () => void;
   /** Rows a caller draws above the shared rows, then one divider. */
   extraMenuItems?: ExtraMenuItems;
+  /** Run a row's handler in the click itself rather than on the next frame. */
+  immediateRows?: boolean;
+  /** Called once the trash request succeeds, before `onUpdate`. */
+  onTrashed?: (file: FileItem) => void;
+  /** Called once the rename request succeeds, before `onUpdate`. */
+  onRenamed?: (file: FileItem) => void;
+  /** Called once the move request succeeds, before `onUpdate`. */
+  onMoved?: (file: FileItem) => void;
 }
 
 const DIVIDER: MenuDivider = { divider: true };
@@ -42,6 +50,10 @@ export function FileContextMenu({
   onOpenInNewTab,
   onStartInlineRename,
   extraMenuItems,
+  immediateRows = false,
+  onTrashed,
+  onRenamed,
+  onMoved,
 }: FileContextMenuProps) {
   const tt = useTranslations("trash");
   const tf = useTranslations("file");
@@ -68,12 +80,13 @@ export function FileContextMenu({
       try {
         await renameFile(target.id, newName);
         setRenameOpen(false);
+        onRenamed?.(target);
         onUpdate?.();
       } catch {
         // dialog stays open on error
       }
     },
-    [target, onUpdate],
+    [target, onUpdate, onRenamed],
   );
 
   const handleMove = useCallback(
@@ -82,12 +95,13 @@ export function FileContextMenu({
       try {
         await moveFile(target.id, path);
         setMoveOpen(false);
+        onMoved?.(target);
         onUpdate?.();
       } catch {
         // dialog stays open on error
       }
     },
-    [target, onUpdate],
+    [target, onUpdate, onMoved],
   );
 
   const handleDelete = useCallback(async () => {
@@ -95,11 +109,12 @@ export function FileContextMenu({
     try {
       await deleteFile(target.id);
       setDeleteOpen(false);
+      onTrashed?.(target);
       onUpdate?.();
     } catch {
       // dialog stays open on error
     }
-  }, [target, onUpdate]);
+  }, [target, onUpdate, onTrashed]);
 
   const handleCopyId = useCallback(async () => {
     if (!target) return;
@@ -155,10 +170,11 @@ export function FileContextMenu({
     onTrash: () => setDeleteOpen(true),
   }, extra);
 
+  const rows = immediateRows ? items.map((item) => ({ ...item, immediate: true })) : items;
   const entries: MenuEntry[] =
     extra.length > 0
-      ? [...items.slice(0, extra.length), DIVIDER, ...items.slice(extra.length)]
-      : items;
+      ? [...rows.slice(0, extra.length), DIVIDER, ...rows.slice(extra.length)]
+      : rows;
 
   if (!target) return null;
 
