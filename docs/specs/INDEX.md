@@ -331,3 +331,5 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-161 | implemented | docs/specs/loft-channel-videos.md | sha256:0603e267973b9d683772fe8c156d662e1c9e873ea0f0739a1f52dac0c8c73550 |
 | SPEC-ADDON-162 | implemented | docs/specs/loft-channel-videos.md | sha256:0603e267973b9d683772fe8c156d662e1c9e873ea0f0739a1f52dac0c8c73550 |
 | SPEC-ADDON-163 | implemented | docs/specs/loft-channel-videos.md | sha256:0603e267973b9d683772fe8c156d662e1c9e873ea0f0739a1f52dac0c8c73550 |
+| SPEC-CORE-157 | draft | docs/specs/app-card-menu.md | |
+| SPEC-ADDON-164 | draft | docs/specs/app-card-menu.md | |
