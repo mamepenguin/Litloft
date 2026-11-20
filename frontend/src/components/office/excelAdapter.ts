@@ -6,7 +6,7 @@ import {
 } from "./officeGridActive";
 
 interface SpreadsheetHandle {
-  xs?: { reload?: () => void; focusing?: boolean };
+  xs?: { sheet?: { reload?: () => void; focusing?: boolean } };
 }
 
 /**
@@ -45,14 +45,14 @@ export async function drawExcel(
   container.addEventListener("click", onClickInside);
   document.addEventListener("focusin", onFocusIn);
   if (spreadsheet.xs) {
-    setOfficeGridFocusProbe(() => spreadsheet.xs?.focusing === true);
+    setOfficeGridFocusProbe(() => spreadsheet.xs?.sheet?.focusing === true);
   }
 
   const observer =
     typeof ResizeObserver === "undefined"
       ? null
       : new ResizeObserver(() => {
-          if (drawn) spreadsheet.xs?.reload?.();
+          if (drawn) spreadsheet.xs?.sheet?.reload?.();
         });
   observer?.observe(frame);
 
@@ -82,5 +82,6 @@ export async function drawExcel(
     throw error;
   }
   drawn = true;
+  spreadsheet.xs?.sheet?.reload?.();
   return dispose;
 }

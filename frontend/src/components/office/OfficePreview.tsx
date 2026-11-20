@@ -135,7 +135,10 @@ export function OfficePreview({
           aria-hidden="true"
         />
       )}
-      <div ref={hostRef} className="h-full w-full" />
+      <div
+        ref={hostRef}
+        className={`h-full w-full ${viewer === "word" ? "overflow-auto" : "overflow-hidden"}`}
+      />
     </div>
   );
 }
