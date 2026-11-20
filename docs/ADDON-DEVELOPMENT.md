@@ -1532,6 +1532,7 @@ const targetProps: TargetMenuProps = {
 | `readTargetView`, `writeTargetView`, `readLegacyGroup`, `TargetView` | `@/lib/appPrefs` |
 | `GroupMenu`, `SortMenu`, `LibraryControlRow`, `ViewMenuOption` | `@/components/appshell/ViewMenus` |
 | `FilterMenus`, `FilterMenuOption`, `FilterMenuState`, `FilterMenusProps` | `@/components/appshell/FilterMenus` |
+| `NameFilter`, `NameFilterProps` | `@/components/appshell/NameFilter` |
 | `getTagCounts`, `getTagCountsWithFileIds` | `@/lib/api` |
 | `formatMonth`, `isMonthKey` | `@/lib/formatMonth` |
 | `resolveAppTarget`, `resolveCollectionTarget`, `parseAppTargetId`, `collectionTargetId`, `AppTarget`, `AppTargetParams` | `@/lib/appTarget` |
@@ -1661,6 +1662,28 @@ options)` call `GET /api/drives/{drive}/tag-counts` and its `POST .../query` for
 carries the listing's filters plus `watch`, and the answer is `[{ name, count }]` in the
 endpoint's order. Under a member Target, pass the members through
 `AppRequests.tagCounts`, which is the POST form.
+
+### The tab row's trailing slot and the name filter
+
+`PageTabs` takes an optional `trailing` node. Without it the row renders exactly as before;
+with it, the tabs keep their size in a non-wrapping row, and `trailing` fills what is left
+of the row, outside the `nav` and its tablist. `AppTabs` passes it through.
+
+```tsx
+<AppTabs
+  current="library"
+  onSelect={setFace}
+  // …
+  trailing={<NameFilter value={name} onApply={setName} />}
+/>
+```
+
+`NameFilter` is the name field. Its labels come from core `appFilters`, so a caller passes
+no copy. `value` is the applied name; `onApply(name)` is called 300 ms after the last input
+and at once on Enter, with the draft trimmed, cut to 200 UTF-16 code units and trimmed
+again. `alwaysOpen` draws the field without the icon. `onLeavePending` receives a pending
+name once when the part unmounts, and a change of `scopeKey` drops a pending apply instead.
+On the Library it goes in `trailing`; on a page header, put it in `actions` before the sort.
 
 ### Resolving the chosen folder
 
