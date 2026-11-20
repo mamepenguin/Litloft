@@ -52,7 +52,10 @@ menu: the Target is saved, and the app keeps it the next time it is opened plain
      choice in the Target menu does;
    - puts it in force with that Target's saved view (SPEC-CORE-145);
    - in Video and Reading, when it differs from the Target saved before, resets the tag
-     and state filters, as a Target choice does (SPEC-CORE-147 I5);
+     and state filters, as a Target choice does (SPEC-CORE-147 I5); in Clips and in the
+     Notes Library it is a Target change as SPEC-CORE-145 and SPEC-ADDON-151 define it
+     (drops `tag` / `trust`, puts the new Target's `group` / `sort`), which on the tile's
+     URL, carrying none of them, leaves only the fill-in;
    - removes `target` from the URL with `router.replace` (no history entry). When the
      landing also needs the Notes or Clips view fill-in (SPEC-CORE-145), the removal is
      part of that same replace; otherwise (Home face, an empty Target, an empty drive)
@@ -123,6 +126,12 @@ applies the saved Target, never the ignored one); a pending id applied after the
 viewer navigated to another page of the app (navigating away drops it, unwritten); a
 pending id applied after the viewer chose a Target in the menu (the choice wins, the
 pending id is dropped unwritten).
+
+The pending id lives in the app's state from its first render, not in the URL, so the
+app's own `replace` calls (fill-in, rewrite) do not drop it. It is dropped, unwritten,
+by the viewer's navigation to another URL (a tab, a link, Back) and by a menu choice of a
+different row. While it is pending the Target menu shows "…" with the pending id checked;
+choosing that row does nothing.
 
 While `?target=` is pending, every listing, shelf, count and tag-counts request is held,
 the default Target's included, and the body shows its loading block; the viewer never
@@ -224,7 +233,10 @@ shortcuts, these are shared within the drive.
 - `backend/tests/test_home_shortcuts*.py` (including one `GET` that mixes an app
   shortcut with the older kinds), and a test that opens a database made before the
   change and finds every row kept and `home_app_shortcuts` created.
-- `frontend/src/types/index.ts` — `HomeShortcut`.
+- `frontend/src/types/index.ts` — `HomeShortcut` gains `kind: "app_target"` and an
+  optional `app?: string | null`, so existing fixtures keep type-checking.
+- `frontend/src/components/appshell/AppHeader.tsx` — unchanged; it spreads
+  `TargetMenuProps`, so `homeEntry` reaches the menu.
 - `frontend/src/lib/api.ts` — `setHomeShortcut` accepts `app`.
 - `frontend/src/components/home/HomeAppEntries.tsx` — the `app_target` branch of
   `shortcutHref`, its icon and label, the "drawn only with its entry" filter, and a
@@ -247,6 +259,13 @@ shortcuts, these are shared within the drive.
 - `addons/knowledge/frontend/notesapp/useNotesTarget.ts`, `NotesPage.tsx`,
   `pages/clips.tsx`, `clipsapp/clipsUrl.ts`, Notes `library/libraryUrl.ts` — read and
   remove `?target=`, pass `homeEntry`.
+- Knowledge tests carrying SPEC-ADDON-157: new
+  `addons/knowledge/frontend/__tests__/notesTargetParam.test.tsx` and
+  `clipsTargetParam.test.tsx`, plus `addons/knowledge/frontend/Page.tsx` (its `edit`
+  replace keeps the pending id, as above).
+- Rules passed through: `.claude/rules/design-decisions.md` (drive boundary,
+  drive-partitioned unique keys), `backend-conventions.md` (migrations, config import),
+  `frontend-conventions.md`, `DESIGN.md`.
 - `addons/knowledge` gitlink: bumped in a later core PR after the knowledge PR merges;
   SPEC-ADDON-157 is implemented only with that bump.
 - `DESIGN.md` — Home entry row: app shortcuts lead to the app, not to a sidebar row.
@@ -279,7 +298,7 @@ after the saved Target if it was ignored. The Video and Reading See all pages wi
 I5. A resolved `?target=` writes the app's Target key for that drive and no other key,
 and puts in force the view saved for that Target; an ignored one writes nothing.
 I6. After `?target=` is applied or ignored the URL has no `target`, the removal added
-no history entry and kept every other parameter, and in Notes and Clips the first
+no history entry and kept every parameter a Target choice keeps, and in Notes and Clips the first
 `replace` of the load (view fill-in, rewrite, or the removal alone) removes it and no
 later one brings it back. A menu choice or a navigation while it is pending drops it
 unwritten.
@@ -308,6 +327,14 @@ pages, the key of its own Home entry (Video `video`, Reading `reading`, Notes
 with that app's icon and opens that app.
 I13. The migration only adds `home_app_shortcuts`; every existing table and row keeps
 its values.
+
+I14. An `app_target` `PUT` writes only `home_app_shortcuts`: the target's own row keeps
+its `home_added_at` and `updated_at`, and no Smart Folder, pin or collection shortcut
+changes.
+
+SPEC-ID map: SPEC-CORE-153 — I1, I2, I3, I9, I10, I11, I13, I14. SPEC-CORE-154 — I8 and
+the Video and Reading parts of I4, I5, I6, I7, I12. SPEC-ADDON-157 — the Notes and Clips
+parts of I4, I5, I6, I12.
 
 ## Revises
 
