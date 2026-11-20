@@ -14,6 +14,8 @@ import { HtmlPreview } from "./HtmlPreview";
 import { ArchivePreview } from "./ArchivePreview";
 import { EmptyState } from "@/components/EmptyState";
 import { OfficeExcerpt } from "./OfficeExcerpt";
+import { OfficePreview } from "./office/OfficePreview";
+import { officeViewerFor } from "@/lib/officeFiles";
 import LoftPlayer from "./loft/LoftPlayer";
 import { MiniPlayerContainer } from "./MiniPlayerContainer";
 import { useInspectorForm } from "@/hooks/useInspectorForm";
@@ -259,6 +261,17 @@ export function FilePreview({
         filename={file.filename}
         highlight={highlight}
         onDocumentCaptureController={onDocumentCaptureController}
+      />
+    );
+  }
+
+  const officeViewer = officeViewerFor(file);
+  if (officeViewer) {
+    return (
+      <OfficePreview
+        file={file}
+        viewer={officeViewer}
+        fillCanvas={fillCanvas}
       />
     );
   }

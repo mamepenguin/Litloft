@@ -88,7 +88,9 @@ describe("the OOXML mime list", () => {
       .filter((file) => /from "@\/lib\/officeFiles"/.test(readFileSync(file, "utf-8")))
       .map((file) => relative(REPO_ROOT, file))
       .sort();
+    // SPEC-CORE-029 SPEC-CORE-155: `FilePreview` chooses the viewer from the shared list.
     expect(importers).toEqual([
+      "frontend/src/components/FilePreview.tsx",
       "frontend/src/components/OfficeExcerpt.tsx",
       "frontend/src/components/TextThumbnail.tsx",
       "frontend/src/lib/textExcerpt.ts",

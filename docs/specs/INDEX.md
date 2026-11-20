@@ -98,7 +98,7 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-050 | implemented | docs/specs/image-ocr.md | sha256:10d7b3560a941338b4c1e6ac6cf5b4d59bf3cae4d282e4269885a95d77a3598a |
 | SPEC-ADDON-061 | implemented | docs/specs/in-file-find.md | sha256:73aa8f34f99d39d7e66c4b9a670d4c68290c95cd3f0424ca9c1c0ba8777768db |
 | SPEC-CORE-028 | implemented | docs/specs/in-file-find.md | sha256:73aa8f34f99d39d7e66c4b9a670d4c68290c95cd3f0424ca9c1c0ba8777768db |
-| SPEC-CORE-029 | draft | docs/specs/office-viewer.md | |
+| SPEC-CORE-029 | implemented | docs/specs/office-viewer.md | sha256:75a3cb17cb1124609b903b845999757eddecd71df66ce09cde762a46f660943f |
 | SPEC-ADDON-051 | superseded | docs/specs/extraction-corrections.md | |
 | SPEC-ADDON-052 | draft | docs/specs/figure-aware-reading.md | |
 | SPEC-CORE-030 | implemented | docs/specs/background-upload.md | sha256:ffe09b32450a1f43cf6e5aaec2211505c8508836e1a38857b51bc8b161bf5211 |
@@ -321,6 +321,7 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-151 | implemented | docs/specs/app-library-filters.md | sha256:f643aa489b12cc08965cfbd7bd99d9c8fb658f7620d00de33fc6842b813428d6 |
 | SPEC-CORE-153 | implemented | docs/specs/home-app-shortcuts.md | sha256:8a3fc2c0a1bd84aa50b45215780fde9f349ca53144bf79ae78638b9980db3128 |
 | SPEC-CORE-154 | implemented | docs/specs/home-app-shortcuts.md | sha256:8a3fc2c0a1bd84aa50b45215780fde9f349ca53144bf79ae78638b9980db3128 |
+| SPEC-CORE-155 | implemented | docs/specs/office-viewer.md | sha256:75a3cb17cb1124609b903b845999757eddecd71df66ce09cde762a46f660943f |
 | SPEC-ADDON-157 | implemented | docs/specs/home-app-shortcuts.md | sha256:8a3fc2c0a1bd84aa50b45215780fde9f349ca53144bf79ae78638b9980db3128 |
 | SPEC-ADDON-156 | implemented | docs/specs/pickup-interest-report.md | sha256:b6494795e123dc0b09bf91fc7159ab118313e47442d3acaaee3954c5cf2eec57 |
 | SPEC-ADDON-158 | implemented | docs/specs/retire-find.md | sha256:6d573d784d76bfa7dcbb50a78ce6a40c8b29f71b05bf7563b0bca5c4d10d6fb0 |

@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { getFileNeighbors, getInboxNeighbors } from "@/lib/api";
 import { playerKind } from "@/lib/playerKind";
 import type { FileItem, Neighbors } from "@/types";
+import { officeGridOwnsArrows } from "@/components/office/officeGridActive";
 import { useShortcuts } from "./useShortcuts";
 
 /**
@@ -101,8 +102,23 @@ export function useFileNav({
     "file-nav",
     tsc("fileBrowser"),
     [
-      { key: "arrowleft", label: tsc("prevFile"), handler: navigatePrev },
-      { key: "arrowright", label: tsc("nextFile"), handler: navigateNext },
+      // The arrow keys stay out of the file while the grid owns them;
+      // `navigatePrev` / `navigateNext` are left ungated so the visible
+      // buttons still change file.
+      {
+        key: "arrowleft",
+        label: tsc("prevFile"),
+        handler: () => {
+          if (!officeGridOwnsArrows()) navigatePrev();
+        },
+      },
+      {
+        key: "arrowright",
+        label: tsc("nextFile"),
+        handler: () => {
+          if (!officeGridOwnsArrows()) navigateNext();
+        },
+      },
     ],
     shortcutsEnabled,
   );

@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R1",
+      "status": "confirmed",
+      "note": "excelAdapter.ts:27-30 releaseGridFocus writes spreadsheet.xs?.sheet.focusing only if xs.sheet exists; :73-74 installs focusProbe only when spreadsheet.xs exists; :91 releaseOfficeGrid(focusProbe, active). The three test files that mock @js-preview/excel (FilePreview.officeArrowKeys.test.tsx:29-47, FilePreview.office.test.tsx:80-94, FilePreview.officeLazyLoad.word.test.tsx:31) all return instances with only preview/destroy and no xs. With no probe, officeGridOwnsArrows (officeGridActive.ts:30) falls back to `true`, so the probe branch and the ownership check in releaseOfficeGrid (officeGridActive.ts:24) never run with a real probe. A grep of frontend/src test files for `xs`, `focusing`, `releaseOfficeGrid` and `officeGridActive` finds no test. In the 'click outside' test, clickOn (officeArrowKeys.test.tsx:123-130) focuses the tabbable button, so the release happens through onFocusIn (excelAdapter.ts:64-70). In the library, W(window,'click',…this.focusing=t.contains(e.target)) is confirmed in node_modules/@js-preview/excel/lib/index.js."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R2",
+      "status": "confirmed",
+      "note": "I traced it statically and did not run it. The DismissScrim div has pointer-events:none inline (DismissScrim.tsx:146), so the press reaches the grid. onPress, a document capture pointerdown listener (:111-119), arms swallow because the target is not inside the popup, then dismisses. The library's overlayer mousedown handler calls Zr (cell select) on a primary press (index.js: .on('mousedown',…:Zr.call(_this97,e))), so a cell is selected. The following click is stopped by swallow, a document capture listener that calls stopPropagation (:41-45, :59). Neither the container bubble listener onClickInside (excelAdapter.ts:60-63, 71) nor the library's window bubble click listener (W = plain addEventListener, index.js `function W(e,t,r){e.addEventListener(t,r);}`) runs. So the module-level `active` stays false, and useFileNav.ts:112/119 navigate on ← / →. The library's focusing flag is also not set, so the grid does not move the selected cell either. Nothing in components/office handles pointerdown or mousedown to cover this case. One caveat on framing: I8 defines 'active' by a click, and this press was consumed as a menu dismissal, so this may be a UX inconsistency (a visible selection while the arrows navigate) rather than a literal I8 breach."
+    }
+  ],
+  "specification_compliance": [
+    "I8 is implemented through a module flag set by a container click and a probe on the library's focusing flag. The probe path has no test coverage (R1).",
+    "Under a dismiss scrim, a press on the grid selects a cell but does not activate the grid (R2). This is consistent with I8's click-based definition, but the user sees a selected cell while the arrows navigate."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "The spec does not say what a press that closes a menu does to the Excel grid's active state, even when the press visibly selects a cell."
+  ],
+  "regression_risks": [
+    "A regression in releaseGridFocus or releaseOfficeGrid's ownership check would not be caught by tests, because no mock exposes xs.sheet."
+  ],
+  "test_coverage": [
+    "No test mock provides xs.sheet, so focusProbe, releaseGridFocus and releaseOfficeGrid's probe-equality branch are unexercised.",
+    "No test covers a press on the grid while a DismissScrim is mounted."
+  ],
+  "not_verified": [
+    "I did not run the tests or a browser; R2 is confirmed by static trace only.",
+    "I did not check the timing of the real library's mousedown versus pointerdown in actual browsers (touch versus mouse).",
+    "I did not review OfficePreview.tsx, wordAdapter.ts or excelContainment.css beyond a grep."
+  ],
+  "confidence": 85
+}

@@ -26,7 +26,7 @@ Two exceptions:
 - Folders in grid or list mode. See [browsing files](file-browsing.md).
 - **動画** / **Video** is a page for the drive's videos, with a Discover tab and a Library tab. See [video](video.md).
 - Video and audio with resume, subtitles, chapters and scrubbing previews. Images with swipe, two-page spread and slideshow. Markdown, PDFs and ZIP archives open in place. See [viewers and players](viewers-and-players.md).
-- Office files (DOCX, XLSX, PPTX) have no viewer. The file page shows a short text excerpt.
+- Office files: Word (`.docx`) and Excel (`.xlsx`) open in the page; PowerPoint (`.pptx`) has no viewer and shows a short text excerpt.
 
 ### Organise
 

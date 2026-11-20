@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R1",
+      "status": "confirmed",
+      "note": "Reproduced by reading the code. FilePreview.officeArrowKeys.test.tsx:172 clicks the focusable `<button>outside</button>` (:82). clickOn (:139) focuses it because a button's tabIndex is 0, so document focusin runs excelAdapter.ts:64-70 and clears `active` through setOfficeGridActive(false). The mock's window click listener (:38-40) also sets sheet.focusing=false, so officeGridOwnsArrows (officeGridActive.ts:30) returns false by either path. If you drop the probe term, or drop the onFocusIn clear, that test still passes. No test clicks a non-focusable element outside the grid, and that is the one case the probe exists for (officeGridActive.ts:9-13). A grep over frontend/src finds releaseOfficeGrid only at excelAdapter.ts:4,91 and officeGridActive.ts:23, and officeGridOwnsArrows only in useFileNav.ts:112,119. No test imports officeGridActive, and no test mounts two Excel viewers that overlap, so the ownership guard (officeGridActive.ts:24-25) is never tested. The new test (:188-205) asserts only on `sheet.focusing` (:195-204). It never reads the module-level `active` flag or the probe, and it never presses an arrow after unmount."
+    }
+  ],
+  "specification_compliance": [
+    "I8: the gate in useFileNav.ts:112,119 calls officeGridOwnsArrows(), which needs both the adapter's active flag and the library's focusing probe. The design matches the invariant, but the path for a click on a non-focusable element outside the grid has no test.",
+    "I9/I10: dispose (excelAdapter.ts:84-99) and onFocusIn (:64-70) clear sheet.focusing. The new test pins both."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "If the focus-probe term in officeGridOwnsArrows breaks, a click on non-focusable page content outside the grid would leave ← / → stuck, and no test would catch it.",
+    "If releaseOfficeGrid's ownership guard breaks, unmounting an earlier viewer could clear the probe or active flag of a viewer mounted after it, and no test would catch it."
+  ],
+  "test_coverage": [
+    "FilePreview.officeArrowKeys.test.tsx covers: arrows blocked after a grid click; arrows restored after a click on a focusable outside button; Word arrows; and sheet.focusing cleared on focusin outside and on unmount.",
+    "Not covered: an outside click on a non-focusable element (probe path only); two Excel viewers with overlapping lifetimes (ownership guard)."
+  ],
+  "not_verified": [
+    "I did not run the test suite or any mutation, since I had no shell. The claim that each path alone keeps the test green comes from reading the code only.",
+    "I did not check whether the real x-data-spreadsheet sets `focusing` the way the mock does (a window click handler that tests container.contains)."
+  ],
+  "confidence": 90
+}

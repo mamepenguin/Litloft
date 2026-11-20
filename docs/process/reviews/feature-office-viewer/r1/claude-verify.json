@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R1",
+      "status": "confirmed",
+      "note": "Reproduced by reading the code. frontend/src/components/office/excelAdapter.ts:17-19 releaseGridFocus runs document.body.dispatchEvent(new MouseEvent('click', {bubbles:true})). It is called from onFocusIn at lines 63-69, when the grid is active and focus moves outside the frame, and from dispose at lines 93-96, when the grid was active. Because the event is dispatched on body, it reaches document and window listeners: every capture listener on document and window, and every bubbling listener on body, document and window. React's delegated handlers on the root container below body do not receive it. A grep for document- or window-level click listeners in frontend/src finds only DismissScrim.tsx:59, a capture-phase `swallow` that calls preventDefault and stopPropagation and then disarms itself (lines 41-45). That matches the reviewer's evidence. The spec's touch points name the containment of the library's window listeners. They do not name an app-generated event that reaches app-wide listeners. One possible consequence: if a DismissScrim swallow is armed (a pointerdown outside an open popup) and the same press moves focus out of an active grid, the synthetic click could take the place of the real click that should be swallowed. I did not reproduce this sequence at runtime."
+    }
+  ],
+  "specification_compliance": [
+    "The synthetic body click in excelAdapter.ts is not named in the touch points, which only describe containment of the library's own window listeners."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "The synthetic click that releaseGridFocus sends to document.body can be consumed by an armed DismissScrim swallow (DismissScrim.tsx:41-45, 59) in place of the real click it was armed for. The real click could then reach the element under a dismissed popup. This was not reproduced and needs an active grid with a popup open at the same time."
+  ],
+  "regression_risks": [
+    "Any later document-, window- or body-level click listener (for example an outside-click dismiss) will receive the Excel adapter's synthetic click whenever focus leaves an active grid or the viewer is disposed."
+  ],
+  "test_coverage": [
+    "I did not check whether any test asserts that the synthetic click is absent or harmless for app-level click listeners."
+  ],
+  "not_verified": [
+    "Runtime behavior in a browser: the interaction of the synthetic click with DismissScrim, and whether x-data-spreadsheet's window handler actually clears `focusing`",
+    "Click listeners added in third-party dependencies other than x-data-spreadsheet",
+    "Click listeners attached via React props on body or html elements"
+  ],
+  "confidence": 85
+}
