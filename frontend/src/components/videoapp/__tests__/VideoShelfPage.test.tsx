@@ -245,4 +245,10 @@ describe("the shelf page's title", () => {
 
     expect(await screen.findByRole("heading", { name: title })).toBeInTheDocument();
   });
+
+  it("titles a tag shelf with its tag", async () => {
+    render(<VideoShelfPage drive={DRIVE} by="tag" shelfKey="Trip" />);
+
+    expect(await screen.findByRole("heading", { name: "Trip" })).toBeInTheDocument();
+  });
 });

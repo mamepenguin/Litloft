@@ -1,6 +1,6 @@
 # Decisions
 
-decision: D-1, D-2, D-3, D-4 and D-6 of design-check.md accepted by the human (2026-11-20): they are the shipped ToolbarMenu size and chevron-less outlined button, the chosen-row fill Reading's tag menu already uses, and the browser's search field; D-5 (the search placeholder, added in 860752997) is checked by the next R-5.
+decision: D-1, D-2, D-3, D-4 and D-6 of design-check.md accepted by the human (2026-11-20): they are the shipped ToolbarMenu size and chevron-less outlined button, the chosen-row fill Reading's tag menu already uses, and the browser's search field; D-5 (the search placeholder, added in 860752997) is checked by the next R-5. r1 HUMAN_REVIEW_REQUIRED: the human said "続ける" (continue, 2026-11-20), with the fixes proposed: restore the Video tag See all title with a test, restore the functional toggle in ToolbarMenu, and add the Clips filters to docs/addons/knowledge.md and docs/user-guide/notes.md.
 ran_in_app: yes
 at: 58cb11107178052ac0c6d44153e9c8a14f1981ee
 by: agent

@@ -38,7 +38,7 @@ export function shelfTitle({
     const path = shelf.key.endsWith("/") ? shelf.key.slice(0, -1) : shelf.key;
     return path.split("/").pop() || shelf.key;
   }
-  if (by === "tag") return shelf.key === "no_tag" ? t("noTag") : shelf.label;
+  if (by === "tag") return shelf.key === "no_tag" ? t("noTag") : shelf.label || shelf.key;
   if (by === "month") return formatMonth(shelf.label || shelf.key, locale);
   if (by === "duration") return t(`length.${shelf.key}`);
   if (by === "watch" && shelf.key === "continue") return t("shelves.continue");

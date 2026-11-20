@@ -2,6 +2,7 @@
 
 import {
   useCallback,
+  useEffect,
   useId,
   useRef,
   useState,
@@ -185,13 +186,19 @@ export function ToolbarMenu({
   const triggerRef = useRef<HTMLButtonElement>(null);
   const surface = useMenuSurface(open, align, undefined, { portalOnPhone });
 
-  const changeOpen = (next: boolean) => {
-    setOpen(next);
-    onOpenChange?.(next);
-  };
+  const onOpenChangeRef = useRef(onOpenChange);
+  useEffect(() => {
+    onOpenChangeRef.current = onOpenChange;
+  });
+  const reported = useRef(open);
+  useEffect(() => {
+    if (reported.current === open) return;
+    reported.current = open;
+    onOpenChangeRef.current?.(open);
+  }, [open]);
 
   const close = () => {
-    changeOpen(false);
+    setOpen(false);
     triggerRef.current?.focus();
   };
 
@@ -217,7 +224,7 @@ export function ToolbarMenu({
           // Focusing the pressed button is what a browser does, and the box's
           // Escape handler above relies on it.
           triggerRef.current?.focus();
-          changeOpen(!open);
+          setOpen((s) => !s);
         }}
         // `label: state`, except where the state *is* the label. A sort
         // order outside the offered table falls back to naming the control,

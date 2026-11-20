@@ -1,0 +1,425 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "R1",
+      "origin": "reviewer",
+      "claim": "The diff changes `shelfTitle` in frontend/src/components/videoapp/labels.ts, a file the touch-point list does not name. Together with VideoShelfPage now passing `label: \"\"`, this leaves the title of a Video `by=tag` See all page empty.",
+      "impact": "A user who opens See all on a tag shelf in the Video Library (group by Tag, then See all) sees a page with an empty heading where the tag name used to be. The spec says the See all page's title stays unchanged.",
+      "evidence": "frontend/src/components/videoapp/VideoShelfPage.tsx:201 now calls `shelfTitle({ by, shelf: { key: shelfKey, label: \"\" }, ... })`. Before, it passed `label: shelfKey`. In frontend/src/components/videoapp/labels.ts:41 the `by === \"tag\"` branch returns `shelf.label`, which is now \"\" for every key except `no_tag`. Folder titles still work because labels.ts:37-39 fall back to the key, and month titles still work because labels.ts:42 uses `shelf.label || shelf.key`. The tag branch has no such fallback. VideoShelfPage.test.tsx covers titles only for folder and all (lines 130, 138, 239-247), so nothing pins the tag title.",
+      "repro": "Mutation reasoning: render `<VideoShelfPage drive=\"main\" by=\"tag\" shelfKey=\"Trip\" />`. `shelfTitle` returns \"\" from labels.ts:41, so the header heading is empty. Before this commit it was \"Trip\". No existing test would fail.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No declared invariant covers the See all title. Spec §1 (Video) says 'Its title and back link are unchanged', and this commit breaks that through a file outside the touch-point list.",
+        "invariant_ref": null
+      },
+      "severity": "MEDIUM",
+      "proposed_fix": "In VideoShelfPage, pass `label: shelfKey` again, or make the tag branch of `shelfTitle` fall back to `shelf.key`. Add a title test for `by=\"tag\"`."
+    },
+    {
+      "id": "R2",
+      "origin": "reviewer",
+      "claim": "The diff changes the shared frontend/src/components/ToolbarMenu.tsx, adding the `inlineLabel` and `onOpenChange` props and routing every open/close through `changeOpen`. ToolbarMenu.tsx is not in the touch-point list.",
+      "impact": "Every ToolbarMenu in the app now goes through the new `changeOpen` path. The toggle changed from `setOpen((s) => !s)` to `changeOpen(!open)`, which reads `open` from the render closure. I traced no defect from this, but the shared-component change was not planned and is outside the declared review surface.",
+      "evidence": "frontend/src/components/ToolbarMenu.tsx:174,181,188-196,220,256-262. FilterMenus.tsx is the only caller of `inlineLabel` and `onOpenChange` in the diff. toolbarMenuHome.test.ts adds FilterMenus.tsx as an importer, but no ToolbarMenu test covers the new props.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Unplanned touch point. No invariant is broken.",
+        "invariant_ref": null
+      },
+      "severity": "LOW"
+    },
+    {
+      "id": "R3",
+      "origin": "reviewer",
+      "claim": "frontend/src/components/videoapp/VideoPagedGrid.tsx gains a `filtered` prop and a separate filtered-empty branch, and the touch-point list does not name this file.",
+      "impact": "The None grid in Video and the Video See all page share this component. The empty-state branching changed for both: the See all page passes no `filtered`, so it keeps `no-files`. This matches I10, but the file was not planned.",
+      "evidence": "frontend/src/components/videoapp/VideoPagedGrid.tsx (diff hunk: `empty` and `ready && items.length === 0` are now separate branches). The only callers are videoapp/LibraryFace.tsx and VideoShelfPage.tsx:248.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Unplanned touch point. Its behaviour matches I10.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    },
+    {
+      "id": "R4",
+      "origin": "reviewer",
+      "claim": "The Reading reset-on-Target-choice and drive-replace logic is in frontend/src/components/readingapp/useReadingApp.ts, which is not listed. The listed `readingapp/ReadingApp.tsx` is not changed by the diff.",
+      "impact": "Readers who follow the touch-point list to check I5 for Reading would look in ReadingApp.tsx and miss where the reset actually happens.",
+      "evidence": "frontend/src/components/readingapp/useReadingApp.ts: a new `useEffect` calls `readLibraryFilters(\"reading\", drive)`, and `chooseTarget` calls `resetLibraryFilters`. ReadingApp.tsx does not appear in the diff.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Unplanned touch point that carries I5 behaviour.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    },
+    {
+      "id": "R5",
+      "origin": "reviewer",
+      "claim": "Several pieces of test infrastructure outside the listed test scopes are changed: the global test setup frontend/src/test/setup.ts (it now resets the module-level filter store after every test), frontend/src/__tests__/popup-dismissal.test.ts, readingVideoLayoutFixtureParity.test.tsx, viewMenus.wording.test.tsx, and the e2e-components projects.ts and spec-viewport.spec.ts registries.",
+      "impact": "setup.ts now resets the `video` and `reading` filter entries after every test in the frontend suite. A test that relied on filters surviving across tests, or one written for another app id, would behave differently. The other files are registries or expectation updates.",
+      "evidence": "frontend/src/test/setup.ts afterEach: `resetLibraryFilters(\"video\", \"\")` and `resetLibraryFilters(\"reading\", \"\")`. popup-dismissal.test.ts moves its entry key to appshell/FilterMenus.tsx. projects.ts and spec-viewport.spec.ts register library-filters(-desktop).spec.ts.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Unplanned touch points in test infrastructure. No invariant is broken.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    },
+    {
+      "id": "R6",
+      "origin": "reviewer",
+      "claim": "The shared Clips test harness predicate `isNewShelf` in addons/knowledge/frontend/__tests__/clipsAppHarness.tsx was loosened so that a `by=all` shelves call with `trust` counts as Home's New shelf when `per_shelf=60`.",
+      "impact": "Every Clips test that uses `isNewShelf` now classifies a 60-item `by=all` call with `trust` as the New shelf. A regression where a Home-side call starts carrying `trust` at `per_shelf=60` would be matched instead of rejected.",
+      "evidence": "clipsAppHarness.tsx `isNewShelf`: `(!q(c).has(\"trust\") || q(c).get(\"per_shelf\") === \"60\")`.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Shared test helper weakened outside the Clips Library tests it was meant for. No invariant is broken by the code itself.",
+        "invariant_ref": null
+      },
+      "severity": "LOW"
+    }
+  ],
+  "specification_compliance": [
+    "Most of the diff falls on listed touch points: drives.py, shelves.py, watch_state.py, api.ts, memberTarget.ts, FilterMenus.tsx, ViewMenus.tsx, libraryFilters.ts (the 'filter store module beside them'), the reading and video LibraryFace files, useVideoApp.ts, shelfLinks.ts, the See all route and VideoShelfPage, messages-core, the Clips files (clips.tsx, clipsUrl, Library, ShelfPage, requests, useShelfData, useGroupedShelves as the folder/month hook) and their messages.",
+    "Places the diff reaches that the list does not name: frontend/src/components/ToolbarMenu.tsx, frontend/src/components/videoapp/labels.ts (the VIDEO_GROUPS change is implied by the appPrefs line; the shelfTitle change is not), frontend/src/components/videoapp/VideoPagedGrid.tsx, frontend/src/components/readingapp/useReadingApp.ts, frontend/src/test/setup.ts, frontend/src/__tests__/popup-dismissal.test.ts, frontend/src/components/__tests__/readingVideoLayoutFixtureParity.test.tsx, frontend/src/components/__tests__/viewMenus.wording.test.tsx, frontend/e2e-components/projects.ts and spec-viewport.spec.ts.",
+    "Listed touch points the diff does not reach (not asked, recorded for context): useTagShelves.ts, frontend/src/lib/appPrefs.ts, videoapp/LibraryControls.tsx, VideoApp.tsx, ReadingApp.tsx, docs/user-guide/notes.md, docs/addons/knowledge.md.",
+    "Spec §1 Video says the See all page's title is unchanged. The `by=tag` title is now empty (R1)."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "The Video See all page for a tag shelf now has an empty title (R1).",
+    "ToolbarMenu's toggle reads `open` from the render closure instead of using a functional update (R2)."
+  ],
+  "regression_risks": [
+    "The Video tag See all heading is empty.",
+    "Every ToolbarMenu caller now goes through the changed open/close path.",
+    "The global test setup resets the filter store for the whole frontend suite.",
+    "The loosened Clips harness predicate can mask a Home call that carries trust."
+  ],
+  "test_coverage": [
+    "VideoShelfPage.test.tsx pins titles for by=folder and by=all only. No test covers the by=tag title, so R1 passes the suite.",
+    "No ToolbarMenu unit test covers `inlineLabel` or `onOpenChange`. They are exercised only through FilterMenus tests.",
+    "VideoShelfPage.filters.test.tsx covers tag and watch passing from the URL, but not the title."
+  ],
+  "not_verified": [
+    "I did not run any test or e2e spec.",
+    "I did not open the knowledge submodule files beyond the diff hunks.",
+    "I did not verify whether docs/addons/knowledge.md or docs/user-guide/notes.md changed inside the submodule commit.",
+    "I did not check Discover-origin See all links that use by=tag, if any exist."
+  ],
+  "coverage": [
+    {
+      "path": "addons/knowledge/frontend/clipsapp/Library.tsx",
+      "read": "partial",
+      "reason": "Changed hunks in the provided diff only."
+    },
+    {
+      "path": "addons/knowledge/frontend/clipsapp/ShelfPage.tsx",
+      "read": "partial",
+      "reason": "Changed hunks in the provided diff only."
+    },
+    {
+      "path": "addons/knowledge/frontend/clipsapp/clipsUrl.ts",
+      "read": "partial",
+      "reason": "Changed hunks in the provided diff only."
+    },
+    {
+      "path": "addons/knowledge/frontend/clipsapp/requests.ts",
+      "read": "partial",
+      "reason": "Changed hunks in the provided diff only."
+    },
+    {
+      "path": "addons/knowledge/frontend/clipsapp/useGroupedShelves.ts",
+      "read": "partial",
+      "reason": "Changed hunks in the provided diff only."
+    },
+    {
+      "path": "addons/knowledge/frontend/clipsapp/useShelfData.ts",
+      "read": "partial",
+      "reason": "Changed hunks in the provided diff only."
+    },
+    {
+      "path": "addons/knowledge/frontend/messages/en.json",
+      "read": "partial",
+      "reason": "Changed hunk in the diff."
+    },
+    {
+      "path": "addons/knowledge/frontend/messages/ja.json",
+      "read": "partial",
+      "reason": "Changed hunk in the diff."
+    },
+    {
+      "path": "addons/knowledge/frontend/pages/clips.tsx",
+      "read": "partial",
+      "reason": "Changed hunks in the provided diff only."
+    },
+    {
+      "path": "backend/app/routers/drives.py",
+      "read": "partial",
+      "reason": "Diff hunks: the TagCountsQuery class and the tag-counts routes with _tag_counts in full."
+    },
+    {
+      "path": "backend/app/routers/shelves.py",
+      "read": "partial",
+      "reason": "Changed hunks in the diff."
+    },
+    {
+      "path": "backend/app/services/watch_state.py",
+      "read": "full",
+      "reason": "New file, whole content in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/library-filters-desktop.spec.ts",
+      "read": "full",
+      "reason": "New file, whole content in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/library-filters.spec.ts",
+      "read": "full",
+      "reason": "New file, whole content in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/projects.ts",
+      "read": "partial",
+      "reason": "Changed hunk in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/spec-viewport.spec.ts",
+      "read": "partial",
+      "reason": "Changed hunks in the diff."
+    },
+    {
+      "path": "frontend/e2e-layout/fixtures/reading-video-faces.html",
+      "read": "partial",
+      "reason": "Changed hunks in the diff."
+    },
+    {
+      "path": "frontend/e2e-layout/reading-video-faces.spec.ts",
+      "read": "partial",
+      "reason": "Changed hunk in the diff."
+    },
+    {
+      "path": "frontend/src/app/drive/[name]/apps/video/shelf/page.tsx",
+      "read": "partial",
+      "reason": "Changed hunk in the diff."
+    },
+    {
+      "path": "frontend/src/components/ToolbarMenu.tsx",
+      "read": "partial",
+      "reason": "Read lines 160-296 (the whole ToolbarMenu function) and the props hunk."
+    },
+    {
+      "path": "frontend/src/components/appshell/FilterMenus.tsx",
+      "read": "full",
+      "reason": "New file, whole content in the diff."
+    },
+    {
+      "path": "frontend/src/components/appshell/ViewMenus.tsx",
+      "read": "partial",
+      "reason": "The LibraryControlRow hunk in the diff."
+    },
+    {
+      "path": "frontend/src/components/appshell/libraryFilters.ts",
+      "read": "full",
+      "reason": "New file, whole content in the diff."
+    },
+    {
+      "path": "frontend/src/components/readingapp/LibraryControls.tsx",
+      "read": "partial",
+      "reason": "Removal hunk in the diff."
+    },
+    {
+      "path": "frontend/src/components/readingapp/LibraryFace.tsx",
+      "read": "partial",
+      "reason": "Changed hunks in the diff."
+    },
+    {
+      "path": "frontend/src/components/readingapp/useReadingApp.ts",
+      "read": "partial",
+      "reason": "Changed hunks in the diff."
+    },
+    {
+      "path": "frontend/src/components/videoapp/LibraryFace.tsx",
+      "read": "partial",
+      "reason": "Changed hunks in the diff."
+    },
+    {
+      "path": "frontend/src/components/videoapp/VideoPagedGrid.tsx",
+      "read": "partial",
+      "reason": "Changed hunks in the diff."
+    },
+    {
+      "path": "frontend/src/components/videoapp/VideoShelfPage.tsx",
+      "read": "full",
+      "reason": "Read the whole file."
+    },
+    {
+      "path": "frontend/src/components/videoapp/labels.ts",
+      "read": "full",
+      "reason": "Read the whole file."
+    },
+    {
+      "path": "frontend/src/components/videoapp/shelfLinks.ts",
+      "read": "full",
+      "reason": "Whole file is in the diff."
+    },
+    {
+      "path": "frontend/src/components/videoapp/useVideoApp.ts",
+      "read": "partial",
+      "reason": "Changed hunks in the diff."
+    },
+    {
+      "path": "frontend/src/lib/api.ts",
+      "read": "partial",
+      "reason": "The getTagCounts hunk in the diff."
+    },
+    {
+      "path": "frontend/src/lib/memberTarget.ts",
+      "read": "partial",
+      "reason": "Changed hunks in the diff."
+    },
+    {
+      "path": "frontend/src/messages-core/en.json",
+      "read": "partial",
+      "reason": "Changed hunks in the diff."
+    },
+    {
+      "path": "frontend/src/messages-core/ja.json",
+      "read": "partial",
+      "reason": "Changed hunks in the diff."
+    },
+    {
+      "path": "frontend/src/test/setup.ts",
+      "read": "partial",
+      "reason": "Changed hunks in the diff."
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/clipsAppHarness.tsx",
+      "read": "partial",
+      "reason": "Changed hunk in the diff."
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/clipsLibraryFilters.test.tsx",
+      "read": "full",
+      "reason": "New file in the diff."
+    },
+    {
+      "path": "addons/knowledge/frontend/clipsapp/__tests__/requests.test.ts",
+      "read": "partial",
+      "reason": "Changed hunk in the diff."
+    },
+    {
+      "path": "backend/tests/test_tag_counts.py",
+      "read": "full",
+      "reason": "New file in the diff."
+    },
+    {
+      "path": "backend/tests/test_tag_counts_order.py",
+      "read": "full",
+      "reason": "New file in the diff."
+    },
+    {
+      "path": "backend/tests/test_watched_ranges.py",
+      "read": "partial",
+      "reason": "Changed hunk in the diff."
+    },
+    {
+      "path": "frontend/src/__tests__/popup-dismissal.test.ts",
+      "read": "partial",
+      "reason": "Changed hunk in the diff."
+    },
+    {
+      "path": "frontend/src/components/__tests__/readingVideoLayoutFixtureParity.test.tsx",
+      "read": "partial",
+      "reason": "Changed hunks in the diff."
+    },
+    {
+      "path": "frontend/src/components/__tests__/toolbarMenuHome.test.ts",
+      "read": "partial",
+      "reason": "Changed hunk in the diff."
+    },
+    {
+      "path": "frontend/src/components/__tests__/viewMenus.wording.test.tsx",
+      "read": "partial",
+      "reason": "Changed hunk in the diff."
+    },
+    {
+      "path": "frontend/src/components/appshell/__tests__/FilterMenus.loading.test.tsx",
+      "read": "full",
+      "reason": "New file in the diff."
+    },
+    {
+      "path": "frontend/src/components/appshell/__tests__/FilterMenus.test.tsx",
+      "read": "full",
+      "reason": "New file in the diff."
+    },
+    {
+      "path": "frontend/src/components/readingapp/__tests__/ReadingApp.library.test.tsx",
+      "read": "partial",
+      "reason": "Changed hunks in the diff."
+    },
+    {
+      "path": "frontend/src/components/readingapp/__tests__/ReadingApp.libraryFilters.test.tsx",
+      "read": "full",
+      "reason": "New file in the diff."
+    },
+    {
+      "path": "frontend/src/components/readingapp/__tests__/ReadingApp.targetView.test.tsx",
+      "read": "partial",
+      "reason": "Changed hunks in the diff."
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoApp.libraryFilters.test.tsx",
+      "read": "full",
+      "reason": "New file in the diff."
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoApp.memberTargetTagCounts.test.tsx",
+      "read": "full",
+      "reason": "New file in the diff."
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoApp.states.test.tsx",
+      "read": "partial",
+      "reason": "Changed hunks in the diff."
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoApp.targetView.test.tsx",
+      "read": "partial",
+      "reason": "Changed hunks in the diff."
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoApp.test.tsx",
+      "read": "partial",
+      "reason": "Changed hunks in the diff."
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoApp.viewResolution.test.tsx",
+      "read": "partial",
+      "reason": "Changed hunks in the diff."
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoShelfPage.filters.test.tsx",
+      "read": "full",
+      "reason": "New file in the diff."
+    }
+  ],
+  "confidence": 80
+}
