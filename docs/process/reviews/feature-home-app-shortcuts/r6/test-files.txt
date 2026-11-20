@@ -1,0 +1,9 @@
+addons/knowledge/frontend/__tests__/clipsTargetParam.test.tsx
+addons/knowledge/frontend/__tests__/notesTargetParam.test.tsx
+addons/knowledge/frontend/__tests__/targetParamPending.test.tsx
+backend/tests/test_home_app_shortcuts.py
+backend/tests/test_home_shortcuts.py
+frontend/src/__tests__/appTargetParam.test.tsx
+frontend/src/__tests__/appTargetPendingHolds.test.tsx
+frontend/src/__tests__/homeAppShortcuts.test.tsx
+frontend/src/components/appshell/__tests__/TargetMenu.homeRow.test.tsx

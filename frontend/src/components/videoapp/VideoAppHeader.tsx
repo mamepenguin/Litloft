@@ -22,6 +22,7 @@ export function VideoAppHeader({
   breadcrumb,
   actions,
   tabs,
+  homeEntry,
 }: {
   drive: string;
   state: VideoAppState;
@@ -30,6 +31,8 @@ export function VideoAppHeader({
   /** Below the tabs on a phone, beside the Target at `sm` and wider. */
   actions?: ReactNode;
   tabs?: ReactNode;
+  /** The key of this app's Home entry. */
+  homeEntry?: string;
 }) {
   const t = useTranslations("videoApp");
   const locale = useLocale();
@@ -54,6 +57,7 @@ export function VideoAppHeader({
       target={{
         drive,
         app: "video",
+        homeEntry: state.targetKnown ? homeEntry : undefined,
         name: state.targetKnown ? (state.targetName ?? t("allVideos")) : null,
         folders: state.smartFolders,
         collections: { list: state.collections, retry: state.retryCollections },

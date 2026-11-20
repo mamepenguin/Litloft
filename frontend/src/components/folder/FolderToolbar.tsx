@@ -157,7 +157,7 @@ export function FolderToolbar({
   const hideArrangingControls = total === 0 && folderCount === 0 && !isFiltered;
   const hideArranging = hideArrangingControls || !!search?.hideArranging;
   const t = useTranslations("toolbar");
-  const tDrive = useTranslations("drive");
+  const tShell = useTranslations("appShell");
   const tc = useTranslations("common");
   const ts = useTranslations("selection");
   const tf = useTranslations("folder");
@@ -564,8 +564,8 @@ export function FolderToolbar({
                         )}
                         <span className="flex-1">
                           {isOnHome
-                            ? tDrive("removeFromHome")
-                            : tDrive("putOnHome")}
+                            ? tShell("removeFromHome")
+                            : tShell("putOnHome")}
                         </span>
                       </button>
                     )}

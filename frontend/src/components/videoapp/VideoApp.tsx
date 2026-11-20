@@ -16,9 +16,22 @@ import { VideoAppHeader } from "./VideoAppHeader";
 
 const PANEL_ID = "video-app-panel";
 
-export function VideoApp({ drive }: { drive: string }) {
+export function VideoApp({
+  drive,
+  target = null,
+  homeEntry,
+  onTargetHandled,
+}: {
+  drive: string;
+  /** The `?target=` value on the root route; absent on every other route. */
+  target?: string | null;
+  /** The key of this app's Home entry. */
+  homeEntry?: string;
+  /** Called once the `?target=` has been applied or ignored, to drop it from the URL. */
+  onTargetHandled?: () => void;
+}) {
   const t = useTranslations("videoApp");
-  const state = useVideoApp(drive);
+  const state = useVideoApp(drive, target, onTargetHandled);
   const face = state.prefs?.face;
 
   const discover = useDiscover({
@@ -44,7 +57,10 @@ export function VideoApp({ drive }: { drive: string }) {
   );
 
   return (
-    <PageFrame width="wide" header={<VideoAppHeader drive={drive} state={state} tabs={tabs} />}>
+    <PageFrame
+      width="wide"
+      header={<VideoAppHeader drive={drive} state={state} tabs={tabs} homeEntry={homeEntry} />}
+    >
       <div
         id={PANEL_ID}
         role="tabpanel"

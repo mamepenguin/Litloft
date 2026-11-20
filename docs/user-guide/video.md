@@ -115,6 +115,10 @@ starts with every collection unchecked.
   nothing.
 - If a Smart Collection's files cannot be worked out, the page shows **Retry**.
 - A Smart Collection the page cannot use is listed disabled.
+- With a Target other than **All videos** in force, the menu has **ホームに置く** / **Put on
+  Home** after the separator and before **Manage…**. Choosing it puts this app on that
+  Target on Home, where one tap opens Video with the Target in force. When the pair is
+  already there the row reads **ホームから外す** / **Remove from Home**.
 - A Smart Collection that has been deleted is replaced by **All videos** without a message.
   The same holds for a collection.
 - If one of the two lists cannot be loaded, the menu offers **All videos**, the other

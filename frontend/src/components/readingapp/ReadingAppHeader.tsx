@@ -20,6 +20,7 @@ export function ReadingAppHeader({
   breadcrumb,
   actions,
   tabs,
+  homeEntry,
 }: {
   drive: string;
   state: ReadingAppState;
@@ -28,6 +29,8 @@ export function ReadingAppHeader({
   /** Below the tabs on a phone, beside the Target at `sm` and wider. */
   actions?: ReactNode;
   tabs?: ReactNode;
+  /** The key of this app's Home entry. */
+  homeEntry?: string;
 }) {
   const t = useTranslations("readingApp");
   const locale = useLocale();
@@ -52,6 +55,7 @@ export function ReadingAppHeader({
       target={{
         drive,
         app: "reading",
+        homeEntry: state.targetKnown ? homeEntry : undefined,
         name: state.targetKnown ? (state.targetName ?? t("allBooks")) : null,
         folders: state.smartFolders,
         collections: { list: state.collections, retry: state.retryCollections },

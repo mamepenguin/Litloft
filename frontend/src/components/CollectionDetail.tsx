@@ -45,6 +45,7 @@ export function CollectionDetail({ drive, collectionId }: CollectionDetailProps)
   const router = useRouter();
   const t = useTranslations("collection");
   const tDrive = useTranslations("drive");
+  const tShell = useTranslations("appShell");
   const tCommon = useTranslations("common");
   const ime = useImeKeyGuard();
   const toast = useToast();
@@ -431,8 +432,8 @@ export function CollectionDetail({ drive, collectionId }: CollectionDetailProps)
                         icon={detail.on_home ? House : HousePlus}
                         label={
                           detail.on_home
-                            ? tDrive("removeFromHome")
-                            : tDrive("putOnHome")
+                            ? tShell("removeFromHome")
+                            : tShell("putOnHome")
                         }
                         onClick={() => {
                           close();

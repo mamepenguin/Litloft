@@ -76,7 +76,7 @@ function shortcutHref(drive: string, shortcut: HomeShortcut): string {
   return collectionHref({ drive, id: shortcut.id });
 }
 
-const SHORTCUT_ICONS: Record<HomeShortcut["kind"], LucideIcon> = {
+const SHORTCUT_ICONS: Record<Exclude<HomeShortcut["kind"], "app_target">, LucideIcon> = {
   smart_folder: ListFilter,
   pin: Folder,
   collection: Library,
@@ -94,13 +94,7 @@ export function HomeAppEntries({
   const tRoot = useTranslations();
   const driveBase = `/drive/${encodeURIComponent(drive)}`;
 
-  const entries: Entry[] = [
-    {
-      key: "library",
-      href: driveHref(drive, "library"),
-      label: tSidebar("library"),
-      icon: FolderTree,
-    },
+  const appEntries: Entry[] = [
     ...builtinApps
       .filter((app) => isEntryShown(app.id, hiddenKeys))
       .map((app) => ({
@@ -117,12 +111,40 @@ export function HomeAppEntries({
         label: slotEntryLabel(navigation, tRoot),
         icon: (navigation.icon && ADDON_NAV_ICONS[navigation.icon]) || Package,
       })),
-    ...shortcuts.map((shortcut) => ({
+  ];
+
+  const shortcutEntries: Entry[] = [];
+  for (const shortcut of shortcuts) {
+    if (shortcut.kind === "app_target") {
+      const app = shortcut.app;
+      if (typeof app !== "string") continue;
+      const entry = appEntries.find((candidate) => candidate.key === app);
+      if (entry === undefined) continue;
+      shortcutEntries.push({
+        key: `shortcut:app_target:${app}:${shortcut.id}`,
+        href: `${entry.href}?target=${encodeURIComponent(shortcut.id)}`,
+        label: t("appShortcutLabel", { app: entry.label, target: shortcut.name }),
+        icon: entry.icon,
+      });
+      continue;
+    }
+    shortcutEntries.push({
       key: `shortcut:${shortcut.kind}:${shortcut.id}`,
       href: shortcutHref(drive, shortcut),
       label: shortcut.name,
       icon: SHORTCUT_ICONS[shortcut.kind],
-    })),
+    });
+  }
+
+  const entries: Entry[] = [
+    {
+      key: "library",
+      href: driveHref(drive, "library"),
+      label: tSidebar("library"),
+      icon: FolderTree,
+    },
+    ...appEntries,
+    ...shortcutEntries,
   ];
 
   if (inboxCount >= 1) {

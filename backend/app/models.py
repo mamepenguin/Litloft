@@ -395,6 +395,24 @@ class SmartFolder(Base):
     )
 
 
+class HomeAppShortcut(Base):
+    __tablename__ = "home_app_shortcuts"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    drive: Mapped[str] = mapped_column(String, nullable=False)
+    app: Mapped[str] = mapped_column(String(64), nullable=False)
+    target: Mapped[str] = mapped_column(String(64), nullable=False)
+    home_added_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=lambda: datetime.now(UTC)
+    )
+
+    __table_args__ = (
+        UniqueConstraint(
+            "drive", "app", "target", name="uq_home_app_shortcuts_drive_app_target"
+        ),
+    )
+
+
 class FileRelation(Base):
     __tablename__ = "file_relations"
 

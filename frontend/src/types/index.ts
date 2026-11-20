@@ -184,7 +184,7 @@ export interface PinnedFolder {
   on_home?: boolean;
 }
 
-export type HomeShortcutKind = "smart_folder" | "pin" | "collection";
+export type HomeShortcutKind = "smart_folder" | "pin" | "collection" | "app_target";
 
 export interface HomeShortcut {
   kind: HomeShortcutKind;
@@ -192,6 +192,8 @@ export interface HomeShortcut {
   name: string;
   query: string | null;
   file_type: FileKind | null;
+  /** The Home entry an `app_target` shortcut belongs to; `null` on every other kind. */
+  app?: string | null;
 }
 
 export interface Neighbors {

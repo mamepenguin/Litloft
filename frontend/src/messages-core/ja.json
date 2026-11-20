@@ -39,7 +39,9 @@
     "manageTitle": "表示する対象",
     "done": "完了",
     "searchTargets": "対象を検索",
-    "seeAllIn": "すべて見る: {name}"
+    "seeAllIn": "すべて見る: {name}",
+    "putOnHome": "ホームに置く",
+    "removeFromHome": "ホームから外す"
   },
   "metadata": {
     "description": "自宅LAN向けファイル管理＆メディアストリーミング"
@@ -90,6 +92,7 @@
   },
   "drive": {
     "appsNav": "アプリ",
+    "appShortcutLabel": "{app}・{target}",
     "empty": "ドライブがありません",
     "emptyDescription": "drives.jsonを設定してドライブを追加してください。",
     "pickup": "ピックアップ",
@@ -103,8 +106,6 @@
     "emptyDrive": "まだファイルがありません",
     "unlockAccess": "パスワードを入力",
     "couldNotRemoveFromContinue": "続きから外せませんでした",
-    "putOnHome": "ホームに置く",
-    "removeFromHome": "ホームから外す",
     "homeShortcutFailed": "ホームの入口を変更できませんでした"
   },
   "folder": {

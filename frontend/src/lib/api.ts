@@ -890,7 +890,7 @@ export async function getHomeShortcuts(drive: string): Promise<HomeShortcut[]> {
 
 export async function setHomeShortcut(
   drive: string,
-  shortcut: { kind: HomeShortcutKind; id: string; on_home: boolean },
+  shortcut: { kind: HomeShortcutKind; id: string; app?: string | null; on_home: boolean },
 ): Promise<void> {
   const res = await fetch(
     `${API_BASE}/drives/${encodeURIComponent(drive)}/home-shortcuts`,

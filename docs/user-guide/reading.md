@@ -99,6 +99,10 @@ own sort is not used here.
 - If a member target's files cannot be worked out, the page shows **Retry**.
 - A Smart Collection whose kinds miss every book shows **この対象は使えません** / **This
   target cannot be used**, and the page asks the server for nothing.
+- With a Target other than **All books** in force, the menu has **ホームに置く** / **Put on
+  Home** after the separator and before **Manage…**. Choosing it puts this app on that
+  Target on Home, where one tap opens Reading with the Target in force. When the pair is
+  already there the row reads **ホームから外す** / **Remove from Home**.
 - A Smart Collection that has been deleted is replaced by **All books** without a message.
   The same holds for a collection.
 - If one of the two lists cannot be loaded, the menu offers **All books**, the other

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useProfile } from "@/components/ProfileProvider";
 import { ApiStatusError, getCollections, getSmartFolders } from "@/lib/api";
@@ -109,14 +109,27 @@ function pickVideoGroup(held: string | undefined, legacy: string | null): VideoG
   return DEFAULT_VIDEO_GROUP;
 }
 
-export function useVideoApp(drive: string): VideoAppState {
+export function useVideoApp(
+  drive: string,
+  targetParam: string | null = null,
+  onTargetHandled?: () => void,
+): VideoAppState {
   const { nickname } = useProfile();
   const [prefs, setPrefs] = useState<AppPrefs | null>(null);
   const [chosen, setChosen] = useState<ChosenView | null>(null);
   const [rejectedFor, setRejectedFor] = useState<string | null>(null);
+  const [pendingId, setPendingId] = useState<string | null>(() =>
+    targetParam !== null && targetParam !== "" && targetParam !== "default"
+      ? targetParam
+      : null,
+  );
+  const savedBefore = useRef<string | null>(null);
+  const stripped = useRef(false);
 
   useEffect(() => {
-    setPrefs(readAppPrefs(drive));
+    const next = readAppPrefs(drive);
+    savedBefore.current = next.target;
+    setPrefs(next);
     setChosen(null);
   }, [drive]);
 
@@ -133,17 +146,71 @@ export function useVideoApp(drive: string): VideoAppState {
   const loadCollections = useCallback(() => getCollections(drive), [drive]);
   const { state: collections, retry: retryCollections } = useLoad(loadCollections);
 
+  const needsCollections =
+    pendingId !== null && pendingId.startsWith("collection:");
+  let pendingState: "none" | "waiting" | "apply" | "ignore" = "none";
+  let applyId: string | null = null;
+  if (pendingId !== null) {
+    if (prefs === null) {
+      pendingState = "waiting";
+    } else if (needsCollections) {
+      if (collections.status === "failed") pendingState = "ignore";
+      else if (collections.status !== "loaded") pendingState = "waiting";
+      else if (collections.data.some((c) => collectionTargetId(c.id) === pendingId)) {
+        pendingState = "apply";
+        applyId = pendingId;
+      } else pendingState = "ignore";
+    } else if (smartFolders.status === "failed") {
+      pendingState = "ignore";
+    } else if (smartFolders.status !== "loaded") {
+      pendingState = "waiting";
+    } else {
+      const folder = smartFolders.data.find((candidate) => candidate.id === pendingId) ?? null;
+      if (
+        folder !== null &&
+        resolveVideoTarget(folder).usable
+      ) {
+        pendingState = "apply";
+        applyId = pendingId;
+      } else {
+        pendingState = "ignore";
+      }
+    }
+  }
+  const pending = pendingId !== null;
+
+  useEffect(() => {
+    if (pendingState === "apply" && applyId !== null) {
+      const before = savedBefore.current ?? "default";
+      writeAppPrefs(drive, { target: applyId });
+      setPrefs((held) => (held ? { ...held, target: applyId } : held));
+      if (applyId !== before) resetLibraryFilters("video", drive);
+      setPendingId(null);
+    } else if (pendingState === "ignore") {
+      setPendingId(null);
+    }
+  }, [drive, pendingState, applyId]);
+
+  useEffect(() => {
+    if (targetParam === null || pendingState === "waiting" || stripped.current) return;
+    stripped.current = true;
+    onTargetHandled?.();
+  }, [targetParam, pendingState, onTargetHandled]);
+
+  // A pending id holds every request: what it names has not been applied yet.
   const savedId = prefs?.target ?? "default";
-  const savedTarget = parseAppTargetId(savedId);
-  const savedFolderId = savedTarget.kind === "smart" ? savedTarget.id : null;
-  const savedCollectionId = savedTarget.kind === "collection" ? savedTarget.id : null;
+  const requestedId = pending ? "default" : savedId;
+  const requestedTarget = parseAppTargetId(requestedId);
+  const requestedFolderId = requestedTarget.kind === "smart" ? requestedTarget.id : null;
+  const requestedCollectionId =
+    requestedTarget.kind === "collection" ? requestedTarget.id : null;
   const listedFolder =
-    savedFolderId !== null && smartFolders.status === "loaded"
-      ? (smartFolders.data.find((candidate) => candidate.id === savedFolderId) ?? null)
+    requestedFolderId !== null && smartFolders.status === "loaded"
+      ? (smartFolders.data.find((candidate) => candidate.id === requestedFolderId) ?? null)
       : null;
   const listedCollection =
-    savedCollectionId !== null && collections.status === "loaded"
-      ? (collections.data.find((candidate) => candidate.id === savedCollectionId) ?? null)
+    requestedCollectionId !== null && collections.status === "loaded"
+      ? (collections.data.find((candidate) => candidate.id === requestedCollectionId) ?? null)
       : null;
   const resolved = useMemo<Resolution>(() => {
     if (listedCollection !== null) {
@@ -174,11 +241,11 @@ export function useVideoApp(drive: string): VideoAppState {
   // A target that is gone or unusable is ignored, but its saved id stays:
   // the viewer's choice returns if the target does.
   const lookingUp =
-    (savedFolderId !== null &&
+    (requestedFolderId !== null &&
       (smartFolders.status === "loading" || smartFolders.status === "idle")) ||
-    (savedCollectionId !== null &&
+    (requestedCollectionId !== null &&
       (collections.status === "loading" || collections.status === "idle"));
-  const targetKnown = prefs !== null && !lookingUp;
+  const targetKnown = prefs !== null && !lookingUp && !pending;
   const ready = targetKnown && !evaluating && !targetFailed && !targetUnusable;
   const empty =
     ready &&
@@ -208,11 +275,13 @@ export function useVideoApp(drive: string): VideoAppState {
   const { state: counted } = useLoad(loadCount);
   const count = empty ? 0 : counted.status === "loaded" ? counted.data : null;
 
-  const targetId =
+  const resolvedTargetId =
     resolved.collection !== null
       ? collectionTargetId(resolved.collection.id)
       : (resolved.folder?.id ?? "default");
-  const targetName = resolved.collection?.name ?? resolved.folder?.name ?? null;
+  const targetId = pending && pendingId !== null ? pendingId : resolvedTargetId;
+  const targetName =
+    pending ? null : (resolved.collection?.name ?? resolved.folder?.name ?? null);
 
   const hasProfile = nickname !== null && rejectedFor !== nickname;
 
@@ -273,6 +342,7 @@ export function useVideoApp(drive: string): VideoAppState {
   const chooseTarget = useCallback(
     (id: string) => {
       if (id === targetId) return;
+      setPendingId(null);
       setChosen(null);
       resetLibraryFilters("video", drive);
       updatePrefs({ target: id });

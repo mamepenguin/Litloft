@@ -35,7 +35,7 @@ interface Measure {
 
 async function open(
   page: Page,
-  query: { width: number; count?: number; addons?: boolean; locale?: "en" | "ja"; long?: boolean },
+  query: { width: number; count?: number; addons?: boolean; locale?: "en" | "ja"; long?: boolean; app?: boolean },
 ): Promise<void> {
   const q = new URLSearchParams({
     run: String(++run),
@@ -44,6 +44,7 @@ async function open(
     addons: query.addons === false ? "0" : "1",
     locale: query.locale ?? "en",
     long: query.long ? "1" : "0",
+    app: query.app ? "1" : "0",
   });
   await page.goto(`${FIXTURE}?${q}#${ID}`);
   await expect(page.locator("body")).toHaveAttribute("data-ready", "1");
@@ -229,6 +230,74 @@ async function expectFullAccessibleNames(page: Page): Promise<void> {
   }
 }
 
+
+const LONG_APP_TARGET_NAME = "Weeknight dinners, preserved lemons, and a long list of recipes we keep cooking.";
+const APP_SHORTCUT_LABEL = `Video · ${LONG_APP_TARGET_NAME}`;
+
+interface AppShortcutBox {
+  tileWidth: number;
+  rem: number;
+  lineHeight: number;
+  text: string;
+  /** Every text line of the label, as painted inside the tile's clipping ancestors. */
+  visibleHeight: number;
+  fullHeight: number;
+  /** The app label's own glyphs ("Video") lie inside the painted area. */
+  appLabelShows: boolean;
+}
+
+/** The app shortcut tile, found by its target name and measured as it is painted. */
+function measureAppShortcut(page: Page): Promise<AppShortcutBox | null> {
+  return page.evaluate((name) => {
+    const host = document.getElementById("home-app-entries-host")!;
+    const a = [...host.querySelectorAll<HTMLAnchorElement>("nav a")].find((el) => (el.textContent ?? "").includes(name));
+    if (!a) return null;
+    const texts: Text[] = [];
+    const walker = document.createTreeWalker(a, NodeFilter.SHOW_TEXT);
+    for (let n = walker.nextNode(); n; n = walker.nextNode()) if ((n.textContent ?? "").trim()) texts.push(n as Text);
+    const range = document.createRange();
+    range.setStart(texts[0], 0);
+    const last = texts[texts.length - 1];
+    range.setEnd(last, last.length);
+    const full = range.getBoundingClientRect();
+    let top = full.top;
+    let bottom = full.bottom;
+    let left = full.left;
+    let right = full.right;
+    for (let el: HTMLElement | null = texts[0].parentElement; el && a.contains(el); el = el.parentElement) {
+      const cs = getComputedStyle(el);
+      if (cs.overflowX !== "visible" || cs.overflowY !== "visible") {
+        const r = el.getBoundingClientRect();
+        top = Math.max(top, r.top);
+        bottom = Math.min(bottom, r.bottom);
+        left = Math.max(left, r.left);
+        right = Math.min(right, r.right);
+      }
+    }
+    const first = texts[0];
+    const at = (first.textContent ?? "").indexOf("Video");
+    let appLabelShows = false;
+    if (at >= 0) {
+      const app = document.createRange();
+      app.setStart(first, at);
+      app.setEnd(first, at + "Video".length);
+      const r = app.getBoundingClientRect();
+      appLabelShows = r.left >= left - 0.5 && r.right <= right + 0.5 && r.top >= top - 0.5 && r.bottom <= bottom + 0.5;
+    }
+    const cs = getComputedStyle(first.parentElement!);
+    const lh = parseFloat(cs.lineHeight);
+    return {
+      tileWidth: a.getBoundingClientRect().width,
+      rem: parseFloat(getComputedStyle(document.documentElement).fontSize),
+      lineHeight: Number.isFinite(lh) ? lh : parseFloat(cs.fontSize) * 1.25,
+      text: (a.textContent ?? "").replace(/\s+/g, " ").trim(),
+      visibleHeight: Math.max(0, bottom - top),
+      fullHeight: full.height,
+      appLabelShows,
+    };
+  }, LONG_APP_TARGET_NAME);
+}
+
 export function phoneCases(): void {
   test.describe("SPEC-CORE-073 I4 D4 the entry row in a 358px container", () => {
     test("SPEC-CORE-073 I4 D4 seven entries make a 4 + 3 grid of tall tiles with no sideways overflow", async ({ page }) => {
@@ -303,6 +372,24 @@ export function phoneCases(): void {
       expectGrid(m, "358 long");
     });
   });
+
+  test.describe("SPEC-CORE-153 I10 an app shortcut with an 80-character target name in a 358px container", () => {
+    test("SPEC-CORE-153 I10 its label is at most two lines, its accessible name is the full label, and the grid holds", async ({ page }) => {
+      await open(page, { width: 358, count: 3, app: true });
+      await expect(page.getByRole("link", { name: APP_SHORTCUT_LABEL, exact: true })).toHaveCount(1);
+      const m = await measure(page);
+
+      expect(LONG_APP_TARGET_NAME, "fixture name length").toHaveLength(80);
+      const box = await measureAppShortcut(page);
+      expect(box, "the app shortcut is drawn").not.toBeNull();
+      expect(box!.text.startsWith("Video"), "the label starts with the app's label").toBe(true);
+      expect(box!.visibleHeight, "at most two lines").toBeLessThanOrEqual(2 * box!.lineHeight + 1);
+      expect(box!.visibleHeight, "at least one line shows").toBeGreaterThanOrEqual(box!.lineHeight - 1);
+      await expect(page.getByRole("link", { name: APP_SHORTCUT_LABEL, exact: true })).toHaveCount(1);
+      expectNoOverflow(m, "358 app");
+      expectGrid(m, "358 app");
+    });
+  });
 }
 
 export function desktopCases(): void {
@@ -370,5 +457,22 @@ export function desktopCases(): void {
     await expectFullAccessibleNames(page);
     expectNoOverflow(m, "960 long");
     expectWrappingRow(m, "960 long");
+  });
+
+  test("SPEC-CORE-153 I10 in a 960px container the app shortcut is one truncated line, starting with the app's label, in a tile at most 16rem wide", async ({ page }) => {
+    await open(page, { width: 960, count: 3, app: true });
+    await expect(page.getByRole("link", { name: APP_SHORTCUT_LABEL, exact: true })).toHaveCount(1);
+    const m = await measure(page);
+
+    const box = await measureAppShortcut(page);
+    expect(box, "the app shortcut is drawn").not.toBeNull();
+    expect(box!.tileWidth, "tile width").toBeLessThanOrEqual(16 * box!.rem + 0.5);
+    expect(box!.visibleHeight, "one line shows").toBeLessThanOrEqual(box!.lineHeight + 1);
+    expect(box!.fullHeight, "never wraps").toBeLessThanOrEqual(box!.lineHeight + 1);
+    expect(box!.text.startsWith("Video"), "the label starts with the app's label").toBe(true);
+    expect(box!.appLabelShows, "the app's label is painted, not cut").toBe(true);
+    await expect(page.getByRole("link", { name: APP_SHORTCUT_LABEL, exact: true })).toHaveCount(1);
+    expectNoOverflow(m, "960 app");
+    expectWrappingRow(m, "960 app");
   });
 }

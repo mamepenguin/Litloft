@@ -519,7 +519,7 @@ export function SmartFolderMenuItems({
   separated = false,
 }: SmartFolderMenuItemsProps) {
   const t = useTranslations("smartFolder");
-  const tDrive = useTranslations("drive");
+  const tShell = useTranslations("appShell");
   const actions = useContext(SmartFolderActionsContext);
 
   if (!actions) return null;
@@ -558,8 +558,8 @@ export function SmartFolderMenuItems({
           icon={actions.current.on_home ? House : HousePlus}
           label={
             actions.current.on_home
-              ? tDrive("removeFromHome")
-              : tDrive("putOnHome")
+              ? tShell("removeFromHome")
+              : tShell("putOnHome")
           }
           onClick={() => choose(actions.toggleHome)}
         />
