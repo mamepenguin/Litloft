@@ -8,6 +8,7 @@ import { act, fireEvent, render, screen, waitFor, within } from "@testing-librar
 import { createPortal } from "react-dom";
 
 import { ToastProvider } from "@/components/ToastProvider";
+import { writeAppPrefs } from "@/lib/appPrefs";
 import { ReadingApp } from "../ReadingApp";
 import { ReadingShelfPage } from "../ReadingShelfPage";
 
@@ -78,6 +79,7 @@ const server = {
   continue: [] as string[],
   unread: [] as string[],
   fresh: [] as string[],
+  library: [] as string[],
   names: {} as Record<string, string>,
 };
 
@@ -121,7 +123,7 @@ function oneShelf(by: string, key: string, items: unknown[]) {
 
 function answerShelves(_d: string, p: Params) {
   if (p.ids !== undefined) {
-    const live = new Set([...server.continue, ...server.unread, ...server.fresh]);
+    const live = new Set([...server.continue, ...server.unread, ...server.fresh, ...server.library]);
     return oneShelf("all", "all", (p.ids as string[]).filter((id) => live.has(id)).map((id) => book(id)));
   }
   if (p.by === "watch" && p.key === "continue") {
@@ -130,6 +132,12 @@ function answerShelves(_d: string, p: Params) {
     return oneShelf("watch", "continue", server.continue.slice(start, start + size).map(reading));
   }
   if (p.by === "watch" && p.key === "unwatched") return oneShelf("watch", "unwatched", server.unread.map((id) => book(id)));
+  if (p.by === "all") {
+    const size = Number(p.per_shelf ?? 60);
+    const start = p.offset !== undefined ? Number(p.offset) : (Number(p.page ?? 1) - 1) * size;
+    const items = server.library.slice(start, start + size).map((id) => book(id));
+    return { by: "all", total_shelves: 1, base: "", shelves: [{ key: "all", label: "", count: server.library.length, items }] };
+  }
   return { by: p.by, total_shelves: 0, base: "", shelves: [] };
 }
 
@@ -202,18 +210,30 @@ const reReads = () =>
     .filter((p) => p.by === "all" && Array.isArray(p.ids) && (p.ids as string[]).length === 1);
 
 class FakeObserver {
+  static instances: FakeObserver[] = [];
+  live = true;
+  constructor(private callback: IntersectionObserverCallback) {
+    FakeObserver.instances.push(this);
+  }
   observe() {}
-  disconnect() {}
+  disconnect() {
+    this.live = false;
+  }
   unobserve() {}
   takeRecords() {
     return [];
+  }
+  trigger() {
+    this.callback([{ isIntersecting: true } as IntersectionObserverEntry], this as never);
   }
 }
 
 beforeEach(() => {
   nickname = "alice";
   localStorage.clear();
+  FakeObserver.instances = [];
   vi.stubGlobal("IntersectionObserver", FakeObserver);
+  server.library = [];
   server.continue = ["c1", "c2"];
   server.unread = ["u1", "c1"];
   server.fresh = ["c1", "f1"];
@@ -226,6 +246,7 @@ beforeEach(() => {
     server.continue = forget(server.continue, id);
     server.unread = forget(server.unread, id);
     server.fresh = forget(server.fresh, id);
+    server.library = forget(server.library, id);
   });
   renameFile.mockReset().mockImplementation(async (id: string) => book(id));
   dismissContinueItem.mockReset().mockImplementation(async (id: string) => {
@@ -355,5 +376,33 @@ describe("SPEC-CORE-157 I1 I3 Reading's Continue See all page", () => {
     expect(deleteWatchProgress).toHaveBeenCalledWith("c2");
     expect(screen.getByText("Book c1")).toBeInTheDocument();
     expect(screen.getByText("Book c3")).toBeInTheDocument();
+  });
+});
+
+describe("SPEC-CORE-157 I4 Reading's ungrouped Library grid", () => {
+  const drawnIds = () => screen.queryAllByText(/^Book b\d+$/).map((el) => (el.textContent ?? "").replace("Book ", ""));
+
+  it("SPEC-CORE-157 I4 after a trash the next page neither skips nor repeats a book compared with a fresh load", async () => {
+    server.library = Array.from({ length: 130 }, (_, i) => `b${i}`);
+    writeAppPrefs(DRIVE, { face: "library" }, "reading");
+    discover();
+    fireEvent.click(await screen.findByRole("button", { name: /Group By/ }));
+    fireEvent.click(await screen.findByRole("menuitemradio", { name: "None" }));
+    await screen.findByText("Book b0");
+    const first = drawnIds().length;
+    expect(first).toBeLessThan(130);
+
+    const target = screen.getByText("Book b3");
+    await rightClick((target.closest("a") as HTMLElement | null) ?? target);
+    await choose("Move to Trash");
+    await submit("submit-trash");
+    await waitFor(() => expect(drawnIds()).not.toContain("b3"));
+    await waitFor(() => expect(FakeObserver.instances.some((o) => o.live)).toBe(true));
+    act(() => FakeObserver.instances.filter((o) => o.live).at(-1)!.trigger());
+    await waitFor(() => expect(drawnIds().length).toBeGreaterThan(first - 1));
+
+    const shown = drawnIds();
+    expect(shown).toEqual(server.library.slice(0, shown.length));
+    expect(new Set(shown).size).toBe(shown.length);
   });
 });

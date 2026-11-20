@@ -293,7 +293,13 @@ async function choose(label: string) {
   await flush();
 }
 
+/** The menu opens a dialog a few clock ticks after its row is chosen. */
 async function submit(label: string) {
+  for (let waited = 0; !screen.queryByText(label) && waited < 500; waited += 10) {
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10);
+    });
+  }
   await act(async () => {
     fireEvent.click(screen.getByText(label));
   });
@@ -640,6 +646,26 @@ describe("SPEC-CORE-157 I3 the history rows on Continue", () => {
   });
 });
 
+describe("SPEC-CORE-157 I6 a dialog whose card leaves meanwhile", () => {
+  it("SPEC-CORE-157 I6 the rename dialog stays open and renames its file after the card left Continue", async () => {
+    const dismissal = deferred<void>();
+    dismissContinueItem.mockReset().mockReturnValue(dismissal.promise);
+    await visit();
+
+    await rightClick(card("c1", "Continue"));
+    await choose("Remove from Continue");
+    await rightClick(card("c1", "Continue"));
+    await choose("Rename");
+    await act(async () => dismissal.resolve());
+    await flush();
+    expect(shelfCards("Continue")).toEqual([title("c2")]);
+
+    await submit("submit-rename");
+
+    expect(renameFile).toHaveBeenCalledWith("c1", "renamed.mp4");
+  });
+});
+
 describe("SPEC-CORE-157 I5 the re-read after rename or move", () => {
   it.each([
     ["Rename", "submit-rename"],
@@ -663,6 +689,20 @@ describe("SPEC-CORE-157 I5 the re-read after rename or move", () => {
       expect(shelfCards("New")).toEqual(["Vid fresh", title("n1"), title("n2")]);
     },
   );
+
+  it("SPEC-CORE-157 I5 under a saved smart-folder Target the re-read still carries no Target filter", async () => {
+    getSmartFolders.mockResolvedValue([
+      { id: "sf", drive, name: "Trips", query: "tag:Trip", file_type: null, sort_by: null, sort_order: null, created_at: "", updated_at: null },
+    ]);
+    writeAppPrefs(drive, { target: "sf" });
+    renameFile.mockImplementation(async (id: string) => asItem(id));
+    await visit();
+    const before = reReads().length;
+
+    await rename(card("n1", "New"));
+
+    expect(reReads().slice(before)).toEqual([{ by: "all", ids: ["n1"] }]);
+  });
 
   it("SPEC-CORE-157 I5 of two overlapping re-reads only the latest answer is drawn", async () => {
     renameFile.mockImplementation(async (id: string) => asItem(id));
@@ -903,6 +943,20 @@ describe("SPEC-CORE-157 I3 I4 the ungrouped Library grid", () => {
 
     expect(drawnIds()).toEqual([]);
     expect(screen.getByText("No files")).toBeInTheDocument();
+  });
+
+  it("SPEC-CORE-157 I3 a trash from a grouped Library shelf drops the shelf's count by one", async () => {
+    server.continue = [];
+    server.all = ["a0", "a1", "a2"];
+    writeAppPrefs(drive, { face: "library" });
+    await visit();
+    expect(within(shelf("Movies")).getByText("3")).toBeInTheDocument();
+
+    await trash(card("a1", "Movies"));
+
+    expect(within(shelf("Movies")).queryByText("Vid a1")).toBeNull();
+    expect(within(shelf("Movies")).getByText("2")).toBeInTheDocument();
+    expect(within(shelf("Movies")).queryByText("3")).toBeNull();
   });
 
   it("SPEC-CORE-157 I4 the page loaded after a trash neither skips nor repeats a file compared with a fresh load", async () => {
