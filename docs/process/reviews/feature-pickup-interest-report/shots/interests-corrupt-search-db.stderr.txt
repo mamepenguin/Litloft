@@ -1,0 +1,6 @@
+DatabaseError: (sqlite3.DatabaseError) file is not a database
+[SQL: SELECT embeddings.id AS embeddings_id, embeddings.file_id AS embeddings_file_id 
+FROM embeddings JOIN indexed_files ON indexed_files.file_id = embeddings.file_id 
+WHERE embeddings.embedding_type = ? AND indexed_files.drive = ? AND indexed_files.active IS 1]
+[parameters: ('clip_thumbnail', '動画')]
+(Background on this error at: https://sqlalche.me/e/20/4xp6)
