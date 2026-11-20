@@ -10,6 +10,28 @@ export interface Page<T> {
 
 export type PagedPhase = "idle" | "loading" | "ready" | "failed";
 
+/** A page's own item identity: a file id or a grouped shelf's key. */
+function identityOf(item: unknown): string {
+  if (item !== null && typeof item === "object") {
+    const record = item as { id?: unknown; key?: unknown };
+    if (typeof record.id === "string") return `id:${record.id}`;
+    if (typeof record.key === "string") return `key:${record.key}`;
+  }
+  return `json:${JSON.stringify(item)}`;
+}
+
+function withoutRepeats<T>(items: readonly T[], held: ReadonlySet<string>): T[] {
+  const seen = new Set(held);
+  const out: T[] = [];
+  for (const item of items) {
+    const key = identityOf(item);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(item);
+  }
+  return out;
+}
+
 interface Paged<T> {
   fetchPage: (page: number) => Promise<Page<T>>;
   attempt: number;
@@ -35,10 +57,11 @@ export function usePaged<T>(fetchPage: ((page: number) => Promise<Page<T>>) | nu
     fetchPage(1).then(
       (page) => {
         if (current) {
+          const items = withoutRepeats(page.items, new Set());
           setHeld({
             fetchPage,
             attempt,
-            items: page.items,
+            items,
             total: page.total,
             pages: 1,
             phase: "ready",
@@ -68,18 +91,21 @@ export function usePaged<T>(fetchPage: ((page: number) => Promise<Page<T>>) | nu
     setHeld({ ...requested, more: "loading" });
     fetchPage(requested.pages + 1).then(
       (page) =>
-        setHeld((now) =>
-          stillHeld(now)
-            ? {
-                ...now,
-                items: [...now.items, ...page.items],
-                // A page with nothing in it ends the list, whatever the total says.
-                total: page.items.length === 0 ? now.items.length : page.total,
-                pages: now.pages + 1,
-                more: "idle",
-              }
-            : now,
-        ),
+        setHeld((now) => {
+          if (!stillHeld(now)) return now;
+          // A renamed or moved file can shift the server's page boundary; an
+          // id the list already holds is not drawn twice.
+          const held = new Set(now.items.map(identityOf));
+          const added = withoutRepeats(page.items, held);
+          return {
+            ...now,
+            items: [...now.items, ...added],
+            // A page with nothing in it ends the list, whatever the total says.
+            total: page.items.length === 0 ? now.items.length : page.total,
+            pages: now.pages + 1,
+            more: "idle",
+          };
+        }),
       () => setHeld((now) => (stillHeld(now) ? { ...now, more: "failed" } : now)),
     );
   }, [own, fetchPage]);

@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import { Search } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 
+import { pagedParams, useCardFileLists } from "@/components/appshell/CardFileMenu";
 import { RetryButton } from "@/components/appshell/RetryButton";
 import { FilterMenus } from "@/components/appshell/FilterMenus";
 import { mergeLibraryTags, useLibraryFilters } from "@/components/appshell/libraryFilters";
@@ -92,6 +93,9 @@ export function LibraryFace({
   );
   const filtersActive = filters.tags.length > 0 || watch !== undefined || name !== "";
 
+  const lists = useCardFileLists();
+  const removedBefore = useRef(0);
+
   const fetchGrouped = useMemo(
     () =>
       query === null || none
@@ -132,7 +136,7 @@ export function LibraryFace({
                 sort: sort.sort,
                 order: sort.order,
                 per_shelf: LIBRARY_NONE_PAGE_SIZE,
-                page,
+                ...pagedParams(page, removedBefore.current, LIBRARY_NONE_PAGE_SIZE),
               })
               .then(
                 (response) => {
@@ -147,6 +151,8 @@ export function LibraryFace({
     [drive, query, requests, none, sort.sort, sort.order, onViewerRejected],
   );
   const flat = usePaged(fetchFlat);
+  removedBefore.current = lists.removedCount("grid", flat.items);
+  const flatItems = lists.filter("grid", flat.items);
 
   const number = useMemo(() => new Intl.NumberFormat(locale), [locale]);
   const groupOptions = VIDEO_GROUPS.map((candidate) => ({
@@ -194,7 +200,12 @@ export function LibraryFace({
 
       <div>
         {none ? (
-          <VideoPagedGrid paged={flat} empty={empty} filtered={filtersActive} />
+          <VideoPagedGrid
+            paged={{ ...flat, items: flatItems }}
+            empty={empty}
+            filtered={filtersActive}
+            listKey="grid"
+          />
         ) : empty ? (
           <EmptyState variant="no-files" />
         ) : shelves.phase === "ready" && shelves.items.length === 0 ? (
@@ -204,20 +215,16 @@ export function LibraryFace({
         ) : shelves.phase === "ready" ? (
           <>
             <div className="space-y-10">
-              {shelves.items.map((shelf) => {
-                const title = shelfTitle({ by: group, shelf, drive, locale, t: (key) => t(key) });
-                return (
-                  <ShelfBlock
-                    key={shelf.key}
-                    title={title}
-                    count={number.format(shelf.count)}
-                    seeAllHref={seeAllHref(drive, group, shelf.key, sortId, conditions)}
-                    view={{ status: "loaded", items: shelf.items }}
-                    onRetry={shelves.retry}
-                    renderItem={(item) => <VideoCard item={item} />}
-                  />
-                );
-              })}
+              {shelves.items.map((shelf) => (
+                <VideoGroupShelf
+                  key={shelf.key}
+                  shelf={shelf}
+                  title={shelfTitle({ by: group, shelf, drive, locale, t: (key) => t(key) })}
+                  seeAllHref={seeAllHref(drive, group, shelf.key, sortId, conditions)}
+                  onRetry={shelves.retry}
+                  formatCount={number.format}
+                />
+              ))}
             </div>
             <div ref={sentinel} aria-hidden="true" className="h-px" />
             {shelves.more === "loading" && (
@@ -246,5 +253,36 @@ export function LibraryFace({
         )}
       </div>
     </div>
+  );
+}
+
+function VideoGroupShelf({
+  shelf,
+  title,
+  seeAllHref,
+  onRetry,
+  formatCount,
+}: {
+  shelf: Shelf;
+  title: string;
+  seeAllHref: string;
+  onRetry: () => void;
+  formatCount: (value: number) => string;
+}) {
+  const lists = useCardFileLists();
+  const listKey = `group:${shelf.key}`;
+  const items = lists.filter(listKey, shelf.items);
+  if (items.length === 0) return null;
+  const count = shelf.count - lists.removedCount(listKey, shelf.items);
+
+  return (
+    <ShelfBlock
+      title={title}
+      count={formatCount(count)}
+      seeAllHref={seeAllHref}
+      view={{ status: "loaded", items }}
+      onRetry={onRetry}
+      renderItem={(item) => <VideoCard item={item} fileMenu={{ listKey }} />}
+    />
   );
 }

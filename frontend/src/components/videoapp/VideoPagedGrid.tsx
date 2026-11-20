@@ -47,10 +47,13 @@ export function VideoPagedGrid({
   paged,
   empty = false,
   filtered = false,
+  listKey,
 }: {
   paged: PagedGridState<ShelfItem>;
   empty?: boolean;
   filtered?: boolean;
+  /** Attach the page's file menu to each card under this list key. */
+  listKey?: string;
 }) {
   const t = useTranslations("appFilters");
   const sentinel = useNearEnd(paged.hasMore && paged.more === "idle", paged.loadMore);
@@ -75,7 +78,10 @@ export function VideoPagedGrid({
           {() =>
             paged.items.map((item) => (
               <li key={item.id} className="min-w-0">
-                <VideoCard item={item} />
+                <VideoCard
+                  item={item}
+                  fileMenu={listKey === undefined ? undefined : { listKey }}
+                />
               </li>
             ))
           }

@@ -6,6 +6,11 @@ import { ChevronLeft, Film } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 
 import { EmptyState } from "@/components/EmptyState";
+import {
+  CardFileMenuProvider,
+  pagedParams,
+  useCardFileMenu,
+} from "@/components/appshell/CardFileMenu";
 import { NameFilter } from "@/components/appshell/NameFilter";
 import { RetryButton } from "@/components/appshell/RetryButton";
 import { mergeLibraryTags } from "@/components/appshell/libraryFilters";
@@ -17,6 +22,7 @@ import { builtinApps } from "@/lib/builtinApps";
 import { loadSlotItemActions, type ShelfItemAction } from "@/lib/addons";
 import { type ShelfGrouping, type ShelfItem, type ShelfWatchState } from "@/lib/api";
 import { slotEntryLabel } from "@/lib/slotLabel";
+import { stableJson } from "./discoverCache";
 import { SortChoiceMenu } from "./LibraryControls";
 import {
   CONTINUE_SORT_CHOICES,
@@ -110,6 +116,20 @@ export function VideoShelfPage({
   const state = useMemo(() => ({ ...appState, chooseTarget }), [appState, chooseTarget]);
   const entryMode = typeof entry === "string" && entry !== "";
   const recommendedMode = entryMode && slot === "recommended";
+  const continuePage = !entryMode && by === "watch" && shelfKey === "continue";
+  const cards = useCardFileMenu({
+    scope: stableJson([
+      drive,
+      state.requests.key,
+      state.targetId,
+      state.nickname,
+      state.hasProfile,
+      state.params,
+    ]),
+    hasProfile: state.hasProfile,
+    continueListKeys: continuePage ? ["page"] : [],
+  });
+  const removedBefore = useRef(0);
   const offered: readonly ShelfSortChoice[] =
     by === "watch" && shelfKey === "continue" ? CONTINUE_SORT_CHOICES : SORT_CHOICES;
   const initialChoice = parseShelfSortId(initialSort ?? null, offered) ?? offered[0].id;
@@ -156,7 +176,7 @@ export function VideoShelfPage({
                 sort: sort.sort,
                 order: sort.order,
                 per_shelf: SHELF_PAGE_SIZE,
-                page,
+                ...pagedParams(page, removedBefore.current, SHELF_PAGE_SIZE),
               })
               .then(
                 (response) => {
@@ -171,6 +191,8 @@ export function VideoShelfPage({
     [entryMode, drive, by, shelfKey, query, requests, watch, watchBlocked, requestedName, sort.sort, sort.order, rejectViewer],
   );
   const paged = usePaged<ShelfItem>(fetchPage);
+  removedBefore.current = cards.removedCount("page", paged.items);
+  const pageItems = cards.filter("page", paged.items);
   const provider = useProviderShelfPage({
     enabled: entryMode,
     entryId: entryMode ? entry : null,
@@ -185,6 +207,7 @@ export function VideoShelfPage({
     onViewerRejected: rejectViewer,
   });
   const removable = useRemovableItems(provider.items);
+  const providerItems = cards.filter("page", removable.items);
   const [itemActions, setItemActions] = useState<ShelfItemAction[]>([]);
   const tGlobalRef = useRef(tGlobal);
   tGlobalRef.current = tGlobal;
@@ -251,18 +274,19 @@ export function VideoShelfPage({
     ) : provider.phase === "failed" ? (
       <RetryButton onRetry={provider.retryFirst} />
     ) : provider.phase === "ready" || provider.phase === "ended" ? (
-      removable.items.length === 0 ? (
+      providerItems.length === 0 ? (
         <EmptyState variant="no-files" />
       ) : (
         <>
           <VideoGrid>
             {() =>
-              removable.items.map((item) => (
+              providerItems.map((item) => (
                 <li key={item.id} className="min-w-0">
                   <VideoCard
                     item={item}
                     byline={provider.bylines.get(item.id)}
                     menu={cardMenu}
+                    fileMenu={{ listKey: "page" }}
                   />
                 </li>
               ))
@@ -286,15 +310,17 @@ export function VideoShelfPage({
     )
   ) : (
     <VideoPagedGrid
-      paged={paged}
+      paged={{ ...paged, items: pageItems }}
       empty={by === null || state.empty || watchBlocked}
       filtered={filtersActive}
+      listKey="page"
     />
   );
 
   return (
-    <PageFrame
-      width="wide"
+    <CardFileMenuProvider value={cards.context}>
+      <PageFrame
+        width="wide"
       header={
         <VideoAppHeader
           drive={drive}
@@ -340,7 +366,9 @@ export function VideoShelfPage({
         />
       }
     >
-      <div className="px-4 pb-6 pt-4 sm:pb-8">{body}</div>
-    </PageFrame>
+        <div className="px-4 pb-6 pt-4 sm:pb-8">{body}</div>
+      </PageFrame>
+      {cards.menu}
+    </CardFileMenuProvider>
   );
 }

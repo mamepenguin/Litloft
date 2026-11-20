@@ -5,10 +5,15 @@ import { useEffect, useRef, useState } from "react";
 import { ExternalLink } from "lucide-react";
 import { useTranslations } from "next-intl";
 
-import { FileTypeIcon } from "@/components/FileTypeIcon";
 import { CardProgress } from "@/components/CardProgress";
 import { ContextMenu, type MenuItem } from "@/components/ContextMenu";
+import { FileTypeIcon } from "@/components/FileTypeIcon";
 import { useToast } from "@/components/ToastProvider";
+import {
+  useCardFileMenuHandlers,
+  type CardItemActions,
+  type CardFileMenuHandlers,
+} from "@/components/appshell/CardFileMenu";
 import { useContextMenu } from "@/hooks/useContextMenu";
 import type { ShelfItemAction } from "@/lib/addons";
 import { getThumbnailUrl, type ShelfItem } from "@/lib/api";
@@ -16,14 +21,7 @@ import { fileLinkHref } from "@/lib/canonicalFileUrl";
 import { formatDuration } from "@/lib/format";
 import { hasKnownLength } from "@/lib/primaryMeta";
 
-export interface VideoCardMenu {
-  actions: ShelfItemAction[];
-  viewer: string | null;
-  /** Whether `viewer` is still the profile that chose the action. */
-  isSameViewer: (viewer: string | null) => boolean;
-  onRemoved: (item: ShelfItem) => void;
-  onRestored: (item: ShelfItem) => void;
-}
+export type VideoCardMenu = CardItemActions;
 
 interface CardLinkProps {
   item: ShelfItem;
@@ -33,6 +31,8 @@ interface CardLinkProps {
   onTouchStart?: React.TouchEventHandler<HTMLAnchorElement>;
   onTouchEnd?: React.TouchEventHandler<HTMLAnchorElement>;
   onTouchMove?: React.TouchEventHandler<HTMLAnchorElement>;
+  /** The card opens the page's file menu rather than a menu of its own. */
+  fileMenu?: boolean;
 }
 
 function EmptyIcon() {
@@ -47,6 +47,7 @@ function CardLink({
   onTouchStart,
   onTouchEnd,
   onTouchMove,
+  fileMenu = false,
 }: CardLinkProps) {
   const progress = item.watch_progress;
   const interactive = onContextMenu !== undefined;
@@ -59,7 +60,11 @@ function CardLink({
       onTouchEnd={onTouchEnd}
       onTouchMove={onTouchMove}
       className={`group block min-w-0 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring${
-        interactive ? " [-webkit-touch-callout:none]" : ""
+        fileMenu
+          ? " select-none [-webkit-touch-callout:none]"
+          : interactive
+            ? " [-webkit-touch-callout:none]"
+            : ""
       }`}
     >
       <div className="relative aspect-video overflow-hidden rounded-2xl bg-bg-elevated">
@@ -265,13 +270,37 @@ export function VideoCard({
   item,
   byline,
   menu,
+  fileMenu,
 }: {
   item: ShelfItem;
   byline?: string;
   menu?: VideoCardMenu;
+  /** Attach the page's file menu; absent leaves the card as it was. */
+  fileMenu?: { listKey: string };
 }) {
-  if (!menu || menu.actions.length === 0) {
-    return <CardLink item={item} byline={byline} />;
+  const handlers: CardFileMenuHandlers = useCardFileMenuHandlers(item, {
+    enabled: fileMenu !== undefined,
+    listKey: fileMenu?.listKey ?? "",
+    actions: menu,
+  });
+
+  if (fileMenu === undefined) {
+    if (!menu || menu.actions.length === 0) {
+      return <CardLink item={item} byline={byline} />;
+    }
+    return <VideoCardWithMenu item={item} byline={byline} menu={menu} />;
   }
-  return <VideoCardWithMenu item={item} byline={byline} menu={menu} />;
+
+  return (
+    <CardLink
+      item={item}
+      byline={byline}
+      onClick={handlers.onClick}
+      onContextMenu={handlers.onContextMenu}
+      onTouchStart={handlers.onTouchStart}
+      onTouchEnd={handlers.onTouchEnd}
+      onTouchMove={handlers.onTouchMove}
+      fileMenu
+    />
+  );
 }

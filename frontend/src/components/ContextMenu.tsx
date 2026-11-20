@@ -71,6 +71,7 @@ export function ContextMenu({ open, position, items, onClose }: ContextMenuProps
       <DismissScrim onDismiss={onClose} className="fixed inset-0 z-49">
         <div
           ref={menuRef}
+          role="menu"
           className="fixed z-50 w-44 overflow-hidden rounded-2xl border border-bg-border bg-bg-card shadow-lg animate-fade-in-scale"
           style={{ left: position.x, top: position.y }}
         >
