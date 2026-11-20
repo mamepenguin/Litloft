@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R1",
+      "status": "confirmed",
+      "note": "Reproduced by reading the code. addons/intelligence/app/pickup/evaluate.py:59-63 imports `_not_interested_ids` alongside `_CANDIDATES_PER_LANE` and `_FEED_DEPTH` from app.workers.pickup. evaluate.py:907 calls it, and evaluate.py:948 unions its result with watched_file_ids to form the score_lanes exclusions. The marked_videos count at :908 and the attribution groups at :924 also use it. app/workers/pickup.py:82-96 defines it as a private helper that reads PickupNotInterested through get_search_db_read. That session is not a write path, and under init_readonly_databases (database.py:2394-2427) both engines open with mode=ro, so I1 is not affected. The worker builds its exclusions the same way at workers/pickup.py:305-306, which supports I8. The spec's touch-point paragraph (docs/specs/pickup-interest-report.md:196) says only that the command calls 'the same profile and retrieval functions the worker calls'. It does not name this import of a private worker helper. Spec section 4 (line 103) does list `pickup_not_interested` as a table that is read, so the data access is specified and only the code coupling is undocumented. I could not run git to diff against origin/develop, so I took the claim that the import is new from the finding."
+    }
+  ],
+  "specification_compliance": [
+    "The read of `pickup_not_interested` is declared in spec section 4 (docs/specs/pickup-interest-report.md:102-103). The touch-point list does not name the dependency on the worker-private `_not_interested_ids`."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "If a future edit changes the worker's private `_not_interested_ids` (for example its filtering or its session getter), the interests report's picks and its marked counts change with it, and nothing in the spec names that coupling."
+  ],
+  "regression_risks": [
+    "The report now depends on a private worker helper, so renaming or removing `_not_interested_ids` in app/workers/pickup.py would break the evaluate module at import time."
+  ],
+  "test_coverage": [
+    "I did not check whether the tests cover the marks-based exclusion in the interests picks."
+  ],
+  "not_verified": [
+    "I did not diff against origin/develop (no shell), so I did not confirm that the `_not_interested_ids` import is new in this commit.",
+    "I did not check whether the tests for the interests subcommand exercise marked files.",
+    "I did not check invariants I1-I10 beyond what R1 touches."
+  ],
+  "confidence": 88
+}
