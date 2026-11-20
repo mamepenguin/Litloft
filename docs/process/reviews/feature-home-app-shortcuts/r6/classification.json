@@ -1,0 +1,187 @@
+{
+  "risk": "HIGH",
+  "score": 8,
+  "base": 3,
+  "zone_max": "MEDIUM",
+  "modifiers": [
+    "schema"
+  ],
+  "promotions": [],
+  "zones_touched": [
+    {
+      "path": "DESIGN.md",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "addons/knowledge",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "backend/app/models.py",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "backend/app/routers/home_shortcuts.py",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "backend/app/schemas.py",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "backend/tests/test_home_app_shortcuts.py",
+      "level": "LOW"
+    },
+    {
+      "path": "backend/tests/test_home_shortcuts.py",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/ADDON-DEVELOPMENT.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/addons/knowledge.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/reference/api.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/INDEX.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/home-app-shortcuts.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/user-guide/file-browsing.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/user-guide/reading.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/user-guide/video.md",
+      "level": "LOW"
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/homeAppEntries.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/home-app-entries.cases.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/__tests__/appTargetParam.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/__tests__/appTargetPendingHolds.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/__tests__/homeAppShortcuts.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/app/drive/[name]/apps/reading/page.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/app/drive/[name]/apps/reading/shelf/page.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/app/drive/[name]/apps/video/page.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/app/drive/[name]/apps/video/shelf/page.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/CollectionDetail.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/SmartFolderSaveButton.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/appshell/TargetMenu.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/appshell/__tests__/TargetMenu.homeRow.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/folder/FolderToolbar.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/home/HomeAppEntries.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/readingapp/ReadingApp.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/readingapp/ReadingAppHeader.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/readingapp/ReadingShelfPage.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/readingapp/useReadingApp.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/videoapp/VideoApp.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/videoapp/VideoAppHeader.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/videoapp/VideoShelfPage.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/videoapp/useVideoApp.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/api.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/messages-core/en.json",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/messages-core/ja.json",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/types/index.ts",
+      "level": "MEDIUM"
+    }
+  ],
+  "human_zones_touched": [],
+  "protected_paths_touched": [],
+  "docs_only": false,
+  "reasons": [
+    "highest zone MEDIUM (4 points)",
+    "modifiers: schema"
+  ]
+}

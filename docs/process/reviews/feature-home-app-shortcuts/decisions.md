@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: ship — the human answered "ship" to r6 (HUMAN_REVIEW_REQUIRED): the three unspecified behaviours (no default count while the Target is looked up, the Notes Library dropping `note` on an applied ?target=, `target` removed on in-app navigation) and the R-5 note (no row checked while pending, since the rows are not drawn until the lists load) are accepted; the five bucket B touch-point omissions are listed in the PR.
 ran_in_app: yes
 at: 328598c7e2e82fd8ed257612893bd55991c53c60
 by: agent

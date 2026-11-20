@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R1",
+      "status": "confirmed",
+      "note": "docs/process/reviews/feature-home-app-shortcuts/r6/product-files.txt lists CollectionDetail.tsx, SmartFolderSaveButton.tsx and folder/FolderToolbar.tsx as changed. Each one now calls useTranslations(\"appShell\") and reads putOnHome/removeFromHome (CollectionDetail.tsx:48,435-436; SmartFolderSaveButton.tsx:522,561-562; FolderToolbar.tsx:160,567-568). A search of frontend/src finds putOnHome/removeFromHome only under appShell (en.json:43-44, ja.json:43-44) and no drive.* copies. The touch-point list names none of the three components."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R2",
+      "status": "confirmed",
+      "note": "product-files.txt lists apps/video/shelf/page.tsx and apps/reading/shelf/page.tsx as changed. They pass homeEntry=\"video\" (video/shelf/page.tsx:33) and homeEntry=\"reading\" (reading/shelf/page.tsx:33). The touch point names only apps/{video,reading}/page.tsx. I12 does expect the See all pages to pass homeEntry, so these edits are needed for the spec but were left out of the list."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R3",
+      "status": "confirmed",
+      "note": "product-files.txt lists addons/knowledge/frontend/library/NotesLibrary.tsx as changed. It adds the targetChanged prop (:49, :64), gates the URL sort with !targetChanged (:87), and triggers fillHref on targetChanged || !isLibrarySort(rawSort) || searchParams.has(\"target\"), with {note: null} when targetChanged (:155-159). NotesPage.tsx:151 passes it. The touch points name only library/libraryUrl.ts."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R4",
+      "status": "confirmed",
+      "note": "TargetMenu.tsx:171-185 sets loadDefaultCount to null when onDefault || lookingUp, and :315 sets lookingUp={name === null}. VideoAppHeader.tsx:61, ReadingAppHeader.tsx:59, NotesPage.tsx:178 and clips.tsx:444 pass name null whenever the Target is not yet known, so the gate covers any lookup, not only a pending ?target=. One correction to scope: Rows is rendered only while the menu is open (ToolbarMenu.tsx:293-297 `open && ... children(close)`). The effect therefore applies only when the menu is opened before the Target is known, not on every load. The count also loads once name is set, because lookingUp is in the useMemo deps. The behaviour change outside the listed touch point is real."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R5",
+      "status": "confirmed",
+      "note": "r6/test-files.txt lists backend/tests/test_home_app_shortcuts.py, frontend/src/__tests__/homeAppShortcuts.test.tsx, appTargetParam.test.tsx, appTargetPendingHolds.test.tsx and addons/knowledge/frontend/__tests__/targetParamPending.test.tsx, and all of them exist at the commit. test_home_app_shortcuts.py does not match test_home_shortcuts*.py. frontend/src/__tests__/homeShortcuts.test.tsx and homeAppEntries.test.tsx exist but are not in test-files.txt, so they were not edited."
+    }
+  ],
+  "specification_compliance": [
+    "The touch-point list is incomplete. It leaves out the three migrated components, the two shelf route pages, NotesLibrary.tsx and five new test files. The edits appear to follow I12 and the Notes ?target= handling."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "The TargetMenu default count is suppressed while the Target name is unknown on any load, not only while a ?target= is pending. This only applies while the menu is open."
+  ],
+  "regression_risks": [
+    "Removing drive.putOnHome/drive.removeFromHome would break any addon or component that still reads them. A search of frontend/src found no remaining reader, but addons other than knowledge were not searched."
+  ],
+  "test_coverage": [
+    "I did not run any tests. I confirmed that the new test files exist and are listed in r6/test-files.txt."
+  ],
+  "not_verified": [
+    "I did not view the actual git diff. 'Changed' rests on r6/product-files.txt and r6/test-files.txt.",
+    "I did not search addons other than knowledge for readers of the removed drive.putOnHome/removeFromHome keys.",
+    "I did not run the test suites.",
+    "I did not compare against the TargetMenu count behaviour before the change."
+  ],
+  "confidence": 85
+}
