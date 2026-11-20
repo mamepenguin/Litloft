@@ -3,7 +3,7 @@
 SPEC-ID: SPEC-CORE-165
 SPEC-ID: SPEC-CORE-166
 
-Approval:
+Approval: sha256:2ae76dd926a84a3a8f3ac2c31f57d230a34d20024399010d35478959fdf08961 Yuichi Senga 2026-11-21
 
 <!--
 SPEC-CORE-165: the folder position (URL, breadcrumb, child-folder chips) in the Video Library.
