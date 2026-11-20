@@ -21,6 +21,11 @@ Up to three shelves of 12 books, each loading on its own:
   The sample stays while you switch tabs and back; reloading the page draws a new one.
 - **新着** / **New**: the most recently added books.
 
+Right-click or long-press any card to open the file menu: download, add to a
+collection, copy, cut, copy the ID, rename, move and move to trash. On a
+**Continue reading** card with a profile the menu also has **Remove from
+Continue** and **Remove from history**.
+
 A shelf with no books is not shown, and **Continue reading** is not shown without a
 profile. Each shelf's **See all** opens it as a grid, 60 books at a time. **Not read yet**
 has no **See all** without a profile. **Continue reading**'s page opens most recently
