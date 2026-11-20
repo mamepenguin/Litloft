@@ -1,0 +1,11 @@
+addons/intelligence/frontend/__tests__/retireFind.manifest.test.ts
+addons/intelligence/frontend/__tests__/retireFind.searchModes.test.tsx
+addons/intelligence/tests/test_find_router.py
+addons/intelligence/tests/test_find_service.py
+addons/intelligence/tests/test_llm_routing_callers.py
+addons/intelligence/tests/test_rag_trust_filter.py
+addons/intelligence/tests/test_read_paths_skip_write_lock.py
+addons/intelligence/tests/test_search_file_kind_filter.py
+addons/intelligence/tests/test_spec_addon_071_validation_body.py
+backend/tests/test_addon_proxy_drive_scope.py
+frontend/src/app/drive/[name]/addons/[addon]/[slug]/__tests__/page.retireFind.test.tsx

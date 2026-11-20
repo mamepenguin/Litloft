@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "MEDIUM",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "CR-1",
+      "status": "confirmed",
+      "note": "Reproduced. docs/specs/retire-find.md:141-197 (Touch points) names none of: addons/intelligence/frontend/__tests__/retireFind.manifest.test.ts (I5 at :26, I3 at :65), addons/intelligence/frontend/__tests__/retireFind.searchModes.test.tsx (I2 at :75), backend/tests/test_addon_proxy_drive_scope.py:162 test_undeclared_route_is_404_without_calling_upstream (I3), frontend/src/app/drive/[name]/addons/[addon]/[slug]/__tests__/page.retireFind.test.tsx (I4 at :50). retire-find.md:219-223 assigns invariant tests to a repository only, with no file names. Mitigating context: these are new tests for the spec's own invariants, placed where :219-223 says they belong, and :197 restricts only production code. The gap is in the documentation's list, not the behavior."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "CR-2",
+      "status": "confirmed",
+      "note": "Reproduced for the post-change state. addons/intelligence/app/rag/service.py:59 now reads `from app.rag.query_decomposer import DecomposedQuery, decompose_query`, and TimeRange appears nowhere in service.py. retire-find.md:162 limits service.py changes to the item-7 list, and :96-97 allows only docstring edits on kept code, so an import-line edit is outside the literal allowance. I could not view the pre-change line because I cannot run git. The consequence is that the import would otherwise be unused after the listed functions were removed. No ruff/F401 config was found under addons/intelligence, so I cannot say whether a linter forced the change. No behavior change."
+    }
+  ],
+  "specification_compliance": [
+    "Touch points (retire-find.md:141-197) do not list the four new SPEC-ADDON-158 invariant test files/functions (CR-1).",
+    "service.py import-line edit falls outside the literal 'only those' allowance at retire-find.md:162 and :96-97 (CR-2). It has no behavioral effect."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "None identified from the two findings; both are documentation/spec-scope discrepancies with no runtime effect."
+  ],
+  "test_coverage": [
+    "I1: Page.test.tsx:953. I2: retireFind.searchModes.test.tsx:75. I3: retireFind.manifest.test.ts:65 and test_addon_proxy_drive_scope.py:162. I4: page.retireFind.test.tsx:50. I5: retireFind.manifest.test.ts:26."
+  ],
+  "not_verified": [
+    "Pre-change content of service.py:59 (no git access); only the post-change state was read.",
+    "Whether the _rrf_merge_candidates docstring at service.py:464 was edited, and whether kept function bodies are unchanged (no diff available).",
+    "Tests were not executed."
+  ],
+  "confidence": 85
+}
