@@ -71,6 +71,7 @@ const AT_THE_PHONE_WIDTH = [
   "markdown-table-scroll.spec.ts",
   "plain-text-document.spec.ts",
   "played-ranges.spec.ts",
+  "scenes-picture-timing.spec.ts",
   "scenes-section.spec.ts",
   "scenes-scroll-list-flow.spec.ts",
   "scenes-scroll-list-ruler-touch.spec.ts",

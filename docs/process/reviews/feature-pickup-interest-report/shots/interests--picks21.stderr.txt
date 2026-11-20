@@ -1,0 +1,5 @@
+usage: python -m app.pickup.evaluate interests [-h] --drive DRIVE
+                                               [--titles {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20}]
+                                               [--picks {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20}]
+                                               [--viewer VIEWER]
+python -m app.pickup.evaluate interests: error: argument --picks: invalid choice: '21' (choose from 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20)

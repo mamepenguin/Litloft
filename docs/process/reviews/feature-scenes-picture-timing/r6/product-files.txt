@@ -1,0 +1,7 @@
+addons/intelligence/frontend/ScenesSection/ScenesSectionContainer.tsx
+addons/intelligence/frontend/ScenesSection/ScenesSectionPresenter.tsx
+addons/intelligence/frontend/ScenesSection/hooks/useSceneList.ts
+addons/intelligence/frontend/ScenesSection/hooks/useScenePictures.ts
+frontend/e2e-components/scenes-picture-timing.spec.ts
+frontend/e2e-components/scenes-section.cases.ts
+frontend/e2e-components/spec-viewport.spec.ts

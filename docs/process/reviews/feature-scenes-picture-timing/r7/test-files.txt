@@ -1,0 +1,5 @@
+addons/intelligence/frontend/ScenesSection/__tests__/ScenesSectionPictureTiming.test.tsx
+addons/intelligence/frontend/ScenesSection/__tests__/ScenesSectionRequests.test.tsx
+addons/intelligence/frontend/ScenesSection/__tests__/ScenesSectionReshow.test.tsx
+addons/intelligence/frontend/ScenesSection/__tests__/ScenesSectionScrollList.test.tsx
+addons/intelligence/frontend/ScenesSection/__tests__/scrollListLayout.tsx
