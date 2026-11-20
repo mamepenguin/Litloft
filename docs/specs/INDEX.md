@@ -327,3 +327,4 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-160 | draft | docs/specs/loft-channel-videos.md | |
 | SPEC-ADDON-161 | draft | docs/specs/loft-channel-videos.md | |
 | SPEC-ADDON-162 | draft | docs/specs/loft-channel-videos.md | |
+| SPEC-ADDON-163 | draft | docs/specs/loft-channel-videos.md | |

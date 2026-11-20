@@ -19,17 +19,17 @@ a{color:#211922;text-decoration:none}a:hover{color:#211922}
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
       YouTube とフィード
     </a>
-    <h1 style="margin: 0; font-size: 22px; font-weight: 600">{{channel}}</h1>
+    <h1 style="margin: 0; font-size: 24px; font-weight: 700">{{channel}}</h1>
     <span style="font-size: 13px; color: #62625b">[ドライブ名]</span>
   </header>
-  <ul style="list-style: none; margin: 0; padding: 20px 16px; display: grid; grid-template-columns: repeat(1, minmax(0, 1fr)); row-gap: 28px">
-    <sc-for list="{{items}}" as="item" hint-placeholder-count="3">
+  <ul style="list-style: none; margin: 0; padding: 20px 16px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 16px; row-gap: 32px">
+    <sc-for list="{{items}}" as="item" hint-placeholder-count="6">
       <li style="min-width: 0">
         <a href="#" style="display: block">
           <div style="position: relative; aspect-ratio: 16 / 9; border-radius: 16px; overflow: hidden; background: {{item.tone}}">
             <span style="position: absolute; right: 8px; bottom: 8px; background: rgba(0,0,0,0.7); color: #ffffff; font-size: 12px; font-weight: 500; padding: 2px 6px; border-radius: 8px">{{item.duration}}</span>
           </div>
-          <span style="display: block; margin-top: 12px; font-size: 16px; line-height: 22px; font-weight: 500">{{item.title}}</span>
+          <span style="display: block; margin-top: 12px; font-size: 16px; line-height: 22px; font-weight: 500; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical">{{item.title}}</span>
           <span style="display: block; margin-top: 4px; font-size: 14px; color: #62625b">{{item.date}}</span>
         </a>
       </li>
@@ -43,7 +43,10 @@ renderVals() {
 const rows = [
 ['設計レビューの進め方 ─ 実例で見る 12 のポイント','2026年11月18日','18:42','#d9d6cf'],
 ['ローカル LLM を家庭内サーバーで動かす','2026年11月11日','24:05','#cfd6d9'],
-['SQLite の WAL を正しく理解する','2026年11月4日','12:37','#d6d9cf']
+['SQLite の WAL を正しく理解する','2026年11月4日','12:37','#d6d9cf'],
+['Next.js 16 の App Router 移行メモ','2026年10月28日','31:10','#d9cfd4'],
+['写真ライブラリを 10 年分整理した話','2026年10月21日','15:58','#cfd3d9'],
+['字幕つき動画を検索できるようにする','2026年10月14日','9:21','#d9d4cf']
 ];
 return { channel: '[チャンネル名]', items: rows.map((r) => ({ title: r[0], date: r[1], duration: r[2], tone: r[3] })) };
 }

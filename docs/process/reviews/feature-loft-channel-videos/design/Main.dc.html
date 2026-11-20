@@ -26,10 +26,8 @@ a{color:#211922;text-decoration:none}a:hover{color:#211922;text-decoration:under
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
         YouTube とフィード
       </a>
-      <div style="display: flex; align-items: baseline; gap: 12px">
-        <h1 style="margin: 0; font-size: 24px; font-weight: 600; letter-spacing: -0.01em">{{channel}}</h1>
-        <span style="font-size: 13px; color: #62625b">[ドライブ名]</span>
-      </div>
+      <h1 style="margin: 0; font-size: 24px; font-weight: 700">{{channel}}</h1>
+      <span style="font-size: 13px; color: #62625b">[ドライブ名]</span>
     </header>
     <ul style="list-style: none; margin: 0; padding: 28px 32px 32px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); column-gap: 16px; row-gap: 32px">
       <sc-for list="{{items}}" as="item" hint-placeholder-count="8">
