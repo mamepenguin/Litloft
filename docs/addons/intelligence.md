@@ -54,7 +54,7 @@ Each drive can switch features off in its `addons.intelligence` entry in `drives
 |---|---|
 | `index` | The drive is not indexed, and has no Pickup |
 | `search` | No meaning-based search |
-| `rag` | No Ask or Find |
+| `rag` | No Ask |
 | `auto_tags`, `summaries`, `detailed_summaries` | The generate buttons for that feature are closed |
 | `chapter_suggestions` | No chapter candidates |
 | `transcript_refine` | No transcript refine |
@@ -271,7 +271,7 @@ Modes (`features.chapter_suggestions`): `"false"` (default), `"manual"`, `"on_in
 
 ### Ask (RAG)
 
-**Ask** is the sidebar entry that opens `/drive/<name>/addons/intelligence`. Its header names the drive and how many files the drive holds. That count is every file in the drive, not only the indexed ones. The **Find** tab beside **Ask** returns a list of files instead of a written answer. How viewers use them: [Ask and Find](../user-guide/search.md#ask-and-find-intelligence-addon).
+**Ask** is the sidebar entry that opens `/drive/<name>/addons/intelligence`. Its header names the drive and how many files the drive holds. That count is every file in the drive, not only the indexed ones. How viewers use it: [Ask](../user-guide/search.md#ask-intelligence-addon).
 
 How an answer is built (keys under `rag.*`):
 
@@ -511,7 +511,7 @@ features:
   auto_tags: "manual"                 # false | manual | on_index
   summaries: "manual"                 # false | manual | on_index
   detailed_summaries: "false"         # false | manual | on_index
-  rag: true                           # Ask and Find
+  rag: true                           # Ask
   transcript_refine: "false"          # false | manual | on_index
   vision_describe: "manual"           # false | manual | on_index
   retrieval_keywords: "false"         # false | manual | on_index
@@ -592,7 +592,7 @@ llm:
 - A profile names its own endpoint and model; only tuning knobs (`temperature`, `max_tokens`, retries, timeouts, `reasoning`, vision limits) are inherited from the top of `llm`. The output language is global and cannot be set per profile.
 - `offhost` says the model runs on a server outside this machine. A profile without it counts as one. Such a profile is used only on drives whose `llm_cloud` policy is on; elsewhere the feature runs on `local_fallback`, or does not run. If the policy cannot be read, nothing is sent and the job is picked up again later.
 - `api_key_env` must be `LLM_API_KEY` or `LLM_API_KEY_<NAME>`. Any other name turns every LLM feature off until it is corrected. Leave it out for a profile that needs no key. Add the variable to the `intelligence` service in `docker-compose.override.yml`; a new variable needs a container restart.
-- Features: `rag` (Ask and Find), `summaries`, `detailed_summaries`, `auto_tags`, `transcript_refine`, `retrieval_keywords`, `chapter_suggestions`, `vision_describe`, `video_visual_index`. A vision feature needs a profile with a `vision_model`.
+- Features: `rag` (Ask), `summaries`, `detailed_summaries`, `auto_tags`, `transcript_refine`, `retrieval_keywords`, `chapter_suggestions`, `vision_describe`, `video_visual_index`. A vision feature needs a profile with a `vision_model`.
 - The multi-step Ask runs on a profile with `agentic: true`, or, for the single `default` profile, a model listed in `agentic_models`. `agentic_mode: "off"` stops it for every profile.
 - A mistake in `profiles` or `routing` (an unknown profile or feature, a fallback that is an external server, an invalid key variable) turns every LLM feature off and shows the reason in the settings page.
 - Generated summaries, tags, chapters and descriptions record the model that produced them; the file page shows it. Changing the routing does not regenerate anything.
@@ -802,7 +802,7 @@ Whisper (or the `haas_local` recognizer, when that is the provider), BLIP, the O
 ## UI surface
 
 - **Search**: meaning-based results in the ordinary search, and the **Scene search** switch.
-- **Ask** in the sidebar, with the **Ask** and **Find** tabs.
+- **Ask** in the sidebar.
 - Sections on the file page, each shown once it has something in it: **Do you trust this source?**, **AI tag candidates**, **AI chapter candidates**, **AI summary**, **AI image description**.
 - **AI** button in the file's action row. It lists what the file does not have yet (tag candidates, a summary, a detailed summary, chapter candidates, an image description). It is hidden when there is nothing left to create.
 - On a player file, **Transcript**, **Scenes** and **Detailed summary** are [panels under the player](../user-guide/viewers-and-players.md#panels-under-the-player); in a narrow window and on a phone they are tabs in the inspector. **Transcript** has **Clean up with AI**, a switch between **Text chunks**, **Words** and **External** when there is more than one source, and a button on each line that adds it to the capture basket — on a touch screen, **引用** (Quote) under the line you tap. **Detailed summary**'s **Save as file** also makes the note the file's summary note, which appears in the **Note** panel. On a file without a player, **Detailed summary** is an inspector tab of its own, after **Pages**; the inspector widens while it is selected so the summary reads at about 30 characters a line, and a citation jumps the open PDF or EPUB to the cited page or chapter in place rather than leaving the page.

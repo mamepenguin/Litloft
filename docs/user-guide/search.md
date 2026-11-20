@@ -39,7 +39,7 @@ After the chips, **＋ 条件** adds an operator without typing the syntax: **�
 Under the chips is the results bar. It holds, in order, the **ファイル / 箇所** switch (with the intelligence addon), **シーン検索**, the number of results, **View**, **Sort** and `…`. On a phone **View** and **Sort** are in `…`.
 
 - **Sort** offers **Relevance** (the default while searching) plus the usual folder orders.
-- `…` holds **Save as Smart Collection**, **選択モード**, and, with the intelligence addon, **Open Find page**.
+- `…` holds **Save as Smart Collection** and **選択モード**.
 - A file type is chosen with **＋ 条件** → **種類**, which writes `type:<kind>` into the query. A type that arrives in the address — from the search window or a Smart Collection — shows as a **種類** chip in the row under the field; `×` on the chip removes it.
 
 To filter by tag, kind or favourite, type an operator; see [Operators](#operators). The sidebar's tags also filter a folder; see [Tag filtering](#tag-filtering).
@@ -81,7 +81,7 @@ When the conditions of an open Smart Collection differ from what it saved — a 
 
 On a saved Smart Collection's page, while it shows the saved query and type in **ファイル**, **再生 / Play** plays its video and audio. The files play as a queue in the order shown, and when a file ends the next one opens. The queue is fixed when you press Play: later changes to the Smart Collection do not alter it, and only the next Play replaces it. Play is absent when the results hold no video or audio; on a phone it is the first row of the `…` sheet.
 
-With the intelligence addon, `…` also holds **ここに質問 / Ask here**, which opens Ask scoped to this Smart Collection. See **Ask and Find** below.
+With the intelligence addon, `…` also holds **ここに質問 / Ask here**, which opens Ask scoped to this Smart Collection. See **Ask** below.
 
 ## Tag filtering
 
@@ -141,13 +141,11 @@ The image is not saved. Reloading the page or opening the same link in another t
 
 The documents group needs readable text in the image — about 20 characters — and **Text in pictures** turned on for the drive (see [text in pictures](../addons/intelligence.md#text-in-pictures)). A picture with no readable text still returns similar pictures and scenes. An image search does not combine with operators, a type filter or text, and it cannot be saved as a Smart Collection.
 
-## Ask and Find (intelligence addon)
+## Ask (intelligence addon)
 
 **Ask** is in the sidebar when the intelligence addon is installed and an administrator has set up a language model. Type a question and it answers from your files, with links to its sources and timestamps for videos. It warns you when it found no strong source. Ask answers only from [verified files](file-browsing.md#trusted-sources-and-the-review-queue).
 
 ![Ask answer pane with source citations and a no-strong-source warning](../images/user-guide/ask-answer-citations-warning.png)
-
-**Find**, the tab beside Ask, returns a list of files for your question instead of a written answer. While you are searching, **Open Find page** in the results bar's `…` menu sends your query there.
 
 When more than one model is available, a select beside the **Ask** button picks the model for your questions; **Auto** uses the one the administrator assigned. It goes back to **Auto** when you reopen the page or switch drives. AI summaries have the same choice under the **▾** beside **Create again**.
 
@@ -157,7 +155,7 @@ Keep asking in the same tab: each question takes the earlier ones into account. 
 
 Ask sends parts of your files to the language model. An administrator can use a local model, or turn Ask off for a drive. See the [intelligence addon](../addons/intelligence.md#ask-rag).
 
-**Ask within a folder, a collection, a Smart Collection, tags or kinds.** The folder `…` menu's **ここに質問** and the collection page's **ここに質問** open Ask already narrowed to that folder (and everything under it) or that collection; a saved Smart Collection's `…` menu's **ここに質問** narrows it to the files its search page lists in **ファイル**. Under the Ask field the narrowing appears as chips; **＋ 範囲** adds another folder, collection, tag or kind, and a chip's `×` removes one. Ask answers only from those files, and says **この範囲にはファイルがありません** when the scope holds none. The chips travel with you to **Find** and back, though Find itself is not narrowed. The folder menu entry is absent at the drive root and for a name containing a double quote, which the query syntax cannot express.
+**Ask within a folder, a collection, a Smart Collection, tags or kinds.** The folder `…` menu's **ここに質問** and the collection page's **ここに質問** open Ask already narrowed to that folder (and everything under it) or that collection; a saved Smart Collection's `…` menu's **ここに質問** narrows it to the files its search page lists in **ファイル**. Under the Ask field the narrowing appears as chips; **＋ 範囲** adds another folder, collection, tag or kind, and a chip's `×` removes one. Ask answers only from those files, and says **この範囲にはファイルがありません** when the scope holds none. The folder menu entry is absent at the drive root and for a name containing a double quote, which the query syntax cannot express.
 
 ## Duplicate files
 

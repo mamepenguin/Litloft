@@ -320,4 +320,4 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-CORE-148 | implemented | docs/specs/app-library-filters.md | sha256:f643aa489b12cc08965cfbd7bd99d9c8fb658f7620d00de33fc6842b813428d6 |
 | SPEC-ADDON-151 | implemented | docs/specs/app-library-filters.md | sha256:f643aa489b12cc08965cfbd7bd99d9c8fb658f7620d00de33fc6842b813428d6 |
 | SPEC-ADDON-156 | implemented | docs/specs/pickup-interest-report.md | sha256:b6494795e123dc0b09bf91fc7159ab118313e47442d3acaaee3954c5cf2eec57 |
-| SPEC-ADDON-158 | approved | docs/specs/retire-find.md | sha256:6d573d784d76bfa7dcbb50a78ce6a40c8b29f71b05bf7563b0bca5c4d10d6fb0 |
+| SPEC-ADDON-158 | implemented | docs/specs/retire-find.md | sha256:6d573d784d76bfa7dcbb50a78ce6a40c8b29f71b05bf7563b0bca5c4d10d6fb0 |
