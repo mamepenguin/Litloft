@@ -183,11 +183,12 @@ or `month:` shelf page fills in `sort` the same way, and its back link is
 parameter, and `folder` or `tag` in the URL selects an entry and implies the segment.
 
 The Library's filters are in the URL too: `tag` (repeated; a clip must carry every one)
-and `trust` (`unverified` or `verified`). A filter change replaces the URL without a
+and `trust` (`unverified` or `verified`), and `q`, the name filter (title or folder path
+contains it; trimmed and cut to 200 characters, rewritten by replace when it is not). A filter change replaces the URL without a
 history entry. Every grouping, every `tag:`, `untagged`, `folder:` and `month:` shelf page
 and that page's back link carry them; Home and its shelf kinds (`unread`, `recent`, `new`,
 `unverified`) ignore them. The Home and Library tab links carry none, a Target choice drops
-them, and any other `trust` value is removed from the URL by replace. The tag menu's
+them (as does a Home-shortcut landing on another Target), and any other `trust` value is removed from the URL by replace. The tag menu's
 candidates come from the core `tag-counts` route under every condition in force.
 
 ### Opening Notes or Clips on a Target

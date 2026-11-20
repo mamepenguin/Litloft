@@ -75,7 +75,9 @@ While a note is open, `Cmd/Ctrl+K` opens search limited to this drive's notes. T
   **分類** / **Group By** and **並び順** / **Sort By**. **タグ** lists the tags of the clips
   you can see right now, with how many carry each; type in its search field to narrow the
   list, and choose several to see only clips that carry all of them. **状態** is **すべて** /
-  **All**, **未確認** / **Unverified** or **確認済み** / **Verified**. The filters stay in the
+  **All**, **未確認** / **Unverified** or **確認済み** / **Verified**. The search icon at the
+  right end of the tab row opens a field that keeps clips whose title or folder path contains
+  the text. The filters stay in the
   page's address while you move between the Library and its shelf pages, and are cleared
   by the **Home** and **Library** tabs and by choosing another Target. When nothing matches,
   the page says **条件に合う項目はありません** / **Nothing matches these filters**.
