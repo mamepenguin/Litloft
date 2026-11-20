@@ -10,6 +10,8 @@ export interface LibraryFilterState {
   tags: readonly string[];
   /** `all`, or one of the app's state values. */
   state: string;
+  /** The applied name filter; empty when none. */
+  name: string;
 }
 
 const EMPTY_TAGS: readonly string[] = [];
@@ -34,7 +36,7 @@ const entries = new Map<AppId, Entry>();
 const listeners = new Set<() => void>();
 
 function emptyFor(drive: string): LibraryFilterState {
-  return { drive, tags: EMPTY_TAGS, state: "all" };
+  return { drive, tags: EMPTY_TAGS, state: "all", name: "" };
 }
 
 function notify(): void {
@@ -60,13 +62,14 @@ export function readLibraryFilters(app: AppId, drive: string): LibraryFilterStat
 export function writeLibraryFilters(
   app: AppId,
   drive: string,
-  change: Partial<Pick<LibraryFilterState, "tags" | "state">>,
+  change: Partial<Pick<LibraryFilterState, "tags" | "state" | "name">>,
 ): void {
   const entry = entryFor(app, drive);
   const next: LibraryFilterState = {
     ...entry.snapshot,
     ...(change.tags !== undefined ? { tags: [...change.tags] } : {}),
     ...(change.state !== undefined ? { state: change.state } : {}),
+    ...(change.name !== undefined ? { name: change.name } : {}),
   };
   entries.set(app, { snapshot: next });
   notify();
@@ -96,9 +99,11 @@ export function useLibraryFilters(
 ): {
   tags: readonly string[];
   state: string;
+  name: string;
   toggleTag: (name: string) => void;
   clearTags: () => void;
   setState: (state: string) => void;
+  setName: (name: string) => void;
 } {
   const filters = useSyncExternalStore(
     subscribeLibraryFilters,
@@ -130,11 +135,26 @@ export function useLibraryFilters(
     [app, drive],
   );
 
+  const setName = useCallback(
+    (name: string) => {
+      writeLibraryFilters(app, drive, { name });
+    },
+    [app, drive],
+  );
+
   useEffect(() => {
     if (!hasProfile && readLibraryFilters(app, drive).state !== "all") {
       writeLibraryFilters(app, drive, { state: "all" });
     }
   }, [app, drive, hasProfile]);
 
-  return { tags: filters.tags, state: filters.state, toggleTag, clearTags, setState };
+  return {
+    tags: filters.tags,
+    state: filters.state,
+    name: filters.name,
+    toggleTag,
+    clearTags,
+    setState,
+    setName,
+  };
 }

@@ -1587,6 +1587,9 @@
     "noMatchingTags": "No matching tags",
     "noTags": "No tags",
     "tryAgain": "Try again",
-    "filterEmpty": "Nothing matches these filters"
+    "filterEmpty": "Nothing matches these filters",
+    "nameFilter": "Filter by name",
+    "nameFilterPlaceholder": "Filter by name...",
+    "clearName": "Clear input"
   }
 }
