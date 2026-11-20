@@ -1,0 +1,115 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "F1",
+      "origin": "reviewer",
+      "claim": "No test catches the removal of the `setPlacedKey(null)` line that the fix added at useSceneList.ts:351, so a re-show that asks for the previous showing's near tiles at once would pass the suite.",
+      "impact": "If that line regresses, a panel hidden while still in opening and shown again with a different start placement asks for the pre-placement near tiles at once. A typical case is a .loft whose playback moved while it was hidden. Those requests are for rows the reader is not shown, which I1's last clause forbids. Today's code does not do this. The gap is only in the tests.",
+      "evidence": "useSceneList.ts:610 computes `ready = shown && placedKey === resetKey`. With the reset at :351 removed, the state placedKey keeps 'f|1|S' through a hide. resetKey is 'f|0|S' while hidden and 'f|1|S' again on re-show for a .loft, because the Container keeps the rows on hide (ScenesSectionContainer.tsx:296, :317). So `ready` is already true in the first re-show render. useScenePictures.ts:105-112 then runs read() in that commit's passive effect. It sees the render-1 `times`, which come from the pre-hide `visible`, and `opening`, which is still true if the reader never scrolled. React flushes those passive effects before the sync re-render that the placement's layout-effect setState schedules. Every re-show test ends opening before hiding: ScenesSectionReshow.test.tsx:156 and :192 (wheelTo), ScenesSectionPictureTiming.test.tsx dwellOnRowFive and the I8 wheel, and ScenesSectionScrollList.test.tsx:490 and :556 (wheel or ruler press). With opening already false, the stale read only starts dwells, and render 2 clears them. The mutant therefore survives.",
+      "repro": "not_reproduced (read-only). Mutation: delete `setPlacedKey(null);` at useSceneList.ts:351. Expected to survive the current suite. A test that would kill it: open a .loft with a controller at currentTime 100 (rows 5–7 placed), hide without scrolling, set currentTime 0, show again, and assert that rows 4–8 got no src.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "The current code keeps I1. This is a test gap around the fix, not a broken invariant."
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add a re-show case that hides while still in opening, with the new start placement in a different place from the old one, and asserts that no tile near only before the new placement gets a src."
+    }
+  ],
+  "specification_compliance": [
+    "r6 F1 (no start placement or new opening on a .loft re-show) is resolved. useSceneList.ts:348-353 now clears placedKeyRef, pendingSettleRef and the placedKey state while !shown. On re-show resetKey differs from placedKeyRef (null), so the placement effect resets opening and following, places the playing row or the top, and gates `ready` on the new placement. ScenesSectionReshow.test.tsx covers native and .loft, with and without a controller, and fails without the ref reset, because visibleRows would stay [1,2,3] instead of [5,6,7].",
+    "The commit's claim about native panels holds by trace. For a host-driven native panel, hiding keeps rows and nativeState 'ready'. The first re-show commit runs a placement on the old rows, then loadNative's setRows(null) changes resetKey to 'f|1|'. The reloaded frames change it back to 'f|1|S', which is not deduplicated, so a new placement and opening follow.",
+    "r6 F2, F3 and F4 are untouched by the fix and remain as recorded. In addition, the new test file ScenesSectionReshow.test.tsx is not named in the touch points.",
+    "Presenter stays props-only (.claude/rules/frontend-conventions.md). The only Presenter change is removing loading=\"lazy\" from the tile img (ScenesSectionPresenter.tsx:720-731), which matches I7.",
+    "Opening ends on the ruler press (Container:524), on ruler keys (Container:609, after the key filter, so other keys do not end it) and on a scroll whose scrollTop differs from the last section write (useSceneList.ts:558). Every section scrollTop write except the cancel restore (Container:588, after opening has already ended) updates lastWrittenRef (useSceneList.ts:278, :288, :317). This matches I9.",
+    "useScenePictures: the reset effect is declared before the read effect, so a resetKey or active change clears requests, dwells and the timer before the next read. read() returns early while !active or !ready. While not active, the read effect clears dwells and the timer (I6). Dwells are keyed by time and kept across changes of the times array identity (I4)."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The own-scroll test compares the scroller's current scrollTop with the last written value when the event fires, not the event's own position. A reader scroll whose event arrives after a placement has overwritten the position counts as own. So does a reader scroll that ends exactly on the last written scrollTop. In both cases opening does not end."
+  ],
+  "regression_risks": [
+    "The fix's correctness on re-show depends on React flushing the first commit's passive effects (loadNative's setRows(null) and the useScenePictures read) before the sync re-render scheduled by the placement layout effect's setState. If that ordering changes, stale-row or stale-near reads could become visible.",
+    "The browser clamping scrollTop after a layout shrink (e.g. a wider first picture reducing the row step near the list end) produces a scroll event that is not own. It ends opening even though the reader did nothing. Per the Terms this is 'not own', but it can make opening pictures wait D."
+  ],
+  "test_coverage": [
+    "No re-show test hides the panel while still in opening, so the `setPlacedKey(null)` part of the fix is unguarded (F1).",
+    "The Reshow tests run with the policy enabled, where layoutSettled=false masks the policy-off native re-show path. In that path the first re-show commit places on the old rows with ready eligible.",
+    "The e2e §10 cases judge timing from in-page observations. The fast case requires at least one 'brief' crossing tile, so it cannot pass vacuously."
+  ],
+  "not_verified": [
+    "I did not run vitest or Playwright. The surviving mutant in F1 and the React flush ordering are inferred from reading the code.",
+    "Real-browser scroll events after a row-step change or a scrollTop clamp, and whether they end opening in practice.",
+    "I did not read Container lines 1-149, most of the Presenter, or the rest of ScenesSectionRequests/ScrollList outside the listed ranges.",
+    "I did not read .claude/rules/process.md in full or the bucket definitions beyond the task text."
+  ],
+  "coverage": [
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/ScenesSectionContainer.tsx",
+      "read": "partial",
+      "reason": "Read lines 150-830, which include every changed hunk and its enclosing function. Lines 1-149 were not read, apart from grep hits at 110-127 (hostDriven, shown)."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/ScenesSectionPresenter.tsx",
+      "read": "partial",
+      "reason": "Read lines 160-199, 330-374 and 680-749 (the changed img hunk with its SceneTile function)."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/hooks/useSceneList.ts",
+      "read": "full",
+      "reason": "Read the whole file."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/hooks/useScenePictures.ts",
+      "read": "full",
+      "reason": "Read the whole file."
+    },
+    {
+      "path": "frontend/e2e-components/scenes-picture-timing.spec.ts",
+      "read": "full",
+      "reason": "New file; read in full through the diff."
+    },
+    {
+      "path": "frontend/e2e-components/scenes-section.cases.ts",
+      "read": "partial",
+      "reason": "Read lines 330-514, which cover recordFrameRequests and both changed test hunks."
+    },
+    {
+      "path": "frontend/e2e-components/spec-viewport.spec.ts",
+      "read": "partial",
+      "reason": "Read lines 55-94, the AT_THE_PHONE_WIDTH list that contains the changed line, plus grep hits at 123-126."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/__tests__/ScenesSectionPictureTiming.test.tsx",
+      "read": "full",
+      "reason": "New file; read in full through the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/__tests__/ScenesSectionRequests.test.tsx",
+      "read": "partial",
+      "reason": "Read lines 600-641, which contain the changed hunk."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/__tests__/ScenesSectionReshow.test.tsx",
+      "read": "full",
+      "reason": "New file; read in full through the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/__tests__/ScenesSectionScrollList.test.tsx",
+      "read": "partial",
+      "reason": "Read lines 425-589, the changed picture cases and the I7 re-show case."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/__tests__/scrollListLayout.tsx",
+      "read": "full",
+      "reason": "Read the whole file."
+    }
+  ],
+  "trajectory": "The record has one fix round with a product change, 75bc701c6 (fadcb8892 and 61a949f2a only record docs). That round adds a branch to the placement effect's `!shown` path. The branch resets the placedKeyRef, pendingSettleRef and placedKey state, the dedup state that this change itself introduced, and the round adds the Reshow test file. It removes nothing. There is no earlier fix diff in the record, so I cannot say whether the same kind of branch is being added round after round. On its own, this round is a patch on top of the dedup-by-resetKey design rather than a simplification of it.",
+  "confidence": 75
+}
