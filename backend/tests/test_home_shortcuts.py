@@ -1,5 +1,6 @@
 """SPEC-CORE-100: the drive's Home shortcuts (`GET` / `PUT .../home-shortcuts`)
-and the `on_home` field on the Smart Folder, pin and collection responses."""
+and the `on_home` field on the Smart Folder, pin and collection responses.
+Every item of these kinds carries `app: null` (SPEC-CORE-153)."""
 
 from __future__ import annotations
 
@@ -171,6 +172,7 @@ class TestPlaceAndList:
                 "name": "Lectures",
                 "query": "lecture tag:math",
                 "file_type": "video",
+                "app": None,
             },
             ("collection", col): {
                 "kind": "collection",
@@ -178,6 +180,7 @@ class TestPlaceAndList:
                 "name": "Papers",
                 "query": None,
                 "file_type": None,
+                "app": None,
             },
             ("pin", pin): {
                 "kind": "pin",
@@ -185,6 +188,7 @@ class TestPlaceAndList:
                 "name": "papers",
                 "query": None,
                 "file_type": None,
+                "app": None,
             },
         }
 
@@ -199,7 +203,7 @@ class TestPlaceAndList:
         _pin(c, "旅行")
         assert _put(c, "pin", "旅行", True).status_code == 204
         assert _shortcuts(c) == [
-            {"kind": "pin", "id": "旅行", "name": "旅行", "query": None, "file_type": None}
+            {"kind": "pin", "id": "旅行", "name": "旅行", "query": None, "file_type": None, "app": None}
         ]
 
     def test_spec_core_100_targets_never_placed_are_not_listed(self, client):
@@ -501,7 +505,7 @@ class TestTargetLifecycle:
         assert res.status_code == 200, res.text
 
         assert _shortcuts(c) == [
-            {"kind": "pin", "id": "dest/trip", "name": "trip", "query": None, "file_type": None}
+            {"kind": "pin", "id": "dest/trip", "name": "trip", "query": None, "file_type": None, "app": None}
         ]
         assert str(_column(db, "pin", "dest/trip", "home_added_at")).startswith("2021-03-04")
         pins = c.get(f"/api/drives/{TEST_DRIVE}/pins").json()

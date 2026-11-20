@@ -1,7 +1,8 @@
 /**
  * The real Home entry row inside a container of the width the query string names.
  * `count` is the Inbox count; `addons=0` drops the addon entries; `long=1` adds an
- * addon entry and a Home shortcut whose labels are 80 characters each.
+ * addon entry and a Home shortcut whose labels are 80 characters each; `app=1` adds
+ * a Video app shortcut whose target name is 80 characters.
  */
 
 import type { ReactElement } from "react";
@@ -42,12 +43,19 @@ const LONG_SHORTCUTS = [
   { kind: "collection" as const, id: "col000000001", name: LONG_SHORTCUT_LABEL, query: null, file_type: null },
 ];
 
+const LONG_APP_TARGET_NAME = "Weeknight dinners, preserved lemons, and a long list of recipes we keep cooking.";
+
+const APP_SHORTCUTS = [
+  { kind: "app_target" as const, id: "sf0000000001", app: "video", name: LONG_APP_TARGET_NAME, query: null, file_type: null },
+];
+
 export function HomeAppEntriesArrangement(): ReactElement {
   const q = new URLSearchParams(location.search);
   const width = Number(q.get("width") ?? 358);
   const count = Number(q.get("count") ?? 3);
   const locale = q.get("locale") === "ja" ? "ja" : "en";
   const long = q.get("long") === "1";
+  const app = q.get("app") === "1";
   const catalogue = long ? { ...CATALOGUE, ...LONG_ADDON } : CATALOGUE;
   const entries = q.get("addons") === "0" ? [] : addonNavEntries(catalogue, DRIVE, "primary");
   return (
@@ -57,7 +65,7 @@ export function HomeAppEntriesArrangement(): ReactElement {
           drive={DRIVE}
           addonEntries={entries}
           inboxCount={count}
-          shortcuts={long ? LONG_SHORTCUTS : []}
+          shortcuts={[...(long ? LONG_SHORTCUTS : []), ...(app ? APP_SHORTCUTS : [])]}
         />
       </div>
     </NextIntlClientProvider>
