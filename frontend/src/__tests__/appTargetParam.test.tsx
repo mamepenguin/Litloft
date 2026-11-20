@@ -128,7 +128,7 @@ function collection(id: string, name: string) {
 
 const SMART_FOLDERS = [
   smartFolder("sf-trips", "Trips", "tag:Trip"),
-  smartFolder("sf-long", "Long ones", "duration:>1h"),
+  smartFolder("sf-long", "Recent ones", "modified:>1d"),
 ];
 const COLLECTIONS = [collection("c-trip", "Trip box"), collection("c-other", "Other box")];
 

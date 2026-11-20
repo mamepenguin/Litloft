@@ -8,7 +8,6 @@ import {
   collectionTargetId,
   parseAppTargetId,
 } from "@/lib/appTarget";
-import { parseSearchQuery } from "@/lib/searchQuery";
 import {
   readAppPrefs,
   readLegacyGroup,
@@ -169,8 +168,7 @@ export function useVideoApp(
       const folder = smartFolders.data.find((candidate) => candidate.id === pendingId) ?? null;
       if (
         folder !== null &&
-        resolveVideoTarget(folder).usable &&
-        parseSearchQuery(folder.query).durations.length === 0
+        resolveVideoTarget(folder).usable
       ) {
         pendingState = "apply";
         applyId = pendingId;
