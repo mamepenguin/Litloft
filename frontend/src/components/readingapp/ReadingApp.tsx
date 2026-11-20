@@ -16,9 +16,22 @@ import { useReadingApp } from "./useReadingApp";
 
 const PANEL_ID = "reading-app-panel";
 
-export function ReadingApp({ drive }: { drive: string }) {
+export function ReadingApp({
+  drive,
+  target = null,
+  homeEntry,
+  onTargetHandled,
+}: {
+  drive: string;
+  /** The `?target=` value on the root route; absent on every other route. */
+  target?: string | null;
+  /** The key of this app's Home entry. */
+  homeEntry?: string;
+  /** Called once the `?target=` has been applied or ignored, to drop it from the URL. */
+  onTargetHandled?: () => void;
+}) {
   const t = useTranslations("readingApp");
-  const state = useReadingApp(drive);
+  const state = useReadingApp(drive, target, onTargetHandled);
   const face = state.prefs?.face;
 
   const discover = useDiscover({
@@ -43,7 +56,10 @@ export function ReadingApp({ drive }: { drive: string }) {
   );
 
   return (
-    <PageFrame width="wide" header={<ReadingAppHeader drive={drive} state={state} tabs={tabs} />}>
+    <PageFrame
+      width="wide"
+      header={<ReadingAppHeader drive={drive} state={state} tabs={tabs} homeEntry={homeEntry} />}
+    >
       <div
         id={PANEL_ID}
         role="tabpanel"

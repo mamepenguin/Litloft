@@ -1,11 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Library, ListFilter, Settings2, Target } from "lucide-react";
+import { useCallback, useMemo, useState } from "react";
+import { House, Library, ListFilter, Settings2, Target } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 
 import { MenuRadioGroup, MenuSeparator, ToolbarMenu } from "@/components/ToolbarMenu";
-import { getDriveFiles } from "@/lib/api";
+import { useToast } from "@/components/ToastProvider";
+import { getDriveFiles, getHomeShortcuts, setHomeShortcut } from "@/lib/api";
 import { collectionTargetId } from "@/lib/appTarget";
 import type { AppKey } from "@/lib/appPrefs";
 import type { CollectionSummary, FileKind } from "@/types";
@@ -26,6 +27,8 @@ export interface TargetRow {
 export interface TargetMenuProps {
   drive: string;
   app: AppKey;
+  /** The key of this app's Home entry; without it the menu has no Home row. */
+  homeEntry?: string;
   /** What the button reads; `null` while the saved target is looked up. */
   name: string | null;
   folders: LoadState<SmartFolder[]>;
@@ -83,6 +86,45 @@ function isPending(state: LoadState<unknown>): boolean {
   return state.status === "idle" || state.status === "loading";
 }
 
+const ROW =
+  "flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-text-primary transition-colors hover:bg-bg-elevated focus-visible:-outline-offset-2";
+
+/**
+ * Mounted only while the menu is open, so each open asks the server whether
+ * this app and Target are already on Home.
+ */
+function HomeRow({
+  drive,
+  homeEntry,
+  targetId,
+  onChoose,
+}: {
+  drive: string;
+  homeEntry: string;
+  targetId: string;
+  onChoose: (onHome: boolean) => void;
+}) {
+  const t = useTranslations("appShell");
+  const load = useMemo(() => () => getHomeShortcuts(drive), [drive]);
+  const { state } = useLoad(load);
+  if (state.status !== "loaded") return null;
+
+  const onHome = state.data.some(
+    (shortcut) =>
+      shortcut.kind === "app_target" &&
+      shortcut.app === homeEntry &&
+      shortcut.id === targetId,
+  );
+  return (
+    <button type="button" role="menuitem" onClick={() => onChoose(!onHome)} className={ROW}>
+      <span className="w-4 flex-shrink-0">
+        <House size={14} />
+      </span>
+      {onHome ? t("removeFromHome") : t("putOnHome")}
+    </button>
+  );
+}
+
 /** Mounted only while the menu is open, so the default target's count is asked for then. */
 function Rows({
   drive,
@@ -95,7 +137,10 @@ function Rows({
   defaultTargetTypes,
   defaultTargetExcludeOrigin,
   defaultTargetOrigin,
+  homeEntry,
+  putting,
   onChoose,
+  onHome,
   onManage,
 }: {
   drive: string;
@@ -108,7 +153,10 @@ function Rows({
   defaultTargetTypes: readonly FileKind[];
   defaultTargetExcludeOrigin?: string;
   defaultTargetOrigin?: string;
+  homeEntry?: string;
+  putting: boolean;
   onChoose: (id: string) => void;
+  onHome: (onHome: boolean) => void;
   onManage: () => void;
 }) {
   const t = useTranslations("appShell");
@@ -157,11 +205,19 @@ function Rows({
         onSelect={onChoose}
       />
       <MenuSeparator />
+      {homeEntry !== undefined && !onDefault && !putting && (
+        <HomeRow
+          drive={drive}
+          homeEntry={homeEntry}
+          targetId={selectedId}
+          onChoose={onHome}
+        />
+      )}
       <button
         type="button"
         role="menuitem"
         onClick={onManage}
-        className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-text-primary transition-colors hover:bg-bg-elevated focus-visible:-outline-offset-2"
+        className={ROW}
       >
         <span className="w-4 flex-shrink-0">
           <Settings2 size={14} />
@@ -175,6 +231,7 @@ function Rows({
 export function TargetMenu({
   drive,
   app,
+  homeEntry,
   name,
   folders,
   collections,
@@ -192,7 +249,26 @@ export function TargetMenu({
 }: TargetMenuProps) {
   const { saved, setShown } = useShownTargets(app, drive);
   const [manageOpen, setManageOpen] = useState(false);
+  const [putting, setPutting] = useState(false);
   const locale = useLocale();
+  const tDrive = useTranslations("drive");
+  const toast = useToast();
+
+  const putOnHome = useCallback(
+    (onHome: boolean) => {
+      if (homeEntry === undefined) return;
+      setPutting(true);
+      void setHomeShortcut(drive, {
+        kind: "app_target",
+        app: homeEntry,
+        id: selectedId,
+        on_home: onHome,
+      })
+        .catch(() => toast.error(tDrive("homeShortcutFailed")))
+        .finally(() => setPutting(false));
+    },
+    [drive, homeEntry, selectedId, tDrive, toast],
+  );
 
   const folderData = folders.status === "loaded" ? folders.data : NO_FOLDERS;
   const collectionData =
@@ -231,9 +307,15 @@ export function TargetMenu({
             defaultTargetTypes={defaultTargetTypes}
             defaultTargetExcludeOrigin={defaultTargetExcludeOrigin}
             defaultTargetOrigin={defaultTargetOrigin}
+            homeEntry={homeEntry}
+            putting={putting}
             onChoose={(id) => {
               onChoose(id);
               close();
+            }}
+            onHome={(onHome) => {
+              close();
+              putOnHome(onHome);
             }}
             onManage={() => {
               close();

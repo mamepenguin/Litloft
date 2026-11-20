@@ -60,6 +60,7 @@ export function VideoShelfPage({
   from,
   entry,
   slot,
+  homeEntry,
 }: {
   drive: string;
   by: ShelfGrouping | null;
@@ -74,6 +75,8 @@ export function VideoShelfPage({
   entry?: string | null;
   /** Which slot `entry` belongs to; `recommended` pages Recommended's provider. */
   slot?: string | null;
+  /** The key of this app's Home entry. */
+  homeEntry?: string;
 }) {
   const t = useTranslations("videoApp");
   const tGlobal = useTranslations();
@@ -275,6 +278,7 @@ export function VideoShelfPage({
           drive={drive}
           state={state}
           title={title}
+          homeEntry={homeEntry}
           breadcrumb={
             <Link
               href={app.route(drive)}

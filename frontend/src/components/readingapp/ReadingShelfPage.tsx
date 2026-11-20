@@ -63,6 +63,7 @@ export function ReadingShelfPage({
   watch: urlWatch,
   onTargetChosen,
   from,
+  homeEntry,
 }: {
   drive: string;
   by: ShelfGrouping | null;
@@ -74,6 +75,8 @@ export function ReadingShelfPage({
   /** Called after a Target is chosen on this page, to drop the URL's filters. */
   onTargetChosen?: () => void;
   from?: string | null;
+  /** The key of this app's Home entry. */
+  homeEntry?: string;
 }) {
   const t = useTranslations("readingApp");
   const locale = useLocale();
@@ -231,6 +234,7 @@ export function ReadingShelfPage({
           drive={drive}
           state={state}
           title={title}
+          homeEntry={homeEntry}
           breadcrumb={
             <Link
               href={`/drive/${encodeURIComponent(drive)}/apps/reading`}

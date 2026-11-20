@@ -30,6 +30,7 @@ export default function ReadingShelfRoute() {
       watch={search.get("watch")}
       onTargetChosen={dropFilters}
       from={search.get("from")}
+      homeEntry="reading"
     />
   );
 }

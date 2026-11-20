@@ -30,6 +30,7 @@ export default function VideoShelfRoute() {
       from={search.get("from")}
       entry={search.get("entry")}
       slot={search.get("slot")}
+      homeEntry="video"
     />
   );
 }
