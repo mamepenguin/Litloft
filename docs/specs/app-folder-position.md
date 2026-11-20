@@ -44,10 +44,11 @@ Checkable decisions:
 
 - D1. Order on the Library tab, top to bottom: the tabs, the crumbs, the chips, the
   existing control row (tag, state | group, sort), then the shelves or grid.
-- D2. The crumbs: a home icon (accessible name, no visible text), then one link per
-  ancestor folder segment, then the current folder as plain text in the primary colour,
-  medium weight. Separators are `ChevronRight` 14 px. Ancestors are muted and turn
-  primary on hover, as in `components/Breadcrumb.tsx`.
+- D2. The crumbs: a home icon (accessible name, no visible text), then one segment per
+  folder level, the last in the primary colour, medium weight. Separators are
+  `ChevronRight` 14 px. Link segments are muted and turn primary on hover, as in
+  `components/Breadcrumb.tsx`; plain segments other than the last are muted with no
+  hover and no pointer cursor. On a fine pointer the crumbs wrap and sit in no box.
 - D3. The chips: one per child folder, the folder's last segment followed by its file
   count in the muted colour. Rounded-full on `--bg-elevated`, no border, no selected
   state. A chip is a link.
@@ -89,11 +90,15 @@ Checkable decisions:
    the raw position, because the shelf page uses the URL's folders in place of the
    target's.
 5. The crumbs are drawn from `base` when `base` is the position or lies under it, and from
-   the position otherwise (`base` can only be deeper). A segment at or above the
-   position, other than the last one drawn, is a link that pushes the URL with that
-   folder; a segment between the position and `base` is plain text, because choosing it
-   would show the same view. The home crumb pushes the URL without `folder`, and is plain
-   when there is no `folder` already.
+   the position otherwise (`base` can only be deeper). Once the first chip page has
+   arrived, its `base` is kept even if a later page fails. A segment is a link only when
+   choosing it changes the view: it is a strict ancestor of the position, and
+   `narrowFolders(target folders, segment)` differs from the target's own folders (a
+   segment above a folder-limited target's folder shows the same as the top). A link
+   pushes the URL with that folder. Every other segment, including the position's own
+   when `base` is deeper and every segment between the position and `base`, is plain
+   text. The home crumb pushes the URL without `folder`, and is plain when there is no
+   `folder` already.
 6. Back and Forward move between positions, because the position is read from the URL.
    A position reached by Back is applied to the target in force, even if it was set
    under another target: the target is not in the URL, so the app cannot tell, and a
@@ -110,9 +115,10 @@ Checkable decisions:
   drawn from the position. The shelves still load.
 - The shelves or grid request fails: the existing Retry.
 - The position narrows the target to no folder (a folder-limited Smart Collection that
-  does not contain it): the Library shows its empty state with the crumbs, and no
-  Library request is sent without a folder condition. This is Reading's existing
-  `blocked` path, extended to Video.
+  does not contain it): the Library shows its empty state with the crumbs drawn from the
+  position, and no chips. No shelves, grid, tag-candidate or chip request is sent. This
+  extends Reading's existing `blocked` path, which today still asks for tag candidates
+  with no folder, and applies it to Video.
 - The position names a folder with nothing in it under the target (renamed or emptied):
   the requests are sent, return nothing, and the Library shows its empty state with the
   crumbs.
@@ -132,6 +138,7 @@ Position: `top` (no `folder` parameter) or `at(folder)`.
 | any | Back / Forward | the entry's position |
 | any | another target chosen | `top`, replaced |
 | any | same target chosen | unchanged |
+| any | target changes without a menu choice (saved one deleted or unusable → default, member re-evaluated) | unchanged; the URL is not touched and the position applies to the target now in force |
 | any | reload | unchanged |
 | any | Discover ↔ Library tab | unchanged; Discover ignores it |
 | `at(f)` | invalid `f` in the URL | `top`, replaced |
@@ -139,11 +146,19 @@ Position: `top` (no `folder` parameter) or `at(folder)`.
 Chips: loading (nothing drawn, the space is not reserved), ready, failed (Retry), none
 (D6).
 
+Target conditions around the Library face keep today's behaviour, and the URL's
+`folder` is kept through all of them:
+- Target loading, member evaluation failed, or target unusable: the face is not drawn,
+  so neither are the crumbs and chips.
+- Target that intersects no kind (`empty`): Reading shows its unusable-target state as
+  today; Video shows its no-files state with no crumbs or chips. No chip request is sent.
+
 ### 4. Data read and written
 
 - Read: `GET /api/drives/{drive}/shelves` and `POST /api/drives/{drive}/shelves/query`
-  (member targets), with `folder`; `tag-counts` with `folder`. All exist and already
-  accept `folder`.
+  (member targets), with `folder`; `GET /api/drives/{drive}/tag-counts` and
+  `POST /api/drives/{drive}/tag-counts/query` (member targets) with `folder`. All exist
+  and already accept `folder`.
 - Written: the URL only. No localStorage key, no sessionStorage, no table, no endpoint.
 
 ### 5. External services
@@ -211,14 +226,24 @@ today.
 - `frontend/e2e-layout/reading-video-faces.spec.ts` and
   `frontend/e2e-layout/fixtures/reading-video-faces.html`: the Video Library's
   `chipRow` is null today and is asserted present after this change, on purpose. The
-  same case measures D4 and D9 for the crumbs row and the chips row in both apps: on a
-  coarse pointer one line each with sideways scroll and every item at least 44 px tall,
-  on a fine pointer wrapping inside the 8 rem box, and no horizontal page scroll at
-  390 px.
+  same case measures D2, D4 and D9 in both apps: on a coarse pointer the crumbs and the
+  chips are one line each with sideways scroll and every item at least 44 px tall; on a
+  fine pointer the chips wrap inside the 8 rem box and the crumbs wrap outside any box;
+  no horizontal page scroll at 390 px. Discover still has neither row.
 - `frontend/src/components/__tests__/readingVideoLayoutFixtureParity.test.tsx`: the
   parity shapes of the old toggle chip row are replaced by the crumbs and link chips.
 - The existing Reading tests built on the `すべて` chip and `aria-pressed` are replaced
-  by position tests covering the same conditions, not deleted.
+  by position tests covering the same conditions, not deleted. Position tests drive the
+  app through the page's URL wiring, not a component rendered with no URL.
+- `frontend/src/components/readingapp/__tests__/folders.test.ts` moves with
+  `folders.ts`.
+
+Implementation notes the reviewers raised:
+- The page removes `target` (a Home shortcut) and `folder` in one URL replace built from
+  one snapshot of the search params, so neither removal undoes the other.
+- Both shelf routes' handling of a target chosen on the See all page drops `folder` and
+  `from_folder` with the other URL conditions.
+- At the top, Video's See all links carry no `folder`; only a position adds one.
 - `frontend/src/components/appshell/` (a shared crumbs-and-chips row, moving
   `folders.ts` and `useFolderChips.ts` there)
 - `frontend/src/messages-core/{ja,en}.json`
@@ -233,7 +258,7 @@ I1. Under a position, every Library request and every See all link is limited to
 under the position and inside the target; a position never adds a file the target
 excludes.
 I2. A position that leaves no folder inside the target shows the empty state and sends no
-Library request without a folder condition.
+shelves, grid, tag-candidate or chip request.
 I3. Discover's requests are the same with or without a position.
 I4. Choosing a chip or a link crumb adds exactly one history entry, and Back restores the
 previous position with its shelves.
@@ -243,7 +268,8 @@ I6. The chips and the crumbs are the same whatever tag, state or name filter is 
 I7. Moving the position changes neither the grouping and sort saved for the target nor
 the chosen tag, state and name filters.
 I8. A chip's link goes to a folder one level below the crumbs' last folder, and every
-crumb's link goes to an ancestor of it.
+crumb link goes to a strict ancestor of the position whose view differs from the
+current one.
 I9. The position is stored nowhere but the URL: opening the Library without `folder`
 always shows the top of the target.
 I10. A `folder` value the backend would reject is removed from the URL with replace, and
@@ -251,6 +277,11 @@ no request carries it.
 I11. A failed chip request leaves the shelves or grid requested and drawn.
 I12. Video's See all page applies the `folder` in its URL to every request, and drops it
 when a target is chosen there.
+I13. A See all page's link back to the Library opens at the position it was opened from,
+and at the top when there was none or a target was chosen on the See all page.
+I14. Chips and a `base` answered for an earlier position are never drawn under a later
+one.
+I15. The header's count is the same at every position of a target.
 
 ## Checked, no action
 
@@ -263,5 +294,7 @@ when a target is chosen there.
 - Showing the target's name as the root crumb: it is in the target control just above.
 - Collapsing long crumb trails into `…`: folder depth in practice is a few levels, and
   the phone row scrolls sideways (D4).
+- An invariant for the scroll to the top on a chip or crumb: missing it is seen at once
+  and costs a scroll; §9 states it and an acceptance test may check it.
 - A backend `has_subfolders` flag so that a leaf chip is not offered: every chip leads
   somewhere, and a leaf shows its own files (D6).
