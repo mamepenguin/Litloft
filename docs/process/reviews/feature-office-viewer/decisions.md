@@ -1,6 +1,6 @@
 # Decisions
 
-decision: continue (user, 2026-11-21: "ok" to the proposal on r1). Fix the synthetic body click by clearing x-data-spreadsheet's sheet.focusing directly (R1 and the DismissScrim note), and make a viewer's dispose clear only the grid state it set (module-global probe note). Accept the dependency on @js-preview/excel's private observer field: the version is pinned exactly, so it changes only on a deliberate upgrade, which R-5 re-checks.
+decision: continue (user, 2026-11-21: "ok" to the proposal on r1). Fix the synthetic body click by clearing x-data-spreadsheet's sheet.focusing directly (R1 and the DismissScrim note), and make a viewer's dispose clear only the grid state it set (module-global probe note). Accept the dependency on @js-preview/excel's private observer field: the version is pinned exactly, so it changes only on a deliberate upgrade, which R-5 re-checks. | r2 (user, 2026-11-21: "はい" to the proposal on r2): accept R2 — a press that closes a DismissScrim menu over the grid selects a cell without activating the grid, so the next ← / → changes file; it follows the app-wide scrim, which closes on pointerdown and swallows only the click. Accept writing the private xs.sheet.focusing for the same reason as reading it (exact version pin, R-5 on upgrade). Fix R1 with one test of the release on focus-out and on unmount.
 ran_in_app: yes
 at: caf19847ae7ec51b74387b6704f8e93a221e36f0
 by: agent

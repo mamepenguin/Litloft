@@ -25,23 +25,35 @@ vi.mock("docx-preview", () => {
   return { ...api, default: api };
 });
 
-// Shaped like x-spreadsheet's own markup, so the click lands where a viewer's click would.
+const sheets = vi.hoisted(() => [] as { focusing: boolean }[]);
+
+// Shaped like x-spreadsheet's own markup, so the click lands where a viewer's
+// click would; `xs.sheet.focusing` is set by a window click the way the
+// library sets it, and its window handlers act on keys only while it is true.
 vi.mock("@js-preview/excel", () => {
   const api = {
-    init: (container: HTMLElement) => ({
-      preview: async (data: unknown) => {
-        const grid = document.createElement("div");
-        grid.className = "x-spreadsheet";
-        const table = document.createElement("canvas");
-        table.className = "x-spreadsheet-table";
-        table.setAttribute("data-testid", "grid-cells");
-        const label = document.createElement("div");
-        label.textContent = `drawn:${await idOfBody(data)}`;
-        grid.append(table, label);
-        container.append(grid);
-      },
-      destroy: () => {},
-    }),
+    init: (container: HTMLElement) => {
+      const sheet = { focusing: false };
+      sheets.push(sheet);
+      window.addEventListener("click", (event) => {
+        sheet.focusing = container.contains(event.target as Node);
+      });
+      return {
+        xs: { sheet },
+        preview: async (data: unknown) => {
+          const grid = document.createElement("div");
+          grid.className = "x-spreadsheet";
+          const table = document.createElement("canvas");
+          table.className = "x-spreadsheet-table";
+          table.setAttribute("data-testid", "grid-cells");
+          const label = document.createElement("div");
+          label.textContent = `drawn:${await idOfBody(data)}`;
+          grid.append(table, label);
+          container.append(grid);
+        },
+        destroy: () => {},
+      };
+    },
   };
   return { ...api, default: api };
 });
@@ -79,6 +91,7 @@ const WORD = officeFile({ id: "doc-a" });
 
 
 beforeEach(() => {
+  sheets.length = 0;
   vi.stubGlobal("ResizeObserver", InertResizeObserver);
   installNetwork();
   vi.spyOn(console, "warn").mockImplementation(() => {});
@@ -109,7 +122,7 @@ function renderPage(file: FileItem) {
         <Page file={next} onNavigate={onNavigate} />
       </ShortcutsProvider>,
     );
-  return { onNavigate, rerender };
+  return { onNavigate, rerender, unmount: view.unmount };
 }
 
 async function shown(id: string) {
@@ -170,4 +183,24 @@ describe("SPEC-CORE-155 I8 the arrows and an active Excel grid", () => {
     expect(onNavigate).toHaveBeenCalledWith("next1");
   });
 
+});
+
+describe("SPEC-CORE-155 I9 I10 the grid lets go of the page's keys", () => {
+  it("when focus moves to a field outside it, and when the viewer unmounts", async () => {
+    const { unmount } = renderPage(SHEET);
+    await shown("sheet-a");
+    const sheet = sheets[0];
+
+    clickOn(screen.getByTestId("grid-cells"));
+    expect(sheet.focusing).toBe(true);
+    act(() => {
+      screen.getByRole("textbox", { name: "comment" }).focus();
+    });
+    expect(sheet.focusing).toBe(false);
+
+    clickOn(screen.getByTestId("grid-cells"));
+    expect(sheet.focusing).toBe(true);
+    unmount();
+    expect(sheet.focusing).toBe(false);
+  });
 });
