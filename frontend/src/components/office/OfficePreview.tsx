@@ -119,12 +119,14 @@ export function OfficePreview({
     );
   }
 
+  // `isolate` keeps the libraries' own z-indexes inside the frame; without it
+  // the grid rises above a menu's dismiss scrim and takes the closing click.
   return (
     <div
       ref={frameRef}
       role="region"
       aria-label={t("officeViewer")}
-      className={`relative w-full overflow-hidden rounded-xl bg-bg-card ${
+      className={`relative isolate w-full overflow-hidden rounded-xl bg-bg-card ${
         fillCanvas ? "" : "h-[80vh]"
       }`}
       style={fillCanvas ? { height: fillHeight ?? 0 } : undefined}
