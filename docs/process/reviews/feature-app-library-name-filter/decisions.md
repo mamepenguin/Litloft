@@ -1,6 +1,6 @@
 # Decisions
 
-decision: D-1 to D-11 of design-check.md accepted by the human (2026-11-21). D-1 to D-4 and D-6 to D-9 are the shipped cards, shelves, header, tab underline and empty-state text, which the artboards drew loosely and this change does not touch; D-10 is the existing header Target row and quiet sort menu, with the field placed as drawn; D-5 is the artboard's inconsistency, and the spec's strong border while the field holds text stands; D-11 records that no artboard draws Clips at 390.
+decision: D-1 to D-11 of design-check.md accepted by the human (2026-11-21). D-1 to D-4 and D-6 to D-9 are the shipped cards, shelves, header, tab underline and empty-state text, which the artboards drew loosely and this change does not touch; D-10 is the existing header Target row and quiet sort menu, with the field placed as drawn; D-5 is the artboard's inconsistency, and the spec's strong border while the field holds text stands; D-11 records that no artboard draws Clips at 390. r1 HUMAN_REVIEW_REQUIRED: the human said "続ける" (continue, 2026-11-21): SPEC-CORE-099 I13 is revised in invariants.md for listing-mode shelf pages below 640px (the sort under the name field, at its start), as the agreed PhoneSeeAll design and SPEC-CORE-156 I12 already state; the B touch-point findings and the double Clips replace are left as recorded.
 ran_in_app: yes
 at: d2012b837ad8a8bb81bcf9e8e0b648c0c556a598
 by: agent

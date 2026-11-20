@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1",
+      "status": "confirmed",
+      "note": "frontend/e2e-components/app-header.spec.ts:196 titles the test 'SPEC-CORE-099 I13 ... at 375px: the sort menu is the header's last row, at its start', and line 206 asserts Math.abs(sort.left - m.contentLeft) <= 1. VideoShelfPage.tsx:315 wraps NameFilter and SortChoiceMenu in a 'flex w-full min-w-0 flex-col items-start' div below sm, which puts the sort at the start. docs/specs/addon-app-header.md:334-335 still says I13 is 'at its right end'. A grep of docs for '099' in the name-filter spec and review files finds nothing, so neither the spec's Revises section nor invariants.md revises SPEC-CORE-099 I13. The spec's touch-point list (app-library-name-filter.md) names neither app-header.spec.ts nor addon-app-header.md, but r1/classification.json:42 lists app-header.spec.ts as part of the diff."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F2",
+      "status": "confirmed",
+      "note": "addons/knowledge/frontend/clipsapp/ClipShelfBlock.tsx:50 exports FilteredEmpty. Library.tsx:23 and ShelfPage.tsx:9 import it from ./ClipShelfBlock. r1/product-files.txt:1 lists ClipShelfBlock.tsx as a changed product file. The spec's touch-point list does not name ClipShelfBlock.tsx."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F3",
+      "status": "confirmed",
+      "note": "frontend/src/__tests__/ime-enter-guard.test.ts:40 lists 'components/appshell/NameFilter.tsx', and line 106 asserts toHaveLength(21). r1/test-files.txt:6 lists the file as changed. The spec mentions ime-enter-guard nowhere; its only named source-scanning tests are tab-styles.test.ts and section-rows.test.tsx."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F4",
+      "status": "confirmed",
+      "note": "frontend/src/__tests__/appTargetParam.test.tsx:470 and :483 hold the two SPEC-CORE-156 I4 Home-shortcut cases. r1/test-files.txt:5 lists the file as changed. The spec does not name appTargetParam."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F5",
+      "status": "confirmed",
+      "note": "frontend/e2e-components/projects.ts:11 adds '**/name-filter-desktop.spec.ts' to DESKTOP_ONLY. spec-viewport.spec.ts:86 and :107 register name-filter.spec.ts and name-filter-desktop.spec.ts. name-filter.measure.ts exists. addons/knowledge/frontend/__tests__/clipsAppHarness.tsx:134, 192 and 335 add matchSearch. All of these files appear in r1/product-files.txt or r1/test-files.txt, and none is named in the spec's touch points. name-filter.measure.ts can fairly be read as part of 'new specs for the name field'; the registries and the harness cannot."
+    }
+  ],
+  "specification_compliance": [
+    "Behaviour against SPEC-CORE-099 I13 has changed: below 640px the sort now sits at the content's start, while docs/specs/addon-app-header.md:334-335 still says right end, and no Revises entry covers this (F1).",
+    "Several files changed outside the declared touch points (F2-F5). Apart from F1, these are test, infra or refactor files and do not change the declared behaviour."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "The sort menu's position on shelf pages below 640px has moved from the right end to the start, which goes beyond what the spec revises (F1)."
+  ],
+  "regression_risks": [
+    "addon-app-header.md I13 and the e2e assertion now disagree, so a later reader may 'fix' one to match the other."
+  ],
+  "test_coverage": [
+    "ime-enter-guard covers NameFilter's IME Enter handling.",
+    "appTargetParam covers I4 for both Home-shortcut cases.",
+    "The new name-filter e2e specs are registered for both phone and desktop viewports."
+  ],
+  "not_verified": [
+    "I did not run any tests or e2e specs.",
+    "I could not run git, so I did not view the diff itself against origin/develop. I relied on the files as they are now and on the r1 file lists.",
+    "I did not check the full content of the other touch-point files."
+  ],
+  "confidence": 88
+}
