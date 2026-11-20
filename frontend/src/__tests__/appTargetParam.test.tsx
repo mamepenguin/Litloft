@@ -411,6 +411,21 @@ describe.each(APPS)("SPEC-CORE-154 $id opened with ?target=", (appCase) => {
       expect(targetButton()).toHaveTextContent("Trips");
     });
 
+    it("SPEC-CORE-154 I4 I8 the Target menu opened while pending offers no Home row and asks no count", async () => {
+      collections = held(collections);
+      open(app, "target=collection%3Ac-trip");
+      await waitFor(() => expect(wire.calls.some(isCollections)).toBe(true));
+      await settle();
+
+      fireEvent.click(targetButton());
+      await screen.findByRole("menuitemradio", { name: "Trips" });
+      await settle();
+
+      expect(screen.queryByRole("menuitem", { name: "Put on Home" })).toBeNull();
+      expect(screen.queryByRole("menuitem", { name: "Remove from Home" })).toBeNull();
+      expect(wire.calls.filter(underTarget)).toEqual([]);
+    });
+
     it("SPEC-CORE-154 I6 leaving the page while pending drops the id unwritten", async () => {
       collections = held(collections);
       const view = open(app, "target=collection%3Ac-trip");

@@ -138,6 +138,7 @@ function Rows({
   defaultTargetExcludeOrigin,
   defaultTargetOrigin,
   homeEntry,
+  lookingUp,
   putting,
   onChoose,
   onHome,
@@ -154,6 +155,7 @@ function Rows({
   defaultTargetExcludeOrigin?: string;
   defaultTargetOrigin?: string;
   homeEntry?: string;
+  lookingUp: boolean;
   putting: boolean;
   onChoose: (id: string) => void;
   onHome: (onHome: boolean) => void;
@@ -166,9 +168,11 @@ function Rows({
   // every render of the open menu.
   const typesKey = JSON.stringify(defaultTargetTypes);
   const types = useMemo<FileKind[]>(() => JSON.parse(typesKey), [typesKey]);
+  // While the Target is still looked up (`name` is null) no request is sent:
+  // the default's count would go out before the Target it may be replaced by.
   const loadDefaultCount = useMemo(
     () =>
-      onDefault
+      onDefault || lookingUp
         ? null
         : () =>
             getDriveFiles(drive, {
@@ -177,7 +181,7 @@ function Rows({
               ...(defaultTargetOrigin ? { origin: defaultTargetOrigin } : {}),
               ...(defaultTargetExcludeOrigin ? { exclude_origin: defaultTargetExcludeOrigin } : {}),
             }).then((page) => page.meta.total),
-    [drive, onDefault, types, defaultTargetExcludeOrigin, defaultTargetOrigin],
+    [drive, onDefault, lookingUp, types, defaultTargetExcludeOrigin, defaultTargetOrigin],
   );
   const { state } = useLoad(loadDefaultCount);
   const defaultCount = onDefault ? currentCount : state.status === "loaded" ? state.data : null;
@@ -308,6 +312,7 @@ export function TargetMenu({
             defaultTargetExcludeOrigin={defaultTargetExcludeOrigin}
             defaultTargetOrigin={defaultTargetOrigin}
             homeEntry={homeEntry}
+            lookingUp={name === null}
             putting={putting}
             onChoose={(id) => {
               onChoose(id);

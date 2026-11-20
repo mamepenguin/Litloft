@@ -57,7 +57,7 @@ export function VideoAppHeader({
       target={{
         drive,
         app: "video",
-        homeEntry,
+        homeEntry: state.targetKnown ? homeEntry : undefined,
         name: state.targetKnown ? (state.targetName ?? t("allVideos")) : null,
         folders: state.smartFolders,
         collections: { list: state.collections, retry: state.retryCollections },

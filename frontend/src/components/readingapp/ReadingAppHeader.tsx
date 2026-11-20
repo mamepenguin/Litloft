@@ -55,7 +55,7 @@ export function ReadingAppHeader({
       target={{
         drive,
         app: "reading",
-        homeEntry,
+        homeEntry: state.targetKnown ? homeEntry : undefined,
         name: state.targetKnown ? (state.targetName ?? t("allBooks")) : null,
         folders: state.smartFolders,
         collections: { list: state.collections, retry: state.retryCollections },
