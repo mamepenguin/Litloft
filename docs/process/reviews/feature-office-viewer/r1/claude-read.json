@@ -1,0 +1,149 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "R1",
+      "origin": "reviewer",
+      "claim": "The Excel adapter sends a synthetic `click` event to `document.body`, which reaches every document- and window-level click listener in the app; no touch point names this app-wide reach.",
+      "impact": "Every capture- or bubble-phase click listener on document or window receives an extra click that the user never made. This happens in two cases: focus leaves the frame while the grid is active, and the viewer unmounts with the grid active. The listeners include DismissScrim's armed `swallow` (DismissScrim.tsx:59) and the `window` click handlers that earlier workbooks left behind. In this codebase I found no listener whose visible behaviour changes. A future outside-click handler would see the phantom click, though, and nothing tests for it.",
+      "evidence": "frontend/src/components/office/excelAdapter.ts:17-19 `releaseGridFocus` dispatches `new MouseEvent('click', {bubbles:true})` on document.body. It is called from `onFocusIn` (lines 63-68) and from `dispose` (lines 92-95). The spec's Touch points list the containment of the library's window listeners in `components/office/`. They do not name events that Litloft itself sends to app-wide listeners. A grep for document/window `click` listeners in frontend/src found only DismissScrim.tsx:59 (a capture-phase swallow that only disarms itself).",
+      "repro": "not_reproduced. By reading: click the grid, then press Ctrl/Cmd+F so focus moves to the find field. `onFocusIn` then dispatches a body click, which runs through every document/window click listener before the next real click.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "No declared invariant breaks with the listeners that exist today. The change reaches app-wide click listeners, a place that is not in the touch-point list. The finding answers the first-review question."
+      },
+      "severity": "LOW",
+      "proposed_fix": "Name in the touch points, or in a comment beside `releaseGridFocus`, that the containment sends a synthetic body click to app-wide listeners. Another option is to dispatch the click on a dedicated detached target that only x-spreadsheet's window handler sees (it checks only that the target is outside the grid). With that option, the synthetic click no longer reaches app-wide listeners."
+    }
+  ],
+  "specification_compliance": [
+    "Every product path in the diff matches a touch point. That covers package.json and the lockfile (exact versions 0.4.1 and 1.7.14), the FilePreview branch before the fallback, the new components/office/ module (it does not import @/lib/officeFiles), the officeViewerFor export in lib/officeFiles.ts (it shares OFFICE_PREVIEW_MAX_BYTES), the useFileNav gate (PAGED_MIMES unchanged, no import of officeFiles), and messages-core file.officeViewer in en and ja.",
+    "officeMimes.test.ts expects exactly the four importers named in the touch point.",
+    "In FilePreview.test.tsx the excerpt test moves its fixture from .xlsx to .pptx and keeps its assertions, as the touch point requires.",
+    "The docs/user-guide changes cover the three files that are listed. docs/specs/INDEX.md and docs/specs/office-viewer.md are implicit touch points.",
+    "excelContainment.css only reverts the three unscoped library rules, using `html form fieldset ...` with revert-layer. The only unlayered rules in globals.css that touch label/select are `:lang(ja)` rules for line-height and line-break, and the revert does not touch those properties. So for I13, I found no Litloft style that the revert would undo by mistake."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "excelAdapter replaces the library's own MutationObserver (`spreadsheet.observer.disconnect()`) with one that makes inputs read-only and blurs only elements inside the grid. This depends on a private field of @js-preview/excel. If the field is missing, the library's observer, which blurs whatever element has focus, keeps running.",
+    "officeGridActive.ts holds module-global state that the hook layer (useFileNav) reads. A second Excel viewer mounted at the same time, or a later one, overwrites the focus probe, and the first one's dispose resets it to null."
+  ],
+  "regression_risks": [
+    "The synthetic body click from releaseGridFocus reaches every document/window click listener, including ones added later (R1).",
+    "The useFileNav arrow handlers now read a global signal on every page. If dispose did not run (an adapter that threw before it returned dispose after preview), a stale `active=true` would block the arrows. preview's catch calls dispose, which limits this risk."
+  ],
+  "test_coverage": [
+    "The tests cover I1, I2 (including exactly at the cap), I3 (Word 410, Excel preview rejecting), I4 (pptx, docx over the cap, missing xlsx), I5 for Word (module evaluation counts), I6 (new id, aborted pending fetch, file_size change), I7 (re-render, equal object, resize), I8 (grid active, click outside, Word) and I14.",
+    "No test fires the synthetic body click or checks how app-wide click listeners behave while the grid releases its focus.",
+    "Not tested: I3 for library or stylesheet load failure, the modified_at identity change, the I5 Excel lazy-load counterpart, and I7 no-refetch after failed. Those may sit in files outside this list."
+  ],
+  "not_verified": [
+    "The behaviour of the real libraries (x-data-spreadsheet window handlers, the `focusing` flag, the `observer` field) in a browser",
+    "Whether any addon frontend code outside frontend/src adds document/window click listeners",
+    "The production CSS chunk order and whether revert-layer resolves as intended against the library's stylesheet in the built app",
+    "Whether all tests pass (I could not run commands)"
+  ],
+  "coverage": [
+    {
+      "path": "frontend/package.json",
+      "read": "full",
+      "reason": "The changed hunk in the diff (two dependency lines)."
+    },
+    {
+      "path": "frontend/pnpm-lock.yaml",
+      "read": "full",
+      "reason": "All changed hunks in the diff."
+    },
+    {
+      "path": "frontend/src/components/FilePreview.tsx",
+      "read": "partial",
+      "reason": "The diff hunks, and lines 230-297 of the file (the new branch and the fallback)."
+    },
+    {
+      "path": "frontend/src/components/office/OfficePreview.tsx",
+      "read": "full",
+      "reason": "A new file, read whole in the diff."
+    },
+    {
+      "path": "frontend/src/components/office/excelAdapter.ts",
+      "read": "full",
+      "reason": "A new file, read whole in the diff."
+    },
+    {
+      "path": "frontend/src/components/office/excelContainment.css",
+      "read": "full",
+      "reason": "A new file, read whole in the diff. Checked against the label/select rules in globals.css."
+    },
+    {
+      "path": "frontend/src/components/office/officeGridActive.ts",
+      "read": "full",
+      "reason": "A new file, read whole in the diff."
+    },
+    {
+      "path": "frontend/src/components/office/wordAdapter.ts",
+      "read": "full",
+      "reason": "A new file, read whole in the diff."
+    },
+    {
+      "path": "frontend/src/hooks/useFileNav.ts",
+      "read": "full",
+      "reason": "The whole file, read with the Read tool."
+    },
+    {
+      "path": "frontend/src/lib/officeFiles.ts",
+      "read": "full",
+      "reason": "All changed hunks and the new function in the diff."
+    },
+    {
+      "path": "frontend/src/messages-core/en.json",
+      "read": "full",
+      "reason": "The changed hunk in the diff."
+    },
+    {
+      "path": "frontend/src/messages-core/ja.json",
+      "read": "full",
+      "reason": "The changed hunk in the diff."
+    },
+    {
+      "path": "frontend/src/__tests__/helpers/officeLazyLoadCases.ts",
+      "read": "full",
+      "reason": "A new file in the diff."
+    },
+    {
+      "path": "frontend/src/__tests__/helpers/officeViewer.ts",
+      "read": "full",
+      "reason": "A new file in the diff."
+    },
+    {
+      "path": "frontend/src/__tests__/officeMimes.test.ts",
+      "read": "partial",
+      "reason": "Only the changed hunk around lines 88-96."
+    },
+    {
+      "path": "frontend/src/components/__tests__/FilePreview.office.test.tsx",
+      "read": "full",
+      "reason": "A new file in the diff."
+    },
+    {
+      "path": "frontend/src/components/__tests__/FilePreview.officeArrowKeys.test.tsx",
+      "read": "full",
+      "reason": "A new file in the diff."
+    },
+    {
+      "path": "frontend/src/components/__tests__/FilePreview.officeLazyLoad.word.test.tsx",
+      "read": "full",
+      "reason": "A new file in the diff."
+    },
+    {
+      "path": "frontend/src/components/__tests__/FilePreview.test.tsx",
+      "read": "partial",
+      "reason": "Only the changed hunk around lines 425-440."
+    }
+  ],
+  "confidence": 75
+}

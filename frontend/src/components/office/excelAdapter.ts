@@ -1,6 +1,7 @@
 import "./excelContainment.css";
 
 import {
+  releaseOfficeGrid,
   setOfficeGridActive,
   setOfficeGridFocusProbe,
 } from "./officeGridActive";
@@ -8,14 +9,6 @@ import {
 interface SpreadsheetHandle {
   xs?: { sheet?: { reload?: () => void; focusing?: boolean } };
   observer?: MutationObserver | null;
-}
-
-/**
- * x-data-spreadsheet keeps its `focusing` flag private and its window handlers
- * check nothing else, so a click outside the grid is the only way to clear it.
- */
-function releaseGridFocus(): void {
-  document.body.dispatchEvent(new MouseEvent("click", { bubbles: true }));
 }
 
 export async function drawExcel(
@@ -28,10 +21,18 @@ export async function drawExcel(
   const instance = previewExcel.init(container, { showContextmenu: false });
   const spreadsheet = instance as unknown as SpreadsheetHandle;
 
+  // x-data-spreadsheet's window handlers act on every key, paste and copy
+  // while its private `focusing` flag is set, and only a real click outside
+  // the grid clears it. Clearing it here keeps them off the rest of the page.
+  const releaseGridFocus = () => {
+    const sheet = spreadsheet.xs?.sheet;
+    if (sheet) sheet.focusing = false;
+  };
+
   // The library's own observer makes the grid's inputs read-only and then
   // blurs `document.activeElement` wherever it is, 200 ms after any change in
-  // the grid; a resize therefore took focus from the find field beside it.
-  // This one does the same job and blurs only an element inside the grid.
+  // the grid, so a resize would take focus from a field outside it. This one
+  // does the same job and blurs only an element inside the grid.
   spreadsheet.observer?.disconnect();
   let lockQueued = false;
   const lockInputs = () => {
@@ -69,9 +70,8 @@ export async function drawExcel(
   };
   container.addEventListener("click", onClickInside);
   document.addEventListener("focusin", onFocusIn);
-  if (spreadsheet.xs) {
-    setOfficeGridFocusProbe(() => spreadsheet.xs?.sheet?.focusing === true);
-  }
+  const focusProbe = () => spreadsheet.xs?.sheet?.focusing === true;
+  if (spreadsheet.xs) setOfficeGridFocusProbe(focusProbe);
 
   const observer =
     typeof ResizeObserver === "undefined"
@@ -88,12 +88,9 @@ export async function drawExcel(
     inputLock.disconnect();
     container.removeEventListener("click", onClickInside);
     document.removeEventListener("focusin", onFocusIn);
-    setOfficeGridFocusProbe(null);
-    setOfficeGridActive(false);
-    if (active) {
-      active = false;
-      releaseGridFocus();
-    }
+    releaseOfficeGrid(focusProbe, active);
+    active = false;
+    releaseGridFocus();
     try {
       instance.destroy();
     } catch {

@@ -15,6 +15,16 @@ export function setOfficeGridFocusProbe(probe: (() => boolean) | null): void {
   focusProbe = probe;
 }
 
+/**
+ * Clears what one viewer set, and nothing a viewer mounted after it has set
+ * since: the probe only when it is still this viewer's, and the active flag
+ * only when this viewer had it.
+ */
+export function releaseOfficeGrid(probe: () => boolean, wasActive: boolean): void {
+  if (focusProbe === probe) focusProbe = null;
+  if (wasActive) active = false;
+}
+
 /** Whether ← / → belong to the Excel grid rather than to file navigation. */
 export function officeGridOwnsArrows(): boolean {
   return active && (focusProbe ? focusProbe() : true);

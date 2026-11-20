@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: continue (user, 2026-11-21: "ok" to the proposal on r1). Fix the synthetic body click by clearing x-data-spreadsheet's sheet.focusing directly (R1 and the DismissScrim note), and make a viewer's dispose clear only the grid state it set (module-global probe note). Accept the dependency on @js-preview/excel's private observer field: the version is pinned exactly, so it changes only on a deliberate upgrade, which R-5 re-checks.
 ran_in_app: yes
 at: f46ddad4a4d26043963a71e54df3d2a0a1952df0
 by: agent
