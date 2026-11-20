@@ -190,6 +190,16 @@ and that page's back link carry them; Home and its shelf kinds (`unread`, `recen
 them, and any other `trust` value is removed from the URL by replace. The tag menu's
 candidates come from the core `tag-counts` route under every condition in force.
 
+### Opening Notes or Clips on a Target
+
+Notes on any view (`/drive/{drive}/addons/knowledge`) and Clips on any view
+(`/drive/{drive}/addons/knowledge/clips`) read `target` from the URL: a Smart Collection
+id, or `collection:<collection id>`. The page holds every listing, shelf and count until
+the list that resolves the id answers, then saves that Target as the one the menu would
+choose and removes `target` from the URL without a history entry. An id that is not in the
+drive, `default` or an empty value leaves the saved Target in force, writes nothing and is
+removed the same way.
+
 ### Covers and sites
 
 The cover and site of a card are read from the start of each clip (the first 4096 bytes); nothing is stored.
