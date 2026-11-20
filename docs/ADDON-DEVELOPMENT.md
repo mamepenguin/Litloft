@@ -1531,6 +1531,8 @@ const targetProps: TargetMenuProps = {
 | `AppKey`, `readAppTarget`, `writeAppTarget` | `@/lib/appPrefs` |
 | `readTargetView`, `writeTargetView`, `readLegacyGroup`, `TargetView` | `@/lib/appPrefs` |
 | `GroupMenu`, `SortMenu`, `LibraryControlRow`, `ViewMenuOption` | `@/components/appshell/ViewMenus` |
+| `FilterMenus`, `FilterMenuOption`, `FilterMenuState`, `FilterMenusProps` | `@/components/appshell/FilterMenus` |
+| `getTagCounts`, `getTagCountsWithFileIds` | `@/lib/api` |
 | `formatMonth`, `isMonthKey` | `@/lib/formatMonth` |
 | `resolveAppTarget`, `resolveCollectionTarget`, `parseAppTargetId`, `collectionTargetId`, `AppTarget`, `AppTargetParams` | `@/lib/appTarget` |
 | `useLoad`, `LoadState` | `@/components/appshell/useLoad` |
@@ -1606,6 +1608,43 @@ labels come from the `appView.groupBy` / `appView.sortBy` keys in the merged mes
 and each app passes its own options as `{ value, label }`. `SortMenu` takes `showLabel`,
 default true. `formatMonth(key, locale)` formats a `YYYY-MM` month shelf title, and
 `isMonthKey(key)` validates one.
+
+`LibraryControlRow` takes the Library's filters as `filters` and its view menus as
+children. Below `sm` the two groups stack, each a two-column grid, so one filter keeps the
+left half and two share a row; from `sm` the filter group, a 20px gap and the view group
+follow one another, and the view group wraps as a unit when the line is too narrow.
+
+### The Library's tag and state filters
+
+`FilterMenus` draws an outlined **Tag** menu and, when the caller passes one, an outlined
+**State** menu. The caller owns the values and the requests:
+
+```tsx
+<FilterMenus
+  tags={tags}                       // the chosen names, in choice order
+  onToggle={(name) => toggle(name)}
+  onClear={() => setTags([])}
+  loadCandidates={(signal) => getTagCounts(drive, conditions, { signal })}
+  conditionsKey={JSON.stringify(conditions)} // changes whenever the conditions do
+  excludeTags={targetTagConditions} // the Target's own `tag` conditions
+  state={{ options, value, onChange }} // or null for no state menu
+  onViewerRejected={onViewerRejected}  // tag-counts answered `viewer_required`
+/>
+```
+
+`loadCandidates` is the caller's own `tag-counts` request under every condition in force.
+The menu asks once when it opens and again after each toggle, keeps its rows until a
+reload answers, and drops any answer whose `conditionsKey` is no longer current. Its list
+is the chosen tags first, each once and even at count 0, then the answer's other tags in
+the answer's order, minus `excludeTags`; names are compared with `toLowerCase()`. The
+search narrows the list on the client. A first load shows a skeleton, a failure shows
+**Try again**, and a failed reload keeps the rows already drawn.
+
+`getTagCounts(drive, params, options)` and `getTagCountsWithFileIds(drive, params, ids,
+options)` call `GET /api/drives/{drive}/tag-counts` and its `POST .../query` form. `params`
+carries the listing's filters plus `watch`, and the answer is `[{ name, count }]` in the
+endpoint's order. Under a member Target, pass the members through
+`AppRequests.tagCounts`, which is the POST form.
 
 ### Resolving the chosen folder
 
