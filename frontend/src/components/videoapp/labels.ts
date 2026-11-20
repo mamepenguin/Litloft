@@ -3,7 +3,7 @@ import { formatMonth } from "@/lib/formatMonth";
 
 type Translate = (key: string) => string;
 
-export const VIDEO_GROUPS = ["folder", "tag", "month", "duration", "watch", "all"] as const;
+export const VIDEO_GROUPS = ["folder", "tag", "month", "duration", "all"] as const;
 export type VideoGroup = (typeof VIDEO_GROUPS)[number];
 
 export const DEFAULT_VIDEO_GROUP: VideoGroup = "folder";
@@ -34,10 +34,11 @@ export function shelfTitle({
   if (by === "all") return from === "discover" ? t("shelves.new") : t("allVideos");
   if (by === "folder") {
     if (shelf.key === "") return drive;
+    if (shelf.label) return shelf.label;
     const path = shelf.key.endsWith("/") ? shelf.key.slice(0, -1) : shelf.key;
-    return path.split("/").pop() || shelf.label;
+    return path.split("/").pop() || shelf.key;
   }
-  if (by === "tag") return shelf.key === "no_tag" ? t("noTag") : shelf.label;
+  if (by === "tag") return shelf.key === "no_tag" ? t("noTag") : shelf.label || shelf.key;
   if (by === "month") return formatMonth(shelf.label || shelf.key, locale);
   if (by === "duration") return t(`length.${shelf.key}`);
   if (by === "watch" && shelf.key === "continue") return t("shelves.continue");

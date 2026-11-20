@@ -20,7 +20,10 @@ export function CardProgress({
 }) {
   if (!(duration > 0)) return null;
 
-  const watched = ranges && ranges.length > 0 ? ranges : null;
+  // Multiplied out, as the shelf's `finished` watch state is: `position / duration
+  // >= 0.9` disagrees with it at boundaries such as 0.99 of 1.1.
+  const finished = position * 10 >= duration * 9;
+  const watched = !finished && ranges && ranges.length > 0 ? ranges : null;
   const tick =
     watched !== null &&
     position > RESUME_THRESHOLD &&
@@ -33,7 +36,9 @@ export function CardProgress({
           <div
             data-testid="progress-fill"
             className={`h-full ${fillClassName}`}
-            style={{ width: `${fraction(position / duration) * 100}%` }}
+            style={{
+              width: `${finished ? 100 : fraction(position / duration) * 100}%`,
+            }}
           />
         ) : (
           watched.map((range, index) => (

@@ -313,5 +313,9 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-147 | implemented | docs/specs/app-view-per-target.md | sha256:926ef39f97e4137c1499212982a2f5dab80c44f41cb1cb75ea7c2f65552200d6 |
 | SPEC-ADDON-148 | implemented | docs/specs/app-view-per-target.md | sha256:926ef39f97e4137c1499212982a2f5dab80c44f41cb1cb75ea7c2f65552200d6 |
 | SPEC-CORE-151 | implemented | docs/specs/peak-jump.md | sha256:0a67582136afa051544144984d1d172a874727be87bfb69a7c0080c1a4f5fcfc |
+| SPEC-CORE-152 | implemented | docs/specs/finished-card-full-bar.md | sha256:84ed425d591c26b46508b2e8dca5b50b75d58a9d012decba97bd32e16d4b00dc |
 | SPEC-ADDON-152 | implemented | docs/specs/scenes-scroll-list.md | sha256:a36a7442854e2ce379a5d3930f5103bbd5421dc414d28b477267cc31cee4e958 |
 | SPEC-ADDON-153 | implemented | docs/specs/scenes-scroll-list.md | sha256:a36a7442854e2ce379a5d3930f5103bbd5421dc414d28b477267cc31cee4e958 |
+| SPEC-CORE-147 | implemented | docs/specs/app-library-filters.md | sha256:f643aa489b12cc08965cfbd7bd99d9c8fb658f7620d00de33fc6842b813428d6 |
+| SPEC-CORE-148 | implemented | docs/specs/app-library-filters.md | sha256:f643aa489b12cc08965cfbd7bd99d9c8fb658f7620d00de33fc6842b813428d6 |
+| SPEC-ADDON-151 | implemented | docs/specs/app-library-filters.md | sha256:f643aa489b12cc08965cfbd7bd99d9c8fb658f7620d00de33fc6842b813428d6 |

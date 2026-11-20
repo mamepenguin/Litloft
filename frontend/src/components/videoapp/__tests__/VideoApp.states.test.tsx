@@ -228,11 +228,12 @@ describe("the profile as an input", () => {
     expect(screen.queryByText("Pick me")).not.toBeInTheDocument();
   });
 
-  it("drops Continue and the Watch state choice when the profile is cleared", async () => {
+  it("SPEC-CORE-147 I7 a stored Watch State shows Folder before and after the profile is cleared, and stays stored", async () => {
     writeAppPrefs(DRIVE, { face: "library" });
     writeTargetView("video", DRIVE, "default", { group: "watch" });
     const view = render(<VideoApp drive={DRIVE} />);
-    await waitFor(() => expect(getShelves.mock.calls.some(([, p]) => p.by === "watch")).toBe(true));
+    await waitFor(() => expect(getShelves.mock.calls.some(([, p]) => p.by === "folder")).toBe(true));
+    expect(getShelves.mock.calls.some(([, p]) => p.by === "watch" && p.key === undefined)).toBe(false);
 
     nickname = null;
     view.rerender(<VideoApp drive={DRIVE} />);
@@ -241,7 +242,7 @@ describe("the profile as an input", () => {
     expect(readTargetView("video", DRIVE, "default").group).toBe("watch");
   });
 
-  it("keeps a chosen sort while a stored Watch State returns with the profile", async () => {
+  it("SPEC-CORE-147 I7 keeps a chosen sort and Folder when the profile returns over a stored Watch State", async () => {
     nickname = null;
     writeAppPrefs(DRIVE, { face: "library" });
     writeTargetView("video", DRIVE, "default", { group: "watch" });
@@ -264,16 +265,18 @@ describe("the profile as an input", () => {
       ).toBe(true),
     );
 
+    const before = getShelves.mock.calls.length;
     nickname = "alice";
     view.rerender(<VideoApp drive={DRIVE} />);
 
-    await waitFor(() =>
-      expect(
-        getShelves.mock.calls.some(
-          ([, p]) => (p as Params).by === "watch" && (p as Params).sort === "file_size",
-        ),
-      ).toBe(true),
-    );
+    await act(async () => {});
+    const after = getShelves.mock.calls.slice(before).map(([, p]) => p as Params);
+    expect(after.filter((p) => p.by === "watch" && p.key === undefined)).toEqual([]);
+    const library = getShelves.mock.calls
+      .map(([, p]) => p as Params)
+      .filter((p) => p.by !== "watch");
+    expect(library.at(-1)).toMatchObject({ by: "folder", sort: "file_size" });
+    expect(screen.getByRole("button", { name: /Group By/ })).toHaveTextContent("Folder");
     expect(readTargetView("video", DRIVE, "default").group).toBe("watch");
   });
 

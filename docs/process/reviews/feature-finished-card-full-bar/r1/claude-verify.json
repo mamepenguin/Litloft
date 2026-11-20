@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [],
+  "specification_compliance": [
+    "I1: frontend/src/components/CardProgress.tsx:25-26,40 computes finished = position*10 >= duration*9. When finished, watched is null, so one progress-fill is drawn with width 100% and no watched-range. tick needs watched !== null, so no tick is drawn, whatever the ranges are.",
+    "I2: when not finished, the ranges branch and the tick condition (RESUME_THRESHOLD < position < duration - RESUME_THRESHOLD) are unchanged. The fallback fill is fraction(position/duration).",
+    "I3: the expression matches backend/app/routers/shelves.py:72 (playback_position*10 >= duration*9). The boundary tables in watchedRangesCards.test.tsx:241-250 and test_api_shelves.py:262-271 match row for row, including (1.1, 0.99, True).",
+    "I4: CardProgress.tsx:21 returns null unless duration > 0.",
+    "I5: the callers FileCard.tsx:160-166 and VideoCard.tsx:85-91 pass the same track and fill classes. The finished path renders only the one fill div inside the track."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The finished boundary relies on JS doubles and the DB's REAL arithmetic producing identical results for position*10 and duration*9. This holds for IEEE doubles as stored by SQLite, and the shared 1.1/0.99 row checks it."
+  ],
+  "regression_risks": [
+    "Another backend that does not store duration and position as doubles (for example DECIMAL) could classify boundary rows differently from the card. I did not check this."
+  ],
+  "test_coverage": [
+    "The vitest covers I1 for gapped, single, empty and absent ranges and for a position past the duration, plus the I3 shared table, the I2 tick bounds at duration 40 and a rerender transition, for both card kinds.",
+    "The backend pytest parametrizes the same boundary table against the shelf's watch bucket."
+  ],
+  "not_verified": [
+    "I did not run the vitest, pytest or Playwright suites; I only read them.",
+    "I did not read the e2e-components fixtures or the spec that measures colour, height and full width in light and dark themes.",
+    "I did not check the DESIGN.md and docs/user-guide/video.md updates.",
+    "I did not check I6 (watch-history and shelf responses, seek bar band, resume position) beyond the change touching only frontend rendering and tests."
+  ],
+  "confidence": 85
+}

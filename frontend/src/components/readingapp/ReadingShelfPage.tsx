@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState, type ReactNode } from "react";
+import { useCallback, useMemo, useState, type ReactNode } from "react";
 import { BookOpen, ChevronLeft } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 
@@ -61,6 +61,7 @@ export function ReadingShelfPage({
   folders: urlFolders,
   tags: urlTags,
   watch: urlWatch,
+  onTargetChosen,
   from,
 }: {
   drive: string;
@@ -70,11 +71,29 @@ export function ReadingShelfPage({
   folders?: readonly string[];
   tags?: readonly string[];
   watch?: string | null;
+  /** Called after a Target is chosen on this page, to drop the URL's filters. */
+  onTargetChosen?: () => void;
   from?: string | null;
 }) {
   const t = useTranslations("readingApp");
   const locale = useLocale();
-  const state = useReadingApp(drive);
+  const appState = useReadingApp(drive);
+  const { chooseTarget: chooseAppTarget, targetId } = appState;
+  // The URL's filters stop applying in the render that shows the new Target;
+  // the replace that removes them from the URL lands later.
+  const urlFilters = JSON.stringify([urlTags ?? [], urlWatch ?? null, urlFolders ?? []]);
+  const [droppedFor, setDroppedFor] = useState<string | null>(null);
+  const filtersDropped = droppedFor === urlFilters;
+  const chooseTarget = useCallback(
+    (id: string) => {
+      if (id === targetId) return;
+      setDroppedFor(urlFilters);
+      chooseAppTarget(id);
+      onTargetChosen?.();
+    },
+    [chooseAppTarget, onTargetChosen, targetId, urlFilters],
+  );
+  const state = useMemo(() => ({ ...appState, chooseTarget }), [appState, chooseTarget]);
   const offered: readonly ShelfSortChoice[] =
     by === "watch" && shelfKey === "continue" ? CONTINUE_SORT_CHOICES : SORT_CHOICES;
   const initialChoice = parseShelfSortId(initialSort ?? null, offered) ?? offered[0].id;
@@ -86,7 +105,7 @@ export function ReadingShelfPage({
   if (selection.scope !== scope) setSelection(active);
   const sortId = active.id;
   const sort = offered.find((choice) => choice.id === sortId) ?? offered[0];
-  const requestedWatch = parseWatchState(urlWatch ?? null);
+  const requestedWatch = filtersDropped ? null : parseWatchState(urlWatch ?? null);
   const keyValid =
     by === "folder" ||
     by === "all" ||
@@ -103,11 +122,11 @@ export function ReadingShelfPage({
   const query = useMemo<ReadingTargetParams | null>(() => {
     if (params === null) return null;
     const next: ReadingTargetParams = { ...params };
-    if (urlFolders && urlFolders.length > 0) next.folder = [...urlFolders];
-    const merged = mergeTags(listOf(params.tag), urlTags ?? []);
+    if (!filtersDropped && urlFolders && urlFolders.length > 0) next.folder = [...urlFolders];
+    const merged = mergeTags(listOf(params.tag), filtersDropped ? [] : (urlTags ?? []));
     if (merged.length > 0) next.tag = merged;
     return next;
-  }, [params, urlFolders, urlTags]);
+  }, [params, urlFolders, urlTags, filtersDropped]);
 
   const watch = state.hasProfile ? requestedWatch : null;
 

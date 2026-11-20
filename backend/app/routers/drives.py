@@ -67,6 +67,7 @@ from app.services.atomic_write import replace_file_contents
 from app.services.diskpath import existing_or_409, name_taken, new_or_409
 from app.services.safepath import _contains_symlink, resolve_safe_path
 from app.services.scanner import scan_drive
+from app.services.watch_state import WatchState, join_watch, watch_bucket
 from app.services.watched_ranges import watched_ranges_by_file
 
 logger = logging.getLogger(__name__)
@@ -1074,6 +1075,12 @@ class FileFiltersQuery(BaseModel):
     exclude_origin: str | None = Field(None, min_length=1, max_length=32)
 
 
+class TagCountsQuery(FileFiltersQuery):
+    """The tag-counts filters: the listing's own, plus the viewer's watch state."""
+
+    watch: WatchState | None = None
+
+
 class FileListingQuery(FileFiltersQuery):
     path: str | None = None
     recursive: bool = False
@@ -1320,6 +1327,95 @@ def _folder_counts(
         .all()
     )
     return [FolderCountResponse(path=path, count=count) for path, count in rows]
+
+
+@router.get("/{drive_name}/tag-counts", response_model=list[TagResponse])
+def list_tag_counts(
+    drive_name: str,
+    db: Annotated[Session, Depends(get_db)],
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
+    viewer_id: Annotated[str | None, Depends(get_viewer_id)],
+    params: Annotated[TagCountsQuery, Query()],
+):
+    """The matching files' tags, grouped by folded name, with distinct file counts."""
+    return _tag_counts(db, drive_name, unlocked_groups, viewer_id, params)
+
+
+@router.post("/{drive_name}/tag-counts/query", response_model=list[TagResponse])
+def query_tag_counts(
+    drive_name: str,
+    db: Annotated[Session, Depends(get_db)],
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
+    viewer_id: Annotated[str | None, Depends(get_viewer_id)],
+    params: Annotated[TagCountsQuery, Query()],
+    body: FileIdsQuery,
+):
+    """The tag counts, with the body's ids joining `collection` in the `in:` condition."""
+    return _tag_counts(
+        db, drive_name, unlocked_groups, viewer_id, params, file_ids=body.file_ids
+    )
+
+
+def _tag_counts(
+    db: Session,
+    drive_name: str,
+    unlocked_groups: list[str],
+    viewer_id: str | None,
+    params: TagCountsQuery,
+    *,
+    file_ids: list[str] | None = None,
+) -> list[TagResponse]:
+    _validate_drive(drive_name, unlocked_groups)
+    if params.watch is not None and viewer_id is None:
+        raise HTTPException(status_code=400, detail="viewer_required")
+    query, _ = filtered_drive_files(
+        db,
+        drive_name,
+        search=params.search,
+        favorite=params.favorite,
+        liked=params.liked,
+        tag=params.tag,
+        type=params.type,
+        folder=params.folder,
+        collection=params.collection,
+        size=params.size,
+        duration=params.duration,
+        modified=params.modified,
+        trust=params.trust,
+        origin=params.origin,
+        exclude_origin=params.exclude_origin,
+        file_ids=file_ids,
+    )
+    if params.watch is not None:
+        query = join_watch(query, viewer_id)
+        query = query.filter(watch_bucket() == params.watch)
+    # Every Tag row of a matching file is counted, another drive's included:
+    # a file moved before its tags followed still links to its old drive's row.
+    rows = (
+        query.with_entities(File.id, Tag.name, Tag.drive)
+        .join(file_tags, file_tags.c.file_id == File.id)
+        .join(Tag, Tag.id == file_tags.c.tag_id)
+        .all()
+    )
+    files_by_fold: dict[str, set[str]] = defaultdict(set)
+    spellings: dict[str, set[str]] = defaultdict(set)
+    own_spellings: dict[str, set[str]] = defaultdict(set)
+    for file_id, name, tag_drive in rows:
+        fold = name.lower()
+        files_by_fold[fold].add(file_id)
+        spellings[fold].add(name)
+        if tag_drive == drive_name:
+            own_spellings[fold].add(name)
+    counted = [
+        (len(ids), _first_spelling(own_spellings.get(fold) or spellings[fold]))
+        for fold, ids in files_by_fold.items()
+    ]
+    counted.sort(key=lambda entry: (-entry[0], entry[1].casefold(), entry[1]))
+    return [TagResponse(name=name, count=count) for count, name in counted]
+
+
+def _first_spelling(names: set[str]) -> str:
+    return min(names, key=lambda name: (name.casefold(), name))
 
 
 @router.post("/{drive_name}/folders", response_model=FolderResponse)

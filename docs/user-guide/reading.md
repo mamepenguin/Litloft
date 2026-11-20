@@ -43,8 +43,10 @@ folder. The chip goes back to **All** when you reload, leave the page, come back
 Below the chips:
 
 - **タグ** / **Tag** keeps only books carrying the chosen tags. Every chosen tag must be on
-  the book. Under **タグ** grouping it only chooses which books appear; the shelves still
-  follow the books' tags.
+  the book. The menu lists the tags reachable under the current target, folder chip and
+  state, with how many books carry each, and has a search field; **指定なし** / **Any**
+  clears the choice. Under **タグ** grouping it only chooses which books appear; the
+  shelves still follow the books' tags.
 - **状態** / **State** keeps **未読** / **Unread**, **読書中** / **In progress** or
   **読了** / **Finished** books. It needs a profile. With no profile the control is not
   drawn, and clearing the profile also clears a state you had chosen.
@@ -63,6 +65,10 @@ The grouping and the sort are remembered for each target in this browser, so a S
 Collection can open grouped by tag while **All books** opens as one grid. A target you
 have not configured opens on None and Date Added (newest first). **All books** opens on
 the grouping the drive used before this change.
+
+The chosen tags and state are not saved: they last while the page is open, through the
+Discover/Library switch and a round trip through **See all**, and they reset on a full page
+load, when you open Reading on another drive, and when you choose another target.
 
 **See all** on a shelf opens it as a grid, 60 books at a time, under the same target,
 chips, tag, state and sort. The shelf page has its own sort menu and its own target
@@ -101,10 +107,11 @@ own sort is not used here.
 
 ## Empty states and failures
 
-**本がありません** / **No books** means nothing matches the current target, folder chip, tag
-or state. A shelf that fails to load shows **Retry** and the other shelves still draw. If
-the cover of a book cannot be drawn, the card shows a placeholder and the book still
-opens.
+**本がありません** / **No books** means nothing matches the current target or folder chip.
+When a chosen tag or a state other than **すべて** / **All** leaves no book, the page says
+**条件に合う項目はありません** / **Nothing matches these filters** instead. A shelf that
+fails to load shows **Retry** and the other shelves still draw. If the cover of a book
+cannot be drawn, the card shows a placeholder and the book still opens.
 
 ## Without a profile
 

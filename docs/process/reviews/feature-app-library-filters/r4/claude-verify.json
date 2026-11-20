@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R1",
+      "status": "confirmed",
+      "note": "I traced this through the code and it holds. In ReadingShelfPage.tsx:87-95, chooseTarget calls setDroppedFor(urlFilters), then chooseAppTarget(id) and then onTargetChosen(). chooseAppTarget is useReadingApp.ts:274-282, which calls updatePrefs synchronously, so for a non-member Target `params` changes in that same urgent render. In that render filtersDropped is true, `query` holds only the new Target's params, and fetchPage/usePaged ask for page 1. dropFilters (reading/shelf/page.tsx:13-19) runs router.replace. That is a Next transition and lands later, so the route re-renders with `folders`/`tags` as fresh `[]` arrays from `search.getAll(...).filter(Boolean)` (:28-29). urlFilters becomes `[[],null,[]]`, which no longer equals droppedFor, so filtersDropped turns false. `query` (:122-129, deps [params, urlFolders, urlTags, filtersDropped]) then recomputes to an equal object under a new reference. fetchPage (:133-172) changes with it. usePaged.ts:32-58 runs fetchPage(1) again, and :60 sets `own` to null because held.fetchPage !== fetchPage. The page already loaded is dropped and phase goes back to 'loading' (:89), so the skeleton shows again, or an in-flight first request is cancelled and sent again. VideoShelfPage.tsx:85-150 follows the same pattern. Its `query` deps are [params, urlTags, filtersDropped] (:116-120), and video/shelf/page.tsx:27 passes a fresh `tags` array. `watch` stays null both before and after, but the new `query` alone rebuilds fetchPage. The final request and items are correct: it is the same parameters for the new Target. The effect is one redundant request plus a loading flash. Limits: this happens only when the URL carried filters (dropFilters returns early otherwise). For a member Target, params stays null until evaluation, so whether the second fetch happens depends on timing."
+    }
+  ],
+  "specification_compliance": [
+    "R1 does not break any declared invariant. After the replace, the request still carries the new Target's conditions without the dropped URL filters (I4/I5), and only one extra page-1 request and a brief loading state are visible."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "Because the route builds the `tags`/`folders` props with `search.getAll(...).filter(Boolean)`, every route re-render gives new array references. Any re-render of ReadingShelfRoute/VideoShelfRoute therefore rebuilds `query` and restarts paging, not only the post-Target-choice replace."
+  ],
+  "regression_risks": [
+    "A See all page that has loaded more pages loses them and shows the loading skeleton again when the URL replace lands after a Target choice."
+  ],
+  "test_coverage": [
+    "I did not find any test asserting that a Target choice on a See all page with URL filters sends exactly one page-1 shelves request."
+  ],
+  "not_verified": [
+    "I could not run the app or tests. The render ordering of Next's router.replace (a transition that lands after the urgent setState) is inferred, not observed.",
+    "I did not trace the member-Target (POST with ids) path's timing in detail.",
+    "I did not review the rest of the commit beyond the R1 code path."
+  ],
+  "confidence": 85
+}

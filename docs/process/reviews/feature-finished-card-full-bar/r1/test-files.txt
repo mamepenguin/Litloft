@@ -1,0 +1,2 @@
+backend/tests/test_api_shelves.py
+frontend/src/components/__tests__/watchedRangesCards.test.tsx

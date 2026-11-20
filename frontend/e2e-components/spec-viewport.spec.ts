@@ -82,6 +82,7 @@ const AT_THE_PHONE_WIDTH = [
   "video-card-byline.spec.ts",
   "video-card-spacing.spec.ts",
   "view-menus.spec.ts",
+  "library-filters.spec.ts",
   "notes-view-menus.spec.ts",
   "clips-primary-action.spec.ts",
   "clips-view-menus.spec.ts",
@@ -101,6 +102,7 @@ const AT_THE_PHONE_WIDTH = [
 const AT_THE_DESKTOP_WIDTH = [
   "frame-crop-desktop.spec.ts",
   "view-menus-desktop.spec.ts",
+  "library-filters-desktop.spec.ts",
   "frame-outline-desktop.spec.ts",
   "add-menu-desktop.spec.ts",
   "condition-menu-desktop.spec.ts",

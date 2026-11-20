@@ -88,28 +88,34 @@ export function SortMenu<Value extends string>({
 }
 
 /**
- * The row a Library's view menus sit in. Below `sm` the children share two
- * equal columns, so the view menus stay on one row; from `sm` they follow one
- * another in a line.
+ * The row a Library's filter and view menus sit in. Below `sm` the two groups
+ * stack, each a two-column grid, so a lone filter keeps the left half and the
+ * view menus share a row; from `sm` the groups follow one another, 20px apart,
+ * and the view group wraps as a unit when the line is too narrow.
  */
 export function LibraryControlRow({
+  filters,
   children,
   className = "",
 }: {
+  filters?: ReactNode;
   children: ReactNode;
   className?: string;
 }) {
   return (
     <div
-      className={[
-        "grid grid-cols-2 items-center gap-2",
-        "sm:flex sm:flex-wrap",
-        className,
-      ]
+      className={["flex flex-col gap-2", "sm:flex-row sm:flex-wrap sm:items-center sm:gap-5", className]
         .filter(Boolean)
         .join(" ")}
     >
-      {children}
+      {filters !== undefined && (
+        <div className="grid grid-cols-2 items-center gap-2 sm:flex sm:shrink-0 sm:flex-nowrap">
+          {filters}
+        </div>
+      )}
+      <div className="grid grid-cols-2 items-center gap-2 sm:flex sm:shrink-0 sm:flex-nowrap">
+        {children}
+      </div>
     </div>
   );
 }

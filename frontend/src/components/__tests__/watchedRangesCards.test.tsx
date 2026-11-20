@@ -1,4 +1,5 @@
 // SPEC-CORE-141: the card bar fills the watched ranges and marks the resume point (I8).
+// SPEC-CORE-152: a finished card draws one full bar and no tick (I1 to I5).
 import { describe, expect, it, vi } from "vitest";
 import { render } from "@testing-library/react";
 import type { WatchHistoryItem } from "@/types";
@@ -177,8 +178,6 @@ describe.each(CARDS)("SPEC-CORE-141 %s bar", (card) => {
     [5, "none"],
     [5.25, 5.25],
     [50, 50],
-    [94.75, 94.75],
-    [95, "none"],
     [0, "none"],
   ] as Array<[number, number | "none"]>)(
     "SPEC-CORE-141 with ranges, position %s of 100 draws the tick at: %s",
@@ -223,5 +222,150 @@ describe.each(CARDS)("SPEC-CORE-141 %s bar", (card) => {
 
     const some = renderCard(card, { position: 40, duration: 100 }, [{ start: 0, end: 15 }]);
     expectFills(some.container, [[0, 15]]);
+  });
+});
+
+function expectFullBar(container: HTMLElement) {
+  expect(fills(container)).toEqual([]);
+  expect(tickAt(container)).toBeNull();
+  const bars = container.querySelectorAll<HTMLElement>('[data-testid="progress-fill"]');
+  expect(bars).toHaveLength(1);
+  expect(bars[0].style.width).toBe("100%");
+  const widths = Array.from(container.querySelectorAll<HTMLElement>('[style*="width"]')).map(
+    (el) => el.style.width,
+  );
+  expect(widths).toEqual(["100%"]);
+}
+
+/** `(duration, position, finished)`, kept row for row with the shelf's table in backend/tests. */
+const FINISHED_BOUNDARY: Array<[number, number, boolean]> = [
+  [100, 95, true],
+  [100, 92, true],
+  [100, 90, true],
+  [100, 89.9, false],
+  [100, 50, false],
+  [1.1, 0.99, true],
+  [40, 35.5, false],
+  [40, 34.9, false],
+];
+
+const GAPPED: Range[] = [
+  { start: 0, end: 10 },
+  { start: 30, end: 100 },
+];
+
+describe.each(CARDS)("SPEC-CORE-152 %s finished bar", (card) => {
+  it.each([
+    ["gapped", 95, GAPPED],
+    ["one, ticked before", 94.75, [{ start: 0, end: 15 }]],
+    ["one", 95, [{ start: 0, end: 15 }]],
+    ["one short", 90, [{ start: 0, end: 40 }]],
+    ["gapped, past the duration", 120, GAPPED],
+    ["empty", 92, [] as Range[]],
+    ["absent", 92, undefined],
+  ] as Array<[string, number, Range[] | undefined]>)(
+    "SPEC-CORE-152 I1 with %s ranges, position %s of 100 draws one full bar and no tick",
+    (_label, position, ranges) => {
+      const { container } = renderCard(card, { position, duration: 100 }, ranges);
+      expectFullBar(container);
+    },
+  );
+
+  it.each([
+    ["gapped", [{ start: 0, end: 0.2 }, { start: 0.5, end: 1 }]],
+    ["empty", [] as Range[]],
+  ] as Array<[string, Range[]]>)(
+    "SPEC-CORE-152 I3 position 0.99 of 1.1 is finished, with %s ranges",
+    (_label, ranges) => {
+      const { container } = renderCard(card, { position: 0.99, duration: 1.1 }, ranges);
+      expectFullBar(container);
+    },
+  );
+
+  it.each(FINISHED_BOUNDARY)(
+    "SPEC-CORE-152 I3 duration %s position %s: full bar exactly when finished (%s), as the shelf",
+    (duration, position, finished) => {
+      const ranges: Range[] = [{ start: 0, end: duration * 0.4 }];
+      const { container } = renderCard(card, { position, duration }, ranges);
+      if (finished) {
+        expectFullBar(container);
+      } else {
+        expectFills(container, [[0, 40]]);
+      }
+    },
+  );
+
+  it("SPEC-CORE-152 the bar follows the data: in progress, then finished, then in progress again", () => {
+    const ranges: Range[] = [{ start: 0, end: 40 }];
+    const view = renderCard(card, { position: 40, duration: 100 }, ranges);
+    expectFills(view.container, [[0, 40]]);
+    expect(tickAt(view.container)).toBeCloseTo(40, 3);
+
+    const rerender = (position: number) => {
+      if (card === "FileCard") {
+        const item = { ...base, watch_progress: { position, duration: 100 }, watched_ranges: ranges };
+        view.rerender(<ContinueWatchingSection items={[item as WatchHistoryItem]} loading={false} />);
+      } else {
+        const { watch_progress: _ignored, ...file } = base;
+        const item = { ...file, watch_progress: { position, duration: 100 }, watched_ranges: ranges };
+        view.rerender(<VideoCard item={item as ShelfItem} />);
+      }
+    };
+
+    rerender(95);
+    expectFullBar(view.container);
+
+    rerender(40);
+    expectFills(view.container, [[0, 40]]);
+    expect(tickAt(view.container)).toBeCloseTo(40, 3);
+  });
+
+  it("SPEC-CORE-152 I2 position 89.9 of 100 keeps both ranges and the tick", () => {
+    const { container } = renderCard(card, { position: 89.9, duration: 100 }, [
+      { start: 0, end: 40 },
+      { start: 60, end: 90 },
+    ]);
+    expectFills(container, [
+      [0, 40],
+      [60, 90],
+    ]);
+    expect(tickAt(container)).toBeCloseTo(89.9, 3);
+  });
+
+  it.each([
+    [35.5, "none"],
+    [34.9, 87.25],
+  ] as Array<[number, number | "none"]>)(
+    "SPEC-CORE-152 I2 position %s of 40, not finished, draws the ranges and the tick at: %s",
+    (position, expected) => {
+      const { container } = renderCard(card, { position, duration: 40 }, [
+        { start: 0, end: 6 },
+      ]);
+      expectFills(container, [[0, 15]]);
+      const at = tickAt(container);
+      if (expected === "none") expect(at).toBeNull();
+      else expect(at).toBeCloseTo(expected, 3);
+    },
+  );
+
+  it("SPEC-CORE-152 I2 position 50 of 100 without ranges fills to the position, no tick", () => {
+    const { container } = renderCard(card, { position: 50, duration: 100 }, []);
+    expect(fills(container)).toEqual([]);
+    expect(tickAt(container)).toBeNull();
+    const widths = Array.from(container.querySelectorAll<HTMLElement>('[style*="width"]')).map(
+      (el) => el.style.width,
+    );
+    expect(widths).toEqual(["50%"]);
+  });
+
+  it.each([
+    ["zero", 0],
+    ["negative", -5],
+    ["not a number", Number.NaN],
+  ])("SPEC-CORE-152 I4 a %s duration draws no bar, even at a finished-looking position", (_l, duration) => {
+    const { container } = renderCard(card, { position: 10, duration }, GAPPED);
+    expect(fills(container)).toEqual([]);
+    expect(tickAt(container)).toBeNull();
+    expect(container.querySelectorAll('[style*="width"]')).toHaveLength(0);
   });
 });

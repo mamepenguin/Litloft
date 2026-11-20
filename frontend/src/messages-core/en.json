@@ -1475,7 +1475,6 @@
       "tag": "Tag",
       "month": "Date Added",
       "duration": "Length",
-      "watch": "Watch State",
       "all": "None"
     },
     "shelves": {
@@ -1502,7 +1501,13 @@
       "title": "Title",
       "size": "Size"
     },
-    "seeAllIn": "See all: {name}"
+    "seeAllIn": "See all: {name}",
+    "state": {
+      "all": "All",
+      "unwatched": "Unwatched",
+      "in_progress": "In Progress",
+      "finished": "Watched"
+    }
   },
   "readingApp": {
     "title": "Reading",
@@ -1531,15 +1536,11 @@
       "none": "None"
     },
     "state": {
-      "label": "State",
       "all": "All",
       "unwatched": "Unread",
       "in_progress": "In progress",
       "finished": "Finished"
     },
-    "tag": "Tag",
-    "tagNone": "None specified",
-    "noTags": "No tags",
     "noTag": "No tag",
     "sort": {
       "label": "Sort By",
@@ -1575,5 +1576,16 @@
     "reveal": "Show header",
     "title": "Focus mode",
     "toggle": "Toggle focus mode"
+  },
+  "appFilters": {
+    "tag": "Tag",
+    "tagNone": "None specified",
+    "state": "State",
+    "any": "Any",
+    "searchTags": "Search tags",
+    "noMatchingTags": "No matching tags",
+    "noTags": "No tags",
+    "tryAgain": "Try again",
+    "filterEmpty": "Nothing matches these filters"
   }
 }

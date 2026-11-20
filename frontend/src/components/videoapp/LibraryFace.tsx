@@ -1,19 +1,22 @@
 "use client";
 
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
+import { Search } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 
 import { RetryButton } from "@/components/appshell/RetryButton";
+import { FilterMenus } from "@/components/appshell/FilterMenus";
+import { mergeLibraryTags, useLibraryFilters } from "@/components/appshell/libraryFilters";
 import { ShelfBlock } from "@/components/appshell/ShelfBlock";
 import { GroupMenu, LibraryControlRow, SortMenu } from "@/components/appshell/ViewMenus";
 import { useNearEnd } from "@/components/appshell/useNearEnd";
 import { usePaged } from "@/components/appshell/usePaged";
 import { EmptyState } from "@/components/EmptyState";
-import { type Shelf, type ShelfGrouping } from "@/lib/api";
+import { type Shelf, type ShelfGrouping, type ShelfWatchState } from "@/lib/api";
 import type { AppRequests } from "@/lib/memberTarget";
 import type { VideoTargetParams } from "@/lib/videoAppTarget";
 import { SORT_CHOICES, VIDEO_GROUPS, shelfTitle, type SortId, type VideoGroup } from "./labels";
-import { videoShelfHref } from "./shelfLinks";
+import { videoShelfHref, type ShelfLinkConditions } from "./shelfLinks";
 import { isViewerRequired } from "./useVideoApp";
 import { VideoCard } from "./VideoCard";
 import { VideoPagedGrid } from "./VideoPagedGrid";
@@ -22,13 +25,20 @@ export const LIBRARY_SHELF_ITEMS = 5;
 export const LIBRARY_SHELVES_PER_PAGE = 12;
 export const LIBRARY_NONE_PAGE_SIZE = 60;
 
+const WATCH_STATES: readonly ShelfWatchState[] = ["unwatched", "in_progress", "finished"];
+
 export function seeAllHref(
   drive: string,
   by: ShelfGrouping,
   key: string,
   sortId?: SortId,
+  conditions: ShelfLinkConditions = {},
 ): string {
-  return videoShelfHref(drive, by, key, sortId, "library");
+  return videoShelfHref(drive, by, key, sortId, "library", conditions);
+}
+
+function listOf(value: string | readonly string[] | undefined): string[] {
+  return value === undefined ? [] : ([value].flat() as string[]);
 }
 
 export function LibraryFace({
@@ -55,18 +65,39 @@ export function LibraryFace({
   onViewerRejected: () => void;
 }) {
   const t = useTranslations("videoApp");
+  const tFilters = useTranslations("appFilters");
   const locale = useLocale();
   const sort = SORT_CHOICES.find((choice) => choice.id === sortId) ?? SORT_CHOICES[0];
   const none = group === "all";
+  const filters = useLibraryFilters("video", drive, hasProfile);
+  const watch = hasProfile && filters.state !== "all" ? (filters.state as ShelfWatchState) : undefined;
+
+  const query = useMemo<VideoTargetParams | null>(() => {
+    if (params === null) return null;
+    const merged = mergeLibraryTags(listOf(params.tag), filters.tags);
+    return {
+      ...params,
+      ...(merged.length > 0 ? { tag: merged } : {}),
+      ...(watch ? { watch } : {}),
+    };
+  }, [params, filters.tags, watch]);
+  const excludedTags = useMemo(() => listOf(params?.tag), [params]);
+  const conditionsKey = useMemo(() => JSON.stringify(query ?? null), [query]);
+  const loadCandidates = useCallback(
+    (signal: AbortSignal) =>
+      query === null ? Promise.resolve([]) : requests.tagCounts(drive, query, { signal }),
+    [drive, query, requests],
+  );
+  const filtersActive = filters.tags.length > 0 || watch !== undefined;
 
   const fetchGrouped = useMemo(
     () =>
-      params === null || none
+      query === null || none
         ? null
         : (page: number) =>
             requests
               .shelves(drive, {
-                ...params,
+                ...query,
                 by: group,
                 sort: sort.sort,
                 order: sort.order,
@@ -81,19 +112,19 @@ export function LibraryFace({
                   throw error;
                 },
               ),
-    [drive, params, requests, none, group, sort.sort, sort.order, onViewerRejected],
+    [drive, query, requests, none, group, sort.sort, sort.order, onViewerRejected],
   );
   const shelves = usePaged<Shelf>(fetchGrouped);
   const sentinel = useNearEnd(shelves.hasMore && shelves.more === "idle", shelves.loadMore);
 
   const fetchFlat = useMemo(
     () =>
-      params === null || !none
+      query === null || !none
         ? null
         : (page: number) =>
             requests
               .shelves(drive, {
-                ...params,
+                ...query,
                 by: "all",
                 key: "all",
                 sort: sort.sort,
@@ -111,31 +142,60 @@ export function LibraryFace({
                   throw error;
                 },
               ),
-    [drive, params, requests, none, sort.sort, sort.order, onViewerRejected],
+    [drive, query, requests, none, sort.sort, sort.order, onViewerRejected],
   );
   const flat = usePaged(fetchFlat);
 
   const number = useMemo(() => new Intl.NumberFormat(locale), [locale]);
-  const groupOptions = VIDEO_GROUPS.filter((candidate) => hasProfile || candidate !== "watch").map(
-    (candidate) => ({ value: candidate, label: t(`classifications.${candidate}`) }),
-  );
+  const groupOptions = VIDEO_GROUPS.map((candidate) => ({
+    value: candidate,
+    label: t(`classifications.${candidate}`),
+  }));
   const sortOptions = SORT_CHOICES.map((choice) => ({
     value: choice.id,
     label: t(choice.labelKey),
   }));
+  const stateOptions = [
+    { value: "all", label: t("state.all") },
+    ...WATCH_STATES.map((value) => ({ value, label: t(`state.${value}`) })),
+  ];
+  const conditions: ShelfLinkConditions = {
+    ...(filters.tags.length > 0 ? { tag: filters.tags } : {}),
+    ...(watch ? { watch } : {}),
+  };
+  const filteredEmpty = <EmptyState icon={Search} title={tFilters("filterEmpty")} />;
 
   return (
     <div className="space-y-6">
-      <LibraryControlRow>
+      <LibraryControlRow
+        filters={
+          <FilterMenus
+            tags={filters.tags}
+            onToggle={filters.toggleTag}
+            onClear={filters.clearTags}
+            loadCandidates={loadCandidates}
+            conditionsKey={conditionsKey}
+            excludeTags={excludedTags}
+            state={
+              hasProfile
+                ? { options: stateOptions, value: filters.state, onChange: filters.setState }
+                : null
+            }
+            onViewerRejected={onViewerRejected}
+          />
+        }
+      >
         <GroupMenu options={groupOptions} value={group} onChange={onGroup} />
         <SortMenu options={sortOptions} value={sortId} onChange={onSort} />
       </LibraryControlRow>
 
       <div>
         {none ? (
-          <VideoPagedGrid paged={flat} empty={empty} />
-        ) : empty || (shelves.phase === "ready" && shelves.items.length === 0) ? (
+          <VideoPagedGrid paged={flat} empty={empty} filtered={filtersActive} />
+        ) : empty ? (
           <EmptyState variant="no-files" />
+        ) : shelves.phase === "ready" && shelves.items.length === 0 ? (
+          filtersActive ? filteredEmpty : <EmptyState variant="no-files" />
         ) : shelves.phase === "failed" ? (
           <RetryButton onRetry={shelves.retry} />
         ) : shelves.phase === "ready" ? (
@@ -148,7 +208,7 @@ export function LibraryFace({
                     key={shelf.key}
                     title={title}
                     count={number.format(shelf.count)}
-                    seeAllHref={seeAllHref(drive, group, shelf.key, sortId)}
+                    seeAllHref={seeAllHref(drive, group, shelf.key, sortId, conditions)}
                     view={{ status: "loaded", items: shelf.items }}
                     onRetry={shelves.retry}
                     renderItem={(item) => <VideoCard item={item} />}

@@ -1,5 +1,8 @@
 "use client";
 
+import { Search } from "lucide-react";
+import { useTranslations } from "next-intl";
+
 import { EmptyState } from "@/components/EmptyState";
 import { RetryButton } from "@/components/appshell/RetryButton";
 import { useNearEnd } from "@/components/appshell/useNearEnd";
@@ -43,14 +46,24 @@ export interface PagedGridState<T> {
 export function VideoPagedGrid({
   paged,
   empty = false,
+  filtered = false,
 }: {
   paged: PagedGridState<ShelfItem>;
   empty?: boolean;
+  filtered?: boolean;
 }) {
+  const t = useTranslations("appFilters");
   const sentinel = useNearEnd(paged.hasMore && paged.more === "idle", paged.loadMore);
 
-  if (empty || (paged.phase === "ready" && paged.items.length === 0)) {
+  if (empty) {
     return <EmptyState variant="no-files" />;
+  }
+  if (paged.phase === "ready" && paged.items.length === 0) {
+    return filtered ? (
+      <EmptyState icon={Search} title={t("filterEmpty")} />
+    ) : (
+      <EmptyState variant="no-files" />
+    );
   }
   if (paged.phase === "failed") {
     return <RetryButton onRetry={paged.retry} />;

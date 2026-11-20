@@ -188,7 +188,7 @@ describe("SPEC-CORE-145 I8 the view waits for its input", () => {
     }
   });
 
-  it("SPEC-CORE-145 I8 a stored Watch State sends no folder request while the profile loads", async () => {
+  it("SPEC-CORE-147 I7 a stored Watch State shows Folder and never sends by=watch from the Library", async () => {
     writeAppPrefs(DRIVE, { face: "library" });
     writeTargetView("video", DRIVE, "default", { group: "watch" });
 
@@ -198,10 +198,10 @@ describe("SPEC-CORE-145 I8 the view waits for its input", () => {
       </ProfileProvider>,
     );
 
-    expect(await screen.findByRole("heading", { level: 2, name: "Unwatched" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { level: 2, name: "folder shelf" })).toBeInTheDocument();
     expect(libraryCalls().length).toBeGreaterThan(0);
     for (const call of libraryCalls()) {
-      expect(call.by).toBe("watch");
+      expect(call.by).toBe("folder");
     }
   });
 });
