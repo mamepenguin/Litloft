@@ -2,7 +2,7 @@
 
 SPEC-ID: SPEC-ADDON-156
 
-Approval:
+Approval: sha256:b6494795e123dc0b09bf91fc7159ab118313e47442d3acaaee3954c5cf2eec57 Yuichi Senga 2026-11-20
 
 ## Summary
 
