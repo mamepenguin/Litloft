@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R3-1",
+      "status": "confirmed",
+      "note": "Traced by hand on the Unread See all page (ShelfPage, paged: true, PAGE_SIZE 60 at requests.ts:31). Steps: 60 clips are drawn and the server holds at least 60. A new clip arrives and triggers a refresh. usePagedClips.ts:94-97 computes pages = ceil(60/60) = 1 and asks only page 1. That page returns the new clip plus the first 59 old ones, so old #60 (now on page 2) is left out. Lines 112-114 keep it in `unnamed` because pages === 1, and line 127 puts it in `kept`. Line 123 sets count to the server count (61), which still includes old #60. useShelfData.ts:77 sets cap undefined when paged, so nothing cuts it, and line 221 drops it from `counted`. A menu trash only updates the PageFileMenu lists: no clipsapp caller passes onTrashed to data.remove (grep finds only useVerify.ts:25), so data.count stays 61 until the next refresh. PageFileMenu.tsx:147-150 removedCount counts only `counted` items, so it returns 0. ShelfPage.tsx:127 therefore shows 61 while 60 cards are drawn and the server holds 60. hasMore (line 224) is 61 < 61 = false, so no loadMore corrects it before the next refresh."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R3-2",
+      "status": "confirmed",
+      "note": "clipsCardMenu.test.tsx:353-368 (Home) and :581-599 (Unread page) both serve clips(3), far below PAGE_SIZE 60 and Home's cap. In both, the only held item the refreshed page 1 leaves out is the trashed one (V clip 2 / C clip 2), so 'kept = all omitted items' and 'kept = only trashed omitted items' give the same counted set and the same header (3). No test refreshes a full page where an untrashed held card is pushed to page 2 and is then trashed."
+    }
+  ],
+  "specification_compliance": [
+    "SPEC-ADDON-164 I3 ('a count drawn for the list drops by one per card that leaves it') is not met on a Clips See all page in this case: a full first page is refreshed after a new clip, and the card pushed to page 2 is then trashed through the menu (see R3-1)."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "After a single-page refresh, the shelf page draws the card that was pushed off page 1 next to the new one (61 cards with 60 per page) until the next refresh or loadMore. That follows the intended keep-held-cards rule, but no invariant defines how such a card is counted."
+  ],
+  "regression_risks": [
+    "Narrowing `kept` to trashed or removed ids only must still keep the R2-1 behaviour, where a trashed card omitted by the refresh is not subtracted twice from the server count."
+  ],
+  "test_coverage": [
+    "No test covers a refresh of a full page (exactly PAGE_SIZE drawn) where a new clip pushes an untrashed held card to page 2 and that card is then trashed, so the header count after the trash is unchecked."
+  ],
+  "not_verified": [
+    "Did not run the tests or a browser; the scenario was traced by reading the code only.",
+    "Did not check whether the Clips Library (clipsapp/Library.tsx) or Home with a cap hits the same `kept` over-inclusion through another path.",
+    "Did not check the git history to confirm that the R2-1 commit, rather than earlier code, introduced the `kept` assignment."
+  ],
+  "confidence": 85
+}

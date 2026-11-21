@@ -6,6 +6,7 @@ The `knowledge` addon adds Markdown notes to Litloft: an editor, version history
 
 - **Notes** in the sidebar has a Home and a Library for the drive's Markdown and text files, with the chosen note shown and editable beside the list. See [Notes](../user-guide/notes.md).
 - **Clips** in the sidebar, right after Notes, gathers the web pages you clipped, apart from the notes you wrote.
+- Every note and clip card and row opens the core file menu on right-click or a 500 ms press: the Notes Home sections, the Notes Library, the Clips Home shelves, its unverified rows, and the Clips Library and shelf pages. **Remove from history** appears only in Notes' Continue writing and Clips' Recently opened, and only with a profile.
 - A Markdown editor with live preview, autosave, `[[wiki links]]`, and image upload by drag and drop or paste.
 - A version history where you browse and restore earlier versions of a note.
 - A capture basket that collects quotes and timestamps from anywhere in Litloft so you can add them to a note.
