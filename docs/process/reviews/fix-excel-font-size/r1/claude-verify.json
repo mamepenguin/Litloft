@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [],
+  "specification_compliance": [
+    "I1: excelAdapter.ts:19-42 walks the array and each sheet's styles, and sets each distinct numeric font.size to Math.round(size*4/3)+0.01. A Set dedupes shared fonts, and the function returns the same list. In the bundled library (node_modules/@js-preview/excel/lib/index.js line 36), preview runs `t=options.transformData(t)` and then `xs.loadData(t)`, so the grid receives the corrected list.",
+    "I2: correction happens only in transformData, which preview calls once. The ResizeObserver at excelAdapter.ts:113-115, the reload at :142 and the library's window resize handler (`W(window,'resize',()=>this.reload())`) only call reload. The draw path copies the font (`Object.assign({},f.font)`) before the pt→px table lookup, so drawing never writes back to the stored size.",
+    "I3: only font.size is written (excelAdapter.ts:37). Non-number sizes are skipped (:32). Rows, cols and other style keys are untouched.",
+    "I4: transformData runs before xs.loadData in the library's preview, so the first render already uses the corrected sizes.",
+    "I5: a value that is not an array is returned unchanged (:20). Unexpected shapes are skipped (:24,26,28,30,32). The whole walk is in try/catch with an empty catch and no console output (:22,40), so no throw can escape and make preview reject.",
+    "I6 checked by arithmetic against the bundle. The library stores Math.round(pt/1.333333): 8→6, 9→7, 10→8, 12→9, 14→11. The correction gives 8.01, 9.01, 11.01, 12.01 and 15.01. None of these is in the exact-match table He, and the canvas font uses je(size)=parseInt(size*devicePixelRatio), which gives 8r, 9r, 11r, 12r and 15r for r=1,2,3. This matches I6.",
+    "Touch points: options are typed locally as SpreadsheetOptions (excelAdapter.ts:14-17) with no .d.ts added. The library's Options (index.d.ts:1-5) has only optional props and overlaps on showContextmenu, so the assignment type-checks. INDEX.md:334 marks SPEC-CORE-167 'approved'. @js-preview/excel is pinned to 1.7.14 in package.json:24."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "A numeric font.size of 0 or NaN would become 0.01 or NaN. The library itself only converts sizes that are truthy, so this needs a style the library never produces; it is outside the threat model."
+  ],
+  "regression_risks": [
+    "The correction depends on three private behaviours of @js-preview/excel 1.7.14: the /1.333333 rounding, the exact-match pt→px table in x-data-spreadsheet, and parseInt truncation in je(). An upgrade could change the drawn sizes silently. The exact version pin and the R-5 re-check reduce this risk.",
+    "The walk visits one font per loaded cell, which costs time on very large workbooks. The spec accepts this (about 70 ms on 286k cells)."
+  ],
+  "test_coverage": [
+    "FilePreview.excelFontSize.test.tsx covers the following with a mocked library: I1 (each stored size in the spec table, a font shared across styles and sheets, and non-numeric, null and missing sizes); I3 (deep equality with the expected corrected workbook); I4 (sizes captured at loadData); I2 (reloads, ResizeObserver, window resize, rerender and resetData sheet switch, with passed length 1); I5 (non-array inputs, odd shapes, getters that throw partway, a build that never calls transformData, preview rejecting, and console spies on log, info, warn, error and debug).",
+    "I6 and real canvas drawing are not covered by automated tests; per the spec they are left to the manual R-5 measurement."
+  ],
+  "not_verified": [
+    "I did not run the test suite or the TypeScript compiler; the absence of type errors and the passing tests are inferred from reading the code.",
+    "I did not check the R-5 browser measurements or screenshots against the real workbooks, and did not observe canvas output at devicePixelRatio 1, 2 or 200 % zoom.",
+    "I did not trace the library's Og conversion fully to confirm whether fonts are shared between styles in practice.",
+    "I did not check whether INDEX.md should read 'approved' or 'implemented' at this stage of the project's workflow.",
+    "I did not inspect other x-data-spreadsheet code paths that may read style font.size, such as the toolbar, the editor or print."
+  ],
+  "confidence": 85,
+  "coverage": [
+    {
+      "path": "frontend/src/components/office/excelAdapter.ts",
+      "read": "full",
+      "reason": "Main change"
+    },
+    {
+      "path": "frontend/src/components/__tests__/FilePreview.excelFontSize.test.tsx",
+      "read": "full",
+      "reason": "Acceptance tests for I1-I5"
+    },
+    {
+      "path": "docs/specs/excel-font-size.md",
+      "read": "full",
+      "reason": "Spec and invariants"
+    },
+    {
+      "path": "docs/process/reviews/fix-excel-font-size/invariants.md",
+      "read": "full",
+      "reason": "Invariant revisions (none)"
+    },
+    {
+      "path": "frontend/node_modules/@js-preview/excel/lib/index.js",
+      "read": "partial",
+      "reason": "Grepped transformData call site, size conversion, pt→px table lookup, je/Pe font sizing, and resize handlers"
+    },
+    {
+      "path": "frontend/node_modules/@js-preview/excel/lib/index.d.ts",
+      "read": "partial",
+      "reason": "Options type compatibility"
+    },
+    {
+      "path": "docs/specs/INDEX.md",
+      "read": "partial",
+      "reason": "SPEC-CORE-167 row"
+    }
+  ]
+}
