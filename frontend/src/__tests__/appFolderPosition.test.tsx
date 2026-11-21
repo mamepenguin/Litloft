@@ -472,7 +472,7 @@ describe.each(APPS)("$spec $id: the folder position", (appCase) => {
       expect(foldersOf(chipCalls[0])).toEqual([]);
       expect(param(chipCalls[0], "offset") ?? "0").toBe("0");
       expect(crumbs()).toBeNull();
-      expect(chipFolders()).toEqual(["Videos", "Archive", "Music"]);
+      await waitFor(() => expect(chipFolders()).toEqual(["Videos", "Archive", "Music"]));
       expect(screen.queryByRole("button", { name: "All" })).toBeNull();
       const videos = chipLink("Videos");
       expect(videos.textContent).toContain("Videos");
@@ -489,7 +489,7 @@ describe.each(APPS)("$spec $id: the folder position", (appCase) => {
       expect(crumbs()).not.toBeNull();
       expect(crumbs()!.textContent).toContain("Videos");
       expectCrumbLinks([]);
-      expect(chipFolders()).toEqual(["Videos/Study", "Videos/Fun"]);
+      await waitFor(() => expect(chipFolders()).toEqual(["Videos/Study", "Videos/Fun"]));
     });
   });
 
@@ -530,7 +530,7 @@ describe.each(APPS)("$spec $id: the folder position", (appCase) => {
       for (const call of after.filter(isChips)) expect(foldersOf(call)).toEqual(["Videos"]);
       for (const call of after.filter(isLibrary)) expect(foldersOf(call)).toEqual(["Videos"]);
       expect(after.filter(isLibrary).filter((c) => !isChips(c)).length).toBeGreaterThan(0);
-      expect(chipFolders()).toEqual(["Videos/Study", "Videos/Fun"]);
+      await waitFor(() => expect(chipFolders()).toEqual(["Videos/Study", "Videos/Fun"]));
     });
 
     it(`${S} I4 Back restores the previous position with its shelves, and Forward returns`, async () => {
@@ -614,7 +614,7 @@ describe.each(APPS)("$spec $id: the folder position", (appCase) => {
       expect(lastPush().pathname).toBe(appPath(app));
       expect(lastPush().searchParams.has("folder")).toBe(false);
       await waitFor(() => expect(crumbs()).toBeNull());
-      expect(chipFolders()).toEqual(["Videos", "Archive", "Music"]);
+      await waitFor(() => expect(chipFolders()).toEqual(["Videos", "Archive", "Music"]));
     });
 
     it(`${S} I8 draws from a deeper base, every segment from the position down plain, and the chips one level below base`, async () => {
@@ -627,7 +627,7 @@ describe.each(APPS)("$spec $id: the folder position", (appCase) => {
       expect(text.indexOf("2020")).toBeGreaterThan(text.indexOf("Archive"));
       expect(text.indexOf("Jan")).toBeGreaterThan(text.indexOf("2020"));
       expectCrumbLinks(["Top"]);
-      expect(chipFolders()).toEqual(["Archive/2020/Jan/Week1"]);
+      await waitFor(() => expect(chipFolders()).toEqual(["Archive/2020/Jan/Week1"]));
     });
 
     it(`${S} I8 a segment above a folder-limited target's folder is plain, because it shows the same as the top`, async () => {
@@ -674,7 +674,7 @@ describe.each(APPS)("$spec $id: the folder position", (appCase) => {
       expect(library.filter(isChips).length).toBeGreaterThan(0);
       expect(library.filter((c) => !isChips(c)).length).toBeGreaterThan(0);
       for (const call of library) expect(foldersOf(call)).toEqual(["Videos/Study"]);
-      expect(chipFolders()).toEqual(["Videos/Study/Math", "Videos/Study/Physics"]);
+      await waitFor(() => expect(chipFolders()).toEqual(["Videos/Study/Math", "Videos/Study/Physics"]));
     });
 
     it(`${S} I1 under a folder-limited target, the position replaces the target's folder it lies inside`, async () => {
@@ -729,7 +729,7 @@ describe.each(APPS)("$spec $id: the folder position", (appCase) => {
         expect(paramsOf(call, "search")).toEqual([]);
       }
       expect(plainChips).toEqual(["Videos/Study", "Videos/Fun"]);
-      expect(chipFolders()).toEqual(plainChips);
+      await waitFor(() => expect(chipFolders()).toEqual(plainChips));
       expect(crumbs()?.textContent).toBe(plainCrumbs);
     });
   });
@@ -761,7 +761,7 @@ describe.each(APPS)("$spec $id: the folder position", (appCase) => {
       await releaseAll();
       await settle();
 
-      expect(chipFolders()).toEqual(["Videos/Study", "Videos/Fun"]);
+      await waitFor(() => expect(chipFolders()).toEqual(["Videos/Study", "Videos/Fun"]));
       expect(chipFolders()).not.toContain("Videos/Study/Math");
       expect(crumbs()!.textContent).not.toContain("Study");
     });
@@ -875,7 +875,7 @@ describe.each(APPS)("$spec $id: the folder position", (appCase) => {
       for (const call of wire.calls) expect(foldersOf(call)).not.toContain(value);
       for (const call of wire.calls.filter(isLibrary)) expect(foldersOf(call)).toEqual([]);
       expect(crumbs()).toBeNull();
-      expect(chipFolders()).toEqual(["Videos", "Archive", "Music"]);
+      await waitFor(() => expect(chipFolders()).toEqual(["Videos", "Archive", "Music"]));
     });
   });
 
@@ -1061,7 +1061,7 @@ describe("SPEC-CORE-165 Video only", () => {
       const grouped = wire.calls.filter((c) => isLibrary(c) && !isChips(c) && param(c, "by") === group);
       expect(grouped.length, `a Library request by=${group}`).toBeGreaterThan(0);
       expect(crumbs()).not.toBeNull();
-      expect(chipFolders()).toEqual(["Videos/Study/Math", "Videos/Study/Physics"]);
+      await waitFor(() => expect(chipFolders()).toEqual(["Videos/Study/Math", "Videos/Study/Physics"]));
     },
   );
 
@@ -1070,7 +1070,7 @@ describe("SPEC-CORE-165 Video only", () => {
     open(video, "");
     await waitForChips();
 
-    expect(chipFolders()).toEqual(["Videos", "Archive", "Music"]);
+    await waitFor(() => expect(chipFolders()).toEqual(["Videos", "Archive", "Music"]));
     const url = hrefOf(await screen.findByRole("link", { name: "See all: Trip" }));
     expect(url.searchParams.has("folder")).toBe(false);
     expect(url.searchParams.has("from_folder")).toBe(false);
