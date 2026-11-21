@@ -84,3 +84,12 @@ export async function fieldBox(page: Page, locale: Locale) {
     return { x: r.x, y: r.y, width: r.width, height: r.height, borderColor: getComputedStyle(target).borderTopColor };
   });
 }
+
+/** How far the field's bottom edge stays above the rule under the tab row. */
+export async function gapAboveTabRule(tab: Locator, field: { y: number; height: number }) {
+  const ruleTop = await tab.evaluate((el) => {
+    const row = el.closest("nav")!.parentElement!;
+    return row.getBoundingClientRect().bottom - parseFloat(getComputedStyle(row).borderBottomWidth);
+  });
+  return ruleTop - (field.y + field.height);
+}

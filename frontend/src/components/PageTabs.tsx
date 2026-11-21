@@ -46,11 +46,11 @@ const ROW_CLASS =
   "flex flex-wrap gap-1 border-b border-bg-border " +
   "pointer-coarse:flex-nowrap pointer-coarse:overflow-x-auto";
 
-const TRAILING_ROW_CLASS = "flex items-center gap-1 border-b border-bg-border";
+const TRAILING_ROW_CLASS = "flex items-stretch gap-1 border-b border-bg-border";
 const TRAILING_NAV_WRAP_CLASS = "flex flex-shrink-0 gap-1 flex-wrap";
 const TRAILING_NAV_CLASS =
   "flex flex-shrink-0 flex-wrap gap-1 pointer-coarse:flex-nowrap pointer-coarse:overflow-x-auto";
-const TRAILING_SLOT_CLASS = "flex min-w-0 flex-1 justify-end";
+const TRAILING_SLOT_CLASS = "flex min-w-0 flex-1 items-center justify-end py-1";
 
 /**
  * A row that navigates is not a tablist: `role="tab"` promises a screen
