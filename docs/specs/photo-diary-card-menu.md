@@ -50,6 +50,9 @@ The human decided (2026-11-21):
 
 - The browser blocks the new tab: nothing opens and the menu closes, with no message, as for
   the apps' row. Running the row in the click keeps `window.open` inside the user gesture.
+- The file changed since the grid loaded (trashed, missing, renamed or moved elsewhere):
+  the row opens the same href the card's own link would follow, and the new tab shows what
+  following that link shows today.
 - Every other failure is today's (the menu's dialogs and toasts are unchanged).
 
 ### 3. States
@@ -78,7 +81,15 @@ None new: the new tab loads the file page, which applies the drive's access chec
 - `FileCard` is also drawn directly by `CarouselSection.tsx` and `ContinueWatchingSection.tsx`;
   `JustifiedFileCell` only by `FileGrid`. Each card gains one boolean prop (a primitive, so the
   cards' `memo` still holds); the other callers do not pass it.
-- `useContextMenu`, `useFileCardLink` and `DismissScrim` are used unchanged.
+- `useContextMenu`, `useFileCardLink`, `DismissScrim`, `FileContextMenu`, `ContextMenu` and
+  `useFileMenuItems` are used unchanged.
+- `immediateRows` makes the dialog rows (Rename, Move, Move to Trash, Add to collection, the
+  Copy ID fallback) open their dialog in the click that closes the menu, where without it
+  they open on the next frame (`ContextMenu.tsx`: "so a dialog opens after the menu is
+  gone"). The app cards have run every row this way since SPEC-CORE-157, and its R-5
+  (`docs/process/reviews/feature-app-card-menu/decisions.md`) exercised rename, move, trash
+  and the confirm dialog from those menus with no visible defect; `FileGrid` uses the same
+  `FileContextMenu` and dialogs.
 - With `selectable` the cards attach no menu handlers today, and that holds with the opt-in.
   `user-select: none` goes on the card's wrapper element whatever it is (a link, or the `div`
   that `selectable` or a navigation override gives). The opt-in with a navigation override
@@ -96,8 +107,9 @@ the apps' row.
   rows act on the click that chooses them.
 - A long press on such a card on a touch device opens the menu without selecting the title's
   text.
-- On desktop, the title of such a card can no longer be selected with the mouse, the same
-  trade SPEC-CORE-157 made for the app cards.
+- On desktop, no text inside such a card (title, the size, duration and date line, tags,
+  and a search match overlay when present) can be selected with the mouse, the same trade
+  SPEC-CORE-157 made for the app cards.
 
 ### 10. Non-functional
 
@@ -120,9 +132,12 @@ No new requests, no new strings; one CSS class and one menu row.
 - `frontend/src/lib/canonicalFileUrl.ts` (`fileLinkHref`): read only.
 - `frontend/src/hooks/useContextMenu.ts`, `frontend/src/hooks/useFileCardLink.ts`,
   `frontend/src/components/DismissScrim.tsx`: used unchanged.
-- `frontend/e2e-layout/fixtures/justified-grid.html` and
-  `frontend/src/components/__tests__/justifiedGridFixtureParity.test.tsx`: a row for the
-  justified cell with the opt-in (a new render state of the cell).
+- `frontend/e2e-layout/fixtures/justified-grid.html`,
+  `frontend/src/components/__tests__/justifiedGridFixtureParity.test.tsx` and
+  `frontend/e2e-layout/justified-grid.spec.ts`: one new shape, `linkedOnlyAppCardMenu`
+  (the `linkedOnly` state with the opt-in, which is what Photo Diary renders). Only the
+  link node's class differs; the cell's outer class (`PHOTO_CELL_CLASSES`) does not change.
+  Both `SHAPE_COUNT`s go to 11, and the new shape runs the same geometry cases as the others.
 - `frontend/e2e-components/fixtures/` (a `FileGrid` fixture, registered in `fixtures/app.tsx`)
   and a spec beside `app-card-menu.spec.ts`: the computed `user-select` in Chromium.
 - `frontend/src/components/__tests__/`: the menu rows, the row's href, and the in-click rows.
@@ -138,10 +153,10 @@ No new requests, no new strings; one CSS class and one menu row.
 
 I1. With `appCardMenu`, the menu on a grid card lists **Open in new tab** right after any `extraMenuItems` rows and their divider, followed by the rows the same card offers without the opt-in, in the same order, in both layouts (16:9 card and justified cell).
 I2. With `appCardMenu`, **Open in new tab** calls `window.open` with exactly `fileLinkHref(file, sortQuery)` and `"_blank"` within the row's click, sends no API request, and closes the menu.
-I3. With `appCardMenu`, every row of the menu (Download, Add to collection, Copy, Cut, Copy ID, Rename, Move, Move to Trash) starts its action within the click that chooses it.
+I3. With `appCardMenu`, every enabled row acts within the click that chooses it, before any animation frame runs: Download calls `window.open`, Copy and Cut fill the clipboard, Copy ID writes the clipboard (or opens its dialog), and Add to collection, Rename, Move and Move to Trash have their dialog in the document.
 I4. With `appCardMenu`, every card the grid draws, in both layouts, computes `user-select: none` on its wrapper in Chromium.
 I5. With `appCardMenu`, a successful trash, rename or move from the menu calls the grid's `onRefresh` exactly once, and a failed or cancelled one does not call it.
-I6. Without `appCardMenu`, a `FileGrid` card's menu rows (with and without `extraMenuItems`), the moment each row acts, its wrapper's class list, and its right-click, press and tap behaviour are exactly today's; so are the `FileCard`s drawn by `CarouselSection` and `ContinueWatchingSection`.
+I6. Without `appCardMenu`, a `FileGrid` card's menu has no **Open in new tab** row, a non-extra row has not acted when its click returns and acts on the next animation frame, and the card's wrapper carries `select-none` only where it does today (`selectable` or `draggable`); the `FileCard`s drawn by `CarouselSection` and `ContinueWatchingSection` carry no `select-none` from this change. The existing `fileMenuParity`, `fileMenuExtraRows`, `justifiedGridFixtureParity` (its ten existing shapes) and `FileCard` tests pass unchanged.
 
 ## Checked, no action
 
