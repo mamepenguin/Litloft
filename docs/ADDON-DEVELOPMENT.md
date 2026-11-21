@@ -1318,11 +1318,12 @@ component drawn at 14px; omit it and the row keeps an empty 14px slot.
   it is and shows the core's save-failed toast.
 
 The core reads item actions only for `video-discover-recommended` entries, and
-only with a profile set. The card gets a right-click / 500 ms long-press menu of
-「新しいタブで開く」 followed by the actions; a factory that is missing, throws or
-returns anything but an array gives the card no menu, so the browser's own menu
-is left alone. Within the array, an element without a string `id` and `label` or
-a function `run`, and a repeated `id`, is dropped on its own.
+only with a profile set. The card's right-click / 500 ms long-press menu draws
+the valid actions first, then one divider, then the shared file menu. A factory
+that is missing, throws or returns anything but an array gives the card the file
+menu without action rows or divider. Within the array, an element without a
+string `id` and `label` or a function `run`, and a repeated `id`, is dropped on
+its own.
 
 ### Leading rows in the shared file menu
 
@@ -1351,6 +1352,13 @@ divider, then the menu's own rows. The core only invokes `onSelect`; it does not
 await it, catch it, or show a toast for it, so the addon owns the pending state,
 the toast and the failure. Without `extraMenuItems` the menu draws exactly its
 own rows and no divider.
+
+### `FileContextMenu` action callbacks
+
+`FileContextMenu` also takes three optional callbacks: `onTrashed(file)`,
+`onRenamed(file)` and `onMoved(file)`. Each is called once after its request
+succeeds, before `onUpdate`, and not at all when the request fails. A caller that
+passes none behaves as before.
 
 ### Registering a `.loft` player
 
@@ -1532,6 +1540,7 @@ const targetProps: TargetMenuProps = {
 | `readTargetView`, `writeTargetView`, `readLegacyGroup`, `TargetView` | `@/lib/appPrefs` |
 | `GroupMenu`, `SortMenu`, `LibraryControlRow`, `ViewMenuOption` | `@/components/appshell/ViewMenus` |
 | `FilterMenus`, `FilterMenuOption`, `FilterMenuState`, `FilterMenusProps` | `@/components/appshell/FilterMenus` |
+| `NameFilter`, `NameFilterProps` | `@/components/appshell/NameFilter` |
 | `getTagCounts`, `getTagCountsWithFileIds` | `@/lib/api` |
 | `formatMonth`, `isMonthKey` | `@/lib/formatMonth` |
 | `resolveAppTarget`, `resolveCollectionTarget`, `parseAppTargetId`, `collectionTargetId`, `AppTarget`, `AppTargetParams` | `@/lib/appTarget` |
@@ -1661,6 +1670,28 @@ options)` call `GET /api/drives/{drive}/tag-counts` and its `POST .../query` for
 carries the listing's filters plus `watch`, and the answer is `[{ name, count }]` in the
 endpoint's order. Under a member Target, pass the members through
 `AppRequests.tagCounts`, which is the POST form.
+
+### The tab row's trailing slot and the name filter
+
+`PageTabs` takes an optional `trailing` node. Without it the row renders exactly as before;
+with it, the tabs keep their size in a non-wrapping row, and `trailing` fills what is left
+of the row, outside the `nav` and its tablist. `AppTabs` passes it through.
+
+```tsx
+<AppTabs
+  current="library"
+  onSelect={setFace}
+  // …
+  trailing={<NameFilter value={name} onApply={setName} />}
+/>
+```
+
+`NameFilter` is the name field. Its labels come from core `appFilters`, so a caller passes
+no copy. `value` is the applied name; `onApply(name)` is called 300 ms after the last input
+and at once on Enter, with the draft trimmed, cut to 200 UTF-16 code units and trimmed
+again. `alwaysOpen` draws the field without the icon. `onLeavePending` receives a pending
+name once when the part unmounts, and a change of `scopeKey` drops a pending apply instead.
+On the Library it goes in `trailing`; on a page header, put it in `actions` before the sort.
 
 ### Resolving the chosen folder
 

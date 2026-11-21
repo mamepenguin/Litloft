@@ -193,7 +193,7 @@ for (const app of APP_PAGES) {
 }
 
 for (const app of SHELF_PAGES) {
-  test(`SPEC-CORE-099 I13 ${app} at 375px: the sort menu is the header's last row, at its right end, showing its choice`, async ({
+  test(`SPEC-CORE-099 I13 ${app} at 375px: the sort menu is the header's last row, at its start, showing its choice`, async ({
     page,
   }) => {
     await openAppHeader(page, PHONE, { app });
@@ -203,7 +203,7 @@ for (const app of SHELF_PAGES) {
     const sort = m.sort!;
     const above = [m.h1, m.count, m.target, ...(m.tabs ? [m.tabs] : [])];
     for (const b of above) expect(sort.top).toBeGreaterThanOrEqual(b.bottom - 1);
-    expect(Math.abs(sort.svgs[sort.svgs.length - 1].right - m.contentRight)).toBeLessThanOrEqual(1);
+    expect(Math.abs(sort.left - m.contentLeft)).toBeLessThanOrEqual(1);
     expect(sort.text).toContain("Date Added (Newest First)");
     expect(m.scrollWidth).toBeLessThanOrEqual(PHONE);
   });

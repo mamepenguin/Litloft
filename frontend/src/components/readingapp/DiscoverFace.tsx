@@ -5,6 +5,11 @@ import { useTranslations } from "next-intl";
 
 import { EmptyState } from "@/components/EmptyState";
 import { ShelfBlock, type ShelfView } from "@/components/appshell/ShelfBlock";
+import {
+  discoverListKey,
+  useCardFileLists,
+  type CardFileLists,
+} from "@/components/appshell/CardFileMenu";
 import type { LoadState } from "@/components/appshell/useLoad";
 import type { ShelfItem } from "@/lib/api";
 import { ReadingCard } from "./ReadingCard";
@@ -15,8 +20,11 @@ interface ShelfSource {
   retry: () => void;
 }
 
-function viewOf(state: LoadState<ShelfItem[]>): ShelfView<ShelfItem> {
-  if (state.status === "loaded") return { status: "loaded", items: state.data };
+function viewOf(
+  state: LoadState<ShelfItem[]>,
+  items: readonly ShelfItem[],
+): ShelfView<ShelfItem> {
+  if (state.status === "loaded") return { status: "loaded", items };
   if (state.status === "failed") return { status: "failed" };
   return { status: "loading" };
 }
@@ -43,6 +51,7 @@ export function DiscoverFace({
   fresh: ShelfSource;
 }) {
   const t = useTranslations("readingApp");
+  const lists = useCardFileLists();
   const shelves = [
     ...(hasProfile
       ? [
@@ -69,7 +78,9 @@ export function DiscoverFace({
       href: readingShelfHref(drive, "all", "all", undefined, {}, "discover"),
       progress: false,
     },
-  ].filter((shelf) => drawn(shelf.source.state));
+  ]
+    .map((shelf) => ({ ...shelf, items: filtered(lists, shelf.id, shelf.source) }))
+    .filter((shelf) => shelf.items !== null);
 
   const settled = [continueShelf, notRead, fresh].every(
     (source) => source.state.status === "loaded" || source.state.status === "idle",
@@ -84,19 +95,36 @@ export function DiscoverFace({
 
   return (
     <div className="space-y-10">
-      {shelves.map(({ id, title, source, href, progress }) => (
+      {shelves.map(({ id, title, source, href, progress, items }) => (
         <ShelfBlock
           key={id}
           title={title}
           seeAllHref={href}
-          view={viewOf(source.state)}
+          view={viewOf(source.state, items ?? [])}
           onRetry={source.retry}
           book
           renderItem={(item) => (
-            <ReadingCard item={item} drive={drive} showProgress={progress} />
+            <ReadingCard
+              item={item}
+              drive={drive}
+              showProgress={progress}
+              fileMenu={{ listKey: discoverListKey(id) }}
+            />
           )}
         />
       ))}
     </div>
   );
+}
+
+/** The shelf's items after menu removals, or null when it has no card to draw. */
+function filtered(
+  lists: CardFileLists,
+  id: string,
+  source: ShelfSource,
+): ShelfItem[] | null {
+  if (!drawn(source.state)) return null;
+  if (source.state.status !== "loaded") return [];
+  const items = lists.filter(discoverListKey(id), source.state.data);
+  return items.length === 0 ? null : items;
 }

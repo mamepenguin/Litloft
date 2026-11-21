@@ -41,6 +41,7 @@ const DEVICE_HEIGHT_PX = 727;
 const AT_THE_PHONE_WIDTH = [
   "add-menu.spec.ts",
   "admin-settings-touch.spec.ts",
+  "app-card-menu.spec.ts",
   "app-header.spec.ts",
   "anchored-direction.spec.ts",
   "header-row-crowding.spec.ts",
@@ -83,6 +84,7 @@ const AT_THE_PHONE_WIDTH = [
   "video-card-spacing.spec.ts",
   "view-menus.spec.ts",
   "library-filters.spec.ts",
+  "name-filter.spec.ts",
   "notes-view-menus.spec.ts",
   "clips-primary-action.spec.ts",
   "clips-view-menus.spec.ts",
@@ -103,6 +105,7 @@ const AT_THE_DESKTOP_WIDTH = [
   "frame-crop-desktop.spec.ts",
   "view-menus-desktop.spec.ts",
   "library-filters-desktop.spec.ts",
+  "name-filter-desktop.spec.ts",
   "frame-outline-desktop.spec.ts",
   "add-menu-desktop.spec.ts",
   "condition-menu-desktop.spec.ts",

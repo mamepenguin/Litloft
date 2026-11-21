@@ -7,9 +7,11 @@ export type ShelfOrigin = "discover" | "library";
 export interface ShelfLinkConditions {
   tag?: readonly string[];
   watch?: ShelfWatchState;
+  /** The applied name filter, carried as `q`. */
+  name?: string;
 }
 
-/** A See all destination; the Library's tag and state conditions ride in the URL. */
+/** A See all destination; the Library's tag, state and name conditions ride in the URL. */
 export function videoShelfHref(
   drive: string,
   by: ShelfGrouping,
@@ -22,6 +24,7 @@ export function videoShelfHref(
   if (sortId !== undefined && sortId !== "newest") query.set("sort", sortId);
   for (const tag of conditions.tag ?? []) query.append("tag", tag);
   if (conditions.watch) query.set("watch", conditions.watch);
+  if (conditions.name) query.set("q", conditions.name);
   if (from) query.set("from", from);
   return `/drive/${encodeURIComponent(drive)}/apps/video/shelf?${query.toString()}`;
 }

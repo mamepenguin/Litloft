@@ -3,10 +3,19 @@
  * (`backend/app/routers/files.py`) reads the OOXML formats with `python-docx`,
  * `openpyxl` and `python-pptx`, and returns "" for the older binary ones.
  */
+import type { FileItem } from "@/types";
+
+const WORD_MIME =
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+const EXCEL_MIME =
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+const PRESENTATION_MIME =
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+
 export const OFFICE_MIMES = new Set([
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  WORD_MIME,
+  EXCEL_MIME,
+  PRESENTATION_MIME,
 ]);
 
 /**
@@ -23,4 +32,17 @@ export function wantsOfficeExcerpt(
   fileSize: number,
 ): boolean {
   return OFFICE_MIMES.has(mimeType ?? "") && fileSize <= OFFICE_PREVIEW_MAX_BYTES;
+}
+
+/** Which browser viewer draws the file, or null when the page keeps its panel. */
+export type OfficeViewer = "word" | "excel";
+
+export function officeViewerFor(
+  file: Pick<FileItem, "mime_type" | "file_size" | "missing_since">,
+): OfficeViewer | null {
+  if (file.missing_since) return null;
+  if (file.file_size > OFFICE_PREVIEW_MAX_BYTES) return null;
+  if (file.mime_type === WORD_MIME) return "word";
+  if (file.mime_type === EXCEL_MIME) return "excel";
+  return null;
 }

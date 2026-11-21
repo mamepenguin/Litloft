@@ -5,6 +5,8 @@ export interface ShelfLinkConditions {
   folder?: readonly string[];
   tag?: readonly string[];
   watch?: ShelfWatchState;
+  /** The applied name filter, carried as `q`. */
+  name?: string;
 }
 
 /** The face a See all was opened from; `by=all` means New on Discover and All books in Library. */
@@ -27,6 +29,7 @@ export function readingShelfHref(
   for (const folder of conditions.folder ?? []) query.append("folder", folder);
   for (const tag of conditions.tag ?? []) query.append("tag", tag);
   if (conditions.watch) query.set("watch", conditions.watch);
+  if (conditions.name) query.set("q", conditions.name);
   if (from) query.set("from", from);
   return `/drive/${encodeURIComponent(drive)}/apps/reading/shelf?${query.toString()}`;
 }

@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "CR-1",
+      "status": "confirmed",
+      "note": "addons/media_import/.github/workflows/ci.yml:123 defines `frontend-static` (checkout, setup, collection guard, tsc at :223-224), and that job has no vitest or `pnpm test` step. ci.yml:227-309 defines the `frontend-shards` matrix [1,2,3,4], running `pnpm exec vitest run --retry=1 --shard=${{ matrix.shard }}/4` (:308). ci.yml:311-327 is the `frontend` aggregator that `needs` both jobs. Core frontend/package.json:11 is `\"test\": \"vitest run\"`. docs/process/spec-and-design.md:41-43 says touch points include 'scripts and workflow files'. The spec's Touch points section (docs/specs/loft-channel-videos.md:259-) names no workflow file, and invariants.md mentions none either. docs/process/reviews/feature-loft-channel-videos/r6/product-files.txt:1 lists ci.yml among the changed files. Without git I could not see the pre-change ci.yml directly, so the claimed removal of a `pnpm test` step is inferred from its absence now plus the product-files list."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "CR-2",
+      "status": "confirmed",
+      "note": "All three files exist: addons/media_import/frontend/ChannelVideos.test.tsx, addons/media_import/frontend/lib/publishedDate.test.ts and addons/media_import/backend/tests/test_channel_videos.py. The spec's Touch points (docs/specs/loft-channel-videos.md:276-280) list only Page.test.tsx and LoftMetadataPanel.test.tsx as tests that change, and test_drive_scope.py appears separately at :265. None of the three new files is named, and invariants.md does not name them either. r6/product-files.txt lists the two frontend test files but not test_channel_videos.py, so I could not confirm from git that the backend file is new to this change. Its name and subject match the new endpoint."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "CR-3",
+      "status": "confirmed",
+      "note": "addons/media_import/backend/subscription/db.py:301-321 defines `_published_sort_key(files_table=\"f\", metadata_table=\"m\")`, and :324 sets `_PUBLISHED_SORT_KEY = _published_sort_key()`. The Watch lane query uses it at :415 with the aliases `files f` / `loft_metadata m` (:416-417). The new `list_channel_videos` (:490-) calls `text(_published_sort_key(\"files\", \"loft_metadata\") + \" DESC\")` at :516. With the defaults, the Watch lane's SQL appears equivalent to the old constant, so I see no behavioural change. Without git I could not diff it against the old text, but the constant was refactored rather than reused as the touch point says."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "CR-4",
+      "status": "confirmed",
+      "note": "addons/media_import/frontend/ChannelVideos.tsx:20 is `import type { FileItem } from \"@/types\";`. Grepping `@/types` with no quotes across addons/media_import matches only that line, test files included. The spec's list of core frontend modules the addon starts importing (docs/specs/loft-channel-videos.md:282-287) does not include `types`. ChannelVideos.tsx:10 imports `@/components/PageFrame`, and I did not open Page.tsx to check the reviewer's statement that it already imported PageFrame. Every other core import at ChannelVideos.tsx:8-19 is on the spec list."
+    }
+  ],
+  "specification_compliance": [
+    "The touch points omit the addon CI workflow (ci.yml), three new test files and the `@/types` import, and they describe the sort key as reused when it was refactored into a function. All of these are scope or documentation gaps in the touch points rather than behavioural defects."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The CI change adds `--retry=1` to the core vitest run, so an addon test that is intermittently flaky now passes CI instead of failing it."
+  ],
+  "regression_risks": [
+    "The Watch lane query now builds its sort key through `_published_sort_key()` with default aliases. If those defaults ever drift from the lane's `f`/`m` aliases, Watch ordering breaks."
+  ],
+  "test_coverage": [
+    "I did not run any tests; I only confirmed that the new test files exist."
+  ],
+  "not_verified": [
+    "I assumed the working tree and the addon submodule match commit 78b89eca and could not confirm this, because I had no git access.",
+    "Pre-change file contents, such as the old ci.yml `Test` step and the old `_PUBLISHED_SORT_KEY` text, were not diffed. Claims about removal or rewriting were checked against the current state and product-files.txt only.",
+    "Whether Page.tsx imported PageFrame before this change.",
+    "Whether test_channel_videos.py is new in this change, since it is absent from product-files.txt.",
+    "I did not check behavioural invariants I1-I10 beyond what the four findings needed."
+  ],
+  "confidence": 85
+}

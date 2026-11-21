@@ -179,3 +179,62 @@ describe("PageTabs", () => {
     expect(button.id).toBe("");
   });
 });
+
+describe("SPEC-CORE-156 I8 the trailing slot", () => {
+  it("SPEC-CORE-156 I8 draws the trailing node after the tabs, outside the nav and its tablist", () => {
+    render(
+      <PageTabs
+        items={BUTTON_ITEMS}
+        current="watch"
+        label="Views"
+        trailing={<button type="button">Trailing</button>}
+      />,
+    );
+
+    const trailing = screen.getByRole("button", { name: "Trailing" });
+    const tablist = screen.getByRole("tablist");
+    const nav = screen.getByLabelText("Views").closest("nav") ?? screen.getByLabelText("Views");
+    expect(tablist.contains(trailing)).toBe(false);
+    expect(nav.contains(trailing)).toBe(false);
+    expect(
+      screen.getByRole("tab", { name: "Manage" }).compareDocumentPosition(trailing) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(screen.getAllByRole("tab")).toHaveLength(2);
+  });
+
+  it("SPEC-CORE-156 I8 keeps a navigating row free of tab roles with a trailing node", () => {
+    render(
+      <PageTabs
+        items={LINK_ITEMS}
+        current="ask"
+        label="Modes"
+        trailing={<button type="button">Trailing</button>}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "Trailing" })).toBeInTheDocument();
+    expect(screen.queryByRole("tablist")).toBeNull();
+    expect(screen.getAllByRole("link")).toHaveLength(2);
+  });
+
+  it("SPEC-CORE-156 AppTabs passes trailing through, outside the tablist", async () => {
+    const path = "@/components/appshell/AppTabs";
+    const { AppTabs } = await import(/* @vite-ignore */ path);
+    render(
+      <AppTabs
+        current="library"
+        onSelect={() => {}}
+        label="Views"
+        discoverLabel="Discover"
+        libraryLabel="Library"
+        panelId="panel"
+        idPrefix="t"
+        trailing={<button type="button">Trailing</button>}
+      />,
+    );
+
+    const trailing = screen.getByRole("button", { name: "Trailing" });
+    expect(screen.getByRole("tablist").contains(trailing)).toBe(false);
+  });
+});

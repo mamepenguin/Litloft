@@ -84,7 +84,7 @@ In the [iOS app](../user-guide/ios-app.md), the YouTube player's settings have *
 
 The addon adds a panel at the top of the file's **Info** tab, under the title, with:
 
-- the channel name, publication date and the start of the description;
+- the channel name, publication date and the start of the description. The channel name is a link to that channel's videos;
 - the caption status, for example **YouTube has no captions for this video**. When a download failed, click the status to try again.
 
 Two actions for a `.loft` are in the file's menus:
@@ -93,6 +93,14 @@ Two actions for a `.loft` are in the file's menus:
 - **Generate captions with speech-to-text**, in the **AI** menu, downloads the audio for the intelligence addon to transcribe. The AI menu is part of the intelligence addon.
 
 Both show their result as a notification.
+
+## A channel's videos
+
+Clicking the channel name in the **Info** tab opens `/drive/{drive}/addons/media_import?provider=<provider>&channel=<channel>`: every `.loft` in the same drive whose channel and provider match exactly, newest publication first. A video with no publication date sorts by the date it was imported. The header has a link back to **YouTube & Feeds**, and each card shows the publication date under the title. Videos load as you scroll.
+
+Right-click a card, or press and hold it on a touch screen, for the same menu as the file list: open in a new tab, download, add to a collection, copy, cut, copy ID, rename, move and move to trash. After a rename, move or move to trash, the list reloads.
+
+The list comes from `GET /api/addons/media_import/channel-videos?provider=&channel=` with the `X-Lit-Drive` header. It answers `{"items": [{"file_id", "published_at"}]}` with every match, in that order. A missing header is `400`, a locked or unknown drive `404`, and a missing or blank `provider` or `channel` `422`.
 
 ## Search and Ask
 

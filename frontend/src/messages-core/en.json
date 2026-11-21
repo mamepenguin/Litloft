@@ -209,6 +209,7 @@
     "actionsFor": "Actions for {name}",
     "pdfThumbnails": "Page thumbnails",
     "officeExcerpt": "Extracted text, first lines",
+    "officeViewer": "Document",
     "pdfZoomMode": "Zoom mode",
     "pdfZoomMode_fit-width": "Fit width",
     "pdfZoomMode_fit-page": "Whole page",
@@ -1587,6 +1588,9 @@
     "noMatchingTags": "No matching tags",
     "noTags": "No tags",
     "tryAgain": "Try again",
-    "filterEmpty": "Nothing matches these filters"
+    "filterEmpty": "Nothing matches these filters",
+    "nameFilter": "Filter by name",
+    "nameFilterPlaceholder": "Filter by name...",
+    "clearName": "Clear input"
   }
 }

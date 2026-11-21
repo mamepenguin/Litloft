@@ -1,11 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useMemo, useState, type ReactNode } from "react";
-import { BookOpen, ChevronLeft } from "lucide-react";
+import { useCallback, useMemo, useRef, useState, type ReactNode } from "react";
+import { BookOpen, ChevronLeft, Search } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 
 import { EmptyState } from "@/components/EmptyState";
+import {
+  CardFileMenuProvider,
+  fetchAlignedPage,
+  useCardFileMenu,
+} from "@/components/appshell/CardFileMenu";
+import { NameFilter } from "@/components/appshell/NameFilter";
 import { RetryButton } from "@/components/appshell/RetryButton";
 import { ShelfBlock } from "@/components/appshell/ShelfBlock";
 import { useNearEnd } from "@/components/appshell/useNearEnd";
@@ -61,6 +67,9 @@ export function ReadingShelfPage({
   folders: urlFolders,
   tags: urlTags,
   watch: urlWatch,
+  name,
+  onNameChange,
+  onLeavePending,
   onTargetChosen,
   from,
   homeEntry,
@@ -72,6 +81,12 @@ export function ReadingShelfPage({
   folders?: readonly string[];
   tags?: readonly string[];
   watch?: string | null;
+  /** The URL's normalised `q`. */
+  name?: string | null;
+  /** An applied name; the caller replaces the URL and keeps the store. */
+  onNameChange?: (name: string) => void;
+  /** Called on unmount while an apply is still pending. */
+  onLeavePending?: (name: string) => void;
   /** Called after a Target is chosen on this page, to drop the URL's filters. */
   onTargetChosen?: () => void;
   from?: string | null;
@@ -79,12 +94,13 @@ export function ReadingShelfPage({
   homeEntry?: string;
 }) {
   const t = useTranslations("readingApp");
+  const tFilters = useTranslations("appFilters");
   const locale = useLocale();
   const appState = useReadingApp(drive);
   const { chooseTarget: chooseAppTarget, targetId } = appState;
   // The URL's filters stop applying in the render that shows the new Target;
   // the replace that removes them from the URL lands later.
-  const urlFilters = JSON.stringify([urlTags ?? [], urlWatch ?? null, urlFolders ?? []]);
+  const urlFilters = JSON.stringify([urlTags ?? [], urlWatch ?? null, urlFolders ?? [], name ?? ""]);
   const [droppedFor, setDroppedFor] = useState<string | null>(null);
   const filtersDropped = droppedFor === urlFilters;
   const chooseTarget = useCallback(
@@ -97,6 +113,20 @@ export function ReadingShelfPage({
     [chooseAppTarget, onTargetChosen, targetId, urlFilters],
   );
   const state = useMemo(() => ({ ...appState, chooseTarget }), [appState, chooseTarget]);
+  const continuePage = by === "watch" && shelfKey === "continue";
+  const cards = useCardFileMenu({
+    scope: JSON.stringify([
+      drive,
+      state.requests.key,
+      state.targetId,
+      state.nickname,
+      state.hasProfile,
+      state.params,
+    ]),
+    hasProfile: state.hasProfile,
+    continueListKeys: continuePage ? ["page"] : [],
+  });
+  const removedBefore = useRef(0);
   const offered: readonly ShelfSortChoice[] =
     by === "watch" && shelfKey === "continue" ? CONTINUE_SORT_CHOICES : SORT_CHOICES;
   const initialChoice = parseShelfSortId(initialSort ?? null, offered) ?? offered[0].id;
@@ -132,33 +162,44 @@ export function ReadingShelfPage({
   }, [params, urlFolders, urlTags, filtersDropped]);
 
   const watch = state.hasProfile ? requestedWatch : null;
+  const requestedName = filtersDropped ? "" : (name ?? "");
+  const listing = by !== null && query !== null && keyValid && !watchBlocked;
+  const filtersActive =
+    !filtersDropped &&
+    (requestedName !== "" ||
+      (urlTags?.length ?? 0) > 0 ||
+      (urlFolders?.length ?? 0) > 0 ||
+      requestedWatch !== null);
 
   const fetchPage = useMemo(
     () =>
       by === null || query === null || watchBlocked || !keyValid
         ? null
         : (page: number) =>
-            requests
-              .shelves(drive, {
-                ...query,
-                ...(watch ? { watch } : {}),
-                by,
-                key: shelfKey,
-                sort: sort.sort,
-                order: sort.order,
-                per_shelf: SHELF_PAGE_SIZE,
-                page,
-              })
-              .then(
-                (response) => {
-                  const shelf = response.shelves[0];
-                  return { items: shelf?.items ?? [], total: shelf?.count ?? 0 };
-                },
-                (error: unknown) => {
-                  if (isViewerRequired(error)) rejectViewer();
-                  throw error;
-                },
-              ),
+            fetchAlignedPage<ShelfItem>(page, removedBefore.current, SHELF_PAGE_SIZE, (n) =>
+              requests
+                .shelves(drive, {
+                  ...query,
+                  ...(watch ? { watch } : {}),
+                  ...(requestedName ? { search: requestedName } : {}),
+                  by,
+                  key: shelfKey,
+                  sort: sort.sort,
+                  order: sort.order,
+                  per_shelf: SHELF_PAGE_SIZE,
+                  page: n,
+                })
+                .then(
+                  (response) => {
+                    const shelf = response.shelves[0];
+                    return { items: shelf?.items ?? [], total: shelf?.count ?? 0 };
+                  },
+                  (error: unknown) => {
+                    if (isViewerRequired(error)) rejectViewer();
+                    throw error;
+                  },
+                ),
+            ),
     [
       drive,
       by,
@@ -168,12 +209,15 @@ export function ReadingShelfPage({
       watch,
       watchBlocked,
       keyValid,
+      requestedName,
       sort.sort,
       sort.order,
       rejectViewer,
     ],
   );
-  const paged = usePaged<ShelfItem>(fetchPage);
+  const paged = usePaged<ShelfItem>(fetchPage, cards.context.version);
+  removedBefore.current = cards.removedCount("page", paged.items);
+  const pageItems = cards.filter("page", paged.items);
   const sentinel = useNearEnd(paged.hasMore && paged.more === "idle", paged.loadMore);
 
   const title =
@@ -192,14 +236,20 @@ export function ReadingShelfPage({
     body = <EmptyState icon={BookOpen} title={t("noBooks")} />;
   } else if (paged.phase === "failed") {
     body = <RetryButton onRetry={paged.retry} />;
-  } else if (paged.phase === "ready" && paged.items.length === 0) {
-    body = <EmptyState icon={BookOpen} title={t("noBooks")} />;
+  } else if (paged.phase === "ready" && pageItems.length === 0) {
+    body = filtersActive ? (
+      <EmptyState icon={Search} title={tFilters("filterEmpty")} />
+    ) : (
+      <EmptyState icon={BookOpen} title={t("noBooks")} />
+    );
   } else if (paged.phase === "ready") {
     body = (
       <>
         <ReadingGrid
-          items={paged.items}
-          renderItem={(item) => <ReadingCard item={item} drive={drive} />}
+          items={pageItems}
+          renderItem={(item) => (
+            <ReadingCard item={item} drive={drive} fileMenu={{ listKey: "page" }} />
+          )}
         />
         <div ref={sentinel} aria-hidden="true" className="h-px" />
         {paged.more === "loading" && (
@@ -227,10 +277,11 @@ export function ReadingShelfPage({
   }
 
   return (
-    <PageFrame
-      width="wide"
-      header={
-        <ReadingAppHeader
+    <CardFileMenuProvider value={cards.context}>
+      <PageFrame
+        width="wide"
+        header={
+          <ReadingAppHeader
           drive={drive}
           state={state}
           title={title}
@@ -245,17 +296,38 @@ export function ReadingShelfPage({
             </Link>
           }
           actions={
-            <ReadingSortMenu
-              choices={offered}
-              value={sortId}
-              quiet
-              onChange={(id) => setSelection({ scope, id })}
-            />
+            listing ? (
+              <div className="flex w-full min-w-0 flex-col items-start gap-2 max-sm:pr-2 sm:w-auto md:flex-row md:items-center">
+                <NameFilter
+                  value={requestedName}
+                  alwaysOpen
+                  onApply={(next) => onNameChange?.(next)}
+                  onLeavePending={onLeavePending}
+                />
+                <div className="shrink-0">
+                  <ReadingSortMenu
+                    choices={offered}
+                    value={sortId}
+                    quiet
+                    onChange={(id) => setSelection({ scope, id })}
+                  />
+                </div>
+              </div>
+            ) : (
+              <ReadingSortMenu
+                choices={offered}
+                value={sortId}
+                quiet
+                onChange={(id) => setSelection({ scope, id })}
+              />
+            )
           }
         />
       }
     >
-      <div className="px-4 pb-6 pt-4 sm:pb-8">{body}</div>
-    </PageFrame>
+        <div className="px-4 pb-6 pt-4 sm:pb-8">{body}</div>
+      </PageFrame>
+      {cards.menu}
+    </CardFileMenuProvider>
   );
 }

@@ -1,0 +1,15 @@
+addons/knowledge/frontend/__tests__/clipsAppHarness.tsx
+addons/knowledge/frontend/__tests__/clipsNameFilter.test.tsx
+addons/knowledge/frontend/clipsapp/__tests__/clipsUrl.test.ts
+addons/knowledge/frontend/clipsapp/__tests__/requests.test.ts
+frontend/src/__tests__/appTargetParam.test.tsx
+frontend/src/__tests__/ime-enter-guard.test.ts
+frontend/src/__tests__/nameFilterMemberTarget.test.tsx
+frontend/src/__tests__/nameFilterRetention.test.tsx
+frontend/src/components/__tests__/PageTabs.test.tsx
+frontend/src/components/__tests__/seeAllNameFilter.listing.test.tsx
+frontend/src/components/__tests__/seeAllNameFilter.test.tsx
+frontend/src/components/appshell/__tests__/NameFilter.normalise.test.tsx
+frontend/src/components/appshell/__tests__/NameFilter.test.tsx
+frontend/src/components/readingapp/__tests__/ReadingApp.nameFilter.test.tsx
+frontend/src/components/videoapp/__tests__/VideoApp.nameFilter.test.tsx

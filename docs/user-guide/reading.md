@@ -21,6 +21,11 @@ Up to three shelves of 12 books, each loading on its own:
   The sample stays while you switch tabs and back; reloading the page draws a new one.
 - **新着** / **New**: the most recently added books.
 
+Right-click or long-press any card to open the file menu: download, add to a
+collection, copy, cut, copy the ID, rename, move and move to trash. On a
+**Continue reading** card with a profile the menu also has **Remove from
+Continue** and **Remove from history**.
+
 A shelf with no books is not shown, and **Continue reading** is not shown without a
 profile. Each shelf's **See all** opens it as a grid, 60 books at a time. **Not read yet**
 has no **See all** without a profile. **Continue reading**'s page opens most recently
@@ -69,6 +74,11 @@ the grouping the drive used before this change.
 The chosen tags and state are not saved: they last while the page is open, through the
 Discover/Library switch and a round trip through **See all**, and they reset on a full page
 load, when you open Reading on another drive, and when you choose another target.
+
+A name filter beside the view menus narrows the same shelves about 300 ms after you stop
+typing: books whose title or folder path contains the text, chosen from a field that the
+search icon at the right end of the tab row opens. A **See all** page opened from the
+Library carries the text with it, and the text lasts with the tag and state filters.
 
 **See all** on a shelf opens it as a grid, 60 books at a time, under the same target,
 chips, tag, state and sort. The shelf page has its own sort menu and its own target

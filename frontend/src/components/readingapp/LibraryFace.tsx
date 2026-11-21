@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { BookOpen, Search } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 
 import { EmptyState } from "@/components/EmptyState";
+import { fetchAlignedPage, useCardFileLists } from "@/components/appshell/CardFileMenu";
 import { FilterMenus } from "@/components/appshell/FilterMenus";
 import { mergeLibraryTags, useLibraryFilters } from "@/components/appshell/libraryFilters";
 import { RetryButton } from "@/components/appshell/RetryButton";
@@ -95,6 +96,7 @@ export function LibraryFace({
   const sort = sortChoiceOf(sortId);
   const [chip, setChip] = useState<string>("all");
   const filters = useLibraryFilters("reading", drive, hasProfile);
+  const name = filters.name;
 
   // A chip lasts only for the target it was chosen under.
   useEffect(() => {
@@ -119,8 +121,9 @@ export function LibraryFace({
     const merged = mergeLibraryTags(listOf(params.tag), filters.tags);
     if (merged.length > 0) next.tag = merged;
     if (watch) next.watch = watch;
+    if (name) next.search = name;
     return next;
-  }, [params, folders, filters.tags, watch]);
+  }, [params, folders, filters.tags, name, watch]);
   const excludedTags = useMemo(() => listOf(params?.tag), [params]);
   const conditionsKey = useMemo(() => JSON.stringify(query ?? null), [query]);
   const loadCandidates = useCallback(
@@ -128,35 +131,40 @@ export function LibraryFace({
       query === null ? Promise.resolve([]) : requests.tagCounts(drive, query, { signal }),
     [drive, query, requests],
   );
-  const filtersActive = filters.tags.length > 0 || watch !== undefined;
+  const filtersActive = filters.tags.length > 0 || watch !== undefined || name !== "";
 
   const blocked = empty || (chip !== "all" && folders !== undefined && folders.length === 0);
+
+  const lists = useCardFileLists();
+  const removedBefore = useRef(0);
 
   const fetchFlat = useMemo(
     () =>
       query === null || blocked
         ? null
         : (page: number) =>
-            requests
-              .shelves(drive, {
-                ...query,
-                by: "all",
-                key: "all",
-                sort: sort.sort,
-                order: sort.order,
-                per_shelf: LIBRARY_PAGE_SIZE,
-                page,
-              })
-              .then(
-                (response) => {
-                  const shelf = response.shelves[0];
-                  return { items: shelf?.items ?? [], total: shelf?.count ?? 0 };
-                },
-                (error: unknown) => {
-                  if (isViewerRequired(error)) onViewerRejected();
-                  throw error;
-                },
-              ),
+            fetchAlignedPage<ShelfItem>(page, removedBefore.current, LIBRARY_PAGE_SIZE, (n) =>
+              requests
+                .shelves(drive, {
+                  ...query,
+                  by: "all",
+                  key: "all",
+                  sort: sort.sort,
+                  order: sort.order,
+                  per_shelf: LIBRARY_PAGE_SIZE,
+                  page: n,
+                })
+                .then(
+                  (response) => {
+                    const shelf = response.shelves[0];
+                    return { items: shelf?.items ?? [], total: shelf?.count ?? 0 };
+                  },
+                  (error: unknown) => {
+                    if (isViewerRequired(error)) onViewerRejected();
+                    throw error;
+                  },
+                ),
+            ),
     [drive, query, requests, blocked, sort.sort, sort.order, onViewerRejected],
   );
 
@@ -187,8 +195,10 @@ export function LibraryFace({
     [drive, query, requests, blocked, groupedBy, sort.sort, sort.order, onViewerRejected],
   );
 
-  const flat = usePaged<ShelfItem>(groupedBy === null ? fetchFlat : null);
-  const grouped = usePaged<Shelf>(groupedBy === null ? null : fetchGrouped);
+  const flat = usePaged<ShelfItem>(groupedBy === null ? fetchFlat : null, lists.version);
+  removedBefore.current = lists.removedCount("grid", flat.items);
+  const flatItems = lists.filter("grid", flat.items);
+  const grouped = usePaged<Shelf>(groupedBy === null ? null : fetchGrouped, lists.version);
   const flatSentinel = useNearEnd(flat.hasMore && flat.more === "idle", flat.loadMore);
   const groupedSentinel = useNearEnd(
     grouped.hasMore && grouped.more === "idle",
@@ -203,6 +213,7 @@ export function LibraryFace({
     ...(folders !== undefined && folders.length > 0 ? { folder: folders } : {}),
     ...(filters.tags.length > 0 ? { tag: filters.tags } : {}),
     ...(watch ? { watch } : {}),
+    ...(name ? { name } : {}),
   };
   const filteredEmpty = <EmptyState icon={Search} title={tFilters("filterEmpty")} />;
 
@@ -277,7 +288,7 @@ export function LibraryFace({
       body = <RetryButton onRetry={flat.retry} />;
     } else if (flat.phase === "ready") {
       body =
-        flat.items.length === 0 ? (
+        flatItems.length === 0 ? (
           filtersActive ? (
             filteredEmpty
           ) : (
@@ -286,8 +297,10 @@ export function LibraryFace({
         ) : (
           <>
             <ReadingGrid
-              items={flat.items}
-              renderItem={(item) => <ReadingCard item={item} drive={drive} />}
+              items={flatItems}
+              renderItem={(item) => (
+                <ReadingCard item={item} drive={drive} fileMenu={{ listKey: "grid" }} />
+              )}
             />
             <div ref={flatSentinel} aria-hidden="true" className="h-px" />
             {flat.more === "loading" && (
@@ -333,15 +346,13 @@ export function LibraryFace({
         <>
           <div className="space-y-10">
             {grouped.items.map((shelf) => (
-              <ShelfBlock
+              <ReadingGroupShelf
                 key={shelf.key}
+                shelf={shelf}
                 title={shelfTitle({ by: groupedBy, key: shelf.key, drive, locale, t: (key) => t(key) })}
-                count={number.format(shelf.count)}
                 seeAllHref={readingShelfHref(drive, groupedBy, shelf.key, sortId, conditions, "library")}
-                view={{ status: "loaded", items: shelf.items }}
                 onRetry={grouped.retry}
-                book
-                renderItem={(item) => <ReadingCard item={item} drive={drive} />}
+                formatCount={number.format}
               />
             ))}
           </div>
@@ -382,6 +393,40 @@ export function LibraryFace({
       <div className="mt-3">{controls}</div>
       <div className="mt-6">{body}</div>
     </div>
+  );
+}
+
+function ReadingGroupShelf({
+  shelf,
+  title,
+  seeAllHref,
+  onRetry,
+  formatCount,
+}: {
+  shelf: Shelf;
+  title: string;
+  seeAllHref: string;
+  onRetry: () => void;
+  formatCount: (value: number) => string;
+}) {
+  const lists = useCardFileLists();
+  const listKey = `group:${shelf.key}`;
+  const items = lists.filter(listKey, shelf.items);
+  if (items.length === 0) return null;
+  const count = shelf.count - lists.removedCount(listKey, shelf.items);
+
+  return (
+    <ShelfBlock
+      title={title}
+      count={formatCount(count)}
+      seeAllHref={seeAllHref}
+      view={{ status: "loaded", items }}
+      onRetry={onRetry}
+      book
+      renderItem={(item) => (
+        <ReadingCard item={item} drive={item.drive} fileMenu={{ listKey }} />
+      )}
+    />
   );
 }
 

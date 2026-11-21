@@ -466,6 +466,33 @@ describe.each(APPS)("SPEC-CORE-154 $id opened with ?target=", (appCase) => {
       expect(readAppTarget(DRIVE, app.id)).toBe("collection:c-trip");
       expectTargetRemovedByReplace();
     });
+
+    it("SPEC-CORE-156 I4 a Home-shortcut landing on another Target empties the name", async () => {
+      writeAppPrefs(DRIVE, { target: "sf-trips", face: "library" }, app.id);
+      writeLibraryFilters(app.id, DRIVE, { tags: [], state: "all", name: "kyoto" });
+      expect(readLibraryFilters(app.id, DRIVE)).toMatchObject({ name: "kyoto" });
+      open(app, "target=collection%3Ac-trip");
+
+      await waitFor(() => expect(readAppTarget(DRIVE, app.id)).toBe("collection:c-trip"));
+      await settle();
+
+      expect(readLibraryFilters(app.id, DRIVE)).toMatchObject({ name: "" });
+      for (const call of wire.calls.filter(underTarget)) expect(call.url.searchParams.has("search")).toBe(false);
+    });
+
+    it("SPEC-CORE-156 I4 a Home-shortcut landing on the Target in force keeps the name, and the Library asks with it", async () => {
+      writeAppPrefs(DRIVE, { target: "collection:c-trip", face: "library" }, app.id);
+      writeLibraryFilters(app.id, DRIVE, { tags: [], state: "all", name: "kyoto" });
+      open(app, "target=collection%3Ac-trip");
+
+      await waitFor(() => expect(wire.calls.some(isShelves)).toBe(true));
+      await settle();
+
+      expect(readLibraryFilters(app.id, DRIVE)).toMatchObject({ name: "kyoto" });
+      const library = wire.calls.filter(isShelves).filter((c) => c.url.searchParams.get("search") === "kyoto");
+      expect(library.length).toBeGreaterThan(0);
+      for (const call of wire.calls.filter(isListing)) expect(call.url.searchParams.has("search")).toBe(false);
+    });
   });
 
   describe("I12 the Home row carries the app's own entry key", () => {

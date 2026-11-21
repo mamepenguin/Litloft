@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1",
+      "status": "confirmed",
+      "note": "Confirmed by reading the test. name-filter-desktop.spec.ts:79 is titled '…and the field stays readable'. At line 91, widths below 768 assert a 260px field (line 92). At 768 the else branch (line 95) asserts only `field.x + field.width <= sort.x` and sets no lower bound on the field's width. The WIDTHS block at lines 26 and 66 asserts 260px only at 1024, 1280 and 1440, so nothing measures 769–1023px. In the code, VideoShelfPage.tsx:315 is `flex … md:flex-row`, and the sort is wrapped in `shrink-0` (line 322). The NameFilter open container (NameFilter.tsx:156) is `w-full min-w-0 … sm:w-[260px]` with no shrink-0. Under md:flex-row it can therefore shrink below 260px when the `auto` actions column (PageHeader.tsx:117-120,164-166) is squeezed by the `minmax(120px,1fr)` and `fit-content(40%)` columns. No test would catch that. I confirmed this as a gap in test coverage; whether the field actually shrinks at 768px was not measured."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F2",
+      "status": "confirmed",
+      "note": "app-header-desktop.spec.ts:61-93 runs SHELF_PAGES at 640, 768 and 1280. Line 70 reads `header input[type=search]`, which exists only in listing mode (VideoShelfPage.tsx:137 `listing = !entryMode && by !== null && query !== null && !watchBlocked`, line 314). The fixture fixtures/appHeader.tsx:140-153 mounts only by=folder with a valid key, so every shelf-page measurement is in listing mode. That includes app-header.spec.ts:195-209 at 375px, which uses the same fixture. The non-listing branch (VideoShelfPage.tsx:331-337, a bare SortChoiceMenu) is not measured at any width in e2e-components. A grep for an entry or non-listing shelf arrangement found none. So neither the clause 'on any other shelf page below 640px … right end' nor the clause '… on any other shelf page from 640px … title row left of the Target' from the r3 revision of SPEC-CORE-099 I13 has a real-browser test."
+    }
+  ],
+  "specification_compliance": [
+    "I12 (r3) and the r3 revision of SPEC-CORE-099 I13: the listing-mode layout at 640 and 768px is measured. The field's width from 768 to 1023px and the non-listing shelf-page layout are not."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The NameFilter container on a See all page has no shrink-0 under md:flex-row. Between 768 and 1023px it may shrink below 260px, and no spec sets a minimum width for it."
+  ],
+  "regression_risks": [
+    "A later change to the header grid could make the See all name field narrow at 768–1023px, and no test would fail.",
+    "The non-listing shelf-page sort position at 640px and wider could regress with no test failing."
+  ],
+  "test_coverage": [
+    "name-filter-desktop.spec.ts covers 640 and 768 (listing mode) and 1024, 1280 and 1440. At 768 it bounds only the field's right edge against the sort.",
+    "app-header-desktop.spec.ts and app-header.spec.ts mount only by=folder listing-mode shelf pages."
+  ],
+  "not_verified": [
+    "Whether the field actually renders narrower than 260px at 768–1023px; I had no browser to run in.",
+    "ReadingShelfPage.tsx:274 was not read line by line; I assumed it mirrors VideoShelfPage from the listing definition at line 147.",
+    "Specs outside e2e-components (for example e2e-layout) that might cover non-listing shelf pages."
+  ],
+  "confidence": 85
+}

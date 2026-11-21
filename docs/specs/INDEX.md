@@ -98,7 +98,7 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-050 | implemented | docs/specs/image-ocr.md | sha256:10d7b3560a941338b4c1e6ac6cf5b4d59bf3cae4d282e4269885a95d77a3598a |
 | SPEC-ADDON-061 | implemented | docs/specs/in-file-find.md | sha256:73aa8f34f99d39d7e66c4b9a670d4c68290c95cd3f0424ca9c1c0ba8777768db |
 | SPEC-CORE-028 | implemented | docs/specs/in-file-find.md | sha256:73aa8f34f99d39d7e66c4b9a670d4c68290c95cd3f0424ca9c1c0ba8777768db |
-| SPEC-CORE-029 | draft | docs/specs/office-viewer.md | |
+| SPEC-CORE-029 | implemented | docs/specs/office-viewer.md | sha256:75a3cb17cb1124609b903b845999757eddecd71df66ce09cde762a46f660943f |
 | SPEC-ADDON-051 | superseded | docs/specs/extraction-corrections.md | |
 | SPEC-ADDON-052 | draft | docs/specs/figure-aware-reading.md | |
 | SPEC-CORE-030 | implemented | docs/specs/background-upload.md | sha256:ffe09b32450a1f43cf6e5aaec2211505c8508836e1a38857b51bc8b161bf5211 |
@@ -321,8 +321,18 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-151 | implemented | docs/specs/app-library-filters.md | sha256:f643aa489b12cc08965cfbd7bd99d9c8fb658f7620d00de33fc6842b813428d6 |
 | SPEC-CORE-153 | implemented | docs/specs/home-app-shortcuts.md | sha256:8a3fc2c0a1bd84aa50b45215780fde9f349ca53144bf79ae78638b9980db3128 |
 | SPEC-CORE-154 | implemented | docs/specs/home-app-shortcuts.md | sha256:8a3fc2c0a1bd84aa50b45215780fde9f349ca53144bf79ae78638b9980db3128 |
+| SPEC-CORE-155 | implemented | docs/specs/office-viewer.md | sha256:75a3cb17cb1124609b903b845999757eddecd71df66ce09cde762a46f660943f |
 | SPEC-ADDON-157 | implemented | docs/specs/home-app-shortcuts.md | sha256:8a3fc2c0a1bd84aa50b45215780fde9f349ca53144bf79ae78638b9980db3128 |
 | SPEC-ADDON-156 | implemented | docs/specs/pickup-interest-report.md | sha256:b6494795e123dc0b09bf91fc7159ab118313e47442d3acaaee3954c5cf2eec57 |
 | SPEC-ADDON-158 | implemented | docs/specs/retire-find.md | sha256:6d573d784d76bfa7dcbb50a78ce6a40c8b29f71b05bf7563b0bca5c4d10d6fb0 |
+| SPEC-CORE-156 | implemented | docs/specs/app-library-name-filter.md | sha256:fdd08abb24cf28ab8d0f90f8746293810764e8d8773936fdbd31ad2202d98c08 |
+| SPEC-ADDON-159 | implemented | docs/specs/app-library-name-filter.md | sha256:fdd08abb24cf28ab8d0f90f8746293810764e8d8773936fdbd31ad2202d98c08 |
+| SPEC-ADDON-160 | implemented | docs/specs/loft-channel-videos.md | sha256:0603e267973b9d683772fe8c156d662e1c9e873ea0f0739a1f52dac0c8c73550 |
+| SPEC-ADDON-161 | implemented | docs/specs/loft-channel-videos.md | sha256:0603e267973b9d683772fe8c156d662e1c9e873ea0f0739a1f52dac0c8c73550 |
+| SPEC-ADDON-162 | implemented | docs/specs/loft-channel-videos.md | sha256:0603e267973b9d683772fe8c156d662e1c9e873ea0f0739a1f52dac0c8c73550 |
+| SPEC-ADDON-163 | implemented | docs/specs/loft-channel-videos.md | sha256:0603e267973b9d683772fe8c156d662e1c9e873ea0f0739a1f52dac0c8c73550 |
+| SPEC-CORE-157 | approved | docs/specs/app-card-menu.md | sha256:bc4a87bf34809c8be86599a681b4fbd76ae5a41de44bddd76036f00ced3a3d78 |
+| SPEC-ADDON-164 | approved | docs/specs/app-card-menu.md | sha256:bc4a87bf34809c8be86599a681b4fbd76ae5a41de44bddd76036f00ced3a3d78 |
+| SPEC-CORE-167 | implemented | docs/specs/excel-font-size.md | sha256:4ed8d920a10cbebae7d7f1bc7a16c143bfc77f9969be085c5d10855033059c3b |
 | SPEC-CORE-165 | approved | docs/specs/app-folder-position.md | sha256:2ae76dd926a84a3a8f3ac2c31f57d230a34d20024399010d35478959fdf08961 |
 | SPEC-CORE-166 | approved | docs/specs/app-folder-position.md | sha256:2ae76dd926a84a3a8f3ac2c31f57d230a34d20024399010d35478959fdf08961 |

@@ -34,6 +34,12 @@ nothing above it moves.
   **購読の新着** / **New from subscriptions**, for the subscriptions you chose to show.
 - **New**: the most recently added videos.
 
+Right-click or long-press any card to open the file menu: download, add to a
+collection, copy, cut, copy the ID, rename, move and move to trash. On a
+**Continue** card with a profile the menu also has **Remove from Continue** and
+**Remove from history**, and on a **Recommended** card the addon's actions come
+first, then one divider, then the file menu.
+
 A shelf with no videos is not shown. If Continue or New fails to load, only that
 shelf shows **Retry**. A Recommended or addon shelf that fails or comes to nothing
 is simply absent, with no Retry. A Recommended or addon shelf slower than about a
@@ -63,6 +69,11 @@ The chosen tags and state apply to every shelf, to the **なし** / **None** gri
 open, through the Discover/Library switch and a round trip through **See all**, and they
 reset on a full page load, when you open Video on another drive, and when you choose
 another target. Clearing the profile also clears the state.
+
+A name filter narrows the same shelves about 300 ms after you stop typing: the search icon
+at the right end of the tab row opens a field that keeps videos whose title or folder path
+contains the text, and a **See all** page opened from the Library carries the text with it.
+It lasts with the tag and state filters and empties with them.
 
 When the filters leave no video, the Library says **条件に合う項目はありません** /
 **Nothing matches these filters**. A target that matches nothing, and an empty drive, keep

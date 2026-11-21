@@ -617,8 +617,18 @@ export function useDiscover({
       state.status === "idle" || (state.status === "loaded" && state.data.length === 0),
   );
 
+  const cacheKeys =
+    current === null
+      ? []
+      : [
+          ...new Set(
+            [...current.states.values()].map((runtime) => runtime.cacheKey),
+          ),
+        ];
+
   return {
     shelves,
+    cacheKeys,
     pending: positions.length > 0 && drawn < positions.length,
     empty: active && coreSettled && coreEmpty,
   };
