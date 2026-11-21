@@ -74,8 +74,9 @@ clipped text at the row edges, because rows stay at 3/4.
    `font.size` with `Math.round(size × 4/3) + 0.01` for each distinct `font` object whose
    `size` is a number. A `font` object reached from more than one style or sheet is
    corrected once. It returns the same list it was given.
-3. Everything after `preview` is unchanged: the adapter marks the drawing drawn and calls
-   the grid sheet's `reload` as it does today. The grid has the corrected sizes from its
+3. Everything after `preview` is as on `develop`: the adapter marks the drawing drawn and
+   calls the grid sheet's `reload` once (SPEC-CORE-155's sizing to the frame), and that
+   call stays. The grid has the corrected sizes from its
    first render.
 4. Switching to another sheet tab shows that sheet with its sizes already corrected: the
    grid keeps the `styles` lists it was given by reference, and the tab switch hands it
@@ -144,13 +145,14 @@ None new; see §2. Nothing is logged.
 
 ### 10. Non-functional
 
-The walk is over style objects, which a workbook has at most a few hundred of; no
-measurable time. No new dependency.
+One font per loaded cell (§1): 286,310 on the largest R-5 workbook, a walk of about
+70 ms against a load of several seconds. No limit is added. No new dependency.
 
 ## Touch points
 
 - `frontend/src/components/office/excelAdapter.ts`: the `transformData` option and its
-  function. The branch's earlier `multiplyFontSizes`, written for a previous version of
+  function. The library's `Options` type does not declare `transformData`, so the adapter
+  types the options it passes itself, in this file; no declaration file is added. The branch's earlier `multiplyFontSizes`, written for a previous version of
   this spec, and its comment are discarded.
 - `docs/specs/INDEX.md`: the SPEC-CORE-167 row's state.
 - `frontend/src/components/__tests__/FilePreview.excelFontSize.test.tsx`, rewritten from
@@ -163,8 +165,11 @@ measurable time. No new dependency.
   `要件定義署のサンプル.xlsx` (11 sheets, every cell 8 pt, wrapped text),
   `19_書き込みエンコード画面_r2.xlsx` (5 sheets, explicit sizes from 6 pt to 14 pt).
 - R-5 reads the drawn size by wrapping `CanvasRenderingContext2D.prototype.fillText` in
-  the page and recording `ctx.font` for each drawn string, at devicePixelRatio 1 and at
-  browser zoom 200 % (devicePixelRatio 2), at a 1280 px window.
+  the page and recording `ctx.font` for each drawn string. `ctx.font` is in device
+  pixels; the CSS size is that value divided by `window.devicePixelRatio`. R-5 measures
+  in a 1280 px window at the ratio Chrome has at 100 % zoom, then again at 200 % browser
+  zoom (twice the ratio; only font sizes are read there, so the narrower CSS width does
+  not matter), and records both ratios.
 - No other file. No protected path.
 
 ## Invariants
@@ -174,7 +179,7 @@ I2. Each size is corrected at most once per drawing: a `reload` of the grid's sh
 I3. Row heights, column widths, every style property other than `font.size`, and the `size` of any font that was not a number, are the values the library loaded.
 I4. The grid's first render after `preview` uses the corrected sizes.
 I5. A list that is not an array, styles of unexpected shapes, or a correction that throws, still show the workbook, with no fallback panel, no `dispose`, and no `console` output of any kind from the correction.
-I6. In the real library at devicePixelRatio 1 and 2, cell text of 8 pt is drawn with an 8 px canvas font, and text of 10 pt to 14 pt with the font size it is drawn with without the correction.
+I6. In the real library, at a whole-number devicePixelRatio `r`, cell text of 8 pt is drawn with a canvas font of `8 × r` device pixels (8 CSS px), 9 pt with `9 × r`, and 10 pt, 12 pt and 14 pt with `11 × r`, `12 × r` and `15 × r`, the sizes they are drawn with without the correction.
 
 ## Checked, no action
 
