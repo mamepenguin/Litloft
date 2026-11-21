@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: ship — the owner said "出荷" after r1 (HUMAN_REVIEW_REQUIRED: excelRunOn.ts not in touch points; the measuring canvas reaches the inputLock observer once). Both have no user-visible effect.
 ran_in_app: yes
 at: 3815db38a03d768d786adb338bebb49c127ab678
 by: agent

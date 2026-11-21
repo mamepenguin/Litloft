@@ -335,4 +335,4 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-164 | implemented | docs/specs/app-card-menu.md | sha256:bc4a87bf34809c8be86599a681b4fbd76ae5a41de44bddd76036f00ced3a3d78 |
 | SPEC-CORE-167 | superseded | docs/specs/excel-font-size.md | sha256:4ed8d920a10cbebae7d7f1bc7a16c143bfc77f9969be085c5d10855033059c3b |
 | SPEC-CORE-168 | implemented | docs/specs/excel-actual-size.md | sha256:c522d8b535ca199f0aba24b91519c35ed89d94d56b41e99575ba21b5d650a444 |
-| SPEC-CORE-170 | approved | docs/specs/excel-text-overflow.md | sha256:82b9ea10279573681aeb28ab8bf47d94144518e1dede5c5367ac8866594aeeb7 |
+| SPEC-CORE-170 | implemented | docs/specs/excel-text-overflow.md | sha256:82b9ea10279573681aeb28ab8bf47d94144518e1dede5c5367ac8866594aeeb7 |
