@@ -34,7 +34,7 @@ const SHAPES: Record<string, Markup> = JSON.parse(
   )![1],
 );
 
-const SHAPE_COUNT = 13;
+const SHAPE_COUNT = 17;
 
 const APPS = [
   { app: "reading", face: "discover" },

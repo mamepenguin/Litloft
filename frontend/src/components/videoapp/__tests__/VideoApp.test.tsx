@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { act, render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { act, render, screen, waitFor, fireEvent, within } from "@testing-library/react";
 
 import { readAppPrefs, readTargetView, writeAppPrefs, writeTargetView } from "@/lib/appPrefs";
 import { ApiStatusError } from "@/lib/api";
@@ -277,7 +277,7 @@ describe("SPEC-CORE-057 I8 Discover", () => {
     const newBefore = filesCalls({ sort: "created_at" }).length;
 
     fireEvent.click(screen.getByRole("tab", { name: "Library" }));
-    await screen.findByText("Movies");
+    await screen.findByRole("heading", { name: "Movies" });
     fireEvent.click(screen.getByRole("tab", { name: "Discover" }));
 
     expect(await screen.findByText("Resume me")).toBeInTheDocument();
@@ -335,7 +335,7 @@ describe("SPEC-CORE-057 no profile", () => {
     writeTargetView("video", DRIVE, "default", { group: "watch" });
     renderApp();
 
-    await screen.findByText("Movies");
+    await screen.findByRole("heading", { name: "Movies" });
     expect(shelfCalls({ by: "watch" })).toHaveLength(0);
     expect(shelfCalls({ by: "folder" }).length).toBeGreaterThan(0);
     expect(readTargetView("video", DRIVE, "default").group).toBe("watch");
@@ -371,9 +371,9 @@ describe("SPEC-CORE-057 I9 Library", () => {
 
   it("SPEC-CORE-057 asks for folder shelves 12 at a time with 5 videos each, newest first", async () => {
     renderApp();
-    await screen.findByText("Movies");
+    await screen.findByRole("heading", { name: "Movies" });
 
-    const call = shelfCalls({ by: "folder" })[0][1] as Params;
+    const call = shelfCalls({ by: "folder", per_shelf: 5 })[0][1] as Params;
     expect(call).toMatchObject({
       per_shelf: 5,
       shelf_limit: 12,
@@ -387,9 +387,11 @@ describe("SPEC-CORE-057 I9 Library", () => {
   it("SPEC-CORE-057 draws each shelf with its count, videos and a See all link", async () => {
     renderApp();
 
-    expect(await screen.findByText("Movies")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Movies" })).toBeInTheDocument();
     expect(screen.getByText("Movie one")).toBeInTheDocument();
-    expect(screen.getByText(/7/)).toBeInTheDocument();
+    expect(
+      within(screen.getByRole("heading", { name: "Movies" }).parentElement!).getByText("7"),
+    ).toBeInTheDocument();
     const hrefs = screen
       .getAllByRole("link", { name: /See all/ })
       .map((a) => a.getAttribute("href"));
@@ -398,7 +400,7 @@ describe("SPEC-CORE-057 I9 Library", () => {
 
   it("SPEC-CORE-057 labels the root folder shelf with the drive name and keeps its key empty", async () => {
     renderApp();
-    await screen.findByText("Movies");
+    await screen.findByRole("heading", { name: "Movies" });
 
     expect(screen.getAllByText(DRIVE).length).toBeGreaterThan(0);
     const hrefs = screen
@@ -433,7 +435,7 @@ describe("SPEC-CORE-057 I9 Library", () => {
     writeTargetView("video", DRIVE, "default", { group: "watch" });
     renderApp();
 
-    await screen.findByText("Movies");
+    await screen.findByRole("heading", { name: "Movies" });
     expect(shelfCalls({ by: "folder" }).length).toBeGreaterThan(0);
     expect(
       shelfCalls({ by: "watch" }).filter(([, p]) => (p as Params).key === undefined),
@@ -486,9 +488,10 @@ describe("SPEC-CORE-055 the target menu", () => {
         getShelves.mock.calls.some(([, p]) => [(p as Params).tag].flat().includes("Trip")),
       ).toBe(true),
     );
-    const call = getShelves.mock.calls.find(([, p]) =>
-      [(p as Params).tag].flat().includes("Trip"),
-    )![1] as Params;
+    const call = getShelves.mock.calls.find(([, p]) => {
+      const params = p as Params;
+      return params.per_shelf !== 1 && [params.tag].flat().includes("Trip");
+    })![1] as Params;
     expect(call).toMatchObject({ sort: "created_at", order: "desc" });
   });
 
