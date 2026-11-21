@@ -1,0 +1,15 @@
+frontend/src/__tests__/appFolderPosition.test.tsx
+frontend/src/__tests__/appFolderPositionExtra.test.tsx
+frontend/src/__tests__/section-rows.test.tsx
+frontend/src/components/__tests__/componentFixtureParity.test.tsx
+frontend/src/components/__tests__/readingVideoLayoutFixtureParity.test.tsx
+frontend/src/components/appshell/__tests__/folders.test.ts
+frontend/src/components/readingapp/__tests__/ReadingApp.library.test.tsx
+frontend/src/components/readingapp/__tests__/ReadingApp.libraryFilters.test.tsx
+frontend/src/components/readingapp/__tests__/ReadingApp.menuScopes.test.tsx
+frontend/src/components/readingapp/__tests__/ReadingApp.nameFilter.test.tsx
+frontend/src/components/readingapp/__tests__/ReadingApp.targetView.test.tsx
+frontend/src/components/videoapp/__tests__/VideoApp.menuScopes.test.tsx
+frontend/src/components/videoapp/__tests__/VideoApp.navigation.test.tsx
+frontend/src/components/videoapp/__tests__/VideoApp.states.test.tsx
+frontend/src/components/videoapp/__tests__/VideoApp.test.tsx

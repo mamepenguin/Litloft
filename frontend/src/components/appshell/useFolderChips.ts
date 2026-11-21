@@ -75,7 +75,7 @@ export function useFolderChips(loadPage: LoadPage | null): {
         }
         if (!current) return;
 
-        if (offset === 0) base = response.base;
+        if (offset === 0) base = response.base ?? "";
         shelves.push(...response.shelves);
         const chips = chipsFromShelves(shelves, base, CHIP_LIMIT);
         const exhausted =
@@ -95,18 +95,21 @@ export function useFolderChips(loadPage: LoadPage | null): {
 
   const retry = useCallback(() => setAttempt((n) => n + 1), []);
 
-  const chips = held === null ? [] : chipsFromShelves(held.shelves, held.base, CHIP_LIMIT);
+  // A held answer belongs to the loader that asked for it, so a position
+  // change never draws the previous position's chips or base.
+  const active = held !== null && held.input === loadPage ? held : null;
+  const chips = active === null ? [] : chipsFromShelves(active.shelves, active.base, CHIP_LIMIT);
   const status: FolderChipsState["status"] =
-    held === null
+    active === null
       ? "idle"
-      : held.loading && held.shelves.length === 0
+      : active.loading && active.shelves.length === 0
         ? "loading"
-        : held.error && held.shelves.length === 0
+        : active.error && active.shelves.length === 0
           ? "failed"
           : "ready";
 
   return {
-    state: { status, chips, base: held?.base ?? "", error: held?.error ?? false },
+    state: { status, chips, base: active?.base ?? "", error: active?.error ?? false },
     retry,
   };
 }

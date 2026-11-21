@@ -15,6 +15,7 @@ import { RetryButton } from "@/components/appshell/RetryButton";
 import { ShelfBlock } from "@/components/appshell/ShelfBlock";
 import { EmptyState } from "@/components/EmptyState";
 import { PageFrame } from "@/components/PageFrame";
+import { builtinApps } from "@/lib/builtinApps";
 import { DiscoverFace } from "./DiscoverFace";
 import { removeCachedItem, stableJson } from "./discoverCache";
 import { LibraryFace } from "./LibraryFace";
@@ -24,22 +25,33 @@ import { VideoAppHeader } from "./VideoAppHeader";
 
 const PANEL_ID = "video-app-panel";
 
+const noop = () => {};
+
 export function VideoApp({
   drive,
   target = null,
   homeEntry,
+  position = null,
   onTargetHandled,
+  onTargetChosen,
+  onChooseFolder = noop,
 }: {
   drive: string;
   /** The `?target=` value on the root route; absent on every other route. */
   target?: string | null;
   /** The key of this app's Home entry. */
   homeEntry?: string;
+  /** The folder the URL holds; `null` at the top of the target. */
+  position?: string | null;
   /** Called once the `?target=` has been applied or ignored, to drop it from the URL. */
   onTargetHandled?: () => void;
+  /** Called when the target menu picks another target, to drop the position. */
+  onTargetChosen?: () => void;
+  /** Navigate to a folder of the Library; `null` is its top. */
+  onChooseFolder?: (folder: string | null) => void;
 }) {
   const t = useTranslations("videoApp");
-  const state = useVideoApp(drive, target, onTargetHandled);
+  const state = useVideoApp(drive, target, onTargetHandled, onTargetChosen);
   const face = state.prefs?.face;
   const filters = useLibraryFilters("video", drive, state.hasProfile);
   const showName =
@@ -123,7 +135,10 @@ export function VideoApp({
               empty={state.empty}
               group={state.view.group}
               hasProfile={state.hasProfile}
+              position={position}
               sortId={state.view.sort}
+              libraryPath={builtinApps.find((app) => app.id === "video")!.route(drive)}
+              onChooseFolder={onChooseFolder}
               onGroup={state.setGroup}
               onSort={state.setSort}
               onViewerRejected={state.rejectViewer}

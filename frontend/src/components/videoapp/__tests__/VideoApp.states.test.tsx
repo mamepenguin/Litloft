@@ -290,7 +290,7 @@ describe("the profile as an input", () => {
     });
     render(<VideoApp drive={DRIVE} />);
 
-    expect(await screen.findByText("Shelf 0")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Shelf 0" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /retry/i })).not.toBeInTheDocument();
   });
 });
@@ -317,28 +317,28 @@ describe("the Library while it pages and fails", () => {
     });
     render(<VideoApp drive={DRIVE} />);
 
-    const retry = await screen.findByRole("button", { name: /retry/i });
+    const retries = await screen.findAllByRole("button", { name: /retry/i });
     fail = false;
-    fireEvent.click(retry);
+    fireEvent.click(retries.at(-1)!);
 
-    expect(await screen.findByText("Shelf 0")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Shelf 0" })).toBeInTheDocument();
   });
 
   it("loads the next 12 shelves from the offset when the end comes into view", async () => {
     render(<VideoApp drive={DRIVE} />);
-    await screen.findByText("Shelf 0");
+    await screen.findByRole("heading", { name: "Shelf 0" });
 
     const sentinel = await liveSentinel();
     act(() => sentinel.trigger());
 
-    expect(await screen.findByText("Shelf 12")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Shelf 12" })).toBeInTheDocument();
     expect(getShelves.mock.calls.at(-1)![1]).toMatchObject({ offset: 12, shelf_limit: 12 });
-    expect(screen.getByText("Shelf 0")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Shelf 0" })).toBeInTheDocument();
   });
 
   it("keeps the shelves it has and offers retry when a later page fails", async () => {
     render(<VideoApp drive={DRIVE} />);
-    await screen.findByText("Shelf 0");
+    await screen.findByRole("heading", { name: "Shelf 0" });
     getShelves.mockImplementation(async () => {
       throw new Error("boom");
     });
@@ -347,12 +347,12 @@ describe("the Library while it pages and fails", () => {
     act(() => sentinel.trigger());
 
     expect(await screen.findByRole("button", { name: /retry/i })).toBeInTheDocument();
-    expect(screen.getByText("Shelf 0")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Shelf 0" })).toBeInTheDocument();
   });
 
   it("asks for the order the sort menu names", async () => {
     render(<VideoApp drive={DRIVE} />);
-    await screen.findByText("Shelf 0");
+    await screen.findByRole("heading", { name: "Shelf 0" });
 
     fireEvent.click(screen.getByRole("button", { name: /Sort/ }));
     expect(screen.queryByText("Random")).not.toBeInTheDocument();

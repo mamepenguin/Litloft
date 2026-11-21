@@ -72,6 +72,7 @@ export function ReadingShelfPage({
   onLeavePending,
   onTargetChosen,
   from,
+  fromFolder,
   homeEntry,
 }: {
   drive: string;
@@ -90,6 +91,8 @@ export function ReadingShelfPage({
   /** Called after a Target is chosen on this page, to drop the URL's filters. */
   onTargetChosen?: () => void;
   from?: string | null;
+  /** The position the Library opened this page from, for its way back. */
+  fromFolder?: string | null;
   /** The key of this app's Home entry. */
   homeEntry?: string;
 }) {
@@ -100,7 +103,13 @@ export function ReadingShelfPage({
   const { chooseTarget: chooseAppTarget, targetId } = appState;
   // The URL's filters stop applying in the render that shows the new Target;
   // the replace that removes them from the URL lands later.
-  const urlFilters = JSON.stringify([urlTags ?? [], urlWatch ?? null, urlFolders ?? [], name ?? ""]);
+  const urlFilters = JSON.stringify([
+    urlTags ?? [],
+    urlWatch ?? null,
+    urlFolders ?? [],
+    fromFolder ?? null,
+    name ?? "",
+  ]);
   const [droppedFor, setDroppedFor] = useState<string | null>(null);
   const filtersDropped = droppedFor === urlFilters;
   const chooseTarget = useCallback(
@@ -276,6 +285,13 @@ export function ReadingShelfPage({
     );
   }
 
+  const libraryPath = `/drive/${encodeURIComponent(drive)}/apps/reading`;
+  const backFolder = filtersDropped ? null : fromFolder;
+  const libraryHref =
+    backFolder === null || backFolder === undefined || backFolder === ""
+      ? libraryPath
+      : `${libraryPath}?folder=${encodeURIComponent(backFolder)}`;
+
   return (
     <CardFileMenuProvider value={cards.context}>
       <PageFrame
@@ -288,7 +304,7 @@ export function ReadingShelfPage({
           homeEntry={homeEntry}
           breadcrumb={
             <Link
-              href={`/drive/${encodeURIComponent(drive)}/apps/reading`}
+              href={libraryHref}
               className="flex items-center gap-1 text-sm text-text-muted transition-colors hover:text-text-primary"
             >
               <ChevronLeft size={16} aria-hidden="true" />

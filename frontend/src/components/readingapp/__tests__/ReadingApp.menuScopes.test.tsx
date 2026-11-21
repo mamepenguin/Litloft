@@ -131,7 +131,8 @@ describe("the Reading app's non-file elements", () => {
     await visit();
     await screen.findByText("Book f1");
 
-    const chip = screen.getByRole("button", { name: "Books" });
+    const chips = await screen.findByTestId("folder-chips");
+    const chip = chips.querySelector("[data-chip]") as HTMLElement;
     let notPrevented = true;
     act(() => {
       notPrevented = fireEvent.contextMenu(chip);

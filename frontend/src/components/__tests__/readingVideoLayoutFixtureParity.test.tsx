@@ -69,6 +69,7 @@ vi.mock("@/lib/cardGrid", async (importOriginal) => ({
   useCardColumns: () => ({ ref: () => {}, columns: 2 }),
 }));
 
+import { FolderPositionRows } from "../appshell/FolderPositionRows";
 import { ShelfBlock } from "../appshell/ShelfBlock";
 import { ToolbarMenu } from "../ToolbarMenu";
 import { AppTabs } from "../appshell/AppTabs";
@@ -102,10 +103,11 @@ const SHAPES: Record<string, Markup> = JSON.parse(
   )![1],
 );
 
-const SHAPE_COUNT = 13;
+const SHAPE_COUNT = 17;
 
 const SOURCES = [
   "AppTabs",
+  "FolderPositionRows",
   "ReadingDiscoverFace",
   "ReadingLibraryFace",
   "ShelfBlock",
@@ -263,19 +265,40 @@ async function renderShape(name: string): Promise<Element> {
       return container.firstElementChild as Element;
     }
 
-    case "ReadingLibraryFace": {
-      const { container } = render(<ReadingApp drive={DRIVE} />);
-      const chips = await screen.findByTestId("reading-chips");
-      await screen.findByRole("button", { name: "Novels" });
+    case "FolderPositionRows": {
+      const { container } = render(
+        <FolderPositionRows
+          position="Books/Novels"
+          targetFolders={[]}
+          base=""
+          chips={[{ key: "Books/Comics", label: "Comics", count: 4 }]}
+          chipsStatus="ready"
+          chipsError={false}
+          onRetry={() => {}}
+          href={(folder) =>
+            folder === null
+              ? "/drive/main/apps/reading"
+              : `/drive/main/apps/reading?folder=${encodeURIComponent(folder)}`
+          }
+          onChoose={() => {}}
+        />,
+      );
+      if (name === "folderChips") return container.querySelector("[data-chips]")!;
+      if (name === "folderChip") return container.querySelector("[data-chip]")!;
+      const nav = container.querySelector("[data-crumbs]")!;
+      const crumbItems = nav.querySelectorAll("[data-crumb]");
+      if (name === "folderCrumbs") return nav;
+      if (name === "crumbHomeLink") return crumbItems[0];
+      if (name === "crumbLink") return crumbItems[1];
+      if (name === "crumbCurrent") return nav.querySelector('[aria-current="page"]')!;
+      if (name === "crumbSeparator") return nav.querySelector("svg.lucide-chevron-right")!;
+      throw new Error(`no renderer for ${name}`);
+    }
 
-      if (name === "readingChips") return chips;
-      if (name === "readingChipSelected") return chips.children[0];
-      if (name === "readingChipIdle") return chips.children[1];
-      if (name === "readingControls") {
-        const group = screen.getByRole("button", { name: /^Group By/ });
-        return group.parentElement!.parentElement!.parentElement!;
-      }
-      return container;
+    case "ReadingLibraryFace": {
+      render(<ReadingApp drive={DRIVE} />);
+      const group = await screen.findByRole("button", { name: /^Group By/ });
+      return group.parentElement!.parentElement!.parentElement!;
     }
 
     case "VideoLibraryFace": {

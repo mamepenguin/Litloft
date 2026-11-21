@@ -61,11 +61,21 @@ export default function VideoShelfRoute() {
   );
 
   const dropFilters = useCallback(() => {
-    if (!search.has("tag") && !search.has("watch") && !search.has("q")) return;
+    if (
+      !search.has("tag") &&
+      !search.has("watch") &&
+      !search.has("folder") &&
+      !search.has("from_folder") &&
+      !search.has("q")
+    ) {
+      return;
+    }
     router.replace(
       replaceQuery(pathname, search, (next) => {
         next.delete("tag");
         next.delete("watch");
+        next.delete("folder");
+        next.delete("from_folder");
         next.delete("q");
       }),
     );
@@ -78,6 +88,7 @@ export default function VideoShelfRoute() {
       by={parseGrouping(search.get("by"))}
       shelfKey={search.get("key") ?? ""}
       initialSort={search.get("sort")}
+      folders={search.getAll("folder").filter(Boolean)}
       tags={search.getAll("tag").filter(Boolean)}
       watch={search.get("watch")}
       name={name}
@@ -85,6 +96,7 @@ export default function VideoShelfRoute() {
       onLeavePending={from === "library" ? leavePending : undefined}
       onTargetChosen={dropFilters}
       from={from}
+      fromFolder={search.get("from_folder")}
       entry={search.get("entry")}
       slot={search.get("slot")}
       homeEntry="video"

@@ -4,7 +4,7 @@
  * Added shelves and shelf pages. Labels are the English messages.
  */
 
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { writeAppPrefs } from "@/lib/appPrefs";
@@ -185,9 +185,9 @@ async function chooseTarget(name: string) {
   fireEvent.click(await screen.findByRole("menuitemradio", { name: new RegExp(name) }));
 }
 
-function openLibrary(target?: string) {
+function openLibrary(target?: string, position: string | null = null) {
   writeAppPrefs(DRIVE, target ? { face: "library", target } : { face: "library" }, "reading");
-  return render(<ReadingApp drive={DRIVE} />);
+  return render(<ReadingApp drive={DRIVE} position={position} />);
 }
 
 beforeEach(() => {
@@ -372,12 +372,10 @@ describe("SPEC-CORE-145 I18 Reading's Folder and Date Added", () => {
     ]);
   });
 
-  it("SPEC-CORE-145 I18 a folder chip narrows the books and Folder groups the books inside it", async () => {
+  it("SPEC-CORE-145 I18 a position narrows the books and Folder groups the books inside it", async () => {
     localStorage.setItem(VIEW_KEY, JSON.stringify({ default: { group: "folder" } }));
-    openLibrary();
+    openLibrary(undefined, "Comics");
     await screen.findByText("Folder book");
-
-    fireEvent.click(within(screen.getByTestId("reading-chips")).getByRole("button", { name: "Comics" }));
 
     await waitFor(() =>
       expect(libraryCalls().some((p) => p.by === "folder" && JSON.stringify(p.folder) === '["Comics"]')).toBe(true),

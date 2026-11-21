@@ -1,25 +1,25 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useMemo, useRef, type ReactNode } from "react";
 import { BookOpen, Search } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 
 import { EmptyState } from "@/components/EmptyState";
 import { fetchAlignedPage, useCardFileLists } from "@/components/appshell/CardFileMenu";
 import { FilterMenus } from "@/components/appshell/FilterMenus";
+import { FolderPositionRows } from "@/components/appshell/FolderPositionRows";
 import { mergeLibraryTags, useLibraryFilters } from "@/components/appshell/libraryFilters";
 import { RetryButton } from "@/components/appshell/RetryButton";
 import { ShelfBlock } from "@/components/appshell/ShelfBlock";
-import { GroupMenu, LibraryControlRow, SortMenu } from "@/components/appshell/ViewMenus";
 import { useNearEnd } from "@/components/appshell/useNearEnd";
 import { usePaged } from "@/components/appshell/usePaged";
+import { GroupMenu, LibraryControlRow, SortMenu } from "@/components/appshell/ViewMenus";
 import { type Shelf, type ShelfItem, type ShelfWatchState } from "@/lib/api";
 import type { AppRequests } from "@/lib/memberTarget";
 import type { ReadingTargetParams } from "@/lib/readingAppTarget";
 import {
   READING_GROUPS,
   SORT_CHOICES,
-  folderLabel,
   shelfTitle,
   sortChoiceOf,
   type ReadingGroup,
@@ -27,14 +27,16 @@ import {
 } from "./labels";
 import { ReadingCard } from "./ReadingCard";
 import { ReadingGrid } from "./ReadingGrid";
-import { narrowFolders, normalizeFolder } from "./folders";
+import { narrowFolders, normalizeFolder } from "@/components/appshell/folders";
 import { readingShelfHref } from "./shelfLinks";
-import { useFolderChips } from "./useFolderChips";
+import { useFolderChips } from "@/components/appshell/useFolderChips";
 import { isViewerRequired } from "./useReadingApp";
 
 export const LIBRARY_PAGE_SIZE = 60;
 export const LIBRARY_TAG_ITEMS = 12;
 export const LIBRARY_TAG_SHELVES_PER_PAGE = 12;
+
+const noop = () => {};
 
 type LibraryParams = ReadingTargetParams & { watch?: ShelfWatchState };
 
@@ -42,25 +44,28 @@ function listOf(value: string | readonly string[] | undefined): string[] {
   return value === undefined ? [] : ([value].flat() as string[]);
 }
 
-/** The chips of the target alone, never the face's own conditions. */
+/** The chips of the target under the position, never the face's own conditions. */
 export function useLibraryChips(
   drive: string,
   params: ReadingTargetParams | null,
+  folders: readonly string[],
+  enabled: boolean,
   requests: AppRequests,
 ) {
   const loadPage = useMemo(
     () =>
-      params === null
+      params === null || !enabled
         ? null
         : (offset: number) =>
             requests.shelves(drive, {
               ...params,
+              ...(folders.length > 0 ? { folder: folders } : {}),
               by: "folder",
               per_shelf: 1,
               shelf_limit: 24,
               ...(offset > 0 ? { offset } : {}),
             }),
-    [drive, params, requests],
+    [drive, params, folders, enabled, requests],
   );
   return useFolderChips(loadPage);
 }
@@ -71,8 +76,11 @@ export function LibraryFace({
   requests,
   empty,
   hasProfile,
+  position = null,
   group,
   sortId,
+  libraryPath = `/drive/${encodeURIComponent(drive)}/apps/reading`,
+  onChooseFolder = noop,
   onGroup,
   onSort,
   onViewerRejected,
@@ -83,8 +91,13 @@ export function LibraryFace({
   /** The target intersects no book kind. */
   empty: boolean;
   hasProfile: boolean;
+  /** The folder the URL holds; `null` at the top of the target. */
+  position?: string | null;
   group: ReadingGroup;
   sortId: SortId;
+  /** The Library's own URL, without a query. */
+  libraryPath?: string;
+  onChooseFolder?: (folder: string | null) => void;
   onGroup: (value: ReadingGroup) => void;
   onSort: (value: SortId) => void;
   onViewerRejected: () => void;
@@ -94,22 +107,26 @@ export function LibraryFace({
   const locale = useLocale();
   const number = useMemo(() => new Intl.NumberFormat(locale), [locale]);
   const sort = sortChoiceOf(sortId);
-  const [chip, setChip] = useState<string>("all");
   const filters = useLibraryFilters("reading", drive, hasProfile);
   const name = filters.name;
 
-  // A chip lasts only for the target it was chosen under.
-  useEffect(() => {
-    setChip("all");
-  }, [params]);
+  const targetFolders = useMemo(
+    () => listOf(params?.folder).map(normalizeFolder),
+    [params],
+  );
+  const folders = useMemo(
+    () =>
+      params === null
+        ? []
+        : position === null
+          ? targetFolders
+          : narrowFolders(targetFolders, position),
+    [params, position, targetFolders],
+  );
 
-  const chips = useLibraryChips(drive, params, requests);
-
-  const folders = useMemo(() => {
-    if (params === null) return undefined;
-    if (chip === "all") return listOf(params.folder).map(normalizeFolder);
-    return narrowFolders(listOf(params.folder), chip);
-  }, [params, chip]);
+  const blocked = empty || (position !== null && folders.length === 0);
+  const chips = useLibraryChips(drive, params, folders, !empty && !blocked, requests);
+  const chipsBase = blocked ? "" : chips.state.base;
 
   const watch =
     hasProfile && filters.state !== "all" ? (filters.state as ShelfWatchState) : undefined;
@@ -117,7 +134,7 @@ export function LibraryFace({
   const query = useMemo<LibraryParams | null>(() => {
     if (params === null) return null;
     const next: LibraryParams = { ...params };
-    if (folders !== undefined) next.folder = folders;
+    if (folders.length > 0) next.folder = [...folders];
     const merged = mergeLibraryTags(listOf(params.tag), filters.tags);
     if (merged.length > 0) next.tag = merged;
     if (watch) next.watch = watch;
@@ -128,12 +145,12 @@ export function LibraryFace({
   const conditionsKey = useMemo(() => JSON.stringify(query ?? null), [query]);
   const loadCandidates = useCallback(
     (signal: AbortSignal) =>
-      query === null ? Promise.resolve([]) : requests.tagCounts(drive, query, { signal }),
-    [drive, query, requests],
+      query === null || blocked
+        ? Promise.resolve([])
+        : requests.tagCounts(drive, query, { signal }),
+    [drive, query, requests, blocked],
   );
   const filtersActive = filters.tags.length > 0 || watch !== undefined || name !== "";
-
-  const blocked = empty || (chip !== "all" && folders !== undefined && folders.length === 0);
 
   const lists = useCardFileLists();
   const removedBefore = useRef(0);
@@ -210,34 +227,13 @@ export function LibraryFace({
   }
 
   const conditions = {
-    ...(folders !== undefined && folders.length > 0 ? { folder: folders } : {}),
+    ...(position !== null && folders.length > 0 ? { folder: folders } : {}),
+    ...(position !== null ? { fromFolder: position } : {}),
     ...(filters.tags.length > 0 ? { tag: filters.tags } : {}),
     ...(watch ? { watch } : {}),
     ...(name ? { name } : {}),
   };
   const filteredEmpty = <EmptyState icon={Search} title={tFilters("filterEmpty")} />;
-
-  const chipRow = (
-    <div
-      data-testid="reading-chips"
-      className="flex flex-wrap gap-2 pb-1 max-h-[8rem] overflow-y-auto pointer-coarse:max-h-none pointer-coarse:flex-nowrap pointer-coarse:overflow-x-auto"
-    >
-      <ChipButton label={t("all")} selected={chip === "all"} onSelect={() => setChip("all")} />
-      {chips.state.chips.map((folder) => (
-        <ChipButton
-          key={folder.key}
-          label={folder.label || folderLabel(folder.key, drive)}
-          selected={chip === normalizeFolder(folder.key)}
-          onSelect={() => setChip(normalizeFolder(folder.key))}
-        />
-      ))}
-      {(chips.state.status === "failed" || chips.state.error) && (
-        <div className="flex flex-shrink-0 items-center">
-          <RetryButton onRetry={chips.retry} />
-        </div>
-      )}
-    </div>
-  );
 
   const groupOptions = READING_GROUPS.map((candidate) => ({
     value: candidate,
@@ -387,9 +383,24 @@ export function LibraryFace({
     );
   }
 
+  const libraryHref = (folder: string | null) =>
+    folder === null ? libraryPath : `${libraryPath}?folder=${encodeURIComponent(folder)}`;
+
   return (
     <div>
-      {chipRow}
+      <div className="space-y-3 pointer-coarse:space-y-1">
+        <FolderPositionRows
+          position={position}
+          targetFolders={targetFolders}
+          base={chipsBase}
+          chips={chips.state.chips}
+          chipsStatus={chips.state.status}
+          chipsError={chips.state.error}
+          onRetry={chips.retry}
+          href={libraryHref}
+          onChoose={onChooseFolder}
+        />
+      </div>
       <div className="mt-3">{controls}</div>
       <div className="mt-6">{body}</div>
     </div>
@@ -427,30 +438,5 @@ function ReadingGroupShelf({
         <ReadingCard item={item} drive={item.drive} fileMenu={{ listKey }} />
       )}
     />
-  );
-}
-
-function ChipButton({
-  label,
-  selected,
-  onSelect,
-}: {
-  label: string;
-  selected: boolean;
-  onSelect: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      aria-pressed={selected}
-      onClick={onSelect}
-      className={`flex-shrink-0 whitespace-nowrap rounded-full border px-3 py-1.5 text-sm transition-colors pointer-coarse:min-h-11 bg-bg-elevated ${
-        selected
-          ? "border-accent font-semibold text-text-primary"
-          : "border-transparent text-text-muted hover:text-text-primary"
-      }`}
-    >
-      {label}
-    </button>
   );
 }
