@@ -620,7 +620,7 @@ describe.each(APPS)("$spec $id: the folder position", (appCase) => {
       await waitFor(() => expect(chipFolders()).toEqual(["Videos", "Archive", "Music"]));
     });
 
-    it(`${S} I8 draws from a deeper base, every segment from the position down plain, and the chips one level below base`, async () => {
+    it(`${C} I8 draws from a deeper base, every segment from the position down plain, and the chips one level below base`, async () => {
       open(app, q("Archive"));
       await waitForChips();
 
@@ -714,7 +714,7 @@ describe.each(APPS)("$spec $id: the folder position", (appCase) => {
   });
 
   describe("I6 the chips ignore the filters", () => {
-    it(`${S} I6 sends no tag, state or name with the chip request and draws the same chips and crumbs`, async () => {
+    it(`${C} I6 sends no tag, state or name with the chip request and draws the same chips and crumbs`, async () => {
       open(app, q("Videos"));
       await waitForChips();
       const plainChips = chipFolders();
@@ -817,7 +817,7 @@ describe.each(APPS)("$spec $id: the folder position", (appCase) => {
       expect(chipLinks()).toHaveLength(24);
     });
 
-    it(`${S} I11 a failed chip request offers Retry, draws the crumbs from the position, and still draws the shelves`, async () => {
+    it(`${C} I11 a failed chip request offers Retry, draws the crumbs from the position, and still draws the shelves`, async () => {
       chipAnswer = () => json({ detail: "boom" }, 500);
       open(app, q("Videos/Study"));
 
@@ -883,7 +883,7 @@ describe.each(APPS)("$spec $id: the folder position", (appCase) => {
   });
 
   describe("I5 the position against the target", () => {
-    it(`${S} I5 another target chosen removes folder with replace and adds no history entry`, async () => {
+    it(`${C} I5 another target chosen removes folder with replace and adds no history entry`, async () => {
       open(app, q("Videos/Study"));
       await waitForChips();
       expect(crumbs()).not.toBeNull();
@@ -941,7 +941,7 @@ describe.each(APPS)("$spec $id: the folder position", (appCase) => {
       expect(foldersOf(chipCalls.at(-1)!)).toEqual(["Videos"]);
     });
 
-    it(`${S} I5 I9 reloading keeps the position, and opening without folder is the top`, async () => {
+    it(`${C} I5 I9 reloading keeps the position, and opening without folder is the top`, async () => {
       open(app, q("Videos/Study"));
       await waitForChips();
       expect(crumbs()).not.toBeNull();
