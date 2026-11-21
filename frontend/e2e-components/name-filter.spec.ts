@@ -14,6 +14,7 @@ import {
   box,
   clipsTabs,
   fieldBox,
+  gapAboveTabRule,
   fieldIcon,
   fieldInput,
   noSidewaysScroll,
@@ -60,6 +61,7 @@ for (const app of ["video", "reading"] as const) {
       expect(field.x).toBeGreaterThanOrEqual(library.x + library.width);
       expect(field.x + field.width).toBeLessThanOrEqual(WIDTH);
       expect(Math.round(field.height), "44px tall on a coarse pointer").toBe(44);
+      expect(await gapAboveTabRule(tabs[1], field), "the field clears the rule under the tabs").toBeGreaterThanOrEqual(4);
       expect(await fieldInput(page, locale).evaluate((el) => getComputedStyle(el).fontSize)).toBe("16px");
 
       const tag = await box(page.getByRole("button", { name: l.tag }));

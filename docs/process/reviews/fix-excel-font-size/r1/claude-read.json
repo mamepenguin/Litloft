@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [],
+  "specification_compliance": [
+    "The diff reaches four paths: frontend/src/components/office/excelAdapter.ts, frontend/src/components/__tests__/FilePreview.excelFontSize.test.tsx, docs/specs/INDEX.md and docs/specs/excel-font-size.md. The first two are named in the touch-point list. INDEX.md is both named there and an implicit touch point. The spec file is an implicit touch point. No path outside the list is reached, so the answer to the first-review question is empty.",
+    "excelAdapter.ts:14-17 types the options locally (SpreadsheetOptions) and adds no declaration file, as the touch point requires. No multiplyFontSizes function or comment remains in the file.",
+    "excelAdapter.ts:19-42 (correctFontSizes) returns non-arrays unchanged. It skips non-object sheets, non-array styles, non-object styles and fonts, and non-number sizes. It corrects each distinct font once through a Set and catches every throw silently, which matches I1, I3 and I5. It writes nothing but font.size.",
+    "excelAdapter.ts:51-55 passes transformData next to showContextmenu: false. The reload after preview at excelAdapter.ts:141-142 and the ResizeObserver reload at :113-115 do not correct anything, which matches I2."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "A numeric size of NaN or Infinity passes the typeof check and is written back as NaN or Infinity plus 0.01. The library does not produce such a size from a real workbook, and crafted input is outside the threat model."
+  ],
+  "regression_risks": [
+    "The correction relies on the step order of the pinned @js-preview/excel 1.7.14: divide by 1.333333 when loading, then the exact-match table, then parseInt truncation. An upgrade of the library would silently change the drawn sizes. The spec assigns this re-check to R-5, and the mocked tests cannot detect it."
+  ],
+  "test_coverage": [
+    "Mutation thought-checks against the test file: removing the shared-font dedup would correct `shared` twice (8.01 becomes 11.01), and the shared-font test catches that. Removing the try/catch would make preview reject, so the 'throws partway' test sees the fallback panel and destroy. Dropping the `+ 0.01` or the Math.round would fail the DRAWN_PX it.each cases. Replacing the Array.isArray guard with a loop over length would fail the array-like case, which expects size 6.",
+    "I6, the real library's canvas font in device pixels, is not covered by the unit tests. The spec assigns it to the manual R-5 check."
+  ],
+  "not_verified": [
+    "I could not run git, so I did not confirm that commit fbbc6adfa on its own touches only the files in the supplied diff. The list is taken from the diff as given.",
+    "I did not run the test suite or any mutants. The mutation results are reasoning only.",
+    "I did not inspect the @js-preview/excel bundle to confirm that transformData is called inside preview before loadData.",
+    "I did not check the R-5 screenshots or the device-pixel measurements (I6)."
+  ],
+  "coverage": [
+    {
+      "path": "frontend/src/components/office/excelAdapter.ts",
+      "read": "full",
+      "reason": "Read the whole file on disk, lines 1-145."
+    },
+    {
+      "path": "frontend/src/components/__tests__/FilePreview.excelFontSize.test.tsx",
+      "read": "full",
+      "reason": "The file is new in this diff, so the supplied diff contains all of its content and I read that in full. I also checked lines 560-599 on disk against the diff."
+    }
+  ],
+  "confidence": 85
+}
