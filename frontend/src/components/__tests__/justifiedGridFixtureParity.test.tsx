@@ -105,7 +105,7 @@ const SHAPES: Record<string, ShapeSpec> = JSON.parse(
   )![1],
 );
 
-const SHAPE_COUNT = 10;
+const SHAPE_COUNT = 11;
 
 /**
  * `JustifiedFileCell`'s class attribute is three independent conditionals,
@@ -188,6 +188,7 @@ type PhotoState = {
   draggable?: boolean;
   dragging?: boolean;
   cut?: boolean;
+  appCardMenu?: boolean;
 };
 
 const PHOTO_STATES: PhotoState[] = [
@@ -203,12 +204,16 @@ const PHOTO_STATES: PhotoState[] = [
   { shape: "selected", selectable: true, selected: true, draggable: true },
   // A caller that passes no `draggable` at all.
   { shape: "linkedOnly" },
+  // SPEC-CORE-169: what Photo Diary draws.
+  { shape: "linkedOnlyAppCardMenu", appCardMenu: true },
 ];
 
 function renderPhotoCell(state: PhotoState): HTMLElement {
   cutIds = state.cut ? new Set(["p0"]) : new Set();
+  const appCardMenu = (state.appCardMenu ? { appCardMenu: true } : {}) as Record<string, never>;
   const { container } = render(
     <FileGrid
+      {...appCardMenu}
       files={photos()}
       selectable={state.selectable}
       selectedIds={state.selected ? new Set(["p0"]) : undefined}
