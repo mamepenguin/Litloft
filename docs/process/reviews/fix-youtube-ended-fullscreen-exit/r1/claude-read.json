@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [],
+  "specification_compliance": [
+    "Answer to the question: the list was complete. The diff reaches only these places: (1) the addons/media_import submodule pointer, which is listed; (2) addons/media_import/frontend/players/YouTubeEmbed.tsx, which is listed: the gesturesInteractive line at line 484 and its preceding comment, plus a comment-only edit to the `controls` playerVar at lines 283-285 that the spec's 'Prose that becomes false' item names; (3) addons/media_import/frontend/players/__tests__/YouTubeEmbedPlayer.test.tsx, which is listed: a renamed 'click overlay' case at line 322 and a new describe block 'SPEC-ADDON-168 the end of a video in fullscreen' at lines 355-535; (4) docs/specs/youtube-ended-fullscreen-gestures.md and docs/specs/INDEX.md, which are implicit; (5) docs/process/reviews/fix-youtube-ended-fullscreen-exit/, which is implicit.",
+    "The new test block sits in its own describe, not inside 'YouTubeEmbed click overlay'. It is still in the listed test file, so I do not treat it as an unplanned place.",
+    "No core file is edited. useFullscreen.ts and the MediaControls directory are read-only touch points, and the diff does not modify them.",
+    "YouTubeEmbed.tsx:484 `!adActive && (!ended || fullscreen.isFullscreen)` matches the spec's state table: ad means standing down; not ENDED means interactive; ENDED and fullscreen means interactive; ENDED and not fullscreen means standing down. It uses isFullscreen, not `boxed`, so the closing pseudo phase counts as not fullscreen, as I4 requires."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "If the gate were written with `boxed` (isFullscreen || isPseudo) instead of isFullscreen, the overlay would stay interactive during the pseudo 'closing' phase. The pseudo-exit test at the end of a video (I4) would catch this only if the exit click leaves isPseudo true in jsdom. I did not trace the useFullscreen closing timing to confirm that."
+  ],
+  "test_coverage": [
+    "I1: a new test covers it for native and pseudo fullscreen (overlay pointer-events is auto). The swipe-down exit on the picture cannot be tested in jsdom; the spec defers it to R-5 and checks by the owner.",
+    "I2: covered by 'stands down on the end screen in the page' (test line 322).",
+    "I3: covered by the ENDED+fullscreen+ad test and by the existing ad tests.",
+    "I4: entering fullscreen at ENDED, leaving native fullscreen and leaving pseudo fullscreen are each tested.",
+    "I5: playback in the page is covered by 'captures clicks during normal playback'. No test in this file asserts pointer-events auto during playback in fullscreen. The mutation `!ended && !fullscreen.isFullscreen` would break that case, but the I1 tests would still kill it because they assert auto while fullscreen.",
+    "I6: the existing completion tests (lines 909-932) cover onEnded firing once, and not firing for an ad, in the page only. No test asserts I6 in fullscreen. The ENDED handler does not depend on fullscreen, so the risk is low.",
+    "I7: the scrim, click-to-restart and double-click-exit at ENDED in fullscreen are covered. The most-watched jump at ENDED in fullscreen is not tested in this file."
+  ],
+  "not_verified": [
+    "I did not run the test suite; I did not run any command.",
+    "I did not read useFullscreen.ts to confirm that isFullscreen turns false at the start of the pseudo 'closing' phase.",
+    "I did not read the MediaControls core components (GestureOverlay, usePlayerGestures, MediaControlsContainer) to confirm how `interactive` reaches pointer-events and the scrim.",
+    "I did not check that the submodule pointer c7a61cedb contains exactly the addon diff shown; I read the worktree's checked-out files."
+  ],
+  "coverage": [
+    {
+      "path": "addons/media_import/frontend/players/YouTubeEmbed.tsx",
+      "read": "full",
+      "reason": "Read the whole file (lines 1-595)."
+    },
+    {
+      "path": "addons/media_import/frontend/players/__tests__/YouTubeEmbedPlayer.test.tsx",
+      "read": "full",
+      "reason": "Read lines 1-360 and 530-1258 in the worktree. Lines 360-530 are the new describe block, which I read in full in the provided diff."
+    }
+  ],
+  "confidence": 85
+}
