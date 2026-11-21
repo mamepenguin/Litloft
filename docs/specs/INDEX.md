@@ -334,4 +334,4 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-CORE-157 | implemented | docs/specs/app-card-menu.md | sha256:bc4a87bf34809c8be86599a681b4fbd76ae5a41de44bddd76036f00ced3a3d78 |
 | SPEC-ADDON-164 | implemented | docs/specs/app-card-menu.md | sha256:bc4a87bf34809c8be86599a681b4fbd76ae5a41de44bddd76036f00ced3a3d78 |
 | SPEC-CORE-167 | implemented | docs/specs/excel-font-size.md | sha256:4ed8d920a10cbebae7d7f1bc7a16c143bfc77f9969be085c5d10855033059c3b |
-| SPEC-CORE-169 | draft | docs/specs/photo-diary-card-menu.md | |
+| SPEC-CORE-169 | approved | docs/specs/photo-diary-card-menu.md | sha256:9ff25c0f6938a18d113641c4809206eaac6703f3fbf7435bfa6ad6c1a316d19d |
