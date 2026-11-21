@@ -331,5 +331,5 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-161 | implemented | docs/specs/loft-channel-videos.md | sha256:0603e267973b9d683772fe8c156d662e1c9e873ea0f0739a1f52dac0c8c73550 |
 | SPEC-ADDON-162 | implemented | docs/specs/loft-channel-videos.md | sha256:0603e267973b9d683772fe8c156d662e1c9e873ea0f0739a1f52dac0c8c73550 |
 | SPEC-ADDON-163 | implemented | docs/specs/loft-channel-videos.md | sha256:0603e267973b9d683772fe8c156d662e1c9e873ea0f0739a1f52dac0c8c73550 |
-| SPEC-CORE-157 | approved | docs/specs/app-card-menu.md | sha256:43a43f71893509b482805d79b80e93aad55b86e6c72e273e5880f4b718b13c86 |
-| SPEC-ADDON-164 | approved | docs/specs/app-card-menu.md | sha256:43a43f71893509b482805d79b80e93aad55b86e6c72e273e5880f4b718b13c86 |
+| SPEC-CORE-157 | approved | docs/specs/app-card-menu.md | sha256:bc4a87bf34809c8be86599a681b4fbd76ae5a41de44bddd76036f00ced3a3d78 |
+| SPEC-ADDON-164 | approved | docs/specs/app-card-menu.md | sha256:bc4a87bf34809c8be86599a681b4fbd76ae5a41de44bddd76036f00ced3a3d78 |
