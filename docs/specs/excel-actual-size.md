@@ -40,11 +40,13 @@ and its picture placement both read the scaled values, and uses `transformData` 
 keep text sizes off the points-to-pixels table:
 
 - every row's height becomes `(its height, or the sheet's default row height, or 15) ×
-  4/3`, for rows 1 to `max(row count, 100)`;
-- every column from 1 to the sheet's column count gets the width `px / 6`, where `px` is
-  `Math.round(its width × 7)`, or for a column without a width `Math.round(sheet default
-  width × 7)`, or 64 when the sheet has no default width; the library then draws it at
-  `6 × px / 6 = px`;
+  4/3`, for rows 1 to 100 and every existing row after them; a height or default that is
+  not a positive number counts as missing;
+- every column the library can draw (1 to the largest cell count of any row) gets the
+  width `px / 6`, where `px` is `Math.round(its width × 7)`, or for a column without a
+  width `Math.round(sheet default width × 7)`, or 64 when the sheet has no positive
+  default width; the library then draws it at `6 × px / 6`, which is `px` up to
+  floating-point error;
 - every distinct font's numeric `size` (points) is multiplied by 16/9, so the library's
   `Math.round(size / 1.333333)` gives `Math.round(points × 4/3)`, Excel's pixel size;
 - every picture's anchor offsets (`nativeColOff`, `nativeRowOff`) and `ext` width and
@@ -66,7 +68,7 @@ What each part is drawn at, in CSS px at devicePixelRatio 1 and 2:
 | Text 14 pt | 15 | 19 |
 
 Tried on copies of three production workbooks and two others with pictures: wrapped
-text broke where it did before, a sequence-diagram picture stayed on the cells it covers
+text stayed inside its rows, a sequence-diagram picture stayed on the cells it covers
 in Excel, and text that the library clipped at a cell edge because its column was
 narrower than Excel's ("セキュリティ要件" in a 14.44-character column) fitted.
 
@@ -86,12 +88,17 @@ SPEC-CORE-155's "what is shown is what the library draws".
    these members:
    - `worksheet.properties.defaultRowHeight` and `.defaultColWidth` (either may be
      missing);
-   - `worksheet.rowCount`, `worksheet.getRow(i)` for `i` from 1 to `max(rowCount, 100)`
-     (creating rows that do not exist), and each row's `height`;
-   - each row's cells with `row.eachCell({ includeEmpty: true }, cb)`, and each cell's
-     `style.font.size`;
-   - `worksheet.columnCount`, `worksheet.getColumn(i)` for `i` from 1 to it, and each
-     column's `width`;
+   - `worksheet.rowCount`; `worksheet.getRow(i)` for `i` from 1 to 100 (creating rows
+     that do not exist, so the grid's first 100 rows all have a height) and
+     `worksheet.findRow(i)` for `i` from 101 to `rowCount` (existing rows only, so a
+     stray row far down creates nothing); each row's `height` and `cellCount`;
+   - each row's cells with `row.eachCell(cb)`, without `includeEmpty`, which visits only
+     cells with a value and creates none, and each cell's `style.font.size`; an empty
+     cell draws no text, so its font does not matter;
+   - `worksheet.getColumn(i)` for `i` from 1 to the largest `cellCount` of the rows
+     visited, hidden rows included, and each column's `width`. The library keeps the
+     columns up to the largest cell index of its non-hidden rows, so this covers every
+     column it draws; any extra column it drops;
    - `worksheet.getImages()`, and each image's `range.tl`, `range.br` (`nativeColOff`,
      `nativeRowOff`) and `range.ext` (`width`, `height`), any of which may be missing;
 
@@ -110,7 +117,8 @@ SPEC-CORE-155's "what is shown is what the library draws".
 
 | Where | What happens |
 |---|---|
-| `beforeTransformData` receives something without `eachSheet`, or a worksheet lacks one of the members in §1.2 | That workbook, worksheet or member is skipped; the rest are scaled |
+| `beforeTransformData` receives something without `eachSheet`, or a worksheet, row, cell, column or picture lacks one of the members in §1.2 | That item is skipped; the rest are scaled |
+| `worksheet.properties` is missing, or its `defaultRowHeight` / `defaultColWidth` is missing, zero or not a number (ExcelJS reads a missing attribute as 0) | The fallback: 15 pt rows, 64 px columns |
 | `beforeTransformData` throws for any other reason | It catches the error and returns the workbook it was given; what was scaled so far stays. No log |
 | `transformData` receives something that is not an array, or a sheet or style of an unexpected shape | Returned or skipped unchanged |
 | `transformData` throws | It catches the error and returns the list it was given. No log |
@@ -180,8 +188,15 @@ the change may not add more than one second to it. No new dependency.
   `frontend/src/components/__tests__/FilePreview.excelActualSize.test.tsx`, written from
   this spec, with the library mocked: `init` records the options; `preview` calls
   `beforeTransformData` with a fake ExcelJS workbook exposing only the members in §1.2,
-  converts it the way *Summary* describes the library, calls `transformData`, and hands
-  the result to a mocked grid.
+  converts it, calls `transformData`, and hands the result to a mocked grid. The fake's
+  conversion reproduces what the library does: rows and cells that do not exist are
+  skipped; a row's height is used as px, 24 when missing, 0.1 when hidden; a column's
+  width is `6 × width` px, 80 when missing, 0.1 when hidden, and columns past the
+  largest cell index of the non-hidden rows are dropped; each cell's style is deep-cloned
+  and its numeric `font.size` becomes `Math.round(size / 1.333333)`. The tests assert the
+  values the functions set (row heights and column widths to within 1e-9 of the
+  formulas; fractional heights stay fractional) and what the fake conversion hands the
+  grid. Pictures, hidden-row placement and drawn pixels are R-5's.
 - `docs/specs/INDEX.md`: the SPEC-CORE-168 row, and SPEC-CORE-167 set to `superseded`.
 - R-5, at a 1280 px window, on the copies in the local 「動画」 drive's `Inbox` (test data,
   not committed): `EnglishCore工数実績表.xlsx`, `要件定義署のサンプル.xlsx`,
@@ -190,19 +205,28 @@ the change may not add more than one second to it. No new dependency.
   Sizes are read by wrapping `CanvasRenderingContext2D.prototype.fillText` and recording
   `ctx.font` (device pixels; CSS px = value / `window.devicePixelRatio`), and row heights
   and column widths from the grid's sheet data (`xs.datas[i].rows` / `.cols`), at
-  devicePixelRatio 1 and 2.
+  devicePixelRatio 1 and 2. A drawn size may differ from the formula by one device pixel,
+  because the grid truncates positions. Time to show is from the file's click in the
+  list to the first `fillText` of a cell's text, the median of three runs, on this
+  branch and on `develop`.
 - No other file. No protected path.
 
 ## Invariants
 
-I1. For every worksheet the library loads, every row from 1 to `max(row count, 100)` is drawn at `(its height, else the sheet's default row height, else 15) × 4/3` px, except hidden rows.
-I2. For every worksheet, every column from 1 to its column count is drawn at `Math.round(its width × 7)` px, else `Math.round(the sheet's default width × 7)`, else 64, except hidden columns.
+I1. For every worksheet the library loads, rows 1 to 100 and every existing row after them are drawn at `(its height, else the sheet's positive default row height, else 15) × 4/3` px, except hidden rows; no row past 100 is created.
+I2. For every worksheet, every column the library draws is drawn at `Math.round(its width × 7)` px, else `Math.round(the sheet's positive default width × 7)`, else 64, except hidden columns.
 I3. Cell text whose font has a numeric size of `p` points is drawn at `Math.round(p × 4/3)` CSS px at a whole-number devicePixelRatio; every numeric `size` the grid receives is a whole number plus 0.01.
 I4. A picture's anchor offsets and its one-cell-anchor size are 4/3 of the values the library loaded, so it stays on the same cells as the scaled grid.
 I5. Each font object, row, column and picture is scaled exactly once per drawing; a `reload`, the frame's `ResizeObserver`, a window `resize` and a sheet switch scale nothing again.
 I6. The grid's first render after `preview` already uses the scaled rows, columns and sizes.
 I7. A workbook of unexpected shape, or a scaling that throws, is still shown, with no fallback panel, no `dispose`, and no `console` output of any kind from the scaling.
-I8. Every style property other than `font.size`, cell text, merges and hidden flags are the values the library would have loaded.
+I8. Every style property other than `font.size`, cell text, merges and hidden flags are the values the library would have loaded, and no cell is created: the grid receives no cell that it would not have received without the scaling.
+
+## Revises
+
+SPEC-CORE-167 I1. Superseded by SPEC-CORE-168 I3: every numeric font size the grid receives is a whole number plus 0.01, the pixel size Excel uses at 100 %.
+SPEC-CORE-167 I3. Superseded by SPEC-CORE-168 I1, I2 and I4: row heights, column widths and picture placement are scaled to Excel's 100 %.
+SPEC-CORE-167 I6. Superseded by SPEC-CORE-168 I3: 8 pt text is drawn at 11 CSS px, and 10, 12 and 14 pt at 13, 16 and 19.
 
 ## Checked, no action
 
@@ -216,9 +240,15 @@ I8. Every style property other than `font.size`, cell text, merges and hidden fl
 - **Text that overflows into empty neighbour cells.** The library clips every cell's
   text to the cell; Excel lets it run on. A separate change.
 - **Cells without a numeric font size** draw at the library's default 13 px rather than
-  the workbook's default font size. Rare: ExcelJS gives most cells their font.
+  the workbook's default font size (Excel writes a cell in the Normal style without a
+  style id, and ExcelJS then gives it no font). In the six workbooks tried, 0 of 8,692
+  cells with a value had no style id, so no case was seen.
+- **A picture past a hidden row or column** is placed as if the row or column had its
+  size: the library's picture code ignores the hidden flag. That offset exists today and
+  grows by 4/3 with this change.
 - **Rows past 100 that do not exist** are drawn at the library's 24 px. The grid shows
-  100 rows unless the sheet has more, and those exist.
+  100 rows unless the sheet has more, and the rows of such a sheet are only created up to
+  100, so a stray row far down costs no more than today.
 - **A future library version that changes the conversion** would change the result. The
   version is pinned exactly (SPEC-CORE-155); an upgrade is re-checked in R-5.
 - **Tests.** One test file with the library mocked covers I1 to I8 at the level of the
