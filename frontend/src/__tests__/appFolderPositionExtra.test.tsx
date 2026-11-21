@@ -409,3 +409,25 @@ describe("a Back while the next position's chips are still loading", () => {
     expect(screen.getByTestId("folder-chips").textContent).not.toContain("Study");
   });
 });
+
+describe.each(APPS)("$id another target chosen while the URL replace is still pending", (appCase) => {
+  it("never asks with the old position under the new target", async () => {
+    smartFolders = () => json([smartFolder("sf-trips", "Trips", "tag:Trip")]);
+    nav.replace.mockReset().mockImplementation((href: string) => {
+      setTimeout(() => nav.go(href, "replace"), 50);
+    });
+    open(appCase, "folder=Videos%2FStudy");
+    await waitFor(() => expect(wire.calls.some(isChips)).toBe(true));
+    await settle();
+    const before = wire.calls.length;
+
+    fireEvent.click(screen.getByRole("button", { name: /Target/ }));
+    fireEvent.click(await screen.findByRole("menuitemradio", { name: /Trips/ }));
+    await settle(200);
+
+    expect(nav.state.search.has("folder")).toBe(false);
+    const after = wire.calls.slice(before).filter((call) => isShelves(call) || isShelvesQuery(call));
+    expect(after.some(isChips)).toBe(true);
+    for (const call of after) expect(foldersOf(call)).not.toContain("Videos/Study");
+  });
+});

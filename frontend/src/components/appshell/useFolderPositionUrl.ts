@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import { readFolderPosition } from "./folderPosition";
@@ -11,6 +11,14 @@ export function useFolderPositionUrl() {
   const router = useRouter();
   const pathname = usePathname();
   const { value, invalid } = readFolderPosition(search.get("folder"));
+  // router.replace lands in a later render; until it does, a dropped position
+  // must not reach the requests made for the target chosen in the same step.
+  const [droppedAt, setDroppedAt] = useState<string | null>(null);
+  const current = search.toString();
+  const position = droppedAt === current ? null : value;
+  useEffect(() => {
+    if (droppedAt !== null && droppedAt !== current) setDroppedAt(null);
+  }, [current, droppedAt]);
 
   const replaceQuery = useCallback(
     (change: (next: URLSearchParams) => void) => {
@@ -41,16 +49,18 @@ export function useFolderPositionUrl() {
 
   const dropTargetAndFolder = useCallback(() => {
     if (!search.has("target") && !search.has("folder")) return;
+    setDroppedAt(current);
     replaceQuery((next) => {
       next.delete("target");
       next.delete("folder");
     });
-  }, [replaceQuery, search]);
+  }, [current, replaceQuery, search]);
 
   const dropFolder = useCallback(() => {
     if (!search.has("folder")) return;
+    setDroppedAt(current);
     replaceQuery((next) => next.delete("folder"));
-  }, [replaceQuery, search]);
+  }, [current, replaceQuery, search]);
 
-  return { position: value, chooseFolder, dropTargetAndFolder, dropFolder };
+  return { position, chooseFolder, dropTargetAndFolder, dropFolder };
 }
