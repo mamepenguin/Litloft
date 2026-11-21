@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-1",
+      "status": "confirmed",
+      "note": "frontend/src/components/appshell/CardFileMenu.tsx exists; imports deleteWatchProgress/dismissContinueItem/getShelves at :18-20, calls dismissContinueItem at :298, deleteWatchProgress at :312, getShelves(by:'all', ids:[id]) at :352. The touch-point list names only ShelfBlock.tsx and usePaged.ts under appshell, and docs/specs/app-card-menu.md never mentions CardFileMenu."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-2",
+      "status": "confirmed",
+      "note": "addons/knowledge/frontend/cardMenu/PageFileMenu.tsx imports deleteWatchProgress and getShelves at :15, defines usePageFileMenu at :94, calls getShelves(file.drive,{by:'all',ids:[id]}) at :182 and deleteWatchProgress(file.id) at :355. The file is not in the touch points, and watchHistoryCallSites.test.ts:71 lists it."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-3",
+      "status": "confirmed",
+      "note": "addons/knowledge/frontend/NotesPage.tsx:19 imports PageFileMenuProvider/usePageFileMenu and calls usePageFileMenu at :50. notesapp/Home.tsx contains no FileMenu, onRemoveFromHistory or deleteWatchProgress reference, so the planned owner does not hold the removals. NotesPage.tsx is not a touch point. I could not see the diff itself, so I did not confirm that Home.tsx is literally absent from it."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-4",
+      "status": "confirmed",
+      "note": "addons/knowledge/frontend/library/pane/useNoteData.ts:32 has the signature useNoteData(noteId, revision = 0), and :35-40 re-runs retry when revision changes. The file is not among the touch points; only NotePaneContainer.tsx and shownNote.ts are listed under library/pane and library."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-5",
+      "status": "confirmed",
+      "note": "frontend/src/__tests__/watchHistoryCallSites.test.ts:68-74 expects three deleteWatchProgress callers: PageFileMenu.tsx, ContinueWatchingSection.tsx and CardFileMenu.tsx. The test file is not a touch point. The commit message 444631ee4 also records the widening."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-6",
+      "status": "confirmed",
+      "note": "frontend/src/components/FileContextMenu.tsx:31 declares immediateRows?: boolean, :58 defaults it to false, and :190 maps the items to immediate:true when it is set. The touch point plans only the three callbacks (onTrashed at :33, plus onRenamed and onMoved) and beforeChange at :42."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-7",
+      "status": "confirmed",
+      "note": "The files frontend/e2e-components/fixtures/app.tsx, fixtures/appCardMenu.tsx, app-card-menu.spec.ts and spec-viewport.spec.ts all exist. In the knowledge guards, popup-dismissal.test.ts:53 has FILE_COUNT = 100 and reachability.test.ts:165 has expect(moduleFiles.size).toBe(100), which matches the added PageFileMenu.tsx module. None of these is a touch point. I did not see the 99 base value directly, because I cannot run git."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "OBS-1",
+      "status": "confirmed",
+      "note": "frontend/src/components/readingapp/ReadingCard.tsx:84 renders `</span>{\" \"}` unconditionally between the title span and the folder span, with no fileMenu condition, so every caller gets the text node. The folder span is `block`, so the visual effect is likely nil. I could not diff against base to confirm the line is new."
+    }
+  ],
+  "specification_compliance": [
+    "The touch-point list in docs/specs/app-card-menu.md does not cover the new shared modules CardFileMenu.tsx (core) and cardMenu/PageFileMenu.tsx (knowledge), NotesPage.tsx, useNoteData.ts, or the immediateRows prop. These are scope deviations, not behaviour defects."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "FileContextMenu immediateRows prop (marks every row immediate) is not described by I8 or the touch points.",
+    "useNoteData revision input re-loads the pane note on change; not described in the spec."
+  ],
+  "regression_risks": [
+    "The watchHistoryCallSites allow-list grew to three callers; any future caller now needs to be added to the list on purpose.",
+    "The ReadingCard whitespace text node affects every caller's DOM, including text-content assertions in tests."
+  ],
+  "test_coverage": [
+    "The e2e fixture and spec app-card-menu.spec.ts exist for the card menu; I did not inspect their content."
+  ],
+  "not_verified": [
+    "I could not run git diff against origin/develop, so I did not directly confirm the claims that a file is new or changed (Home.tsx unchanged, 99->100, the ReadingCard line being new).",
+    "I did not run any tests or the e2e suite.",
+    "I did not check the behaviour of CardFileMenu and PageFileMenu against invariants I1-I10."
+  ],
+  "confidence": 85
+}

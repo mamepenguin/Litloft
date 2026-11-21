@@ -1,0 +1,464 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "TP-1",
+      "origin": "reviewer",
+      "claim": "The new core module frontend/src/components/appshell/CardFileMenu.tsx, which holds the page menu, every list removal, the re-read and the Continue/history writes for both core apps, is not in the touch-point list.",
+      "impact": "The one place that decides which card leaves which list, sends dismissContinueItem/deleteWatchProgress and applies re-read overrides was never named for invariant planning, so a reader of the spec would look for that logic in VideoApp/ReadingApp/ShelfBlock/useRemovableItems and miss it.",
+      "evidence": "frontend/src/components/appshell/CardFileMenu.tsx (new, 510 lines): useCardFileMenu holds PageState trashed/removed/overrides, onRemoveFromContinue calls dismissContinueItem, onRemoveFromHistory calls deleteWatchProgress (lines ~18-22 import), handleReRead calls getShelves; touch points list only ShelfBlock.tsx and usePaged.ts under appshell.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Touch-point list omission; no declared invariant is broken by the file existing.",
+        "invariant_ref": null
+      },
+      "severity": "MEDIUM",
+      "proposed_fix": "Add appshell/CardFileMenu.tsx to the SPEC-CORE-157 touch points, noting it as a new deleteWatchProgress/dismissContinueItem caller under the design-decisions watch-history rule."
+    },
+    {
+      "id": "TP-2",
+      "origin": "reviewer",
+      "claim": "The new addon module addons/knowledge/frontend/cardMenu/PageFileMenu.tsx, a second page-menu implementation that calls deleteWatchProgress and getShelves, is not in the touch-point list.",
+      "impact": "A new watch-history deletion call site in the addon is outside the planned reach; the spec states the addon 'keeps no menu of its own', yet the addon now owns a full menu host and list-state store parallel to the core one.",
+      "evidence": "addons/knowledge/frontend/cardMenu/PageFileMenu.tsx: usePageFileMenu, useCardMenuHandlers, PageFileMenuView with onRemoveFromHistory -> deleteWatchProgress(file.id); reRead -> getShelves(file.drive,{by:'all',ids:[id]}). frontend/src/__tests__/watchHistoryCallSites.test.ts now lists it as a caller.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Unplanned reach; behavior appears consistent with I1/I3/I10.",
+        "invariant_ref": null
+      },
+      "severity": "MEDIUM",
+      "proposed_fix": "Add cardMenu/PageFileMenu.tsx to the SPEC-ADDON-164 touch points."
+    },
+    {
+      "id": "TP-3",
+      "origin": "reviewer",
+      "claim": "addons/knowledge/frontend/NotesPage.tsx is changed to own the Notes page menu and its removal state, but it is not a touch point, while the planned owner notesapp/Home.tsx is left unchanged.",
+      "impact": "The spec says notesapp/Home.tsx holds the removals and re-reads; the code holds them in NotesPage across Home and Library, so a fix guided by the spec would land in the wrong file.",
+      "evidence": "addons/knowledge/frontend/NotesPage.tsx:50-54 usePageFileMenu({scope, hasProfile, historyListKeys:['continue']}) and the PageFileMenuProvider wrap; notesapp/Home.tsx absent from the diff.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Touch-point list names a different owner than the code.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Replace notesapp/Home.tsx with NotesPage.tsx in the touch points."
+    },
+    {
+      "id": "TP-4",
+      "origin": "reviewer",
+      "claim": "addons/knowledge/frontend/library/pane/useNoteData.ts gains a revision input that re-loads the pane's note, and it is not in the touch-point list.",
+      "impact": "The pane's note read now also runs after a rename or move from the menu; useLoad.retry may draw the pane's loading state, a behavior change of the pane not planned in the touch points.",
+      "evidence": "addons/knowledge/frontend/library/pane/useNoteData.ts:32-41 useNoteData(noteId, revision) calls retry() when revision changes; NotePaneContainer passes revision from NotesLibrary paneRevision.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Unplanned reach in the pane; I10 is served by it rather than broken.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add library/pane/useNoteData.ts to the touch points."
+    },
+    {
+      "id": "TP-5",
+      "origin": "reviewer",
+      "claim": "The watch-history guard test frontend/src/__tests__/watchHistoryCallSites.test.ts has its allow-list widened from one caller to three, outside the touch points.",
+      "impact": "A rule guard for design-decisions 'removal only on an explicit user action' was relaxed without the spec naming it, so a later unintended caller in either new file passes the guard.",
+      "evidence": "frontend/src/__tests__/watchHistoryCallSites.test.ts:67-75 expected callers now include addons/knowledge/frontend/cardMenu/PageFileMenu.tsx and frontend/src/components/appshell/CardFileMenu.tsx.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Guard change outside the planned reach; callers seen are menu-only.",
+        "invariant_ref": null
+      },
+      "severity": "LOW"
+    },
+    {
+      "id": "TP-6",
+      "origin": "reviewer",
+      "claim": "FileContextMenu gains a fifth optional prop, immediateRows, that is not among the planned 'three optional callbacks and the optional beforeChange gate'.",
+      "impact": "Rows run their handler in the click rather than on the next frame for every caller that opts in; this API surface is not covered by I8's description or the touch point.",
+      "evidence": "frontend/src/components/FileContextMenu.tsx: immediateRows?: boolean; rows = immediateRows ? items.map(i=>({...i, immediate:true})) : items; passed by CardFileMenu and PageFileMenuView.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Unplanned API in a listed file; default false preserves existing callers.",
+        "invariant_ref": null
+      },
+      "severity": "LOW"
+    },
+    {
+      "id": "TP-7",
+      "origin": "reviewer",
+      "claim": "Test and e2e infrastructure outside the touch points is changed: e2e-components/fixtures/app.tsx, fixtures/appCardMenu.tsx, app-card-menu.spec.ts, spec-viewport.spec.ts, and the knowledge module-count guards popup-dismissal.test.ts and reachability.test.ts (99 -> 100).",
+      "impact": "None for users; the module-count guards were bumped for PageFileMenu.tsx.",
+      "evidence": "diff of frontend/e2e-components/* and addons/knowledge/frontend/__tests__/{popup-dismissal,reachability}.test.ts",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Test-only reach not listed.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    },
+    {
+      "id": "OBS-1",
+      "origin": "reviewer",
+      "claim": "ReadingCard now emits a whitespace text node between the title and folder spans for every caller, with or without the fileMenu opt-in.",
+      "impact": "The card's text content changes for all ReadingCard uses; I8's no-opt-in DOM guarantee covers VideoCard only, so nothing pins this.",
+      "evidence": "frontend/src/components/readingapp/ReadingCard.tsx: '</span>{\" \"}' after the title span.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Unexplained DOM change in a listed file; no invariant covers ReadingCard without opt-in.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    }
+  ],
+  "specification_compliance": [
+    "Touch-point list is incomplete: CardFileMenu.tsx, PageFileMenu.tsx, NotesPage.tsx and useNoteData.ts are reached but not listed.",
+    "notesapp/Home.tsx is planned as the holder of Notes removals but is not changed; NotesPage.tsx holds them.",
+    "Docs, INDEX.md and spec file are implicit touch points and not reported."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "FileContextMenu immediateRows prop is an unplanned API.",
+    "Notes pane note is re-read via useLoad.retry after a menu rename/move.",
+    "ReadingCard whitespace text node added for all callers."
+  ],
+  "regression_risks": [
+    "Two parallel page-menu implementations (core CardFileMenu and addon PageFileMenu) can drift.",
+    "Widened watch-history guard allow-list."
+  ],
+  "test_coverage": [
+    "New tests cover callbacks, Discover/Library/See all removals, paging, Notes and Clips menus.",
+    "No test pins ReadingCard DOM without opt-in."
+  ],
+  "not_verified": [
+    "Did not run any test or e2e spec.",
+    "Did not read unchanged enclosing code for most modified files beyond the supplied diff hunks.",
+    "Did not verify whether useLoad.retry shows a loading state in the Notes pane."
+  ],
+  "coverage": [
+    {
+      "path": "addons/knowledge/frontend/ContinueCard.tsx",
+      "read": "partial",
+      "reason": "changed hunks in supplied diff only"
+    },
+    {
+      "path": "addons/knowledge/frontend/NoteRow.tsx",
+      "read": "partial",
+      "reason": "changed hunks in supplied diff only"
+    },
+    {
+      "path": "addons/knowledge/frontend/NotesPage.tsx",
+      "read": "partial",
+      "reason": "lines 1-60 and diff hunks"
+    },
+    {
+      "path": "addons/knowledge/frontend/cardMenu/PageFileMenu.tsx",
+      "read": "full",
+      "reason": "new file, whole content in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/clipsapp/ClipCard.tsx",
+      "read": "partial",
+      "reason": "changed hunks in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/clipsapp/ClipRow.tsx",
+      "read": "partial",
+      "reason": "changed hunks in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/clipsapp/CoverShelf.tsx",
+      "read": "partial",
+      "reason": "changed hunks in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/clipsapp/Home.tsx",
+      "read": "partial",
+      "reason": "changed hunks in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/clipsapp/Library.tsx",
+      "read": "partial",
+      "reason": "changed hunks in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/clipsapp/ShelfPage.tsx",
+      "read": "partial",
+      "reason": "changed hunks in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/clipsapp/usePagedClips.ts",
+      "read": "partial",
+      "reason": "changed hunks in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/clipsapp/useShelfData.ts",
+      "read": "partial",
+      "reason": "changed hunks in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/library/LibraryList.tsx",
+      "read": "partial",
+      "reason": "changed hunks in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/library/NotesLibrary.tsx",
+      "read": "partial",
+      "reason": "changed hunks in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/library/pane/NotePaneContainer.tsx",
+      "read": "partial",
+      "reason": "changed hunks in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/library/pane/useNoteData.ts",
+      "read": "full",
+      "reason": "read whole file"
+    },
+    {
+      "path": "addons/knowledge/frontend/library/useNotesList.ts",
+      "read": "partial",
+      "reason": "changed hunks in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/notesapp/ContinueWritingSection.tsx",
+      "read": "partial",
+      "reason": "changed hunks in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/notesapp/NotesWithSourcesSection.tsx",
+      "read": "partial",
+      "reason": "changed hunks in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/notesapp/RecentlyUpdatedSection.tsx",
+      "read": "partial",
+      "reason": "changed hunks in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/pages/clips.tsx",
+      "read": "partial",
+      "reason": "changed hunks in diff"
+    },
+    {
+      "path": "frontend/e2e-components/app-card-menu.spec.ts",
+      "read": "full",
+      "reason": "new file in diff"
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/app.tsx",
+      "read": "partial",
+      "reason": "changed hunks in diff"
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/appCardMenu.tsx",
+      "read": "full",
+      "reason": "new file in diff"
+    },
+    {
+      "path": "frontend/e2e-components/spec-viewport.spec.ts",
+      "read": "partial",
+      "reason": "changed hunk in diff"
+    },
+    {
+      "path": "frontend/src/components/FileContextMenu.tsx",
+      "read": "partial",
+      "reason": "changed hunks in diff"
+    },
+    {
+      "path": "frontend/src/components/appshell/CardFileMenu.tsx",
+      "read": "full",
+      "reason": "new file in diff plus lines 1-60 read"
+    },
+    {
+      "path": "frontend/src/components/appshell/usePaged.ts",
+      "read": "partial",
+      "reason": "changed hunks in diff"
+    },
+    {
+      "path": "frontend/src/components/readingapp/DiscoverFace.tsx",
+      "read": "partial",
+      "reason": "changed hunks in diff"
+    },
+    {
+      "path": "frontend/src/components/readingapp/LibraryFace.tsx",
+      "read": "partial",
+      "reason": "changed hunks in diff"
+    },
+    {
+      "path": "frontend/src/components/readingapp/ReadingApp.tsx",
+      "read": "partial",
+      "reason": "changed hunks in diff"
+    },
+    {
+      "path": "frontend/src/components/readingapp/ReadingCard.tsx",
+      "read": "partial",
+      "reason": "changed hunks in diff"
+    },
+    {
+      "path": "frontend/src/components/readingapp/ReadingShelfPage.tsx",
+      "read": "partial",
+      "reason": "changed hunks in diff"
+    },
+    {
+      "path": "frontend/src/components/readingapp/useReadingApp.ts",
+      "read": "partial",
+      "reason": "changed hunks in diff"
+    },
+    {
+      "path": "frontend/src/components/videoapp/DiscoverFace.tsx",
+      "read": "partial",
+      "reason": "changed hunks in diff"
+    },
+    {
+      "path": "frontend/src/components/videoapp/LibraryFace.tsx",
+      "read": "partial",
+      "reason": "changed hunks in diff"
+    },
+    {
+      "path": "frontend/src/components/videoapp/VideoApp.tsx",
+      "read": "partial",
+      "reason": "changed hunks in diff"
+    },
+    {
+      "path": "frontend/src/components/videoapp/VideoCard.tsx",
+      "read": "partial",
+      "reason": "changed hunks in diff"
+    },
+    {
+      "path": "frontend/src/components/videoapp/VideoPagedGrid.tsx",
+      "read": "partial",
+      "reason": "changed hunks in diff"
+    },
+    {
+      "path": "frontend/src/components/videoapp/VideoShelfPage.tsx",
+      "read": "partial",
+      "reason": "changed hunks in diff"
+    },
+    {
+      "path": "frontend/src/components/videoapp/useDiscover.ts",
+      "read": "partial",
+      "reason": "changed hunk in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/cardMenuHarness.tsx",
+      "read": "full",
+      "reason": "new file in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/clipsCardMenu.test.tsx",
+      "read": "full",
+      "reason": "new file in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/clipsCardMenuStates.test.tsx",
+      "read": "full",
+      "reason": "new file in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/notesCardMenuStates.test.tsx",
+      "read": "full",
+      "reason": "new file in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/notesHomeCardMenu.test.tsx",
+      "read": "full",
+      "reason": "new file in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/notesLibraryCardMenu.test.tsx",
+      "read": "full",
+      "reason": "new file in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/popup-dismissal.test.ts",
+      "read": "partial",
+      "reason": "changed hunk in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/reachability.test.ts",
+      "read": "partial",
+      "reason": "changed hunk in diff"
+    },
+    {
+      "path": "frontend/src/__tests__/watchHistoryCallSites.test.ts",
+      "read": "partial",
+      "reason": "changed hunk in diff"
+    },
+    {
+      "path": "frontend/src/components/__tests__/FileContextMenu.callbacks.test.tsx",
+      "read": "full",
+      "reason": "new file in diff"
+    },
+    {
+      "path": "frontend/src/components/appshell/__tests__/CardFileMenu.shelf.test.tsx",
+      "read": "full",
+      "reason": "new file in diff"
+    },
+    {
+      "path": "frontend/src/components/readingapp/__tests__/ReadingApp.cardMenu.test.tsx",
+      "read": "full",
+      "reason": "new file in diff"
+    },
+    {
+      "path": "frontend/src/components/readingapp/__tests__/ReadingApp.menuScopes.test.tsx",
+      "read": "full",
+      "reason": "new file in diff"
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoApp.cardMenu.test.tsx",
+      "read": "full",
+      "reason": "new file in diff"
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoApp.itemActions.test.tsx",
+      "read": "partial",
+      "reason": "changed hunks in diff"
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoApp.menuScopes.test.tsx",
+      "read": "full",
+      "reason": "new file in diff"
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoCard.compat.test.tsx",
+      "read": "full",
+      "reason": "new file in diff"
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoShelfPage.cardMenu.test.tsx",
+      "read": "full",
+      "reason": "new file in diff"
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoShelfPage.itemActions.test.tsx",
+      "read": "partial",
+      "reason": "changed hunks in diff"
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoShelfPage.providerPaging.test.tsx",
+      "read": "full",
+      "reason": "new file in diff"
+    }
+  ],
+  "confidence": 78
+}
