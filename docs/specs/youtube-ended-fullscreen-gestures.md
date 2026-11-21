@@ -2,7 +2,7 @@
 
 SPEC-ID: SPEC-ADDON-168
 
-Approval:
+Approval: sha256:be3086499c7e876d633a697e9ccdffe4c573607cc56c00a2251f4189147e995f Yuichi Senga 2026-11-21
 
 <!--
 Leave the Approval line empty. After a human approves this spec, the approval step
