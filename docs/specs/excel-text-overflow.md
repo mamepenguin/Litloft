@@ -37,23 +37,32 @@ This adds to the one place Litloft corrects the library's drawing (SPEC-CORE-155
    the list, it looks for run-on cells.
 2. A cell of a sheet is a *run-on candidate* when all of these hold:
    - its `text` is a non-empty string that does not start with `=`;
-   - its row is not hidden (height 0.1 is the library's hidden value) and its column is
-     not hidden;
+   - its row is not hidden (the library gives a hidden row height 0.1 and no cells) and
+     its column is not hidden; a column is hidden when its `cols[k]` entry has a numeric
+     `width` below 1 (the library's hidden value is 0.1);
    - it has no `merge` of its own and lies inside no range listed in the sheet's `merges`;
    - its style (the sheet's `styles[cell.style]`, or none) has no `textwrap`, an `align`
-     that is missing or `"left"`, no `border` and no `bgcolor`.
-3. The candidate's text width is measured with a 2D canvas context whose `font` is the
-   one the grid will use: `[italic ][bold ]<px>px <name>`, where `<px>` is the style's
-   `font.size` truncated to a whole number (13 when the style has no numeric size, the
-   grid's default 10 pt through its table) and `<name>` the style's `font.name` or
-   `Arial`. The text needs `5 + width + 1` px: the grid draws left-aligned text 5 px
-   inside the cell and clips 1 px inside each edge.
-4. If the cell's own width (the sheet's `cols[k].width`, or 80 when the key has no
-   entry, the grid's default) is enough, nothing changes. Otherwise the cell takes the
+     that is missing or `"left"`, no border (a `border` with a truthy `top`, `right`,
+     `bottom` or `left`; the grid draws only those four), no `bgcolor`, and a `font.size`
+     that is either absent or a number.
+3. The candidate's text width is measured with a 2D context of a canvas made with
+   `document.createElement("canvas")`, created on the first measurement of the
+   `transformData` call and reused for the rest of it. Its `font` is the one the grid
+   will use: `[italic ][bold ]<px>px <name>`, where `<px>` is the style's numeric
+   `font.size` truncated to a whole number (13 when the size is absent: the grid's
+   default 10 pt through its table) and `<name>` the style's `font.name` or `Arial`. The
+   grid draws each line of a text split at `\n` on its own, so the width is that of the
+   widest line. The text needs `5 + width + 1` px: the grid draws left-aligned text 5 px
+   inside the cell and clips 1 px inside each edge. A text whose every line is so short
+   that `6 + characters × 2 × px` fits the cell is not measured (no glyph is two em
+   wide).
+4. If the cell's own width (the sheet's `cols[k].width`, or 80, the grid's default, when
+   the key has no entry or its `width` is not a positive number) is enough, nothing changes. Otherwise the cell takes the
    next cells to its right, one at a time, while the running width is still short, and
    stops before a cell that:
-   - has a non-empty `text`, or a `merge`, or lies inside a range in `merges`;
-   - has a style with a `border` or a `bgcolor`;
+   - has a `text` that is anything but `undefined`, `null` or `""` (a number, `0` and a
+     date included), or a `merge`, or lies inside a range in `merges`;
+   - has a style with a border (as in §1.2) or a `bgcolor`;
    - is in a hidden column;
    - is at or past the sheet's `cols.len`.
    Cells that do not exist in the row count as empty.
@@ -116,15 +125,16 @@ None new; see §2. Nothing is logged.
 
 ### 10. Non-functional
 
-One text measurement per candidate whose text could be wider than its cell; the
-measurement is skipped when the text's length times the font's pixel size is within the
-cell's width. The largest R-5 workbook (286,310 cells) may not take more than 0.5 s longer
+At most one text measurement per candidate, skipped as §1.3 says. The largest R-5 workbook (286,310 cells) may not take more than 0.5 s longer
 to show than on `develop`, measured as SPEC-CORE-168 §10 / Touch points says. No new
 dependency.
 
 ## Touch points
 
 - `frontend/src/components/office/excelAdapter.ts`: the run-on step in `transformData`.
+- `frontend/src/components/__tests__/FilePreview.excelActualSize.test.tsx`: may stub the
+  canvas context in its setup, since jsdom's `getContext` logs to the console and those
+  tests assert no console output; none of its assertions changes.
 - `frontend/src/components/__tests__/FilePreview.excelTextOverflow.test.tsx` (new), with
   the library mocked as in `FilePreview.excelActualSize.test.tsx`: the mocked `preview`
   calls `transformData` with sheets built directly in the grid's shape (`rows` keyed by
@@ -152,7 +162,18 @@ I4. No range added overlaps another range, added or loaded, and none extends pas
 I5. The run-on is decided once per drawing; a `reload`, the frame's `ResizeObserver`, a window `resize` and a sheet switch add or remove no range.
 I6. A sheet of unexpected shape, a missing canvas context, or a step that throws still shows the workbook, with no fallback panel, no `dispose`, and no `console` output from the step.
 
+## Revises
+
+SPEC-CORE-168 I8. Every style property other than `font.size`, cell text, hidden flags and the workbook's own merges are the values the library would have loaded; the only merges added are SPEC-CORE-170's run-on ranges.
+
 ## Checked, no action
+
+- **A column edge dragged by the viewer.** The run-on is decided when the sheet is
+  drawn; after a column is widened or narrowed by hand, its ranges stay as they were, so
+  text can be clipped again or cover a cell it no longer needs, until the file is opened
+  again.
+- **Shrink-to-fit cells** run on in full instead of shrinking, as the grid does not
+  shrink text.
 
 - **Right-aligned and centred text.** Excel runs right-aligned text on to the left and
   centred text both ways. Not done: a merge can only grow to the right of its top-left
