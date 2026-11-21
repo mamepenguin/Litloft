@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [],
+  "specification_compliance": [
+    "The diff touches five paths: docs/specs/INDEX.md and docs/specs/excel-actual-size.md, which are implicit touch points; frontend/src/components/office/excelAdapter.ts, which is listed; frontend/src/components/__tests__/FilePreview.excelActualSize.test.tsx, which is listed as added; and frontend/src/components/__tests__/FilePreview.excelFontSize.test.tsx, which is listed as replaced and is deleted. No path falls outside the touch-point list.",
+    "Inside excelAdapter.ts, the change is limited to the SpreadsheetOptions type (beforeTransformData added), the new helpers and createSheetSizing (lines 20-264), which replace correctFontSizes, and the wiring in drawExcel (lines 273-278). The rest of drawExcel (focus release, input lock, ResizeObserver, dispose, preview and reload, lines 280-367) is unchanged. The touch point names exactly this: 'the two options and their functions, replacing SPEC-CORE-167's transformData function'.",
+    "The workbook and sheets are changed only in the library's in-memory objects of the current drawing: row and column objects, font objects, picture ranges, worksheet._columns, and grid cols entries. This matches §4. Nothing is written to a file or sent over the network.",
+    "INDEX.md changes the SPEC-CORE-167 row to superseded and adds the SPEC-CORE-168 row, which matches the INDEX touch point."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "beforeTransformData creates rows 1 to 100 through worksheet.getRow. The spec covers this (§1.2, I1), but it is a structural change to the in-memory workbook that the library reads, and it reaches beyond sizes. It is within the declared touch point and invariants, so it is not reported."
+  ],
+  "regression_risks": [
+    "The library's undocumented options beforeTransformData and transformData depend on the exact version pin of @js-preview/excel. An upgrade that changes their call order, or the one-sheet-per-worksheet mapping, would misalign records[i] with sheets[i]. The spec declares this risk, and it is outside this question."
+  ],
+  "test_coverage": [
+    "FilePreview.excelActualSize.test.tsx replaces the deleted SPEC-CORE-167 test file and has one or more describe blocks per invariant I1 to I8. No test outside the touch-point list was edited."
+  ],
+  "not_verified": [
+    "I did not run the test suite or any mutation; I could not run commands.",
+    "I did not check the real @js-preview/excel 1.7.14 bundle to confirm the option names or the conversion behaviour the fake reproduces.",
+    "I did not inspect what commit 668449382 changes on its own beyond the diff given, such as files under docs/process/reviews/. Those paths are implicit touch points either way."
+  ],
+  "coverage": [
+    {
+      "path": "frontend/src/components/office/excelAdapter.ts",
+      "read": "full",
+      "reason": "Read the whole file (lines 1-368) on disk, and the diff hunks."
+    },
+    {
+      "path": "frontend/src/components/__tests__/FilePreview.excelActualSize.test.tsx",
+      "read": "full",
+      "reason": "Read the whole new file as it appears in the diff (an added file, so the diff holds all of it)."
+    },
+    {
+      "path": "frontend/src/components/__tests__/FilePreview.excelFontSize.test.tsx",
+      "read": "full",
+      "reason": "The file is deleted by the change. I read its full removed content in the diff, and Glob confirms it no longer exists on disk."
+    }
+  ],
+  "confidence": 88,
+  "perspectives": [
+    {
+      "name": "touch-point completeness",
+      "notes": "I compared every path in the diff against the declared touch points and the implicit docs paths. All match. I also compared the hunks inside excelAdapter.ts against the scope the touch point gives that file."
+    }
+  ]
+}
