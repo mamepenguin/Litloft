@@ -13,28 +13,161 @@ interface SpreadsheetHandle {
 
 interface SpreadsheetOptions {
   showContextmenu: boolean;
+  beforeTransformData: (workbook: unknown) => unknown;
   transformData: (sheets: unknown) => unknown;
 }
 
-function correctFontSizes(sheets: unknown): unknown {
-  if (!Array.isArray(sheets)) return sheets;
-  const corrected = new Set<object>();
+type UnknownRecord = Record<string, unknown>;
+
+const ROWS_TO_CREATE = 100;
+const SIZE_SCALE = 4 / 3;
+const ROW_DEFAULT_POINTS = 15;
+const COLUMN_DEFAULT_PX = 64;
+const COLUMN_UNIT_PX = 7;
+const COLUMN_DIVISOR = 6;
+// Text is stored at 16/9, not 4/3, because the library divides a size by 4/3
+// before rounding it; 0.01 then keeps a whole pixel off its points-to-pixels table.
+const TEXT_SCALE = 16 / 9;
+const TEXT_SIZE_OFFSET = 0.01;
+
+function isRecord(value: unknown): value is UnknownRecord {
+  return typeof value === "object" && value !== null;
+}
+
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
+function positiveNumber(value: unknown): number | null {
+  return isFiniteNumber(value) && value > 0 ? value : null;
+}
+
+function pixels(value: unknown, perUnit: number): number | null {
+  const units = positiveNumber(value);
+  if (units === null) return null;
+  const px = Math.round(units * perUnit);
+  return px > 0 ? px : null;
+}
+
+function scaleMember(target: UnknownRecord, key: string, factor: number): void {
+  const value = target[key];
+  if (isFiniteNumber(value)) target[key] = value * factor;
+}
+
+function scaleFont(font: unknown, scaled: Set<object>): void {
+  if (!isRecord(font) || scaled.has(font)) return;
+  const size = font.size;
+  if (!isFiniteNumber(size)) return;
+  scaled.add(font);
+  font.size = size * TEXT_SCALE;
+}
+
+function scaleRow(row: unknown, defaultHeight: unknown, fonts: Set<object>): void {
+  if (!isRecord(row)) return;
+  const points = positiveNumber(row.height) ?? positiveNumber(defaultHeight) ?? ROW_DEFAULT_POINTS;
+  row.height = points * SIZE_SCALE;
+  if (typeof row.eachCell !== "function") return;
+  row.eachCell((cell: unknown) => {
+    if (!isRecord(cell) || !isRecord(cell.style)) return;
+    scaleFont(cell.style.font, fonts);
+  });
+}
+
+function scaleRows(worksheet: UnknownRecord, defaultHeight: unknown, fonts: Set<object>): number {
+  let widest = 0;
+  const visit = (row: unknown) => {
+    scaleRow(row, defaultHeight, fonts);
+    if (isRecord(row) && isFiniteNumber(row.cellCount) && row.cellCount > widest) {
+      widest = row.cellCount;
+    }
+  };
+  if (typeof worksheet.getRow === "function") {
+    for (let i = 1; i <= ROWS_TO_CREATE; i += 1) visit(worksheet.getRow(i));
+  }
+  // The grid draws rows 1 to 100 even when the sheet has none, so those are
+  // created; past 100 only existing rows are reached, so a stray cell far down adds none.
+  if (typeof worksheet.findRow === "function") {
+    const rowCount = isFiniteNumber(worksheet.rowCount) ? Math.floor(worksheet.rowCount) : 0;
+    for (let i = ROWS_TO_CREATE + 1; i <= rowCount; i += 1) visit(worksheet.findRow(i));
+  }
+  return widest;
+}
+
+function scaleColumns(worksheet: UnknownRecord, widest: number, defaultWidth: unknown): void {
+  if (typeof worksheet.getColumn !== "function") return;
+  for (let i = 1; i <= widest; i += 1) {
+    const column = worksheet.getColumn(i);
+    if (!isRecord(column)) continue;
+    const width =
+      pixels(column.width, COLUMN_UNIT_PX) ??
+      pixels(defaultWidth, COLUMN_UNIT_PX) ??
+      COLUMN_DEFAULT_PX;
+    column.width = width / COLUMN_DIVISOR;
+  }
+}
+
+function scalePictures(worksheet: UnknownRecord, scaled: Set<object>): void {
+  if (typeof worksheet.getImages !== "function") return;
+  const images = worksheet.getImages();
+  if (!Array.isArray(images)) return;
+  for (const image of images) {
+    if (!isRecord(image)) continue;
+    const range = image.range;
+    if (!isRecord(range) || scaled.has(range)) continue;
+    scaled.add(range);
+    if (isRecord(range.tl)) {
+      scaleMember(range.tl, "nativeColOff", SIZE_SCALE);
+      scaleMember(range.tl, "nativeRowOff", SIZE_SCALE);
+    }
+    if (isRecord(range.br)) {
+      scaleMember(range.br, "nativeColOff", SIZE_SCALE);
+      scaleMember(range.br, "nativeRowOff", SIZE_SCALE);
+    }
+    if (isRecord(range.ext)) {
+      scaleMember(range.ext, "width", SIZE_SCALE);
+      scaleMember(range.ext, "height", SIZE_SCALE);
+    }
+  }
+}
+
+function scaleWorksheet(worksheet: unknown, fonts: Set<object>, pictures: Set<object>): void {
+  if (!isRecord(worksheet)) return;
+  const properties = worksheet.properties;
+  const sheetProperties = isRecord(properties) ? properties : {};
+  const widest = scaleRows(worksheet, sheetProperties.defaultRowHeight, fonts);
+  scaleColumns(worksheet, widest, sheetProperties.defaultColWidth);
+  scalePictures(worksheet, pictures);
+}
+
+function beforeTransformData(workbook: unknown): unknown {
+  const fonts = new Set<object>();
+  const pictures = new Set<object>();
   try {
+    if (!isRecord(workbook) || typeof workbook.eachSheet !== "function") return workbook;
+    workbook.eachSheet((worksheet: unknown) => {
+      try {
+        scaleWorksheet(worksheet, fonts, pictures);
+      } catch {}
+    });
+  } catch {}
+  return workbook;
+}
+
+function transformData(sheets: unknown): unknown {
+  const scaled = new Set<object>();
+  try {
+    if (!Array.isArray(sheets)) return sheets;
     for (const sheet of sheets) {
-      if (sheet === null || typeof sheet !== "object") continue;
-      const styles: unknown = (sheet as { styles?: unknown }).styles;
-      if (!Array.isArray(styles)) continue;
+      if (!isRecord(sheet)) continue;
+      const styles: unknown[] = Array.isArray(sheet.styles) ? sheet.styles : [];
       for (const style of styles) {
-        if (style === null || typeof style !== "object") continue;
-        const font: unknown = (style as { font?: unknown }).font;
-        if (font === null || typeof font !== "object" || corrected.has(font)) continue;
-        const { size } = font as { size?: unknown };
-        if (typeof size !== "number") continue;
-        corrected.add(font);
-        // The library draws a size missing from its points-to-pixels table as that many
-        // pixels and truncates fractions, so round to the pixel the table would draw;
-        // the 0.01 keeps whole sizes off the table's keys.
-        (font as { size: number }).size = Math.round((size * 4) / 3) + 0.01;
+        if (!isRecord(style)) continue;
+        const font = style.font;
+        if (!isRecord(font) || scaled.has(font)) continue;
+        const size = font.size;
+        if (!isFiniteNumber(size)) continue;
+        scaled.add(font);
+        font.size = size + TEXT_SIZE_OFFSET;
       }
     }
   } catch {}
@@ -50,7 +183,8 @@ export async function drawExcel(
   const { default: previewExcel } = await import("@js-preview/excel");
   const options: SpreadsheetOptions = {
     showContextmenu: false,
-    transformData: correctFontSizes,
+    beforeTransformData,
+    transformData,
   };
   const instance = previewExcel.init(container, options);
   const spreadsheet = instance as unknown as SpreadsheetHandle;
