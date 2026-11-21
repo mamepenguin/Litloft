@@ -47,13 +47,19 @@ keep text sizes off the points-to-pixels table:
   otherwise (no width, or a width that is not positive or rounds to 0) `Math.round(sheet default width × 7)`, or 64 when the sheet has no positive
   default width; the library then draws it at `6 × px / 6`, which is `px` up to
   floating-point error;
-- the library drops the columns to the right of the last cell column before the grid
-  gets them, and the grid draws those at its own 80 px; so `beforeTransformData` also
-  records, per worksheet, the pixel width every column would get by the rule above (or
-  that it is hidden), and `transformData` gives each column of the grid's sheet that has
-  no entry, up to the sheet's `cols.len`, that recorded width (0.1 when hidden, as the
-  library draws a hidden column), or the sheet's default when the column was not
-  defined;
+- the library drops the columns to the right of the last cell column of its non-hidden
+  rows (it replaces `worksheet._columns` with a shorter array) before the grid gets
+  them; the grid then draws each dropped column at its own 80 px, and the picture code
+  counts 80 px for it too. So `beforeTransformData` scales every column object in
+  `worksheet.columns` as well (same rule, once each), and keeps, per worksheet, that
+  array and each column's pixel width or hidden flag. `transformData` then, for each
+  sheet: gives each grid column key `k` (worksheet column `k + 1`) from 0 to `cols.len −
+  1` that has no entry the kept pixel width, 0.1 when that column is hidden (the value the
+  library gives a hidden column), or the sheet's default pixel width when the worksheet
+  defines no such column; and puts the kept array back as `worksheet._columns`, so the
+  picture code reads the same widths as the grid. `cols.len` is `max(kept columns, 20)`
+  (the library's `minColLength` default), so only sheets with fewer than 20 kept columns
+  have columns to fill;
 - every distinct font's numeric `size` (points) is multiplied by 16/9, so the library's
   `Math.round(size / 1.333333)` gives `Math.round(points × 4/3)`, Excel's pixel size;
 - every picture's anchor offsets (`nativeColOff`, `nativeRowOff`) and `ext` width and
@@ -108,8 +114,10 @@ SPEC-CORE-155's "what is shown is what the library draws".
      visited, hidden rows included, and each column's `width`. The library keeps the
      columns up to the largest cell index of its non-hidden rows, so this covers every
      column it draws; any extra column it drops;
-   - `worksheet.columns` (read before the library trims it), each column's `width` and
-     `hidden`, to record the width of every column the worksheet defines;
+   - `worksheet.columns` (the array itself, read before the library trims it), each
+     column's `width` and `hidden`; every column object in it is scaled once (a `Set`
+     shared with the `getColumn` step), and the pixel width kept for it is the one
+     computed from its width as loaded, before the scaling wrote it;
    - `worksheet.getImages()`, and each image's `range.tl`, `range.br` (`nativeColOff`,
      `nativeRowOff`) and `range.ext` (`width`, `height`), any of which may be missing;
 
@@ -118,10 +126,13 @@ SPEC-CORE-155's "what is shown is what the library draws".
    library draws it at 0.1 px whatever its size). It returns the workbook it was given.
 3. The library converts the workbook and calls `transformData` with the sheets. The
    function adds 0.01 to each distinct numeric `font.size` in each sheet's `styles`, and
-   fills the columns with no entry as *Summary* says; the n-th sheet in the list is the
-   n-th worksheet `eachSheet` visited (the library converts them in that order, one sheet
-   each). The records live only for the one `preview` (one pair of functions per
-   drawing). It returns the list it was given.
+   fills the columns with no entry and puts `worksheet._columns` back as *Summary* says.
+   The n-th sheet in the list is the n-th worksheet `eachSheet` visited (the library
+   converts them in that order, one sheet each); a worksheet that was skipped or failed
+   still takes its position, with an empty record. A sheet with an empty record, or with
+   none because `beforeTransformData` never ran or threw before reaching it, gets no
+   fill and keeps the grid's 80 px. The records live only for the one `preview` (the
+   adapter makes one pair of functions per drawing). It returns the list it was given.
 4. Everything after `preview` is as on `develop`: the adapter marks the drawing drawn and
    calls the grid sheet's `reload` once.
 5. A sheet reached by its tab is already scaled: every worksheet was scaled in step 2,
@@ -206,7 +217,9 @@ the change may not add more than one second to it. No new dependency.
   conversion reproduces what the library does: rows and cells that do not exist are
   skipped; a row's height is used as px, 24 when missing, 0.1 when hidden; a column's
   width is `6 × width` px, 80 when missing, 0.1 when hidden, and columns past the
-  largest cell index of the non-hidden rows are dropped; each cell's style is deep-cloned
+  largest cell index of the non-hidden rows are dropped (the fake replaces
+  `worksheet._columns` with the shorter array, as the library does); `cols.len` is
+  `max(kept columns, 20)`; the mocked grid's width for a key with no entry is 80; each cell's style is deep-cloned
   and its numeric `font.size` becomes `Math.round(size / 1.333333)`. The tests assert the
   values the functions set (row heights and column widths to within 1e-9 of the
   formulas; fractional heights stay fractional) and what the fake conversion hands the
@@ -229,13 +242,13 @@ the change may not add more than one second to it. No new dependency.
 ## Invariants
 
 I1. For every worksheet the library loads, rows 1 to 100 and every existing row after them are drawn at `(its height, else the sheet's positive default row height, else 15) × 4/3` px, except hidden rows; no row past 100 is created.
-I2. For every worksheet, every column from 1 to the grid sheet's `cols.len` is drawn at `Math.round(its width × 7)` px when that is positive, else `Math.round(the sheet's positive default width × 7)`, else 64, except hidden columns, including the columns right of the last cell column that the library drops.
+I2. For every worksheet, every column from 1 to the grid sheet's `cols.len` (grid key `n − 1` for worksheet column `n`) is drawn at `Math.round(its width × 7)` px when that is positive, else `Math.round(the sheet's positive default width × 7)`, else 64, and at 0.1 px when hidden, including the columns right of the last cell column that the library drops; after `preview`, `worksheet._columns` holds every column object the worksheet defined, with the same widths.
 I3. Cell text whose font has a numeric size of `p` points is drawn at `Math.round(p × 4/3)` CSS px at a whole-number devicePixelRatio; every numeric `size` the grid receives is a whole number plus 0.01.
 I4. Every picture's anchor offsets (`nativeColOff`, `nativeRowOff` of `tl` and `br`) and one-cell-anchor size (`ext.width`, `ext.height`) are 4/3 of the values the library loaded, so a picture that lies over the columns the library keeps and the rows that exist stays on the same cells as the scaled grid.
 I5. Each font object, row, column and picture is scaled exactly once per drawing; a `reload`, the frame's `ResizeObserver`, a window `resize` and a sheet switch scale nothing again.
 I6. The grid's first render after `preview` already uses the scaled rows, columns and sizes.
 I7. A workbook of unexpected shape, or a scaling that throws, is still shown, with no fallback panel, no `dispose`, and no `console` output of any kind from the scaling.
-I8. Every style property other than `font.size`, cell text, merges and hidden flags are the values the library would have loaded, and no cell is created: the grid receives no cell that it would not have received without the scaling.
+I8. Every style property other than `font.size`, cell text, merges and hidden flags are the values the library would have loaded (a hidden column the library dropped is drawn at the library's hidden width, 0.1), and no cell is created: the grid receives no cell that it would not have received without the scaling.
 
 ## Revises
 
@@ -266,12 +279,13 @@ SPEC-CORE-167 I6. Superseded by SPEC-CORE-168 I3: 8 pt text is drawn at 11 CSS p
   style id, and ExcelJS then gives it no font). In the five workbooks above and one more
   without pictures, 0 of 8,692
   cells with a value had no style id, so no case was seen.
-- **A picture past the columns the library keeps, or over rows past 100 that do not
-  exist.** The library drops columns after the last cell column before its picture code
-  runs, and that code then counts 80 px per missing column and 24 px per missing row.
-  Such a picture is drawn wider than in Excel (80 against 64 px per column), more than
-  today relative to the now-exact rows. Changing it would mean adding cells or columns
-  the library does not keep.
+- **A picture past the columns the worksheet defines, or over rows past 100 that do not
+  exist.** The picture code counts 80 px for a column with no object and 24 px for a row
+  with none, while the grid draws them at the sheet's default. Such a picture drifts off
+  its cells by the difference. Changing it would mean creating column or row objects
+  past what the workbook holds.
+- **A sheet whose kept columns already include every column** (20 or more kept) gets no
+  fill; its columns past `cols.len` are not drawn at all, as today.
 - **`baseColWidth`.** ExcelJS does not read it, so a sheet that sets it (Mac Excel often
   writes 10) without `defaultColWidth` gets 64 px columns where Excel draws them wider.
 - **A `<col>` without a `width` attribute** gets ExcelJS's default of 9 characters, so
@@ -286,8 +300,9 @@ SPEC-CORE-167 I6. Superseded by SPEC-CORE-168 I3: 8 pt text is drawn at 11 CSS p
   version is pinned exactly (SPEC-CORE-155); an upgrade is re-checked in R-5.
 - **Tests.** One test file with the library mocked covers I1 to I8 at the level of the
   values the functions set. The real library's drawing is R-5's: on `EnglishCore工数実績表`
-  10 pt dates at 13 px and column A at 89 px; on `要件定義署のサンプル` wrapped lines inside
-  their rows on the first sheet and one tab, and "セキュリティ要件" not clipped; on
+  10 pt dates at 13 px, column A at 89 px, and columns G to I at 72 px; on
+  `要件定義署のサンプル` wrapped lines inside their rows on the first sheet and the システム要件
+  tab (E8 on セキュリティ要件 is the accepted exception), and "セキュリティ要件" not clipped; on
   `19_書き込みエンコード画面_r2` 9 pt at 12 px and 14 pt at 19 px; on the picture workbook
   the picture over the same cells as in LibreOffice's rendering; sizes unchanged after
   an inspector close and reopen; and the time-to-show of §10.
