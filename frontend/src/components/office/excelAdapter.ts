@@ -11,6 +11,36 @@ interface SpreadsheetHandle {
   observer?: MutationObserver | null;
 }
 
+interface SpreadsheetOptions {
+  showContextmenu: boolean;
+  transformData: (sheets: unknown) => unknown;
+}
+
+function correctFontSizes(sheets: unknown): unknown {
+  if (!Array.isArray(sheets)) return sheets;
+  const corrected = new Set<object>();
+  try {
+    for (const sheet of sheets) {
+      if (sheet === null || typeof sheet !== "object") continue;
+      const styles: unknown = (sheet as { styles?: unknown }).styles;
+      if (!Array.isArray(styles)) continue;
+      for (const style of styles) {
+        if (style === null || typeof style !== "object") continue;
+        const font: unknown = (style as { font?: unknown }).font;
+        if (font === null || typeof font !== "object" || corrected.has(font)) continue;
+        const { size } = font as { size?: unknown };
+        if (typeof size !== "number") continue;
+        corrected.add(font);
+        // The library draws a size missing from its points-to-pixels table as that many
+        // pixels and truncates fractions, so round to the pixel the table would draw;
+        // the 0.01 keeps whole sizes off the table's keys.
+        (font as { size: number }).size = Math.round((size * 4) / 3) + 0.01;
+      }
+    }
+  } catch {}
+  return sheets;
+}
+
 export async function drawExcel(
   container: HTMLElement,
   frame: HTMLElement,
@@ -18,7 +48,11 @@ export async function drawExcel(
 ): Promise<() => void> {
   await import("@js-preview/excel/lib/index.css");
   const { default: previewExcel } = await import("@js-preview/excel");
-  const instance = previewExcel.init(container, { showContextmenu: false });
+  const options: SpreadsheetOptions = {
+    showContextmenu: false,
+    transformData: correctFontSizes,
+  };
+  const instance = previewExcel.init(container, options);
   const spreadsheet = instance as unknown as SpreadsheetHandle;
 
   // x-data-spreadsheet's window handlers act on every key, paste and copy
