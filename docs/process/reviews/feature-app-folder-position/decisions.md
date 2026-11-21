@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: D-1, D-2, D-3, D-4, D-5, D-6, D-8 and D-9 of design-check.md accepted by the human (2026-11-21): they are existing parts this change does not touch (the shelf and book grids, the control row on desktop and phone, the phone shelves, the shared empty state, the app header and the name filter icon), which the artboards drew simplified and without the sidebar; D-8 is missing data, not a difference, and the crumbs-with-chips states are measured by the acceptance tests and e2e-components/folder-rows.spec.ts. D-7 is fixed (969bcd5d1, then 1687286ec after the R-5 rerun found the control row overlapping on a touch screen).
 ran_in_app: yes
 at: 1687286ec6bf0628b25e56a9f969775b624784ba
 by: agent
