@@ -7,30 +7,38 @@ import {
 } from "./officeGridActive";
 
 interface SpreadsheetHandle {
-  xs?: {
-    datas?: unknown;
-    sheet?: { reload?: () => void; focusing?: boolean };
-  };
+  xs?: { sheet?: { reload?: () => void; focusing?: boolean } };
   observer?: MutationObserver | null;
 }
 
-function multiplyFontSizes(datas: unknown): void {
-  if (!Array.isArray(datas)) return;
+interface SpreadsheetOptions {
+  showContextmenu: boolean;
+  transformData: (sheets: unknown) => unknown;
+}
+
+function correctFontSizes(sheets: unknown): unknown {
+  if (!Array.isArray(sheets)) return sheets;
   const corrected = new Set<object>();
-  for (const sheet of datas) {
-    if (sheet === null || typeof sheet !== "object") continue;
-    const styles: unknown = (sheet as { styles?: unknown }).styles;
-    if (!Array.isArray(styles)) continue;
-    for (const style of styles) {
-      if (style === null || typeof style !== "object") continue;
-      const font: unknown = (style as { font?: unknown }).font;
-      if (font === null || typeof font !== "object" || corrected.has(font)) continue;
-      const { size } = font as { size?: unknown };
-      if (typeof size !== "number") continue;
-      corrected.add(font);
-      (font as { size: number }).size = size * 1.333333;
+  try {
+    for (const sheet of sheets) {
+      if (sheet === null || typeof sheet !== "object") continue;
+      const styles: unknown = (sheet as { styles?: unknown }).styles;
+      if (!Array.isArray(styles)) continue;
+      for (const style of styles) {
+        if (style === null || typeof style !== "object") continue;
+        const font: unknown = (style as { font?: unknown }).font;
+        if (font === null || typeof font !== "object" || corrected.has(font)) continue;
+        const { size } = font as { size?: unknown };
+        if (typeof size !== "number") continue;
+        corrected.add(font);
+        // The library draws a size missing from its points-to-pixels table as that many
+        // pixels and truncates fractions, so round to the pixel the table would draw;
+        // the 0.01 keeps whole sizes off the table's keys.
+        (font as { size: number }).size = Math.round((size * 4) / 3) + 0.01;
+      }
     }
-  }
+  } catch {}
+  return sheets;
 }
 
 export async function drawExcel(
@@ -40,7 +48,11 @@ export async function drawExcel(
 ): Promise<() => void> {
   await import("@js-preview/excel/lib/index.css");
   const { default: previewExcel } = await import("@js-preview/excel");
-  const instance = previewExcel.init(container, { showContextmenu: false });
+  const options: SpreadsheetOptions = {
+    showContextmenu: false,
+    transformData: correctFontSizes,
+  };
+  const instance = previewExcel.init(container, options);
   const spreadsheet = instance as unknown as SpreadsheetHandle;
 
   // x-data-spreadsheet's window handlers act on every key, paste and copy
@@ -126,15 +138,7 @@ export async function drawExcel(
     dispose();
     throw error;
   }
-  // The library divides point sizes by 1.333333 on load, then draws a size missing
-  // from its points-to-pixels table as that many pixels, so 6 pt text is 5 px. The
-  // literal is deliberate: with 4/3, 6 pt is exactly 8, a table value drawn at 11 px.
-  try {
-    multiplyFontSizes(spreadsheet.xs?.datas);
-  } catch {
-    // Unreadable styles keep the sizes the library loaded; nothing is logged.
-  }
-  spreadsheet.xs?.sheet?.reload?.();
   drawn = true;
+  spreadsheet.xs?.sheet?.reload?.();
   return dispose;
 }
