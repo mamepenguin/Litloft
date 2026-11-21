@@ -263,21 +263,32 @@ function runOnSheet(sheet: UnknownRecord, contextOf: ContextOf): boolean {
   return true;
 }
 
-export function runOnTextOverflow(sheets: unknown): void {
+export function runOnTextOverflow(sheets: unknown, host: HTMLElement): void {
   if (!Array.isArray(sheets)) return;
+  const made: { canvas?: HTMLCanvasElement } = {};
   let context: CanvasRenderingContext2D | null | undefined;
+  // The fallback font for characters the named font lacks follows the canvas's
+  // language, which a canvas takes from the page only while it is in it.
   const contextOf: ContextOf = () => {
     if (context === undefined) {
       try {
-        context = document.createElement("canvas").getContext("2d");
+        const canvas = document.createElement("canvas");
+        made.canvas = canvas;
+        canvas.style.display = "none";
+        host.appendChild(canvas);
+        context = canvas.getContext("2d");
       } catch {
         context = null;
       }
     }
     return context ?? null;
   };
-  for (const sheet of sheets) {
-    if (!isRecord(sheet)) continue;
-    if (!runOnSheet(sheet, contextOf)) return;
+  try {
+    for (const sheet of sheets) {
+      if (!isRecord(sheet)) continue;
+      if (!runOnSheet(sheet, contextOf)) return;
+    }
+  } finally {
+    made.canvas?.remove();
   }
 }
