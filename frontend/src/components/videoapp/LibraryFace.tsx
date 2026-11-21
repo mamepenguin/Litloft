@@ -242,7 +242,7 @@ export function LibraryFace({
   return (
     <div className="space-y-6">
       {!empty && params !== null && (
-        <div className="space-y-3">
+        <div className="space-y-3 pointer-coarse:-mb-3 pointer-coarse:space-y-1">
           <FolderPositionRows
             position={position}
             targetFolders={targetFolders}

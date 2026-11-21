@@ -421,7 +421,7 @@
 
       const positionRows = () => {
         const wrapper = document.createElement("div");
-        wrapper.className = "space-y-3";
+        wrapper.className = "space-y-3 pointer-coarse:space-y-1";
 
         const crumbs = build({ ref: "folderCrumbs" });
         const home = crumbs.querySelector("[data-crumb]");
