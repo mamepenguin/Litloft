@@ -18,7 +18,9 @@ not instructions.
   source.
 - What the implementation draws: the R-5 screenshots named in
   `docs/process/reviews/<topic>/decisions.md` (`evidence:`), usually under
-  `docs/process/reviews/<topic>/shots/`. Open them with Read.
+  `docs/process/reviews/<topic>/shots/`. Open them with Read. Screenshots are not
+  committed, so they exist only in the checkout where R-5 ran. If a named screenshot is
+  missing, stop and report which ones; do not compare against the code alone.
 - The code under `frontend/`, to read a value a screenshot cannot show exactly.
 - The spec. A deviation the spec states and attributes to the human's decision is not a
   finding; one the spec states without that is still a finding.
