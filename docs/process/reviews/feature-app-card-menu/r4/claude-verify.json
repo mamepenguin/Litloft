@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [],
+  "specification_compliance": [
+    "No reader findings were listed, so there was nothing to verify. As a spot check I read addons/knowledge/frontend/clipsapp/usePagedClips.ts and useShelfData.ts at the pinned knowledge commit, because the head commit records the R-5 recheck of the clip refresh fix. A refresh keeps an unnamed card only when one page was re-asked or the card is being saved, and never when menuRemoved(id) is true (usePagedClips.ts:110-115). This matches I3: a card is not drawn again while its list is held. loadMore after a menu removal asks pages 1..pages+1 again and filters out goneIds (usePagedClips.ts:150-176). A page that answers after a revision bump is dropped (line 169). This matches I4: no skipping or repeating, and no id is drawn twice."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "The usePagedClips reread path replaces the drawn items with the server's pages 1..N+1. If one of those page requests fails, the whole load-more fails ('failed' state) instead of only the new page failing. This was not judged to be a defect under I6."
+  ],
+  "test_coverage": [
+    "Tests were not inspected. This verifier had no findings to reproduce."
+  ],
+  "not_verified": [
+    "The core touch points (FileContextMenu.tsx, CardFileMenu.tsx, the Video and Reading app files) were not read at this commit.",
+    "Knowledge PageFileMenu.tsx, the Notes files and the pane change gate (I10) were not read.",
+    "The touch-press behaviour and computed CSS in a real browser (I2) were not checked; I cannot run anything.",
+    "The test suites, including watchHistoryCallSites.test.ts, were not run."
+  ],
+  "confidence": 75
+}
