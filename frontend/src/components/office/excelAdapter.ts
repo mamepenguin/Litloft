@@ -1,5 +1,6 @@
 import "./excelContainment.css";
 
+import { runOnTextOverflow } from "./excelRunOn";
 import {
   releaseOfficeGrid,
   setOfficeGridActive,
@@ -256,6 +257,9 @@ function createSheetSizing(): {
         const kept = records[i];
         if (kept) applyColumns(sheet, kept);
       }
+    } catch {}
+    try {
+      runOnTextOverflow(sheets);
     } catch {}
     return sheets;
   };

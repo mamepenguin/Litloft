@@ -668,6 +668,11 @@ beforeEach(() => {
   consoleSpies = (["log", "info", "warn", "error", "debug"] as const).map((m) =>
     vi.spyOn(console, m).mockImplementation(() => {}),
   );
+  // jsdom has no 2D context and logs when asked for one; this file is about
+  // sizing, so a zero width keeps the run-on step from changing its sheets.
+  vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockImplementation(
+    (() => ({ font: "", measureText: () => ({ width: 0 }) })) as unknown as typeof HTMLCanvasElement.prototype.getContext,
+  );
   lib.init.mockReset();
 });
 
