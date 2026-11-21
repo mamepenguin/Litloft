@@ -33,13 +33,15 @@ This adds to the one place Litloft corrects the library's drawing (SPEC-CORE-155
 ### 1. Normal flow
 
 1. `transformData` (in `frontend/src/components/office/excelAdapter.ts`) runs as in
-   SPEC-CORE-168: the +0.01 on font sizes, then the column fill. Then, for each sheet in
-   the list, it looks for run-on cells.
+   SPEC-CORE-168: the +0.01 on font sizes and the column fill, for every sheet. Only
+   after that, in a separate pass with its own `try`, it looks for run-on cells in each
+   sheet, so a failure in this pass cannot affect the sizing.
 2. A cell of a sheet is a *run-on candidate* when all of these hold:
    - its `text` is a non-empty string that does not start with `=`;
-   - its row is not hidden (the library gives a hidden row height 0.1 and no cells) and
-     its column is not hidden; a column is hidden when its `cols[k]` entry has a numeric
-     `width` below 1 (the library's hidden value is 0.1);
+   - its row is not hidden (a row whose `height` is a number below 1, or whose `hidden`
+     is true; the library gives a hidden row height 0.1 and no cells) and its column is
+     not hidden (a `cols[k]` entry with a numeric `width` below 1; the library's hidden
+     value is 0.1);
    - it has no `merge` of its own and lies inside no range listed in the sheet's `merges`;
    - its style (the sheet's `styles[cell.style]`, or none) has no `textwrap`, an `align`
      that is missing or `"left"`, no border (a `border` with a truthy `top`, `right`,
@@ -63,12 +65,14 @@ This adds to the one place Litloft corrects the library's drawing (SPEC-CORE-155
    - has a `text` that is anything but `undefined`, `null` or `""` (a number, `0` and a
      date included), or a `merge`, or lies inside a range in `merges`;
    - has a style with a border (as in §1.2) or a `bgcolor`;
-   - is in a hidden column;
    - is at or past the sheet's `cols.len`.
-   Cells that do not exist in the row count as empty.
+   Cells that do not exist in the row count as empty. A hidden column is passed over like
+   any other cell, as in Excel; its 0.1 px adds nothing to the width.
 5. If it took at least one cell, the candidate gets `merge = [0, n]` (n cells taken)
-   and the range `<col><row>:<col+n><row>` (A1 notation, 1-based row) is added to the
-   sheet's `merges`. The cells taken are not changed or created.
+   and the range `<col><row>:<col+n><row>` (A1 notation, letters past Z as AA, AB, …;
+   1-based row) is appended to the sheet's `merges`. Both are computed first and then
+   written one after the other with nothing that can throw between them. The cells taken
+   are not changed or created.
 6. Candidates are handled left to right within a row, so a cell taken by one candidate
    is inside a range when a later candidate is checked.
 7. The grid then draws the candidate as a merged cell: its text inside the merged
@@ -118,10 +122,14 @@ None new; see §2. Nothing is logged.
 
 ### 9. User-visible behavior
 
-- Text that Excel lets run on into empty cells to its right shows in full, as in Excel.
+- Left-aligned text that Excel lets run on into empty cells to its right shows in full,
+  as in Excel, and the grid lines inside the run are covered, as in Excel.
 - Selecting such a cell selects the cells its text covers.
-- `docs/user-guide/viewers-and-players.md` needs no change: it does not describe cell
-  drawing.
+- `docs/user-guide/viewers-and-players.md`, *Office files*: the sentence "A cell's text
+  that overflows into an empty neighbour is cut at its own cell" becomes "A cell's text
+  runs on into empty cells to its right, as in Excel, unless it is centred or
+  right-aligned, or the cell or a neighbour has a border or a fill; then it is cut at
+  its own cell".
 
 ### 10. Non-functional
 
@@ -143,6 +151,7 @@ dependency.
   whose `measureText(text).width` is a fixed px per character, and which records the
   `font` it was given.
 - `docs/specs/INDEX.md`: the SPEC-CORE-170 row.
+- `docs/user-guide/viewers-and-players.md`: the sentence in §9.
 - R-5, at a 1280 px window and devicePixelRatio 1 and 2, on the copies in the local
   「動画」 drive's `Inbox` (test data, not committed): `EnglishCore工数実績表.xlsx` (the
   row-3 title in full), `19_書き込みエンコード画面_r2.xlsx` (the row-1 title and
@@ -150,21 +159,25 @@ dependency.
   `要件定義署のサンプル.xlsx` (the first sheet unchanged apart from cells that run on),
   `画面遷移図_画像入り.xlsx` (title rows, picture position unchanged). Clicking a
   run-on cell selects its range; the arrow keys still move the selection. Time to show
-  on the largest workbook as §10 says.
+  on the largest workbook as §10 says. "In full" is observed as: the run-on range in the
+  grid's `xs.datas[i].merges`, the `fillText` call for the text with its font (wrapping
+  `CanvasRenderingContext2D.prototype.fillText`), and a screenshot showing the last
+  character inside the range, at both ratios.
 - No other file. No protected path.
 
 ## Invariants
 
 I1. A cell that satisfies every condition of §1.2, whose text measured as §1.3 needs more than its own width, gets `merge = [0, n]` with n the fewest cells to its right, all allowed by §1.4, whose widths together with its own reach the needed width, or as many as §1.4 allows when they never do; and its range is in the sheet's `merges`.
-I2. A cell that fails any condition of §1.2, or whose text fits its own width, gets no `merge` and adds nothing to `merges`.
+I2. A cell that fails any condition of §1.2, or whose text fits its own width, keeps the `merge` it was loaded with (none, for most cells) and adds nothing to `merges`.
 I3. A merge or range that the library loaded is never changed or removed, and no cell is created: the cells and their text, styles, row heights and column widths are what the grid would have received without this step.
-I4. No range added overlaps another range, added or loaded, and none extends past a cell with text, a border, a fill, a hidden column, or `cols.len`.
+I4. No range added overlaps another range, added or loaded, and no range added includes a cell with text, a border or a fill other than its first, or a column at or past `cols.len`.
 I5. The run-on is decided once per drawing; a `reload`, the frame's `ResizeObserver`, a window `resize` and a sheet switch add or remove no range.
-I6. A sheet of unexpected shape, a missing canvas context, or a step that throws still shows the workbook, with no fallback panel, no `dispose`, and no `console` output from the step.
+I6. A sheet of unexpected shape, a missing canvas context, or a step that throws still shows the workbook, with no fallback panel, no `dispose`, and no `console` output from the step, and every sheet keeps SPEC-CORE-168's sizing.
+I7. When `getContext("2d")` returns null or throws, `merges` and every cell's `merge` are as loaded.
 
 ## Revises
 
-SPEC-CORE-168 I8. Every style property other than `font.size`, cell text, hidden flags and the workbook's own merges are the values the library would have loaded; the only merges added are SPEC-CORE-170's run-on ranges.
+SPEC-CORE-168 I8. Every style property other than `font.size`, cell text, merges and hidden flags are the values the library would have loaded (a hidden column the library dropped is drawn at the library's hidden width, 0.1), except that SPEC-CORE-170 appends its run-on ranges to `merges` and sets `merge` on their first cells; and no cell is created: the grid receives no cell that it would not have received without the scaling and the run-on.
 
 ## Checked, no action
 
@@ -172,6 +185,16 @@ SPEC-CORE-168 I8. Every style property other than `font.size`, cell text, hidden
   drawn; after a column is widened or narrowed by hand, its ranges stay as they were, so
   text can be clipped again or cover a cell it no longer needs, until the file is opened
   again.
+- **A formula that shows nothing** (`=IF(…,"")`) reaches the grid as `""`, so text runs
+  on over it, where Excel stops. Such cells usually sit in bordered tables, where the
+  border stops the run first. Telling them apart would mean carrying the cell types over
+  from `beforeTransformData`.
+- **A font name the canvas rejects** (not a valid CSS family) leaves the context's
+  previous font; the grid's own context ignores the same string, so both measure and
+  draw with a font other than the workbook's. Not seen; workbook font names are plain
+  family names.
+- **Many run-on ranges** make the grid's merge lookups, which scan the list on every
+  draw and click, a little longer. A sheet gets at most one range per candidate.
 - **Shrink-to-fit cells** run on in full instead of shrinking, as the grid does not
   shrink text.
 

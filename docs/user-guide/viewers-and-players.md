@@ -170,7 +170,7 @@ A note longer than two screens reopens where you left it, and one you read nearl
 
 A `.docx` opens as pages in the page, and a `.xlsx` as a spreadsheet grid with row and column headings and sheet tabs along the bottom. Both are read-only: cells can be selected but not changed, and a row or column edge can be dragged as a view change that lasts while the page is open. On a phone the drawing scrolls inside its frame. Web links in a Word document open in a new tab. A large workbook takes a few seconds to appear.
 
-What the viewers draw is what their libraries draw. A cell's text that overflows into an empty neighbour is cut at its own cell, shapes and charts in a workbook are not shown, and a Word document can lay out differently from Word. Dates and numbers follow the library's formatting.
+What the viewers draw is what their libraries draw. A cell's text runs on into empty cells to its right, as in Excel, unless it is centred or right-aligned, or the cell or a neighbour has a border or a fill; then it is cut at its own cell. Shapes and charts in a workbook are not shown, and a Word document can lay out differently from Word. Dates and numbers follow the library's formatting.
 
 **PowerPoint** (`.pptx`) and the old `.doc` / `.xls` / `.ppt` formats have no viewer: the page offers **Download** and **Open in new tab**, and for `.pptx` shows the first lines of the document's text, which also makes the file findable in search. Files over 20 MB and files missing from the drive keep that panel.
 
