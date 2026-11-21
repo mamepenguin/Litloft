@@ -8,7 +8,7 @@ It runs inside the backend, is scoped to a drive, and appears in the sidebar as 
 
 - **Import from URL** turns a video URL into a `.loft` file in the folder you choose.
 - yt-dlp fetches the title, channel, description, publication date, duration, thumbnail and chapters.
-- When the video has captions, one `.vtt` file in the video's language is saved next to the `.loft`.
+- When the video has captions, one `.vtt` file in the video's language is saved next to the `.loft`. For a language with a region, such as `en-US`, captions listed under the base language (`en`) count too. A live stream's chat replay is not captions.
 - With the [intelligence addon](intelligence.md), a video without captions can be transcribed with speech-to-text.
 - YouTube and Vimeo play in embedded players inside Litloft. Other sites show a link card.
 - You can subscribe to a YouTube channel or playlist, and its new videos are imported on a schedule.
