@@ -33,11 +33,12 @@ vi.mock("../AddonSlot", () => ({ AddonSlot: () => null }));
 
 // ---------------------------------------------------------------------------
 // A fake ExcelJS workbook. It exposes only the members the scaling may use:
-// eachSheet; a worksheet's properties, rowCount, getRow, findRow, getColumn and
-// getImages; a row's height, hidden, cellCount and eachCell; a cell's value and
-// style; a column's width and hidden; a picture's range. The library's
-// conversion reads the fake's own state, so it sees what was set, not what a
-// member reports.
+// eachSheet; a worksheet's properties, rowCount, getRow, findRow, getColumn,
+// columns and getImages; a row's height, hidden, cellCount and eachCell; a
+// cell's value and style; a column's width and hidden; a picture's range. As in
+// ExcelJS, `columns` is the worksheet's own `_columns` array (null until a
+// column exists) and `getColumn` extends it. The library's conversion reads the
+// fake's own state, so it sees what was set, not what a member reports.
 // ---------------------------------------------------------------------------
 
 type Font = Record<string, unknown> & { size?: unknown };
@@ -65,7 +66,7 @@ interface ImageRange {
   br?: Anchor;
   ext?: { width?: number; height?: number };
 }
-type Thrower = "rowCount" | "getRow" | "findRow" | "getColumn" | "getImages" | "properties";
+type Thrower = "rowCount" | "getRow" | "findRow" | "getColumn" | "columns" | "getImages" | "properties";
 interface SheetSpec {
   name: string;
   properties?: unknown;
@@ -125,14 +126,20 @@ class FakeRow {
   }
 }
 
+interface FakeWorksheet {
+  name: string;
+  _columns: unknown[] | null;
+}
+
 interface SheetState {
   spec: SheetSpec;
   rows: Map<number, unknown>;
-  cols: Map<number, unknown>;
   images: unknown[];
   /** Row numbers `getRow` created. */
   created: number[];
-  worksheet: object;
+  worksheet: FakeWorksheet;
+  /** `_columns` as loaded, before anything ran. */
+  loadedColumns: unknown[] | null;
 }
 
 const books = new WeakMap<object, (SheetState | Raw)[]>();
@@ -142,11 +149,15 @@ function makeSheet(spec: SheetSpec): SheetState {
   const rows = new Map<number, unknown>();
   for (const [k, r] of Object.entries(spec.rows ?? {})) rows.set(Number(k), new FakeRow(r));
   for (const [k, r] of Object.entries(spec.oddRows ?? {})) rows.set(Number(k), r);
-  const cols = new Map<number, unknown>();
+  const defined = new Map<number, unknown>();
   for (const [k, c] of Object.entries(spec.cols ?? {})) {
-    cols.set(Number(k), { width: c.width, hidden: c.hidden ?? false });
+    defined.set(Number(k), { width: c.width, hidden: c.hidden ?? false });
   }
-  for (const [k, c] of Object.entries(spec.oddCols ?? {})) cols.set(Number(k), c);
+  for (const [k, c] of Object.entries(spec.oddCols ?? {})) defined.set(Number(k), c);
+  const blankColumn = () => ({ width: undefined, hidden: false });
+  const columns: unknown[] | null = defined.size
+    ? range(1, Math.max(...defined.keys())).map((c) => (defined.has(c) ? defined.get(c) : blankColumn()))
+    : null;
   const images = spec.images ?? [];
   const created: number[] = [];
   const thrower = (member: Thrower) => {
@@ -154,6 +165,11 @@ function makeSheet(spec: SheetSpec): SheetState {
   };
   const worksheet = {
     name: spec.name,
+    _columns: columns,
+    get columns() {
+      thrower("columns");
+      return this._columns;
+    },
     get properties() {
       thrower("properties");
       return properties;
@@ -176,15 +192,16 @@ function makeSheet(spec: SheetSpec): SheetState {
     },
     getColumn(i: number) {
       thrower("getColumn");
-      if (!cols.has(i)) cols.set(i, { width: undefined, hidden: false });
-      return cols.get(i);
+      if (!this._columns) this._columns = [];
+      while (this._columns.length < i) this._columns.push(blankColumn());
+      return this._columns[i - 1];
     },
     getImages() {
       thrower("getImages");
       return images.slice();
     },
   };
-  return { spec, rows, cols, images, created, worksheet };
+  return { spec, rows, images, created, worksheet, loadedColumns: columns ? columns.slice() : null };
 }
 
 interface Book {
@@ -207,8 +224,11 @@ function makeWorkbook(entries: (SheetSpec | Raw)[]): Book {
 // The library's conversion, as the spec describes it: rows and cells that do
 // not exist are skipped; a row is its height in px, 24 when missing, 0.1 when
 // hidden; a column is 6 x width px, 80 when missing, 0.1 when hidden; columns
-// past the largest cell index of the non-hidden rows are dropped; each cell's
-// style is deep-cloned and a numeric font.size becomes Math.round(size / 1.333333).
+// past the largest cell index of the non-hidden rows are dropped, and
+// `worksheet._columns` is replaced with the shorter array; cols.len is
+// max(kept columns, 20); each cell's style is deep-cloned and a numeric
+// font.size becomes Math.round(size / 1.333333). One sheet per worksheet, in
+// eachSheet order.
 // ---------------------------------------------------------------------------
 
 interface GridCell {
@@ -268,9 +288,11 @@ function convertSheet(s: SheetState): GridSheet {
     rows.len = Math.max(rows.len, n);
     if (!row.hidden) maxCol = Math.max(maxCol, row.cellCount);
   }
-  const cols = { len: maxCol } as GridSheet["cols"];
+  const all = Array.isArray(s.worksheet._columns) ? s.worksheet._columns : [];
+  if (Array.isArray(s.worksheet._columns)) s.worksheet._columns = all.slice(0, maxCol);
+  const cols = { len: Math.max(maxCol, 20) } as GridSheet["cols"];
   for (let c = 1; c <= maxCol; c++) {
-    const col = s.cols.get(c) as ColSpec | undefined;
+    const col = all[c - 1] as ColSpec | undefined;
     const usable = col && typeof col === "object";
     const hidden = usable ? Boolean(col.hidden) : false;
     const width = hidden ? 0.1 : usable && typeof col.width === "number" ? 6 * col.width : 80;
@@ -288,7 +310,11 @@ function convertSheet(s: SheetState): GridSheet {
 function convert(book: unknown): GridSheet[] {
   const states = book && typeof book === "object" ? books.get(book) : undefined;
   if (!states) throw new Error("not a workbook");
-  return states.filter((s): s is SheetState => !(s instanceof Raw)).map(convertSheet);
+  return states.map((s) =>
+    s instanceof Raw
+      ? ({ name: "", styles: [], rows: { len: 0 }, cols: { len: 20 }, merges: [], media: [] } as unknown as GridSheet)
+      : convertSheet(s),
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -431,6 +457,11 @@ const sheetsOf = (s: unknown) => s as GridSheet[];
 const rowOf = (sheet: GridSheet, n: number) => sheet.rows[n - 1] as GridRow | undefined;
 const heightOf = (sheet: GridSheet, n: number) => rowOf(sheet, n)?.height;
 const widthOf = (sheet: GridSheet, c: number) => (sheet.cols[c - 1] as GridCol | undefined)?.width;
+/** The width the mocked grid draws worksheet column `c` at: 80 for a key with no entry. */
+const drawnWidth = (sheet: GridSheet, c: number) => {
+  expect(c, `column ${c} is within cols.len ${sheet.cols.len}`).toBeLessThanOrEqual(sheet.cols.len);
+  return widthOf(sheet, c) ?? 80;
+};
 function sizeOf(sheet: GridSheet, r: number, c: number): unknown {
   const cell = rowOf(sheet, r)?.cells[c - 1];
   if (!cell || cell.style === undefined) return "no style";
@@ -529,11 +560,13 @@ function expectStandardScaled(sheets: GridSheet[]) {
   expect(rowOf(one, 101)).toBeUndefined();
   near(heightOf(one, 150), 40, "Sheet1 row 150 (30 pt)");
 
-  expect(colNumbers(one)).toEqual([1, 2, 3, 4]);
+  expect(one.cols.len).toBe(20);
+  expect(colNumbers(one)).toEqual(range(1, 20));
   near(widthOf(one, 1), 89, "Sheet1 col 1 (12.71)");
   near(widthOf(one, 2), 101, "Sheet1 col 2 (default 14.43)");
   expect(widthOf(one, 3)).toBe(0.1);
   near(widthOf(one, 4), 101, "Sheet1 col 4 (default 14.43)");
+  for (const c of range(5, 20)) near(widthOf(one, c), 101, `Sheet1 col ${c}, right of the last cell column`);
 
   near(sizeOf(one, 1, 1), 13.01, "10 pt");
   near(sizeOf(one, 1, 2), 15.01, "11 pt");
@@ -554,9 +587,9 @@ function expectStandardScaled(sheets: GridSheet[]) {
   expect([a.tl?.nativeCol, a.tl?.nativeRow, a.br?.nativeCol, a.br?.nativeRow]).toEqual([0, 1, 3, 6]);
 
   for (const n of range(1, 100)) near(heightOf(two, n), 24, `Sheet2 row ${n} (default 18 pt)`);
-  expect(colNumbers(two)).toEqual([1, 2]);
-  near(widthOf(two, 1), 64, "Sheet2 col 1 (no default)");
-  near(widthOf(two, 2), 64, "Sheet2 col 2 (no default)");
+  expect(two.cols.len).toBe(20);
+  expect(colNumbers(two)).toEqual(range(1, 20));
+  for (const c of range(1, 20)) near(widthOf(two, c), 64, `Sheet2 col ${c} (no default)`);
   near(sizeOf(two, 1, 1), 13.01, "10 pt, shared across sheets");
   expect(sizeOf(two, 1, 2)).toBeUndefined();
 }
@@ -708,12 +741,13 @@ describe("SPEC-CORE-168 I1 rows 1 to 100 and every existing row after them are d
     }
   });
 
-  it("a sheet with no rows gets rows 1 to 100 at its default, and no columns", async () => {
+  it("a sheet with no rows gets rows 1 to 100 at its default, and its 20 grid columns at the default width", async () => {
     const { grid, book } = await draw([{ name: "Empty", properties: { defaultRowHeight: 15 } }]);
 
     expect(rowNumbers(grid[0])).toEqual(range(1, 100));
     for (const n of range(1, 100)) near(heightOf(grid[0], n), 20, `row ${n}`);
-    expect(colNumbers(grid[0])).toEqual([]);
+    expect(grid[0].cols.len).toBe(20);
+    for (const c of range(1, 20)) near(drawnWidth(grid[0], c), 64, `column ${c}, no default`);
     expect(book.sheets[0].created.every((n) => n >= 1 && n <= 100)).toBe(true);
   });
 
@@ -779,7 +813,7 @@ describe("SPEC-CORE-168 I2 every drawn column is Math.round(width x 7) px, else 
     ]);
     const sheet = grid[0];
 
-    expect(colNumbers(sheet)).toEqual(range(1, 9));
+    expect(sheet.cols.len).toBe(20);
     near(widthOf(sheet, 1), 89, "12.71 characters");
     near(widthOf(sheet, 2), 101, "no width, default 14.43");
     near(widthOf(sheet, 3), 101, "width 0");
@@ -790,15 +824,16 @@ describe("SPEC-CORE-168 I2 every drawn column is Math.round(width x 7) px, else 
     near(widthOf(sheet, 7), 70, "10 characters");
     near(widthOf(sheet, 8), 101, "no width, default 14.43");
     near(widthOf(sheet, 9), 64, "9.14 characters");
+    for (const c of range(10, 20)) near(drawnWidth(sheet, c), 101, `column ${c}, right of the last cell column`);
   });
 
-  it("one cell gives exactly one column", async () => {
+  it("one cell: its column and the 19 the grid adds are all at the default width", async () => {
     const { grid } = await draw([
       { name: "One", properties: { defaultColWidth: 8.43 }, rows: { 1: { cells: { 1: { value: 1 } } } } },
     ]);
 
-    expect(colNumbers(grid[0])).toEqual([1]);
-    near(widthOf(grid[0], 1), 59, "default 8.43");
+    expect(grid[0].cols.len).toBe(20);
+    for (const c of range(1, 20)) near(drawnWidth(grid[0], c), 59, `column ${c}, default 8.43`);
   });
 
   const defaults: [string, unknown, number][] = [
@@ -817,6 +852,107 @@ describe("SPEC-CORE-168 I2 every drawn column is Math.round(width x 7) px, else 
 
     near(widthOf(grid[0], 1), px, "column with no object");
     near(widthOf(grid[0], 2), px, "column with no width");
+    near(drawnWidth(grid[0], 3), px, "column right of the last cell column");
+    near(drawnWidth(grid[0], 20), px, "last grid column");
+  });
+});
+
+describe("SPEC-CORE-168 I2 and I8 columns right of the last cell column, which the library drops, are drawn at their own width, and worksheet._columns is put back", () => {
+  it("fills every grid column the library dropped from the width as loaded, and puts every column object back", async () => {
+    const { grid, book } = await draw([
+      {
+        name: "Dropped",
+        properties: { defaultRowHeight: 15, defaultColWidth: 14.43 },
+        rows: {
+          1: { cells: { 1: { value: "a" }, 3: { value: "c" } } },
+          2: { hidden: true, cells: { 12: { value: "hidden row reaches column 12" } } },
+        },
+        cols: {
+          1: { width: 12.71 },
+          2: { width: 10 },
+          4: { width: 10.29 },
+          5: { width: 20, hidden: true },
+          6: {},
+          7: { width: 0 },
+          8: { width: 12.71 },
+          10: { width: 10.29 },
+          11: { width: 15, hidden: true },
+          12: { width: 0.05 },
+          14: { width: 9.14 },
+          25: { width: 10 },
+        },
+      },
+    ]);
+    const sheet = grid[0];
+    const ws = book.sheets[0];
+    const expected: Record<number, number> = {
+      1: 89,
+      2: 70,
+      3: 101,
+      4: 72,
+      5: 0.1,
+      6: 101,
+      7: 101,
+      8: 89,
+      9: 101,
+      10: 72,
+      11: 0.1,
+      12: 101,
+      13: 101,
+      14: 64,
+    };
+    for (const c of range(15, 20)) expected[c] = 101;
+
+    expect(sheet.cols.len).toBe(20);
+    for (const c of range(1, 20)) near(drawnWidth(sheet, c), expected[c], `column ${c}`);
+    expect(sheet.cols[20]).toBeUndefined();
+
+    const loaded = ws.loadedColumns!;
+    const after = ws.worksheet._columns;
+    expect(Array.isArray(after), "worksheet._columns is an array").toBe(true);
+    expect(after!.length).toBe(25);
+    loaded.forEach((col, i) => expect(after![i], `column object ${i + 1}`).toBe(col));
+    const scaledPx: Record<number, number> = { ...expected, 5: 140, 11: 105, 25: 70 };
+    for (const c of range(21, 24)) scaledPx[c] = 101;
+    for (const c of range(1, 25)) {
+      const col = after![c - 1] as ColSpec;
+      near(col.width, scaledPx[c] / 6, `column ${c} width in worksheet._columns`);
+    }
+    expect((after![4] as ColSpec).hidden).toBe(true);
+    expect((after![10] as ColSpec).hidden).toBe(true);
+  });
+
+  it("19 kept columns get one filled, 20 and 21 get none, and the columns past them are put back", async () => {
+    const cellsTo = (n: number) => Object.fromEntries(range(1, n).map((c) => [c, { value: c }]));
+    const { grid, book } = await draw([
+      { name: "Kept19", properties: { defaultColWidth: 8.43 }, rows: { 1: { cells: cellsTo(19) } }, cols: { 20: { width: 10.29 } } },
+      { name: "Kept20", properties: { defaultColWidth: 8.43 }, rows: { 1: { cells: cellsTo(20) } }, cols: { 22: { width: 10.29 } } },
+      { name: "Kept21", properties: { defaultColWidth: 8.43 }, rows: { 1: { cells: cellsTo(21) } }, cols: { 23: { width: 12.71 } } },
+    ]);
+    const [k19, k20, k21] = grid;
+
+    expect(k19.cols.len).toBe(20);
+    for (const c of range(1, 19)) near(widthOf(k19, c), 59, `Kept19 column ${c}`);
+    near(drawnWidth(k19, 20), 72, "Kept19 column 20, right of the last cell column");
+
+    expect(k20.cols.len).toBe(20);
+    for (const c of range(1, 20)) near(widthOf(k20, c), 59, `Kept20 column ${c}`);
+    expect(k20.cols[20]).toBeUndefined();
+
+    expect(k21.cols.len).toBe(21);
+    for (const c of range(1, 21)) near(widthOf(k21, c), 59, `Kept21 column ${c}`);
+    expect(k21.cols[21]).toBeUndefined();
+
+    for (const [i, n, last] of [
+      [0, 20, 72],
+      [1, 22, 72],
+      [2, 23, 89],
+    ] as const) {
+      const after = book.sheets[i].worksheet._columns!;
+      expect(after.length, `${book.sheets[i].spec.name} worksheet._columns length`).toBe(n);
+      book.sheets[i].loadedColumns!.forEach((col, j) => expect(after[j]).toBe(col));
+      near((after[n - 1] as ColSpec).width, last / 6, `${book.sheets[i].spec.name} column ${n} width`);
+    }
   });
 });
 
@@ -1056,7 +1192,8 @@ describe("SPEC-CORE-168 I8 everything but sizes is what the library would have l
         expect(n).toBeLessThanOrEqual(100);
         expect(rowOf(got, n)!.cells).toEqual({});
       }
-      expect(colNumbers(got)).toEqual(colNumbers(want));
+      expect(got.cols.len).toBe(want.cols.len);
+      expect(colNumbers(got).slice(0, colNumbers(want).length)).toEqual(colNumbers(want));
       for (const c of colNumbers(want)) {
         expect(Boolean(got.cols[c - 1].hidden)).toBe(Boolean(want.cols[c - 1].hidden));
       }
@@ -1143,17 +1280,23 @@ describe("SPEC-CORE-168 I7 a workbook of unexpected shape, or a scaling that thr
     near(good.size, (11 * 16) / 9, "good font");
     near(kept.size, (14 * 16) / 9, "font on the next sheet");
     near(picture.range.tl?.nativeColOff, 12700, "good picture");
-    near(heightOf(grid[0], 1), 20, "row 1 beside odd rows");
-    near(heightOf(grid[0], 5), 20, "row 5 beside odd rows");
-    near(widthOf(grid[0], 1), 70, "column 1 beside odd columns");
-    near(widthOf(grid[0], 6), 70, "column 6 beside odd columns");
-    near(sizeOf(grid[0], 1, 6), 15.01, "good font in the grid");
-    near(heightOf(grid[1], 1), 20, "next sheet row 1");
+    expect(grid.map((g) => g.name)).toEqual(["", "", "", "", "Odd parts", "After"]);
+    near(heightOf(grid[4], 1), 20, "row 1 beside odd rows");
+    near(heightOf(grid[4], 5), 20, "row 5 beside odd rows");
+    near(widthOf(grid[4], 1), 70, "column 1 beside odd columns");
+    near(widthOf(grid[4], 6), 70, "column 6 beside odd columns");
+    for (const c of range(7, 20)) near(drawnWidth(grid[4], c), 70, `column ${c} after odd columns`);
+    near(sizeOf(grid[4], 1, 6), 15.01, "good font in the grid");
+    near(heightOf(grid[5], 1), 20, "next sheet row 1");
+    for (const c of range(2, 20)) near(drawnWidth(grid[5], c), 64, `next sheet column ${c}`);
+    for (const g of grid.slice(0, 4)) {
+      for (const c of range(1, 20)) expect(drawnWidth(g, c), `${c} on a skipped worksheet`).toBe(80);
+    }
     expectShownWithoutFallback(drawing);
     expectNoConsole();
   });
 
-  const throwers: Thrower[] = ["properties", "rowCount", "getRow", "findRow", "getColumn", "getImages"];
+  const throwers: Thrower[] = ["properties", "rowCount", "getRow", "findRow", "getColumn", "columns", "getImages"];
   it.each(throwers)(
     "a worksheet whose %s throws: what was scaled stays, the workbook it was given is returned and shown",
     async (member) => {
@@ -1196,6 +1339,12 @@ describe("SPEC-CORE-168 I7 a workbook of unexpected shape, or a scaling that thr
       for (const n of range(1, 100)) near(heightOf(grid[0], n), 20, `First row ${n}`);
       near(heightOf(grid[0], 150), 40, "First row 150");
       near(widthOf(grid[0], 1), 70, "First column 1");
+      for (const c of range(2, 20)) near(drawnWidth(grid[0], c), 70, `First column ${c}, filled`);
+      for (const c of range(2, 20)) expect(drawnWidth(grid[1], c), `Throws column ${c}, no fill`).toBe(80);
+      for (const c of range(2, 20)) {
+        const w = drawnWidth(grid[2], c);
+        expect(w === 80 || Math.abs(w - 64) <= 1e-9, `Last column ${c}: ${w}`).toBe(true);
+      }
       near(sizeOf(grid[0], 1, 1), 15.01, "First font in the grid");
       for (const [label, value, loaded] of [
         ["middle font", middle.size, 9],
@@ -1351,6 +1500,7 @@ describe("SPEC-CORE-168 I7 a workbook of unexpected shape, or a scaling that thr
     expect(rowOf(grid[0], 4)).toBeUndefined();
     near(widthOf(grid[0], 1), 6 * 12.71, "column 1 as the library draws it");
     near(sizeOf(grid[0], 1, 2), 8.01, "11 pt as the library draws it");
+    for (const c of range(5, 20)) expect(drawnWidth(grid[0], c), `column ${c}, no record`).toBe(80);
     expectShownWithoutFallback(drawing);
     expectNoConsole();
   });
