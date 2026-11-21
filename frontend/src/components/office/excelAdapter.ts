@@ -1,5 +1,6 @@
 import "./excelContainment.css";
 
+import { runOnTextOverflow } from "./excelRunOn";
 import {
   releaseOfficeGrid,
   setOfficeGridActive,
@@ -221,7 +222,7 @@ function applyColumns(sheet: UnknownRecord, kept: KeptColumns): void {
   kept.worksheet._columns = kept.columns;
 }
 
-function createSheetSizing(): {
+function createSheetSizing(host: HTMLElement): {
   beforeTransformData: (workbook: unknown) => unknown;
   transformData: (sheets: unknown) => unknown;
 } {
@@ -257,6 +258,9 @@ function createSheetSizing(): {
         if (kept) applyColumns(sheet, kept);
       }
     } catch {}
+    try {
+      runOnTextOverflow(sheets, host);
+    } catch {}
     return sheets;
   };
 
@@ -270,7 +274,7 @@ export async function drawExcel(
 ): Promise<() => void> {
   await import("@js-preview/excel/lib/index.css");
   const { default: previewExcel } = await import("@js-preview/excel");
-  const sizing = createSheetSizing();
+  const sizing = createSheetSizing(container);
   const options: SpreadsheetOptions = {
     showContextmenu: false,
     beforeTransformData: sizing.beforeTransformData,

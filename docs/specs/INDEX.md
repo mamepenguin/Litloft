@@ -342,3 +342,4 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-165 | implemented | docs/specs/media-import-caption-languages.md | sha256:2c6e2227ff6782339b7e487560771a02643e4a8a839e5cd6b269d54e00e2f5ed |
 | SPEC-ADDON-166 | implemented | docs/specs/media-import-caption-languages.md | sha256:2c6e2227ff6782339b7e487560771a02643e4a8a839e5cd6b269d54e00e2f5ed |
 | SPEC-ADDON-167 | implemented | docs/specs/media-import-caption-languages.md | sha256:2c6e2227ff6782339b7e487560771a02643e4a8a839e5cd6b269d54e00e2f5ed |
+| SPEC-CORE-170 | implemented | docs/specs/excel-text-overflow.md | sha256:82b9ea10279573681aeb28ab8bf47d94144518e1dede5c5367ac8866594aeeb7 |
