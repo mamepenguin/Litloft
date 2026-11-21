@@ -551,7 +551,7 @@ describe("I4 a later page never draws an id the list already holds", () => {
       return answerShelves(_d, p);
     });
     await visit();
-    await screen.findByText("Shelf s0");
+    await screen.findByRole("heading", { name: "Shelf s0" });
 
     await nextPage();
 

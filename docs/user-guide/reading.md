@@ -38,18 +38,19 @@ reading, resume and history work as they do everywhere else.
 
 ## Library
 
-The chip row at the top is **すべて** / **All** followed by the drive's book folders,
-most books first. On a computer the chips wrap onto lines and the frame scrolls down when
-there are more than three lines; on a touch screen they scroll sideways. Choosing a chip
-narrows the page to that folder. It does not widen a target that is already limited to a
-folder. The chip goes back to **All** when you reload, leave the page, come back from
-**See all**, or choose another target.
+Under the tabs the Library shows where in the folders you are: a breadcrumb trail ending at
+the current folder, and under it one chip per child folder with how many books it holds,
+most books first. Choosing a chip walks one level down; choosing a crumb or the home button
+walks back up. On a computer the chips wrap onto lines and the frame scrolls down when
+there are more than three lines; on a touch screen the rows scroll sideways. The position
+is kept in the address, so **Back** returns to the previous folder and reloading keeps it.
+Choosing another target starts again at that target's top folder.
 
-Below the chips:
+Below the folder rows:
 
 - **タグ** / **Tag** keeps only books carrying the chosen tags. Every chosen tag must be on
-  the book. The menu lists the tags reachable under the current target, folder chip and
-  state, with how many books carry each, and has a search field; **指定なし** / **Any**
+  the book. The menu lists the tags reachable under the current target, folder position
+  and state, with how many books carry each, and has a search field; **指定なし** / **Any**
   clears the choice. Under **タグ** grouping it only chooses which books appear; the
   shelves still follow the books' tags.
 - **状態** / **State** keeps **未読** / **Unread**, **読書中** / **In progress** or
@@ -81,7 +82,7 @@ search icon at the right end of the tab row opens. A **See all** page opened fro
 Library carries the text with it, and the text lasts with the tag and state filters.
 
 **See all** on a shelf opens it as a grid, 60 books at a time, under the same target,
-chips, tag, state and sort. The shelf page has its own sort menu and its own target
+folder position, tag, state and sort. The shelf page has its own sort menu and its own target
 control; choosing another target keeps the shelf.
 
 ## Target
@@ -121,7 +122,7 @@ own sort is not used here.
 
 ## Empty states and failures
 
-**本がありません** / **No books** means nothing matches the current target or folder chip.
+**本がありません** / **No books** means nothing matches the current target or folder position.
 When a chosen tag or a state other than **すべて** / **All** leaves no book, the page says
 **条件に合う項目はありません** / **Nothing matches these filters** instead. A shelf that
 fails to load shows **Retry** and the other shelves still draw. If the cover of a book

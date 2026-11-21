@@ -1353,6 +1353,17 @@ await it, catch it, or show a toast for it, so the addon owns the pending state,
 the toast and the failure. Without `extraMenuItems` the menu draws exactly its
 own rows and no divider.
 
+### The app card menu on a `FileGrid`
+
+An addon that draws `FileGrid` for an app (as Photo Diary does) passes
+`appCardMenu` to give its cards the menu the Video and Reading cards have. The menu
+gains **Open in new tab**, which opens the card's own link
+(`fileLinkHref(file, sortQuery)`). Every row acts in the click that chooses it. The
+card's text cannot be selected, so a long press on a touch device opens the menu
+without starting a selection. The prop is off by default, and the core grids (folder,
+collection, right pane) do not pass it. With `selectable` the cards still open no
+menu.
+
 ### `FileContextMenu` action callbacks
 
 `FileContextMenu` also takes three optional callbacks: `onTrashed(file)`,

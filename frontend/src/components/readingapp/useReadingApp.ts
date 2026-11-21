@@ -111,6 +111,7 @@ export function useReadingApp(
   drive: string,
   targetParam: string | null = null,
   onTargetHandled?: () => void,
+  onTargetChosen?: () => void,
 ): ReadingAppState {
   const { nickname } = useProfile();
   const [prefs, setPrefs] = useState<AppPrefs | null>(null);
@@ -347,8 +348,9 @@ export function useReadingApp(
       setChosen(null);
       resetLibraryFilters("reading", drive);
       updatePrefs({ target: id });
+      onTargetChosen?.();
     },
-    [drive, targetId, updatePrefs],
+    [drive, targetId, updatePrefs, onTargetChosen],
   );
 
   return {

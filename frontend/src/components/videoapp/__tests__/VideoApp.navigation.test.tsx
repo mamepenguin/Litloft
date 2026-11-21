@@ -158,7 +158,7 @@ describe("Video's Library sort reaches See all", () => {
   it("passes the chosen sort in the link", async () => {
     writeAppPrefs(DRIVE, { face: "library" });
     render(<VideoApp drive={DRIVE} />);
-    await screen.findByText("Movies");
+    await screen.findByRole("heading", { name: "Movies" });
 
     fireEvent.click(screen.getByRole("button", { name: /Sort/ }));
     fireEvent.click(screen.getByText("Size"));

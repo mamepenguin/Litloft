@@ -39,9 +39,11 @@ const DEVICE_HEIGHT_PX = 727;
  * and a spec matched by neither project runs at the default width.
  */
 const AT_THE_PHONE_WIDTH = [
+  "folder-rows.spec.ts",
   "add-menu.spec.ts",
   "admin-settings-touch.spec.ts",
   "app-card-menu.spec.ts",
+  "file-grid-app-card-menu.spec.ts",
   "app-header.spec.ts",
   "anchored-direction.spec.ts",
   "header-row-crowding.spec.ts",

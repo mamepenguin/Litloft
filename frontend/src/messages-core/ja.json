@@ -13,6 +13,8 @@
     "refresh": "更新",
     "seeAll": "すべて見る",
     "seeAllCount": "すべて見る（{count}）",
+    "folderPosition": "フォルダの位置",
+    "folderTop": "一番上",
     "download": "ダウンロード",
     "rename": "名前を変更",
     "move": "移動",
@@ -1530,7 +1532,6 @@
       "unwatched": "まだ読んでいない本",
       "finished": "読了"
     },
-    "all": "すべて",
     "group": {
       "tag": "タグ",
       "folder": "フォルダ",

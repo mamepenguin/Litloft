@@ -61,7 +61,13 @@ export default function ReadingShelfRoute() {
   );
 
   const dropFilters = useCallback(() => {
-    if (!search.has("tag") && !search.has("watch") && !search.has("folder") && !search.has("q")) {
+    if (
+      !search.has("tag") &&
+      !search.has("watch") &&
+      !search.has("folder") &&
+      !search.has("from_folder") &&
+      !search.has("q")
+    ) {
       return;
     }
     router.replace(
@@ -69,6 +75,7 @@ export default function ReadingShelfRoute() {
         next.delete("tag");
         next.delete("watch");
         next.delete("folder");
+        next.delete("from_folder");
         next.delete("q");
       }),
     );
@@ -89,6 +96,7 @@ export default function ReadingShelfRoute() {
       onLeavePending={from === "library" ? leavePending : undefined}
       onTargetChosen={dropFilters}
       from={from}
+      fromFolder={search.get("from_folder")}
       homeEntry="reading"
     />
   );

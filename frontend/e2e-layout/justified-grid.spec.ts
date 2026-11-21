@@ -34,7 +34,7 @@ const SHAPES: Record<string, ShapeSpec> = JSON.parse(
   )![1],
 );
 
-const SHAPE_COUNT = 10;
+const SHAPE_COUNT = 11;
 
 const JG_GAP = 8;
 const JG_ROW_H_NARROW = 120;

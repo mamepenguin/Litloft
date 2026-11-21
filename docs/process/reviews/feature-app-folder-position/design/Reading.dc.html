@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>読書 ライブラリ 位置あり</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:#62625b;text-decoration:none}a:hover{color:#211922}
+.ctl{display:inline-flex;align-items:center;gap:6px;border:1px solid rgba(145,145,140,.2);background:#fff;border-radius:16px;padding:8px 12px;font-size:14px;color:#62625b;white-space:nowrap;font-family:inherit}
+.ctl b{font-weight:400;color:#211922}
+.ctl svg{width:16px;height:16px;flex-shrink:0}
+.chip{display:inline-flex;align-items:center;gap:6px;border-radius:999px;background:#f6f6f3;padding:6px 12px;font-size:14px;color:#211922;white-space:nowrap}
+.chip:hover{background:#e5e5e0;color:#211922}
+.chip span{color:#62625b;font-size:13px}
+.crumb{display:flex;align-items:center;gap:4px;font-size:14px;color:#62625b}
+.crumb a{padding:2px 4px;border-radius:8px}
+.crumb svg{width:14px;height:14px;flex-shrink:0}
+</style>
+</helmet>
+<div style="width:1280px;height:900px;box-sizing:border-box;background:#ffffff;color:#211922;font-family:-apple-system,system-ui,'Segoe UI','Hiragino Sans',sans-serif;display:flex;flex-direction:column">
+<div style="padding:24px 32px 0;display:flex;flex-direction:column;gap:16px;border-bottom:1px solid rgba(145,145,140,.2)">
+<div style="display:flex;align-items:flex-end;justify-content:space-between;gap:16px">
+<div style="display:flex;flex-direction:column;gap:2px">
+<div style="font-size:13px;color:#62625b">main</div>
+<div style="display:flex;align-items:baseline;gap:10px"><h1 style="margin:0;font-size:24px;font-weight:700">読む</h1><span style="font-size:14px;color:#62625b">612</span></div>
+</div>
+<button class="ctl" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg><b>すべての本</b><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg></button>
+</div>
+<div style="display:flex;gap:24px;font-size:14px">
+<a href="#" style="padding:10px 0;border-bottom:2px solid transparent;color:#62625b">発見</a>
+<a href="#" style="padding:10px 0;border-bottom:2px solid #d63031;color:#211922;font-weight:600">ライブラリ</a>
+</div>
+</div>
+
+<div style="padding:20px 32px 0;display:flex;flex-direction:column;gap:12px">
+<nav class="crumb" aria-label="フォルダの位置">
+<a href="#" aria-label="一番上"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:16px;height:16px"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"></path><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg></a>
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"></path></svg>
+<a href="#">本</a>
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"></path></svg>
+<span aria-current="page" style="padding:2px 4px;color:#211922;font-weight:500">技術書</span>
+</nav>
+<div style="display:flex;flex-wrap:wrap;gap:8px">
+<sc-for list="{{chips}}" as="c" hint-placeholder-count="4"><a href="#" class="chip">{{c.name}}<span>{{c.count}}</span></a></sc-for>
+</div>
+</div>
+
+<div style="padding:20px 32px 0;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+<button class="ctl" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"></path></svg>タグ <b>指定なし</b></button>
+<button class="ctl" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="m9 12 2 2 4-4"></path></svg>状態 <b>すべて</b></button>
+<div style="flex:1"></div>
+<button class="ctl" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="7" height="7" x="3" y="3" rx="1"></rect><rect width="7" height="7" x="3" y="14" rx="1"></rect><path d="M14 4h7"></path><path d="M14 9h7"></path><path d="M14 15h7"></path><path d="M14 20h7"></path></svg>分類 <b>なし</b></button>
+<button class="ctl" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 16 4 4 4-4"></path><path d="M7 20V4"></path><path d="m21 8-4-4-4 4"></path><path d="M17 4v16"></path></svg>並び順 <b>追加日（新しい順）</b></button>
+</div>
+
+<div style="padding:28px 32px 0;display:grid;grid-template-columns:repeat(7, minmax(0, 1fr));gap:24px 20px">
+<sc-for list="{{books}}" as="b" hint-placeholder-count="14">
+<div style="display:flex;flex-direction:column;gap:6px">
+<div style="aspect-ratio:2/3;border-radius:8px;background:{{b.tone}};position:relative">
+<span style="position:absolute;left:8px;bottom:8px;font-size:11px;padding:2px 6px;border-radius:6px;background:rgba(255,255,255,.9);color:#211922">{{b.kind}}</span>
+</div>
+<div style="font-size:14px;line-height:1.4">{{b.title}}</div>
+<div style="font-size:12px;color:#62625b">{{b.folder}}</div>
+</div>
+</sc-for>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":900}}'>
+class Component extends DCLogic {
+renderVals() {
+const tones = ['#e5e5e0', '#e0e0d9', '#d5d5d0'];
+const list = [
+['リーダブルコード', 'プログラミング', 'PDF'],
+['達人プログラマー', 'プログラミング', 'EPUB'],
+['集合と位相', '数学', 'PDF'],
+['データ指向アプリケーション設計', '設計', 'EPUB'],
+['プログラミング言語 Rust', 'プログラミング', 'PDF'],
+['線形代数入門', '数学', 'PDF'],
+['ドメイン駆動設計', '設計', 'EPUB'],
+['入門 統計学', '数学', '書庫'],
+['オペレーティングシステム', 'プログラミング', 'PDF'],
+['アルゴリズムイントロダクション', 'プログラミング', 'PDF'],
+['ソフトウェアアーキテクチャの基礎', '設計', 'EPUB'],
+['解析入門', '数学', 'PDF'],
+['技術書メモ', '技術書', 'PDF'],
+['関数型プログラミング入門', 'プログラミング', 'EPUB']
+];
+return {
+chips: [
+{ name: 'プログラミング', count: '96' },
+{ name: '数学', count: '41' },
+{ name: '設計', count: '23' },
+{ name: 'ネットワーク', count: '8' }
+],
+books: list.map((b, i) => ({ title: b[0], folder: b[1], kind: b[2], tone: tones[i % tones.length] }))
+};
+}
+}
+</script>
+</body>
+</html>

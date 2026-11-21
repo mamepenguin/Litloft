@@ -27,6 +27,7 @@ function FileCardImpl({
   onMetaSelect,
   onShiftSelect,
   sortQuery,
+  appCardMenu = false,
   showExtensionBadge = true,
   draggable,
   isDragging,
@@ -48,6 +49,8 @@ function FileCardImpl({
   onMetaSelect?: (id: string) => void;
   onShiftSelect?: (id: string) => void;
   sortQuery?: string;
+  /** The app card menu's press: no text selection on the card. */
+  appCardMenu?: boolean;
   /**
    * Resolved once by the grid and handed down as a plain boolean. Defaults
    * to drawing it: the drive-home rows render cards directly and are mixed
@@ -107,7 +110,11 @@ function FileCardImpl({
       <Wrapper
         {...wrapperProps as any}
         className={`group block rounded-2xl overflow-hidden shadow-card transition-colors duration-200 ease-out ${
-          selectable ? "cursor-pointer select-none" : ""
+          selectable
+            ? "cursor-pointer select-none"
+            : appCardMenu
+              ? "select-none [-webkit-touch-callout:none]"
+              : ""
         } ${selected ? "ring-2 ring-accent" : ""}`}
         onContextMenu={selectable || !onContextMenu ? undefined : (e: React.MouseEvent) => onContextMenu(e, file)}
         onTouchStart={selectable || !onTouchStart ? undefined : (e: React.TouchEvent) => onTouchStart(e, file)}

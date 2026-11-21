@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [],
+  "specification_compliance": [
+    "I1: FileContextMenu.tsx:167-194 builds the extra rows first, then a divider at index extra.length. useFileMenuItems.ts:83-89 puts Open in new tab right after the extra rows, and the rest of the rows keep their order. FileGrid.tsx:159 and :194 pass the same onOpenInNewTab in both layouts.",
+    "I2: FileGrid.tsx:107-112 calls window.open(fileLinkHref(target, sortQuery), \"_blank\") with no API call. ContextMenu.tsx:99 calls onClose() before the handler.",
+    "I3: FileContextMenu.tsx:190 marks every row immediate when immediateRows is set, and ContextMenu.tsx:100-103 then runs item.onClick synchronously instead of through requestAnimationFrame. FileGrid passes immediateRows={appCardMenu} in both branches.",
+    "I4: FileCard.tsx:115-116 and JustifiedFileCell.tsx:102-103 add 'select-none [-webkit-touch-callout:none]' to the link wrapper when appCardMenu is set and selectable is not; the selectable branch already had select-none. The e2e spec file-grid-app-card-menu.spec.ts checks the computed userSelect for both layouts.",
+    "I5: onUpdate (= onRefresh) is called once, only after a successful rename, move or delete (FileContextMenu.tsx:94-134). Failures land in the catch and call nothing. This path is unchanged.",
+    "I6: appCardMenu defaults to false in FileGrid, FileCard and JustifiedFileCell, so the opt-out path leaves onOpenInNewTab undefined and immediateRows false, and the classes stay as before (selectable gives select-none on the link, draggable gives it on the outer div at FileCard.tsx:85). CarouselSection and ContinueWatchingSection do not pass appCardMenu, so it defaults to false."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "When selectable and appCardMenu are both true, the wrapper takes the selectable branch ('cursor-pointer select-none') and does not get '[-webkit-touch-callout:none]'. The context menu is not wired in selectable mode anyway (onContextMenu is undefined), so this has no effect under the invariants.",
+    "Open in new tab reads `target` from FileGrid render state when the menu renders. The target is set when the menu opens and close() does not clear it, so the href names the file that was pressed."
+  ],
+  "regression_risks": [
+    "FileContextMenu is shared with other callers, but immediateRows defaults to false, so their row timing does not change.",
+    "justifiedGridFixtureParity and justified-grid.spec SHAPE_COUNT went from 10 to 11. The ten existing shapes look unchanged in the fixture region I read."
+  ],
+  "test_coverage": [
+    "fileGridAppCardMenu.test.tsx covers the menu shape with and without extras, select-none on and off (including the Carousel and Continue sections) and onRefresh. I read only its grep hits, not its full body.",
+    "The e2e-components spec covers computed user-select: none for 4 cards and 20 justified cells.",
+    "justifiedGridFixtureParity adds the linkedOnlyAppCardMenu shape."
+  ],
+  "not_verified": [
+    "I did not run any tests (vitest, Playwright). I could not execute anything with the read-only tools.",
+    "I did not read the full body of fileGridAppCardMenu.test.tsx or the e2e FileGrid fixture fileGridAppCardMenu.tsx.",
+    "I did not check that the Tailwind build emits CSS for '[-webkit-touch-callout:none]' from these files.",
+    "I did not check docs/ADDON-DEVELOPMENT.md wording or the spec text itself.",
+    "I did not confirm that the ten existing fixture shapes are byte-identical to the base."
+  ],
+  "confidence": 80,
+  "coverage": [
+    {
+      "path": "frontend/src/components/FileGrid.tsx",
+      "read": "full",
+      "reason": "primary touch point"
+    },
+    {
+      "path": "frontend/src/components/FileContextMenu.tsx",
+      "read": "full",
+      "reason": "menu assembly and immediateRows"
+    },
+    {
+      "path": "frontend/src/hooks/useFileMenuItems.ts",
+      "read": "full",
+      "reason": "row order"
+    },
+    {
+      "path": "frontend/src/components/FileCard.tsx",
+      "read": "partial",
+      "reason": "wrapper classes"
+    },
+    {
+      "path": "frontend/src/components/JustifiedFileCell.tsx",
+      "read": "partial",
+      "reason": "wrapper classes"
+    },
+    {
+      "path": "frontend/src/components/ContextMenu.tsx",
+      "read": "partial",
+      "reason": "immediate vs rAF dispatch"
+    },
+    {
+      "path": "frontend/e2e-components/file-grid-app-card-menu.spec.ts",
+      "read": "full",
+      "reason": "I4 test"
+    },
+    {
+      "path": "frontend/e2e-layout/fixtures/justified-grid.html",
+      "read": "partial",
+      "reason": "new shape"
+    }
+  ]
+}

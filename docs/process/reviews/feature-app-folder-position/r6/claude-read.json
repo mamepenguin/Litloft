@@ -1,0 +1,346 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "TP-1",
+      "origin": "reviewer",
+      "claim": "The diff adds a new component-fixture harness for the folder rows (frontend/e2e-components/fixtures/folderRows.tsx, frontend/e2e-components/folder-rows.spec.ts), registers it in frontend/e2e-components/fixtures/app.tsx, frontend/e2e-components/spec-viewport.spec.ts and frontend/src/components/__tests__/componentFixtureParity.test.tsx. None of these places is in the touch-point list, which names only the e2e-layout spec and fixture for measuring D4.",
+      "impact": "None at runtime: these are test files. A reader of the touch points would not expect the e2e-components project's phone-width list (AT_THE_PHONE_WIDTH) or its arrangement registry to change. If either registration were dropped, spec-viewport's every-spec-assigned check or the parity list would go red.",
+      "evidence": "frontend/e2e-components/fixtures/app.tsx:110 imports FolderRowsArrangement and :2854 registers \"folder-rows\". frontend/e2e-components/spec-viewport.spec.ts:42 adds \"folder-rows.spec.ts\" to AT_THE_PHONE_WIDTH, which runs it on the coarse-pointer Pixel 5 context checked at :246. frontend/e2e-components/folder-rows.spec.ts:19-41 asserts that the Tag control starts below the last folder row and hit-tests the first link's bottom edge. frontend/e2e-components/fixtures/folderRows.tsx:45-89 mounts the real Video and Reading LibraryFace with a stub fetch.",
+      "repro": "not_reproduced (read only). The touch-point list in docs/specs/app-folder-position.md was compared against the diff's file list.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "An unplanned reach into test infrastructure. It breaks no declared invariant, and it backs D4 (the control row must not overlap the folder rows on a touch screen).",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Add the e2e-components harness (fixtures/folderRows.tsx, folder-rows.spec.ts, the registry in fixtures/app.tsx, the spec-viewport list and componentFixtureParity) to the spec's touch points."
+    },
+    {
+      "id": "TP-2",
+      "origin": "reviewer",
+      "claim": "Four existing Video test files are edited to tolerate the new chip row and its extra by=folder request: VideoApp.test.tsx, VideoApp.states.test.tsx, VideoApp.navigation.test.tsx and VideoApp.menuScopes.test.tsx. The touch points name only the Reading tests built on the old chip row as changing.",
+      "impact": "No user impact. Some assertions are narrowed so that they skip the chip row: shelf text is now matched by heading role, the folder-shelf request is picked out by per_shelf: 5, the target-menu request filters per_shelf !== 1, and the retry test clicks the last of several Retry buttons. A reader of the touch points would not expect Video's existing tests to move.",
+      "evidence": "VideoApp.states.test.tsx (diff hunk ~317) changes findByRole(retry) to findAllByRole(retry).at(-1). VideoApp.test.tsx (hunk ~371) changes shelfCalls({by:\"folder\"}) to shelfCalls({by:\"folder\", per_shelf: 5}), and (hunk ~486) filters params.per_shelf !== 1. VideoApp.navigation.test.tsx:161 and VideoApp.menuScopes.test.tsx:554 use findByRole(\"heading\"). The edits keep their meaning: if Video's shelves Retry were removed, the last Retry would be the chip Retry, and the heading 'Shelf 0' would never appear.",
+      "repro": "not_reproduced (read only)",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "An unplanned reach into existing Video tests. They are adapted to D8 (Video draws the rows under every grouping); no invariant breaks.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "List the Video test files under the touch points, next to the Reading tests."
+    },
+    {
+      "id": "TP-3",
+      "origin": "reviewer",
+      "claim": "frontend/src/__tests__/section-rows.test.tsx is edited: its allowlist of files with `overflow-x-auto` swaps readingapp/LibraryFace.tsx for appshell/FolderPositionRows.tsx. This repository-wide scan is not among the touch points.",
+      "impact": "No user impact. The scan is a project rule (no shelf hides its own scrollbar) that the change passes through, but the 'rules passed through' list does not name it.",
+      "evidence": "frontend/src/__tests__/section-rows.test.tsx:80-93 lists frontend/src/components/appshell/FolderPositionRows.tsx. FolderPositionRows.tsx:59 and :106 carry pointer-coarse:overflow-x-auto.",
+      "repro": "not_reproduced (read only)",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "A project rule the change passes through that the touch points don't list. No invariant breaks.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Name section-rows.test.tsx (the overflow-x-auto allowlist) among the rules passed through."
+    },
+    {
+      "id": "TP-4",
+      "origin": "reviewer",
+      "claim": "Reading `folder` from the URL, pushing positions, cleaning invalid values and replacing the URL on a target change all live in a new shared hook, appshell/useFolderPositionUrl.ts, with parsing and crumb logic in appshell/folderPosition.ts. The touch points place this in the route pages ('reading folder and from_folder from the URL, owning the router') and describe appshell/ only as the shared crumbs-and-chips row plus the moved folders.ts and useFolderChips.ts.",
+      "impact": "No user impact. The I4, I5 and I10 logic, and the droppedAt guard that keeps a dropped position out of the requests made for a newly chosen target, sit in a file the touch points don't describe. A reviewer looking for the URL logic in the pages finds only a call to the hook.",
+      "evidence": "frontend/src/components/appshell/useFolderPositionUrl.ts:9-66 holds useRouter, router.push, router.replace and the droppedAt state. frontend/src/app/drive/[name]/apps/video/page.tsx:12 and reading/page.tsx:12 only destructure the hook's results. frontend/src/components/appshell/folderPosition.ts:14-73 holds readFolderPosition and folderCrumbs.",
+      "repro": "not_reproduced (read only)",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Inside the listed appshell/ directory, but in a role the touch points assign to the pages. No invariant breaks.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Name appshell/useFolderPositionUrl.ts and appshell/folderPosition.ts in the touch points as the URL owner the pages call."
+    },
+    {
+      "id": "TP-5",
+      "origin": "reviewer",
+      "claim": "Two new test files, frontend/src/__tests__/appFolderPosition.test.tsx and appFolderPositionExtra.test.tsx, add the position tests under src/__tests__/. The touch points require position tests but name no place for them. The Extra file also renders LibraryFace directly with a position prop and no URL, for the member-target POST case.",
+      "impact": "No user impact. The member-target case (POST bodies carry the narrowed folder) is checked only on a component rendered without the URL wiring, which is the form the touch-point note on position tests sets aside.",
+      "evidence": "appFolderPositionExtra.test.tsx: describe.each(APPS) \"a member target's requests\" renders <Library ... position=\"Videos/Study\"> with no route or router. appFolderPosition.test.tsx renders the route pages through a mocked next/navigation history.",
+      "repro": "not_reproduced (read only)",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "A test location the touch points imply but don't name. No invariant breaks.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Name the new src/__tests__/appFolderPosition*.test.tsx files in the touch points."
+    },
+    {
+      "id": "I8-TOP",
+      "origin": "reviewer",
+      "claim": "The Top (home) crumb is a link whenever a position exists, even when the view at the top is the same as the current one. Example: a target narrower than the position, sf-math (path:Videos/Study/Math) at position Videos/Study, where both views send folder=[Videos/Study/Math].",
+      "impact": "Choosing Top adds a history entry and scrolls to the top while showing the same shelves. This is small, but it conflicts with the wording of I8 ('every crumb link goes to a strict ancestor of the position whose view differs from the current one').",
+      "evidence": "frontend/src/components/appshell/FolderPositionRows.tsx:61-75 renders the home crumb as an <a> whenever position !== null, with no sameFolders check of the kind folderPosition.ts:70 applies to folder crumbs. appFolderPosition.test.tsx 'under a target narrower than the position, no segment is a link but Top' asserts this. Spec §1.5 says the home crumb 'is plain when there is no folder already', so the spec text sanctions it.",
+      "repro": "not_reproduced. By reading: target sf-math, URL folder=Videos/Study. folders = narrowFolders([Videos/Study/Math], Videos/Study) = [Videos/Study/Math], and at the top folders = targetFolders = [Videos/Study/Math], which is identical.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "A",
+        "reason": "Read literally, I8 rules out a crumb link whose view equals the current one, and the root is an ancestor of every position. §1.5 sanctions the behavior, so a person should decide whether I8 covers the home crumb.",
+        "invariant_ref": "I8"
+      },
+      "severity": "LOW",
+      "proposed_fix": "Draw the home crumb plain when narrowFolders(targetFolders, position) equals targetFolders, or state in I8 that the home crumb is excluded."
+    }
+  ],
+  "specification_compliance": [
+    "Touch-point question: the diff reaches these places that are not in the touch-point list: the frontend/e2e-components harness (fixtures/folderRows.tsx, folder-rows.spec.ts, fixtures/app.tsx, spec-viewport.spec.ts) and componentFixtureParity.test.tsx (TP-1); four Video test files (TP-2); the section-rows.test.tsx overflow-x-auto allowlist (TP-3); the URL-owning hook appshell/useFolderPositionUrl.ts and folderPosition.ts (TP-4); and the new src/__tests__/appFolderPosition*.test.tsx files (TP-5).",
+    "Not counted as unplanned: lib/builtinApps is imported by VideoApp/ReadingApp but not changed. ReadingApp.menuScopes/libraryFilters/nameFilter/targetView and ReadingApp.library tests fall under 'existing Reading tests built on the すべて chip'. The renamed folders.test.ts moved to appshell/__tests__/ as the touch points say. docs/specs and docs/user-guide are implicit or listed.",
+    "Every listed touch point is reached: both LibraryFace files, folders.ts/useFolderChips.ts moved to appshell, both shelf pages and shelfLinks, useVideoApp/useReadingApp (onTargetChosen), VideoApp/ReadingApp, the four route pages, the e2e-layout spec and fixture, the readingVideoLayoutFixtureParity test, messages-core ja/en (folderPosition and folderTop added, readingApp.all removed with no remaining t(\"all\") reference under readingApp), and the user guides.",
+    "Implementation notes: the page drops target and folder in one replace from one snapshot (useFolderPositionUrl.ts:50-57). Both shelf routes drop folder and from_folder on a target choice (video/shelf/page.tsx:63-82, reading/shelf/page.tsx:63-82). Video See all links carry folder only when position !== null (videoapp/LibraryFace.tsx:231-232)."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "VideoShelfPage now counts URL folders in filtersActive (VideoShelfPage.tsx:172-177). An empty See all page opened from a position therefore shows the filtered-empty message ('Nothing matches these filters') rather than the no-files state. Reading already did this; the spec does not say which state Video should show.",
+    "A Reading chip's label fallback changed from folderLabel(key, drive) (the drive name for the root) to the key's last segment (FolderPositionRows.tsx:116). The root shelf is never a chip, so this is likely invisible.",
+    "The Top crumb is a link even when the top shows the same view as the current position under a narrower target (see I8-TOP)."
+  ],
+  "regression_risks": [
+    "frontend/e2e-components/fixtures/videoCardSpacing.tsx mounts the Video LibraryFace (group=folder) and is not in the diff. It now receives an extra by=folder shelf_limit=24 request, answered by groupedShelves with total 24. The chip loader stops after one page (offset+24 >= total), so __vcsLaterRequests is not polluted, but the face now draws a chip row above the shelves. The video-card-spacing measurements were not run.",
+    "Video's control row on a coarse pointer depends on pointer-coarse:mb-3 on the folder-rows wrapper (videoapp/LibraryFace.tsx:245). Only folder-rows.spec.ts guards it."
+  ],
+  "test_coverage": [
+    "appFolderPosition.test.tsx drives both apps through the route pages with a mocked history. It covers D1, D5, D6, D7, D8, I1-I15, the deeper-base crumbs, the 24/120 paging and the Home-shortcut replace.",
+    "The edited ReadingApp.libraryFilters/nameFilter/targetView tests pass a position prop to ReadingApp directly. They no longer exercise choosing a chip through the URL; that path is covered only by appFolderPosition.test.tsx.",
+    "The member-target POST narrowing is covered only on a LibraryFace rendered without the URL (appFolderPositionExtra.test.tsx).",
+    "D4 control-row overlap on a touch screen is covered by e2e-components/folder-rows.spec.ts on the Pixel 5 coarse context. The row shapes and the 44 px items are covered by e2e-layout/reading-video-faces.spec.ts."
+  ],
+  "not_verified": [
+    "No test, vitest or Playwright run was executed; all observations are from reading the files.",
+    "Did not verify that the reviewed commit c020d3e alone holds only the test-registration hunks; the review used the full diff as provided.",
+    "Did not read the unchanged parts of ReadingApp.library.test.tsx or the Video test files beyond their diff hunks.",
+    "Did not read docs/process/reviews/feature-app-folder-position/invariants.md or the design artboards.",
+    "Did not run video-card-spacing.spec.ts against the new Video chip row."
+  ],
+  "coverage": [
+    {
+      "path": "frontend/e2e-components/fixtures/app.tsx",
+      "read": "partial",
+      "reason": "Read lines 104-111 and 2846-2857, the only two changed lines (import and registry entry); the rest of the large registry was not read."
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/folderRows.tsx",
+      "read": "full",
+      "reason": "Whole file read."
+    },
+    {
+      "path": "frontend/e2e-components/folder-rows.spec.ts",
+      "read": "full",
+      "reason": "Whole file read."
+    },
+    {
+      "path": "frontend/e2e-components/spec-viewport.spec.ts",
+      "read": "full",
+      "reason": "Whole file read."
+    },
+    {
+      "path": "frontend/e2e-layout/fixtures/reading-video-faces.html",
+      "read": "partial",
+      "reason": "Read lines 160-597, which hold every changed hunk (shapes table, positionRows, the library builders and measureApp); lines 1-159 were not read."
+    },
+    {
+      "path": "frontend/e2e-layout/reading-video-faces.spec.ts",
+      "read": "full",
+      "reason": "Whole file read."
+    },
+    {
+      "path": "frontend/src/app/drive/[name]/apps/reading/page.tsx",
+      "read": "full",
+      "reason": "Whole file read."
+    },
+    {
+      "path": "frontend/src/app/drive/[name]/apps/reading/shelf/page.tsx",
+      "read": "full",
+      "reason": "Whole file read."
+    },
+    {
+      "path": "frontend/src/app/drive/[name]/apps/video/page.tsx",
+      "read": "full",
+      "reason": "Whole file read."
+    },
+    {
+      "path": "frontend/src/app/drive/[name]/apps/video/shelf/page.tsx",
+      "read": "full",
+      "reason": "Whole file read."
+    },
+    {
+      "path": "frontend/src/components/appshell/FolderPositionRows.tsx",
+      "read": "full",
+      "reason": "Whole file read."
+    },
+    {
+      "path": "frontend/src/components/appshell/folderPosition.ts",
+      "read": "full",
+      "reason": "Whole file read."
+    },
+    {
+      "path": "frontend/src/components/appshell/folders.ts",
+      "read": "full",
+      "reason": "Whole file read."
+    },
+    {
+      "path": "frontend/src/components/appshell/useFolderChips.ts",
+      "read": "full",
+      "reason": "Whole file read."
+    },
+    {
+      "path": "frontend/src/components/appshell/useFolderPositionUrl.ts",
+      "read": "full",
+      "reason": "Whole file read."
+    },
+    {
+      "path": "frontend/src/components/readingapp/LibraryFace.tsx",
+      "read": "full",
+      "reason": "Whole file read."
+    },
+    {
+      "path": "frontend/src/components/readingapp/ReadingApp.tsx",
+      "read": "partial",
+      "reason": "Read lines 1-149, which hold the import, prop and LibraryFace hunks; the remainder after the Discover face was not read."
+    },
+    {
+      "path": "frontend/src/components/readingapp/ReadingShelfPage.tsx",
+      "read": "partial",
+      "reason": "Read lines 60-185 (props, urlFilters, chooseTarget, query) and 280-320 (libraryHref and back link); other ranges not read."
+    },
+    {
+      "path": "frontend/src/components/readingapp/shelfLinks.ts",
+      "read": "full",
+      "reason": "Whole file read."
+    },
+    {
+      "path": "frontend/src/components/readingapp/useReadingApp.ts",
+      "read": "partial",
+      "reason": "Read lines 105-354 (the hook through chooseTarget, which holds the changed signature and the onTargetChosen hunk); the file head and the return object were not read."
+    },
+    {
+      "path": "frontend/src/components/videoapp/LibraryFace.tsx",
+      "read": "full",
+      "reason": "Whole file read."
+    },
+    {
+      "path": "frontend/src/components/videoapp/VideoApp.tsx",
+      "read": "full",
+      "reason": "Whole file read."
+    },
+    {
+      "path": "frontend/src/components/videoapp/VideoShelfPage.tsx",
+      "read": "partial",
+      "reason": "Read lines 55-194 (props, urlFilters, query, filtersActive) and 270-360 (libraryHref and back link); other ranges not read."
+    },
+    {
+      "path": "frontend/src/components/videoapp/shelfLinks.ts",
+      "read": "full",
+      "reason": "Whole file read."
+    },
+    {
+      "path": "frontend/src/components/videoapp/useVideoApp.ts",
+      "read": "partial",
+      "reason": "Read lines 110-359 (the hook through chooseTarget, which holds the changed signature and the onTargetChosen hunk); the file head and the return object were not read."
+    },
+    {
+      "path": "frontend/src/messages-core/en.json",
+      "read": "partial",
+      "reason": "Read lines 8-21 (the new common keys) and 1525-1544 (where readingApp.all was removed); also grepped for any remaining t(\"all\") use."
+    },
+    {
+      "path": "frontend/src/messages-core/ja.json",
+      "read": "partial",
+      "reason": "Read lines 8-21 (the new common keys) and 1525-1544 (where readingApp.all was removed)."
+    },
+    {
+      "path": "frontend/src/__tests__/appFolderPosition.test.tsx",
+      "read": "full",
+      "reason": "New file, read in full in the diff."
+    },
+    {
+      "path": "frontend/src/__tests__/appFolderPositionExtra.test.tsx",
+      "read": "full",
+      "reason": "New file, read in full in the diff."
+    },
+    {
+      "path": "frontend/src/__tests__/section-rows.test.tsx",
+      "read": "partial",
+      "reason": "Read lines 55-104, which hold the changed allowlist."
+    },
+    {
+      "path": "frontend/src/components/__tests__/componentFixtureParity.test.tsx",
+      "read": "partial",
+      "reason": "Read only the one-line diff hunk (the folder-rows entry)."
+    },
+    {
+      "path": "frontend/src/components/__tests__/readingVideoLayoutFixtureParity.test.tsx",
+      "read": "partial",
+      "reason": "Read only the diff hunks (import, SHAPE_COUNT, SOURCES, the FolderPositionRows and ReadingLibraryFace renderers)."
+    },
+    {
+      "path": "frontend/src/components/appshell/__tests__/folders.test.ts",
+      "read": "not_read",
+      "reason": "Pure rename with 100% similarity and no content hunk."
+    },
+    {
+      "path": "frontend/src/components/readingapp/__tests__/ReadingApp.library.test.tsx",
+      "read": "partial",
+      "reason": "Read only the diff hunks (the removed chip describe block and helpers)."
+    },
+    {
+      "path": "frontend/src/components/readingapp/__tests__/ReadingApp.libraryFilters.test.tsx",
+      "read": "partial",
+      "reason": "Read only the diff hunks."
+    },
+    {
+      "path": "frontend/src/components/readingapp/__tests__/ReadingApp.menuScopes.test.tsx",
+      "read": "partial",
+      "reason": "Read only the diff hunk."
+    },
+    {
+      "path": "frontend/src/components/readingapp/__tests__/ReadingApp.nameFilter.test.tsx",
+      "read": "partial",
+      "reason": "Read only the diff hunks."
+    },
+    {
+      "path": "frontend/src/components/readingapp/__tests__/ReadingApp.targetView.test.tsx",
+      "read": "partial",
+      "reason": "Read only the diff hunks."
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoApp.menuScopes.test.tsx",
+      "read": "partial",
+      "reason": "Read only the diff hunk."
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoApp.navigation.test.tsx",
+      "read": "partial",
+      "reason": "Read only the diff hunk."
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoApp.states.test.tsx",
+      "read": "partial",
+      "reason": "Read only the diff hunks."
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoApp.test.tsx",
+      "read": "partial",
+      "reason": "Read only the diff hunks."
+    }
+  ],
+  "confidence": 78
+}

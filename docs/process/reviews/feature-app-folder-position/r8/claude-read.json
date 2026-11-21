@@ -1,0 +1,257 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [],
+  "specification_compliance": [
+    "Fix 3dd27eb closes r7's I8-FOLDER-SAME. folderPosition.ts:62 computes shown = narrowFolders(targetFolders, position), the same value both LibraryFace files send as `folder` (videoapp/LibraryFace.tsx:119-127, readingapp/LibraryFace.tsx:117-125). At :71/:77-83 a strict-ancestor crumb becomes a link only when narrowFolders(targetFolders, segment) differs from both the target's top and the current view. That satisfies the folder-crumb clause of I8 (r6): every folder crumb link now goes to a strict ancestor whose view differs from the current one.",
+    "Order sensitivity of sameFolders (folderPosition.ts:38-40): narrowed and shown both come from narrowFolders over the same targetFolders, so both follow first-occurrence order in T. A strict ancestor a can appear in narrowFolders(T, a) only if a lies inside some t, and then it cannot appear in narrowFolders(T, position). So equal sets in a different order do not occur. searchQuery.ts:672-677 normalises and dedups path: folders, so targetFolders holds no duplicates that could make narrowed differ from top only by multiplicity.",
+    "Several path: folders reach both apps: videoAppTarget.ts:43 and appTarget.ts:112 (used by readingAppTarget.resolveReadingTarget) set params.folder = parsed.folders. The new two-path test is therefore meaningful for both Video and Reading.",
+    "I8 home-crumb clause (r6): FolderPositionRows.tsx:61-75 renders the home crumb as an <a> whenever position !== null. Unchanged by this fix.",
+    "I8 chip clause: chips are the children of the chip answer's base (useFolderChips.ts:78-80, folders.ts:49-62), and the crumbs end at base when base is the position or lies under it (folderPosition.ts:52-58). Unchanged by this fix.",
+    "The other invariants (I1-I7, I9-I15) are carried by code the fix does not touch. I re-read useFolderPositionUrl.ts, useFolderChips.ts, both route pages, both shelf routes and the LibraryFace narrowing and blocked logic, and found nothing that contradicts r7's assessment."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "The new current-view comparison also changes blocked positions. Example: target path:Videos with URL ?folder=Music/Live. shown = [] and narrowFolders([Videos], 'Music') = [], so the Music crumb, which was a link before the fix, is now plain. Choosing Music would show the same empty state, but the crumb trail would differ ('Music' rather than 'Music > Live'). I8 only restricts which crumbs may be links, so this is permitted. It is still a visible behaviour change that no test names.",
+    "Under a multi-folder target, several ancestor crumbs can each link to the same view. Example: sf-two (path:Videos/Study/Math path:Music) at Videos/Study/Math/X, where Videos and Videos/Study both narrow to [Videos/Study/Math]. I8 permits this.",
+    "A crumb whose narrowed folders equal the target's top stays plain even though choosing it would show a different view from the current one (for example sf-videos at Videos/Study/Math, crumb Videos). The home crumb reaches the same view. This matches spec §1.5 and is carried over unchanged.",
+    "Carried over from r7: while an invalid `folder` is still in the URL, or while droppedAt masks it, position is null for one render, so the home crumb is plain even though the URL holds a `folder`."
+  ],
+  "regression_risks": [
+    "A crumb is now plain wherever narrowFolders(T, segment) equals narrowFolders(T, position). This includes every strict ancestor of a blocked position (both sides are []), where the old rule drew links. The existing I2 test (appFolderPosition.test.tsx, sf-videos at Music) uses a one-segment position, so it does not exercise this.",
+    "Unchanged since r7: e2e-components fixtures that mount the Video LibraryFace now also send a by=folder shelf_limit=24 chip request and draw a chip row. Video's coarse-pointer control-row spacing depends on pointer-coarse:mb-3 at videoapp/LibraryFace.tsx:245."
+  ],
+  "test_coverage": [
+    "New test appFolderPositionExtra.test.tsx:435-450 (both apps, driven through the route page and URL): target 'path:Videos/Study/Math path:Music' at folder=Videos/Study, with chip base Videos/Study/Math. Under the old rule the Videos crumb would be a link, so the test fails on the pre-fix code. Removing the `shown` comparison is killed.",
+    "Removing the top comparison is killed by appFolderPosition.test.tsx 'a segment above a folder-limited target's folder is plain' (sf-videos at Videos/Study/Math, crumb Videos: narrowed=[Videos]=top, while shown=[Videos/Study/Math]).",
+    "Forcing link=false is killed by appFolderPosition.test.tsx 'links every strict ancestor and Top' (default target at Videos/Study/Math expects Videos and Study links).",
+    "There is no positive case under a multi-folder target: no test shows a crumb staying a link when it opens another view (for example sf-two at Videos/Study/Math/X). A mutant that makes every crumb plain only for multi-folder targets would survive.",
+    "The new test asserts only that links are absent. It does not check that the crumbs are drawn as plain spans in the right order.",
+    "No test covers a blocked position two or more levels deep, where the fix turns ancestor links into plain text (see potential_unspecified_behavior).",
+    "Replacing `shown` with narrowFolders(targetFolders, end) would survive the existing tests. I found no input where the two give different results, so the gap appears harmless.",
+    "folderCrumbs still has no unit test. It is covered only through the route-level tests."
+  ],
+  "not_verified": [
+    "I did not run vitest, Playwright or the app. Every conclusion comes from reading code and tracing by hand, including that the new test passes on HEAD and fails on the pre-fix code.",
+    "I did not confirm that the smart folder 'path:Videos/Study/Math path:Music' resolves as a parameter target rather than a member target that would need evaluateSmartCollection (which the Extra file mocks). I inferred it from appTarget.ts:112 and videoAppTarget.ts:43 without reading resolveAppTarget in full.",
+    "I did not read DESIGN.md or the design artboards, and I read only the first 60 lines of .claude/rules/frontend-conventions.md.",
+    "For the existing Reading and Video test files I read only the diff hunks, not their unchanged bodies.",
+    "I did not confirm from the backend that several `folder` values are ORed."
+  ],
+  "trajectory": "r6→r7 (e51492d4e) changed only documents: it revised the I8 invariant text for the home crumb, and no code branch, state or prediction was added. r7→r8 (3dd27eb) adds one predicate, a comparison against the current view (`shown`, via opensAnotherView), to the same crumb-link condition in folderPosition.ts. The earlier round added no code branch, so no branch is being added again. Still, I8's crumb-link rule has now been the subject of two consecutive rounds, the first changing the invariant and the second the code, which is the start of patching one rule. Nothing was removed; the earlier top comparison is kept beside the new one.",
+  "coverage": [
+    {
+      "path": "frontend/e2e-components/fixtures/app.tsx",
+      "read": "partial",
+      "reason": "Grepped the two changed lines only: the import at 110 and the registry entry at 2854."
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/folderRows.tsx",
+      "read": "partial",
+      "reason": "Read lines 1-40 (header and fetch stub). The arrangement body (45-89) was seen only in the provided diff."
+    },
+    {
+      "path": "frontend/e2e-components/folder-rows.spec.ts",
+      "read": "full",
+      "reason": "Whole file read."
+    },
+    {
+      "path": "frontend/e2e-components/spec-viewport.spec.ts",
+      "read": "partial",
+      "reason": "Grepped the changed AT_THE_PHONE_WIDTH entry at line 42."
+    },
+    {
+      "path": "frontend/e2e-layout/fixtures/reading-video-faces.html",
+      "read": "partial",
+      "reason": "Grepped positionRows, chipRow and crumbRow (lines 422, 475, 496, 587-588). The rest was seen only in the provided diff."
+    },
+    {
+      "path": "frontend/e2e-layout/reading-video-faces.spec.ts",
+      "read": "partial",
+      "reason": "Grepped the crumbRow and chipRow assertions (76-78, 167-203, 267-268). The rest was seen only in the provided diff."
+    },
+    {
+      "path": "frontend/src/app/drive/[name]/apps/reading/page.tsx",
+      "read": "full",
+      "reason": "Whole file read."
+    },
+    {
+      "path": "frontend/src/app/drive/[name]/apps/reading/shelf/page.tsx",
+      "read": "full",
+      "reason": "Whole file read."
+    },
+    {
+      "path": "frontend/src/app/drive/[name]/apps/video/page.tsx",
+      "read": "full",
+      "reason": "Whole file read."
+    },
+    {
+      "path": "frontend/src/app/drive/[name]/apps/video/shelf/page.tsx",
+      "read": "full",
+      "reason": "Whole file read."
+    },
+    {
+      "path": "frontend/src/components/appshell/FolderPositionRows.tsx",
+      "read": "full",
+      "reason": "Whole file read."
+    },
+    {
+      "path": "frontend/src/components/appshell/folderPosition.ts",
+      "read": "full",
+      "reason": "Whole file read; it holds the only product hunk of the reviewed commit."
+    },
+    {
+      "path": "frontend/src/components/appshell/folders.ts",
+      "read": "full",
+      "reason": "Whole file read."
+    },
+    {
+      "path": "frontend/src/components/appshell/useFolderChips.ts",
+      "read": "full",
+      "reason": "Whole file read."
+    },
+    {
+      "path": "frontend/src/components/appshell/useFolderPositionUrl.ts",
+      "read": "full",
+      "reason": "Whole file read."
+    },
+    {
+      "path": "frontend/src/components/readingapp/LibraryFace.tsx",
+      "read": "partial",
+      "reason": "Read lines 40-239 (useLibraryChips, the props, targetFolders and folders narrowing, blocked, query, fetches, conditions). The render tail with FolderPositionRows was seen only in the provided diff."
+    },
+    {
+      "path": "frontend/src/components/readingapp/ReadingApp.tsx",
+      "read": "partial",
+      "reason": "Grepped the position, onTargetChosen, onChooseFolder and libraryPath lines (33-53, 133-137)."
+    },
+    {
+      "path": "frontend/src/components/readingapp/ReadingShelfPage.tsx",
+      "read": "partial",
+      "reason": "Grepped the fromFolder, urlFolders, filtersDropped and libraryHref lines (67-114, 150-180, 289-307)."
+    },
+    {
+      "path": "frontend/src/components/readingapp/shelfLinks.ts",
+      "read": "partial",
+      "reason": "Grepped the fromFolder lines (8, 33). The rest was seen in the provided diff."
+    },
+    {
+      "path": "frontend/src/components/readingapp/useReadingApp.ts",
+      "read": "partial",
+      "reason": "Grepped the onTargetChosen signature and its call (114, 351-353)."
+    },
+    {
+      "path": "frontend/src/components/videoapp/LibraryFace.tsx",
+      "read": "partial",
+      "reason": "Read lines 100-259 (narrowing, blocked, query, fetches, conditions and the FolderPositionRows mount)."
+    },
+    {
+      "path": "frontend/src/components/videoapp/VideoApp.tsx",
+      "read": "partial",
+      "reason": "Grepped the position, onTargetChosen, onChooseFolder and libraryPath lines (34-54, 138-141)."
+    },
+    {
+      "path": "frontend/src/components/videoapp/VideoShelfPage.tsx",
+      "read": "partial",
+      "reason": "Grepped the fromFolder, urlFolders, filtersDropped and libraryHref lines (64-118, 164-175, 283-354)."
+    },
+    {
+      "path": "frontend/src/components/videoapp/shelfLinks.ts",
+      "read": "partial",
+      "reason": "Grepped the fromFolder lines (11, 30). The rest was seen in the provided diff."
+    },
+    {
+      "path": "frontend/src/components/videoapp/useVideoApp.ts",
+      "read": "partial",
+      "reason": "Grepped the onTargetChosen signature and its call (116, 350-352)."
+    },
+    {
+      "path": "frontend/src/messages-core/en.json",
+      "read": "partial",
+      "reason": "Grepped folderPosition and folderTop (16-17) and the remaining 'all' keys, which confirms readingApp.all is gone."
+    },
+    {
+      "path": "frontend/src/messages-core/ja.json",
+      "read": "partial",
+      "reason": "Grepped folderPosition and folderTop (16-17) and the remaining 'all' keys."
+    },
+    {
+      "path": "frontend/src/__tests__/appFolderPosition.test.tsx",
+      "read": "partial",
+      "reason": "Not opened in this round; read in full in the provided diff."
+    },
+    {
+      "path": "frontend/src/__tests__/appFolderPositionExtra.test.tsx",
+      "read": "partial",
+      "reason": "Opened lines 380-451, which include the new two-path test; the rest was seen in the provided diff."
+    },
+    {
+      "path": "frontend/src/__tests__/section-rows.test.tsx",
+      "read": "partial",
+      "reason": "Only the one-line diff hunk."
+    },
+    {
+      "path": "frontend/src/components/__tests__/componentFixtureParity.test.tsx",
+      "read": "partial",
+      "reason": "Only the one-line diff hunk."
+    },
+    {
+      "path": "frontend/src/components/__tests__/readingVideoLayoutFixtureParity.test.tsx",
+      "read": "partial",
+      "reason": "Only the diff hunks."
+    },
+    {
+      "path": "frontend/src/components/appshell/__tests__/folders.test.ts",
+      "read": "not_read",
+      "reason": "A pure rename with 100% similarity and no content hunk."
+    },
+    {
+      "path": "frontend/src/components/readingapp/__tests__/ReadingApp.library.test.tsx",
+      "read": "partial",
+      "reason": "Only the diff hunks."
+    },
+    {
+      "path": "frontend/src/components/readingapp/__tests__/ReadingApp.libraryFilters.test.tsx",
+      "read": "partial",
+      "reason": "Only the diff hunks."
+    },
+    {
+      "path": "frontend/src/components/readingapp/__tests__/ReadingApp.menuScopes.test.tsx",
+      "read": "partial",
+      "reason": "Only the diff hunk."
+    },
+    {
+      "path": "frontend/src/components/readingapp/__tests__/ReadingApp.nameFilter.test.tsx",
+      "read": "partial",
+      "reason": "Only the diff hunks."
+    },
+    {
+      "path": "frontend/src/components/readingapp/__tests__/ReadingApp.targetView.test.tsx",
+      "read": "partial",
+      "reason": "Only the diff hunks."
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoApp.menuScopes.test.tsx",
+      "read": "partial",
+      "reason": "Only the diff hunk."
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoApp.navigation.test.tsx",
+      "read": "partial",
+      "reason": "Only the diff hunk."
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoApp.states.test.tsx",
+      "read": "partial",
+      "reason": "Only the diff hunks."
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoApp.test.tsx",
+      "read": "partial",
+      "reason": "Only the diff hunks."
+    }
+  ],
+  "confidence": 82
+}
