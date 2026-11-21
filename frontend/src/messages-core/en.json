@@ -13,6 +13,8 @@
     "refresh": "Refresh",
     "seeAll": "See all",
     "seeAllCount": "See all ({count})",
+    "folderPosition": "Folder position",
+    "folderTop": "Top",
     "download": "Download",
     "rename": "Rename",
     "move": "Move",
@@ -1530,7 +1532,6 @@
       "unwatched": "Not read yet",
       "finished": "Finished"
     },
-    "all": "All",
     "group": {
       "tag": "Tag",
       "folder": "Folder",

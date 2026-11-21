@@ -61,6 +61,7 @@ export function VideoShelfPage({
   by,
   shelfKey,
   initialSort,
+  folders: urlFolders,
   tags: urlTags,
   watch: urlWatch,
   name,
@@ -68,6 +69,7 @@ export function VideoShelfPage({
   onLeavePending,
   onTargetChosen,
   from,
+  fromFolder,
   entry,
   slot,
   homeEntry,
@@ -76,6 +78,8 @@ export function VideoShelfPage({
   by: ShelfGrouping | null;
   shelfKey: string;
   initialSort?: string | null;
+  /** The Library position's folders; they replace the target's own. */
+  folders?: readonly string[];
   tags?: readonly string[];
   watch?: string | null;
   /** The URL's normalised `q`. */
@@ -87,6 +91,8 @@ export function VideoShelfPage({
   /** Called after a Target is chosen on this page, to drop the URL's filters. */
   onTargetChosen?: () => void;
   from?: string | null;
+  /** The position the Library opened this page from, for its way back. */
+  fromFolder?: string | null;
   /** An addon shelf to page through its page provider. */
   entry?: string | null;
   /** Which slot `entry` belongs to; `recommended` pages Recommended's provider. */
@@ -101,7 +107,13 @@ export function VideoShelfPage({
   const { chooseTarget: chooseAppTarget, targetId } = appState;
   // The URL's filters stop applying in the render that shows the new Target;
   // the replace that removes them from the URL lands later.
-  const urlFilters = JSON.stringify([urlTags ?? [], urlWatch ?? null, name ?? ""]);
+  const urlFilters = JSON.stringify([
+    urlFolders ?? [],
+    urlTags ?? [],
+    urlWatch ?? null,
+    fromFolder ?? null,
+    name ?? "",
+  ]);
   const [droppedFor, setDroppedFor] = useState<string | null>(null);
   const filtersDropped = droppedFor === urlFilters;
   const chooseTarget = useCallback(
@@ -148,9 +160,11 @@ export function VideoShelfPage({
 
   const query = useMemo<typeof params>(() => {
     if (params === null) return null;
+    const next = { ...params };
+    if (!filtersDropped && urlFolders && urlFolders.length > 0) next.folder = [...urlFolders];
     const merged = mergeLibraryTags(listOf(params.tag), filtersDropped ? [] : (urlTags ?? []));
-    return { ...params, ...(merged.length > 0 ? { tag: merged } : {}) };
-  }, [params, urlTags, filtersDropped]);
+    return { ...next, ...(merged.length > 0 ? { tag: merged } : {}) };
+  }, [params, urlFolders, urlTags, filtersDropped]);
 
   const watch = state.hasProfile && !filtersDropped ? parseWatchState(urlWatch ?? null) : null;
   const requestedName = filtersDropped ? "" : (name ?? "");
@@ -158,6 +172,7 @@ export function VideoShelfPage({
   const filtersActive =
     !filtersDropped &&
     (requestedName !== "" ||
+      (urlFolders?.length ?? 0) > 0 ||
       (urlTags?.length ?? 0) > 0 ||
       parseWatchState(urlWatch ?? null) !== null);
 
@@ -265,6 +280,11 @@ export function VideoShelfPage({
       ? t("title")
       : shelfTitle({ by, shelf: { key: shelfKey, label: "" }, drive, locale, from, t: (key) => t(key) });
   const app = builtinApps.find((candidate) => candidate.id === "video")!;
+  const backFolder = filtersDropped ? null : fromFolder;
+  const libraryHref =
+    backFolder === null || backFolder === undefined || backFolder === ""
+      ? app.route(drive)
+      : `${app.route(drive)}?folder=${encodeURIComponent(backFolder)}`;
 
   const body = state.targetFailed ? (
     <RetryButton onRetry={state.retryTarget} />
@@ -331,7 +351,7 @@ export function VideoShelfPage({
           homeEntry={homeEntry}
           breadcrumb={
             <Link
-              href={app.route(drive)}
+              href={libraryHref}
               className="flex items-center gap-1 text-sm text-text-muted transition-colors hover:text-text-primary"
             >
               <ChevronLeft size={16} aria-hidden="true" />

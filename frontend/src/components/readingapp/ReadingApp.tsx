@@ -15,6 +15,7 @@ import { useLibraryFilters } from "@/components/appshell/libraryFilters";
 import { RetryButton } from "@/components/appshell/RetryButton";
 import { ShelfBlock } from "@/components/appshell/ShelfBlock";
 import { PageFrame } from "@/components/PageFrame";
+import { builtinApps } from "@/lib/builtinApps";
 import { DiscoverFace } from "./DiscoverFace";
 import { LibraryFace } from "./LibraryFace";
 import { ReadingAppHeader } from "./ReadingAppHeader";
@@ -23,22 +24,33 @@ import { useReadingApp } from "./useReadingApp";
 
 const PANEL_ID = "reading-app-panel";
 
+const noop = () => {};
+
 export function ReadingApp({
   drive,
   target = null,
   homeEntry,
+  position = null,
   onTargetHandled,
+  onTargetChosen,
+  onChooseFolder = noop,
 }: {
   drive: string;
   /** The `?target=` value on the root route; absent on every other route. */
   target?: string | null;
   /** The key of this app's Home entry. */
   homeEntry?: string;
+  /** The folder the URL holds; `null` at the top of the target. */
+  position?: string | null;
   /** Called once the `?target=` has been applied or ignored, to drop it from the URL. */
   onTargetHandled?: () => void;
+  /** Called when the target menu picks another target, to drop the position. */
+  onTargetChosen?: () => void;
+  /** Navigate to a folder of the Library; `null` is its top. */
+  onChooseFolder?: (folder: string | null) => void;
 }) {
   const t = useTranslations("readingApp");
-  const state = useReadingApp(drive, target, onTargetHandled);
+  const state = useReadingApp(drive, target, onTargetHandled, onTargetChosen);
   const face = state.prefs?.face;
   const filters = useLibraryFilters("reading", drive, state.hasProfile);
   const showName =
@@ -118,8 +130,11 @@ export function ReadingApp({
               requests={state.requests}
               empty={state.empty}
               hasProfile={state.hasProfile}
+              position={position}
               group={state.view.group}
               sortId={state.view.sort}
+              libraryPath={builtinApps.find((app) => app.id === "reading")!.route(drive)}
+              onChooseFolder={onChooseFolder}
               onGroup={state.setGroup}
               onSort={state.setSort}
               onViewerRejected={state.rejectViewer}
