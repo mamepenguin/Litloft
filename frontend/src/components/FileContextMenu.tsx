@@ -35,6 +35,11 @@ interface FileContextMenuProps {
   onRenamed?: (file: FileItem) => void;
   /** Called once the move request succeeds, before `onUpdate`. */
   onMoved?: (file: FileItem) => void;
+  /**
+   * Runs when the rename, move or trash dialog is confirmed; the request is
+   * sent only when it calls `run`.
+   */
+  beforeChange?: (run: () => void) => void;
 }
 
 const DIVIDER: MenuDivider = { divider: true };
@@ -54,6 +59,7 @@ export function FileContextMenu({
   onTrashed,
   onRenamed,
   onMoved,
+  beforeChange,
 }: FileContextMenuProps) {
   const tt = useTranslations("trash");
   const tf = useTranslations("file");
@@ -73,6 +79,17 @@ export function FileContextMenu({
       setCopyIdOpen(false);
     }
   }, [target]);
+
+  const gated = useCallback(
+    (send: () => Promise<void>) => {
+      const run = () => {
+        void send();
+      };
+      if (beforeChange) beforeChange(run);
+      else run();
+    },
+    [beforeChange],
+  );
 
   const handleRename = useCallback(
     async (newName: string) => {
@@ -189,14 +206,14 @@ export function FileContextMenu({
       <RenameDialog
         open={renameOpen}
         currentName={target.filename}
-        onRename={handleRename}
+        onRename={(name) => gated(() => handleRename(name))}
         onCancel={() => setRenameOpen(false)}
       />
       <MoveDialog
         open={moveOpen}
         drive={target.drive}
         currentPath={target.folder_path}
-        onMove={handleMove}
+        onMove={(path) => gated(() => handleMove(path))}
         onCancel={() => setMoveOpen(false)}
       />
       <CollectionPicker
@@ -216,7 +233,7 @@ export function FileContextMenu({
         message={tt("confirmMoveToTrash", { name: target.filename })}
         confirmLabel={tt("moveToTrash")}
         note={tt("autoDelete")}
-        onConfirm={handleDelete}
+        onConfirm={() => gated(handleDelete)}
         onCancel={() => setDeleteOpen(false)}
       />
     </>

@@ -198,3 +198,43 @@ describe("SPEC-CORE-157 I8 FileContextMenu's per-action callbacks", () => {
     },
   );
 });
+
+describe("SPEC-CORE-157 I8 FileContextMenu's beforeChange gate", () => {
+  it.each(ACTIONS)(
+    "SPEC-CORE-157 I8 confirming $row with a gate that does not run sends nothing, calls no callback and keeps the dialog open",
+    async (action) => {
+      action.request.mockResolvedValue(action.answer());
+      const cb = callbacks();
+      const beforeChange = vi.fn();
+      const onUpdate = vi.fn();
+      render(
+        <FileContextMenu
+          open
+          position={{ x: 10, y: 10 }}
+          target={file}
+          onClose={vi.fn()}
+          onUpdate={onUpdate}
+          beforeChange={beforeChange}
+          {...cb}
+        />,
+      );
+
+      await chooseRow(action.row);
+      await submit(action.submit);
+
+      expect(beforeChange).toHaveBeenCalledTimes(1);
+      expect(action.request).not.toHaveBeenCalled();
+      expect(cb[action.callback]).not.toHaveBeenCalled();
+      expect(onUpdate).not.toHaveBeenCalled();
+      expect(screen.getByTestId(action.dialog)).toBeInTheDocument();
+
+      await act(async () => {
+        beforeChange.mock.calls[0][0]();
+      });
+      await settle();
+
+      expect(action.request).toHaveBeenCalledTimes(1);
+      expect(cb[action.callback]).toHaveBeenCalledTimes(1);
+    },
+  );
+});
