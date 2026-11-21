@@ -332,4 +332,4 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-162 | implemented | docs/specs/loft-channel-videos.md | sha256:0603e267973b9d683772fe8c156d662e1c9e873ea0f0739a1f52dac0c8c73550 |
 | SPEC-ADDON-163 | implemented | docs/specs/loft-channel-videos.md | sha256:0603e267973b9d683772fe8c156d662e1c9e873ea0f0739a1f52dac0c8c73550 |
 | SPEC-CORE-167 | superseded | docs/specs/excel-font-size.md | sha256:4ed8d920a10cbebae7d7f1bc7a16c143bfc77f9969be085c5d10855033059c3b |
-| SPEC-CORE-168 | approved | docs/specs/excel-actual-size.md | sha256:c522d8b535ca199f0aba24b91519c35ed89d94d56b41e99575ba21b5d650a444 |
+| SPEC-CORE-168 | implemented | docs/specs/excel-actual-size.md | sha256:c522d8b535ca199f0aba24b91519c35ed89d94d56b41e99575ba21b5d650a444 |
