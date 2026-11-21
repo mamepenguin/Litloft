@@ -1,0 +1,150 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "R1",
+      "origin": "reviewer",
+      "claim": "The change reaches the URL-import speech-to-text path (`_should_run_stt` → `_download_stt_and_notify`, which writes a `.stt_temp` audio file beside the `.loft` and starts an intelligence job), and the touch-point list does not name it.",
+      "impact": "A URL import in the \"If no captions\" (`missing_captions`) mode of a chat-replay-only archive, or of a video with no candidate track, now downloads hours of audio and queues an STT job. Before this change it did neither, because `has_captions` was true. The spec's item 7 describes this, but no touch point or invariant guards it.",
+      "evidence": "service.py:1068-1073 passes `has_captions=bool(meta.get(\"has_captions\"))` to `_should_run_stt`. service.py:422-425 returns `not has_captions` for `missing_captions`. service.py:1092-1118 (`_download_stt_and_notify`) downloads audio and emits `scan.complete`. service.py:200 changes `has_captions` to `caption_track is not None`. router.py:199-201 forwards the user's `stt_mode` into `enqueue_fetch`.",
+      "repro": "not_reproduced. By reading: for info {language: None, subtitles: {live_chat: ...}, automatic_captions: {}} the old code computed has_captions=True, so `_should_run_stt` returned False. The new code computes has_captions=False, so with stt_mode='missing_captions' `_should_run_stt` returns True. No new test covers this.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is the intended behaviour described in spec item 7 and breaks no declared invariant. I8 covers only subscription imports and the startup retry, which use the default stt_mode 'manual' (service.py:801, service.py:940). What is missing is a touch point and test coverage for this path.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add `_should_run_stt` / `_download_stt_and_notify` (`.stt_temp` audio, intelligence job) to the touch-point list. Optionally add a test pinning that a `missing_captions` URL import of a chat-replay-only video starts STT and a `manual` one does not."
+    },
+    {
+      "id": "R2",
+      "origin": "reviewer",
+      "claim": "The change alters what the subscription path writes to `subscription_videos.error_kind`, and the touch-point list names only `loft_metadata`, not that table.",
+      "impact": "Take a newly imported item with no usable track on a subscription without `include_no_transcript`. It is recorded `imported` with `error_kind` NULL instead of `no_transcript`, and `subdb.update_caption_state` is no longer called for it. Spec item 4 states that nothing reads the difference for an `imported` row, so no user-visible defect was found. The table change is still unplanned with respect to the touch-point list.",
+      "evidence": "manager.py:730 now skips `fetch_transcript` because `meta.has_captions` is False for chat-replay-only items. manager.py:729/738 then leaves `transcript_error` None. manager.py:532-535 records `imported` with `error_kind=outcome.transcript_error`. Before, the provider returned `ERROR_NO_TRANSCRIPT` (youtube.py:599-604, registry.py:33) for these items.",
+      "repro": "not_reproduced. test_spec_addon_166_subscription_imports_a_chat_replay_only_video_without_a_caption_download asserts (status, error_kind) == ('imported', None), which confirms the new write.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "The spec text describes this and breaks no invariant. Only the touch-point list omits the table.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Add `subscription_videos` (`error_kind` written by `SubscriptionManager`) to the touch-point list."
+    },
+    {
+      "id": "R3",
+      "origin": "reviewer",
+      "claim": "The fetch-path changes apply to every URL the `.loft` fetch path handles, including Vimeo and other sites. The touch points and invariants describe only YouTube.",
+      "impact": "For a non-YouTube URL, two things change. `has_captions` is now decided by the YouTube candidate rule: language-or-`ja`, `-orig`, then the base. A metadata error whose text matches the YouTube classifier's markers (`video unavailable`, `private video`, `this video is not available`, ...) marks the row `permanent`, which removes it from the startup retry. For example, a Vimeo video with no reported language and only `en` subtitles now shows the \"YouTube has no captions\" badge. In `missing_captions` mode it gets STT. Before, it had `has_captions` true and was retried forever. Whether this is right for other providers was not decided in the touch points.",
+      "evidence": "service.py:945-951 classifies any `_fetch_metadata_sync` exception with `_classify_fetch_error` from `subscription/providers/youtube.py`. That function is documented at youtube.py:63-71 as matching yt-dlp's YouTube ExtractorError texts. It runs regardless of `detect_provider(item.url)` (service.py:980). `_caption_track` (service.py:166-177) runs for every info dict. The docs say Vimeo is supported on the fetch path (docs/addons/media-import.md: \"YouTube and Vimeo play in embedded players\").",
+      "repro": "not_reproduced. Vimeo and other extractors' subtitle keys and error texts were not checked.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No declared invariant covers non-YouTube providers. The behaviour is plausible but unplanned.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add non-YouTube URLs on the fetch path to the touch points, and state their intended handling. Alternatively, gate the `permanent` write on `detect_provider(item.url) == 'youtube'`."
+    },
+    {
+      "id": "R4",
+      "origin": "reviewer",
+      "claim": "The change reaches the frontend `CaptionStatusBadge` (and `LoftMetadataPanel` through it) through the new `has_captions` meaning and the new `permanent` write. The touch-point list names no frontend file.",
+      "impact": "Rows that showed the retryable \"Caption download failed\" now show \"YouTube has no captions\". Unavailable rows show the permanent-failure label. There is no code change; only displayed state changes, as spec item 7 describes.",
+      "evidence": "CaptionStatusBadge.tsx:59 branches on `!metadata.has_captions` before `caption_error_kind`. api.ts:26 and schemas.py:35 expose `has_captions`.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is expected UI behaviour from spec item 7 and breaks no invariant. The list does not name it.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Name `frontend/CaptionStatusBadge.tsx` (read-only, behaviour changes) in the touch-point list."
+    },
+    {
+      "id": "R5",
+      "origin": "reviewer",
+      "claim": "The new test module imports its data table (`_CASES`, `_PREFIX`, `UNAVAILABLE`) from an existing test module, `tests/test_youtube_item_classification.py`. The touch points describe only new tests.",
+      "impact": "If someone edits the classification table in the other test file, the SPEC-ADDON-167 test silently changes what it checks. If they remove or rename those names, the new test breaks at import time. No product impact.",
+      "evidence": "test_spec_addon_165_caption_track.py:21-25 imports from addons.media_import.tests.test_youtube_item_classification. That file defines _PREFIX at line 28, UNAVAILABLE at line 36 and _CASES at line 40.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is test-to-test coupling and breaks no invariant.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    }
+  ],
+  "specification_compliance": [
+    "I2/I4: `_caption_track` (service.py:166-177) builds candidates L, L-orig, base, base-orig, deduplicated in order with dict.fromkeys. It excludes `live_chat` from `subtitles` only, matches exact strings, and `has_captions` is `caption_track is not None` (service.py:200). This matches the spec.",
+    "I3: the fetch path downloads only when `has_captions` is true (service.py:1029) and passes `caption_track` (service.py:1038). `_download_captions_sync` requests `[lang]`, a single key (service.py:308).",
+    "I6: `_mark_caption_error_permanent` runs an UPDATE scoped by file_id that writes only caption_error_kind (service.py:261-273). It is called only when `_classify_fetch_error` returns `ItemUnavailable`, and the exception is re-raised (service.py:946-951). With no row, the UPDATE affects zero rows.",
+    "I7: `_retry_failed_captions` SQL is unchanged (service.py:913-928).",
+    "I8: the startup retry calls `enqueue_fetch` with the default stt_mode 'manual' (service.py:801, 940). The subscription path never calls STT.",
+    "I9: manager.py:730 skips `fetch_transcript` when `has_captions` is false and `include_no_transcript` is off. The item is still recorded `imported` (manager.py:532-535).",
+    "ItemMetadata.caption_track is keyword-only in practice: every construction found uses keyword arguments, so inserting the field mid-dataclass shifts nothing."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "Non-YouTube URLs (Vimeo, other sites) on the fetch path are subject to the YouTube candidate rule and the YouTube error classifier (R3).",
+    "`subscription/db.py:1051-1065` (`register_loft`) writes `has_captions` with the new meaning on the subscription path. The touch points cover the table but do not name this writer.",
+    "If `_mark_caption_error_permanent` raises (DB error), it replaces the original yt-dlp exception in the `_worker` log."
+  ],
+  "regression_risks": [
+    "URL imports in `missing_captions` mode now start STT (an audio download plus an intelligence job) for chat-replay-only archives and for videos without a candidate track (R1).",
+    "Existing tests whose fake yt-dlp info has no `language` and lists only non-`ja` keys would now see has_captions false. A grep found no such fake outside the new file, but the full test suite was not run.",
+    "Real yt-dlp's handling of `subtitleslangs: ['en']` when `en-orig` and others are listed is assumed to write only the exact key. The test fake matches exact strings, so this rests on the premise."
+  ],
+  "test_coverage": [
+    "The track-choice table covers L, L-orig, base, base-orig, live_chat exclusion, the unknown-language default `ja`, exact-string matching, and no widening to regional keys.",
+    "The fetch path and the subscription path are both covered for a region video (I1) and a chat-replay-only video (I4, I9), including the number of yt-dlp builds (I3).",
+    "SPEC-ADDON-167 is covered across the shared classification table: a row with permanent, a row without, and a downloaded row that keeps its .vtt.",
+    "Not covered: that the startup retry enqueues with stt_mode 'manual' (the startup half of I8). A mutation of the default stt_mode in `_retry_failed_captions` would survive these tests.",
+    "Not covered: a `missing_captions` URL import that now starts STT for a chat-replay-only video.",
+    "Removing the `- {\"live_chat\"}` subtraction in `_caption_track` is an equivalent mutant, because `live_chat` can never equal a candidate. This is not a gap."
+  ],
+  "not_verified": [
+    "Tests were not run; this review is read-only.",
+    "Vimeo and other non-YouTube extractors' subtitle key shapes and error texts versus `_classify_fetch_error` markers.",
+    "Whether real yt-dlp writes exactly one track for `subtitleslangs: [key]` when sibling keys such as `en-orig` are listed.",
+    "The `def` line of the manager.py import function (line 679) and the rest of manager.py outside lines 520-545 and 680-789.",
+    "The intelligence addon's handling of the new `.stt_temp` jobs."
+  ],
+  "coverage": [
+    {
+      "path": "addons/media_import/backend/service.py",
+      "read": "full",
+      "reason": "Read every changed hunk with its enclosing function: lines 160-359 (`_caption_track`, `_fetch_metadata_sync`, classifiers, new helpers, `_download_captions_sync`), 410-434 (`_should_run_stt`) and 820-1119 (`_worker`, `_retry_failed_captions`, `_fetch_and_update`, start of `_download_stt_and_notify`)."
+    },
+    {
+      "path": "addons/media_import/backend/subscription/manager.py",
+      "read": "full",
+      "reason": "Read the changed hunk and its enclosing import function (lines 680-789), plus the caller's record of `transcript_error` (lines 520-545)."
+    },
+    {
+      "path": "addons/media_import/backend/subscription/providers/youtube.py",
+      "read": "full",
+      "reason": "Read the changed hunk in `fetch_item` (lines 505-606, including `fetch_transcript`) and `_classify_fetch_error` with its markers (lines 60-110)."
+    },
+    {
+      "path": "addons/media_import/backend/subscription/registry.py",
+      "read": "full",
+      "reason": "Read the changed `ItemMetadata` dataclass in full (lines 80-120)."
+    },
+    {
+      "path": "addons/media_import/backend/tests/test_spec_addon_165_caption_track.py",
+      "read": "full",
+      "reason": "Read the whole file from the supplied diff, where it is a new file shown in full; it was not opened with the Read tool. Checked its imported names in test_youtube_item_classification.py."
+    }
+  ],
+  "confidence": 80
+}

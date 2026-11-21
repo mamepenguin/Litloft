@@ -339,3 +339,6 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-CORE-165 | implemented | docs/specs/app-folder-position.md | sha256:2ae76dd926a84a3a8f3ac2c31f57d230a34d20024399010d35478959fdf08961 |
 | SPEC-CORE-166 | implemented | docs/specs/app-folder-position.md | sha256:2ae76dd926a84a3a8f3ac2c31f57d230a34d20024399010d35478959fdf08961 |
 | SPEC-CORE-171 | implemented | docs/specs/reading-chips-follow-position.md | sha256:e414c8e37f7b8ba79743ee232dcb09f086f73f8ef2e35404a6be496891f024ba |
+| SPEC-ADDON-165 | implemented | docs/specs/media-import-caption-languages.md | sha256:2c6e2227ff6782339b7e487560771a02643e4a8a839e5cd6b269d54e00e2f5ed |
+| SPEC-ADDON-166 | implemented | docs/specs/media-import-caption-languages.md | sha256:2c6e2227ff6782339b7e487560771a02643e4a8a839e5cd6b269d54e00e2f5ed |
+| SPEC-ADDON-167 | implemented | docs/specs/media-import-caption-languages.md | sha256:2c6e2227ff6782339b7e487560771a02643e4a8a839e5cd6b269d54e00e2f5ed |
