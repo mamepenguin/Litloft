@@ -1,0 +1,82 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "MEDIUM",
+  "findings": [
+    {
+      "id": "TP-1",
+      "origin": "reviewer",
+      "claim": "The diff changes .gitignore (lines 72-81), and no declared touch-point list names it because this change has no invariants file.",
+      "impact": "None that a user can hit. The patterns ignore only files, not directories, so the negation `!/docs/process/reviews/*/design/**` re-includes the existing design PNGs, including nested ones such as feature-search-results-layout/design/before/*.png and feature-video-card-spacing/design/*.png.",
+      "evidence": ".gitignore:74-81. Design images exist under docs/process/reviews/feature-scenes-change-points/design/, feature-search-results-layout/design/before/ and feature-video-card-spacing/design/. All of them match `*/design/**` and stay tracked.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariants are declared, so the touch-point list is empty and every reached path is formally unlisted. Nothing is broken.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    },
+    {
+      "id": "TP-2",
+      "origin": "reviewer",
+      "claim": "The diff changes .claude/agents/design-checker.md (lines 21-23), which is outside any declared touch-point list because none exists.",
+      "impact": "The design-checker now stops when a named screenshot is missing. Running it in a checkout other than the one where R-5 ran would therefore stop it instead of producing a design check. This is consistent with PROJECT.md:80-85, which says it runs after R-5 in the same flow.",
+      "evidence": ".claude/agents/design-checker.md:19-23",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Undeclared touch point. No invariants exist to break.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    },
+    {
+      "id": "TP-3",
+      "origin": "reviewer",
+      "claim": "The diff changes docs/process/PROJECT.md (lines 80-83), which is outside any declared touch-point list because none exists.",
+      "impact": "No code effect. The prose matches what .gitignore does: review media is ignored and design/ stays tracked.",
+      "evidence": "docs/process/PROJECT.md:80-83 compared with .gitignore:74-81",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Undeclared touch point. No invariants exist to break.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    }
+  ],
+  "specification_compliance": [
+    "The .gitignore patterns ignore image and video files under docs/process/reviews/ and re-include everything under <topic>/design/. This matches PROJECT.md:81-83.",
+    "Because the patterns ignore files rather than directories, the negation can re-include them. Git's rule that a file cannot be re-included under an excluded parent directory does not apply here."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "Media formats not listed (.mov, .avif, .svg, .mkv) would still be committed if R-5 produced them. None exist under docs/process/reviews/ today.",
+    "The negation `/docs/process/reviews/*/design/**` matches design/ only directly under a topic directory. A design/ nested deeper, such as <topic>/r1/design/, would have its images ignored. No such layout exists today."
+  ],
+  "regression_risks": [
+    "A .gitignore entry does not untrack files already in the index. The 3,000+ PNGs under docs/process/reviews/*/shots/ in the working tree stay tracked unless a separate commit (presumably 4fa9fda0b) removed them from the index.",
+    "untracked_paths in review.sh and the frontend gate both use `git ls-files --others --exclude-standard`. review.sh already filters out docs/process/reviews/, so ignoring those files does not change which files it treats as reviewed."
+  ],
+  "test_coverage": [
+    "No test covers .gitignore patterns. This change has no tests and none is expected."
+  ],
+  "not_verified": [
+    "Whether the existing shots/*.png files are still in the git index. Checking needs git ls-files, which I cannot run.",
+    "The actual content of commit c9b50b4 compared with its parent 4fa9fda0b. I reviewed the supplied diff against origin/develop.",
+    "Whether git check-ignore gives the expected result for each pattern. I reasoned from gitignore semantics and did not run it."
+  ],
+  "coverage": [
+    {
+      "path": ".gitignore",
+      "read": "full",
+      "reason": "Read the whole file, lines 1-81."
+    }
+  ],
+  "confidence": 85
+}
