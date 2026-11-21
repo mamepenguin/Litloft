@@ -47,6 +47,13 @@ keep text sizes off the points-to-pixels table:
   otherwise (no width, or a width that is not positive or rounds to 0) `Math.round(sheet default width × 7)`, or 64 when the sheet has no positive
   default width; the library then draws it at `6 × px / 6`, which is `px` up to
   floating-point error;
+- the library drops the columns to the right of the last cell column before the grid
+  gets them, and the grid draws those at its own 80 px; so `beforeTransformData` also
+  records, per worksheet, the pixel width every column would get by the rule above (or
+  that it is hidden), and `transformData` gives each column of the grid's sheet that has
+  no entry, up to the sheet's `cols.len`, that recorded width (0.1 when hidden, as the
+  library draws a hidden column), or the sheet's default when the column was not
+  defined;
 - every distinct font's numeric `size` (points) is multiplied by 16/9, so the library's
   `Math.round(size / 1.333333)` gives `Math.round(points × 4/3)`, Excel's pixel size;
 - every picture's anchor offsets (`nativeColOff`, `nativeRowOff`) and `ext` width and
@@ -62,13 +69,15 @@ What each part is drawn at, in CSS px at devicePixelRatio 1 and 2:
 | Row without a height, sheet default 15 pt | 24 | 20 |
 | Column 12.71 characters | 76 | 89 |
 | Column without a width, sheet default 14.43 | 80 | 101 |
+| Column 10.29 characters right of the last cell column | 80 | 72 |
 | Text 8 pt | 8 | 11 |
 | Text 10 pt | 11 | 13 |
 | Text 11 pt | 11 | 15 |
 | Text 14 pt | 15 | 19 |
 
 Tried on five workbooks, copies of three production workbooks and two others with pictures: wrapped
-text stayed inside its rows, a sequence-diagram picture stayed on the cells it covers
+text broke at the row heights the workbook set except where noted under *Checked, no
+action*, a sequence-diagram picture stayed on the cells it covers
 in Excel, and text that the library clipped at a cell edge because its column was
 narrower than Excel's ("セキュリティ要件" in a 14.44-character column) fitted.
 
@@ -99,6 +108,8 @@ SPEC-CORE-155's "what is shown is what the library draws".
      visited, hidden rows included, and each column's `width`. The library keeps the
      columns up to the largest cell index of its non-hidden rows, so this covers every
      column it draws; any extra column it drops;
+   - `worksheet.columns` (read before the library trims it), each column's `width` and
+     `hidden`, to record the width of every column the worksheet defines;
    - `worksheet.getImages()`, and each image's `range.tl`, `range.br` (`nativeColOff`,
      `nativeRowOff`) and `range.ext` (`width`, `height`), any of which may be missing;
 
@@ -107,7 +118,10 @@ SPEC-CORE-155's "what is shown is what the library draws".
    library draws it at 0.1 px whatever its size). It returns the workbook it was given.
 3. The library converts the workbook and calls `transformData` with the sheets. The
    function adds 0.01 to each distinct numeric `font.size` in each sheet's `styles`, and
-   returns the list it was given.
+   fills the columns with no entry as *Summary* says; the n-th sheet in the list is the
+   n-th worksheet `eachSheet` visited (the library converts them in that order, one sheet
+   each). The records live only for the one `preview` (one pair of functions per
+   drawing). It returns the list it was given.
 4. Everything after `preview` is as on `develop`: the adapter marks the drawing drawn and
    calls the grid sheet's `reload` once.
 5. A sheet reached by its tab is already scaled: every worksheet was scaled in step 2,
@@ -215,7 +229,7 @@ the change may not add more than one second to it. No new dependency.
 ## Invariants
 
 I1. For every worksheet the library loads, rows 1 to 100 and every existing row after them are drawn at `(its height, else the sheet's positive default row height, else 15) × 4/3` px, except hidden rows; no row past 100 is created.
-I2. For every worksheet, every column the library draws is drawn at `Math.round(its width × 7)` px when that is positive, else `Math.round(the sheet's positive default width × 7)`, else 64, except hidden columns.
+I2. For every worksheet, every column from 1 to the grid sheet's `cols.len` is drawn at `Math.round(its width × 7)` px when that is positive, else `Math.round(the sheet's positive default width × 7)`, else 64, except hidden columns, including the columns right of the last cell column that the library drops.
 I3. Cell text whose font has a numeric size of `p` points is drawn at `Math.round(p × 4/3)` CSS px at a whole-number devicePixelRatio; every numeric `size` the grid receives is a whole number plus 0.01.
 I4. Every picture's anchor offsets (`nativeColOff`, `nativeRowOff` of `tl` and `br`) and one-cell-anchor size (`ext.width`, `ext.height`) are 4/3 of the values the library loaded, so a picture that lies over the columns the library keeps and the rows that exist stays on the same cells as the scaled grid.
 I5. Each font object, row, column and picture is scaled exactly once per drawing; a `reload`, the frame's `ResizeObserver`, a window `resize` and a sheet switch scale nothing again.
@@ -230,6 +244,13 @@ SPEC-CORE-167 I3. Superseded by SPEC-CORE-168 I1, I2 and I4: row heights, column
 SPEC-CORE-167 I6. Superseded by SPEC-CORE-168 I3: 8 pt text is drawn at 11 CSS px, and 10, 12 and 14 pt at 13, 16 and 19.
 
 ## Checked, no action
+
+- **Wrapped text can need more lines than in Excel.** The library breaks lines with the
+  browser's fonts. Japanese text in a Latin-font cell falls back to a font wider than
+  Excel's MS P Gothic, so a line holds fewer characters; at Excel's size a cell can need
+  a line more than its row holds and is clipped (R-5: E8 on the セキュリティ要件 tab of
+  `要件定義署のサンプル`, four lines in a 42 px row). Accepted by the owner: changing it
+  means changing the library's text layout.
 
 - **The default font's digit width.** Excel uses the maximum digit width of the
   workbook's default font; 7 px is right for Calibri 11 and Arial 10, the defaults of
