@@ -59,6 +59,7 @@ export function folderCrumbs(
   if (end === "") return [];
 
   const segments = end.split("/");
+  const shown = position === null ? targetFolders : narrowFolders(targetFolders, position);
   return segments.map((name, index) => {
     const folder = segments.slice(0, index + 1).join("/");
     const strictAncestor =
@@ -67,7 +68,16 @@ export function folderCrumbs(
       folder,
       name,
       current: folder === end,
-      link: strictAncestor && !sameFolders(narrowFolders(targetFolders, folder), targetFolders),
+      link: strictAncestor && opensAnotherView(narrowFolders(targetFolders, folder), targetFolders, shown),
     };
   });
+}
+
+/** A segment that narrows to the top's folders or to the current ones would show a view already reachable without moving. */
+function opensAnotherView(
+  narrowed: readonly string[],
+  top: readonly string[],
+  shown: readonly string[],
+): boolean {
+  return !sameFolders(narrowed, top) && !sameFolders(narrowed, shown);
 }

@@ -5,7 +5,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 
 import { writeAppPrefs } from "@/lib/appPrefs";
 import { appRequests } from "@/lib/memberTarget";
@@ -429,5 +429,22 @@ describe.each(APPS)("$id another target chosen while the URL replace is still pe
     const after = wire.calls.slice(before).filter((call) => isShelves(call) || isShelvesQuery(call));
     expect(after.some(isChips)).toBe(true);
     for (const call of after) expect(foldersOf(call)).not.toContain("Videos/Study");
+  });
+});
+
+describe.each(APPS)("$id a target with two path folders", (appCase) => {
+  it("draws no folder crumb as a link when choosing it would show the current view", async () => {
+    smartFolders = () => json([smartFolder("sf-two", "Two paths", "path:Videos/Study/Math path:Music")]);
+    writeAppPrefs(DRIVE, { face: "library", target: "sf-two" }, appCase.id);
+    open(appCase, "folder=Videos%2FStudy");
+    await waitFor(() => expect(wire.calls.some(isChips)).toBe(true));
+    await settle();
+
+    const crumbs = screen.getByLabelText("Folder position");
+    const linkTexts = Array.from(crumbs.querySelectorAll("a")).map((a) => a.textContent?.trim());
+    expect(crumbs.textContent).toContain("Videos");
+    expect(linkTexts).not.toContain("Videos");
+    expect(linkTexts).not.toContain("Study");
+    expect(within(crumbs).getByRole("link", { name: "Top" })).toBeInTheDocument();
   });
 });

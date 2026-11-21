@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "I8-FOLDER-SAME",
+      "status": "confirmed",
+      "note": "Reproduced by tracing the code. frontend/src/components/appshell/folderPosition.ts:70 decides link = strictAncestor && !sameFolders(narrowFolders(targetFolders, folder), targetFolders). It compares the crumb's view with the target's top, not with the current view narrowFolders(targetFolders, position), which is the value LibraryFace uses for its requests (readingapp/LibraryFace.tsx:117-125, videoapp/LibraryFace.tsx:125). narrowFolders (appshell/folders.ts:26-40) keeps a target folder that lies inside the chosen folder and drops one that does not. Take target folders [A/b/c, Q] and position A/b. Crumb A: it is a strict ancestor, and narrowFolders(T, A) = [A/b/c], which is not equal to T, so A is a link. The current view is narrowFolders(T, A/b) = [A/b/c], so A leads to the same view. The trail ends at the base A/b/c, because the backend's _folder_base (backend/app/routers/shelves.py:191-208) descends while there is a single child, and A/b/c starts with A/b/. The same happens at position A/b/c, where both A and A/b are same-view links. Reachability: following chips from the top (base '', chips A and Q, then base A/b/c with chips under it) never lands on A/b or A/b/c. So this case needs a hand-written or bookmarked `folder` URL. At deeper positions reached by chips (for example A/b/c/d), the crumbs A, A/b and A/b/c all lead to [A/b/c]. That differs from the current view, so I8 holds there, though the three links all lead to the same view."
+    }
+  ],
+  "specification_compliance": [
+    "I8 (r6), the folder crumb clause: violated when the position is a folder whose narrowed folder set equals an ancestor's narrowed folder set (for example target [A/b/c, Q] at position A/b). The crumb test at folderPosition.ts:70 compares against the target's top, not the current view."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "Under a folder-limited target, several ancestor crumbs (for example A, A/b, A/b/c) can each be links to the same view. I8 does not forbid this as long as that view differs from the current one."
+  ],
+  "regression_risks": [
+    "Changing the crumb test to compare against narrowFolders(targetFolders, position) would turn a crumb's link into plain text whenever it leads to the current view. Existing crumb tests that expect links under folder-limited targets would need review."
+  ],
+  "test_coverage": [
+    "I found no test in appshell/__tests__ that covers folderCrumbs with a multi-folder target and a position whose narrowed set equals an ancestor's narrowed set. I checked only by grep, not with a full read of the test files."
+  ],
+  "not_verified": [
+    "Did not run any tests or the app; the reproduction is by code tracing only.",
+    "Did not read FolderPositionRows.tsx in full to confirm the link flag is drawn as an anchor with no further guard.",
+    "Did not check whether the page code normalises or redirects a typed `folder` such as A/b before it reaches folderCrumbs, beyond readFolderPosition."
+  ],
+  "confidence": 85,
+  "coverage": [
+    {
+      "path": "frontend/src/components/appshell/folderPosition.ts",
+      "read": "full",
+      "reason": "crumb link logic"
+    },
+    {
+      "path": "frontend/src/components/appshell/folders.ts",
+      "read": "full",
+      "reason": "narrowFolders semantics"
+    },
+    {
+      "path": "frontend/src/components/readingapp/LibraryFace.tsx",
+      "read": "partial",
+      "reason": "current view folders"
+    },
+    {
+      "path": "backend/app/routers/shelves.py",
+      "read": "partial",
+      "reason": "base computation for reachability"
+    }
+  ]
+}
