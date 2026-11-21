@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [],
+  "specification_compliance": [
+    "No findings were listed to verify, so no verification records are returned.",
+    "I2: the library replaces worksheet._columns with a slice (`e._columns=e._columns.slice(0,a+1)` in @js-preview/excel 1.7.14 lib/index.js line 36). It does not truncate the array in place, so the array held in keepColumns (excelAdapter.ts:143) still has every defined column, and applyColumns (excelAdapter.ts:221) puts it back.",
+    "Sheet/record alignment: the library's Og iterates workbook.eachSheet and pushes one sheet per worksheet. beforeTransformData pushes one record per eachSheet call (excelAdapter.ts:237-243), so records[i] matches sheets[i] in transformData (excelAdapter.ts:256).",
+    "I3: font.size × 16/9, divided by the library's 1.333333 and rounded, gives Math.round(p × 4/3) for half-point sizes. Then +0.01 is added once per font object (excelAdapter.ts:196-207).",
+    "I5/I7: Sets keyed by font, column and range object prevent double scaling within one drawing. Each try/catch around the scaling is empty and nothing in the adapter writes to console.",
+    "INDEX.md:334-335 sets SPEC-CORE-167 to superseded and SPEC-CORE-168 to approved."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "scaleColumns calls worksheet.getColumn(i) up to the widest row cellCount, and ExcelJS getColumn creates Column objects. As a result, worksheet._columns after preview can hold columns that the workbook did not define, set to the default width / 6. I2 says _columns holds 'every column object the worksheet defined'. The extra objects are consistent with the drawn widths but are not strictly 'defined' columns.",
+    "records in createSheetSizing is never reset. If the library ever called beforeTransformData more than once per instance, indices would misalign. drawExcel calls preview only once."
+  ],
+  "regression_risks": [
+    "The adapter relies on @js-preview/excel 1.7.14 internals: the beforeTransformData call order, the size/1.333333 rounding, the _columns slice, and reading _columns[n].width × 6 in picture placement. A library upgrade could silently change the sizes."
+  ],
+  "test_coverage": [
+    "FilePreview.excelActualSize.test.tsx has a fake whose getColumn creates columns like ExcelJS and whose conversion replaces _columns with a slice (lines 195-197, 291-292). It asserts the restored _columns length and widths (lines 860-952) and the beforeTransformData font scaling (line 974)."
+  ],
+  "not_verified": [
+    "Did not run the test suite or any build; I cannot run commands.",
+    "Did not verify drawn pixel sizes, picture placement on screen or time-to-show (R-5); these need a browser.",
+    "Did not trace the library's computation of `a` (largest kept column index) in full, or the grid's font px conversion of size+0.01.",
+    "Did not check the sha256 values in INDEX.md against the spec files."
+  ],
+  "confidence": 78
+}

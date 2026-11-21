@@ -148,7 +148,7 @@ beforeEach(() => {
   ]);
 });
 
-describe("I19 grouping and sort", () => {
+describe("SPEC-CORE-062 I19 grouping and sort", () => {
   beforeEach(() => {
     writeAppPrefs(DRIVE, { face: "library" }, "reading");
   });
@@ -251,7 +251,7 @@ function LibraryHarness({
   );
 }
 
-describe("I20 watch state needs a profile", () => {
+describe("SPEC-CORE-062 I20 watch state needs a profile", () => {
   it("draws no State and sends no watch without a profile", async () => {
     render(<LibraryHarness hasProfile={false} />);
     await screen.findByText("Flat one");
@@ -280,7 +280,7 @@ describe("I20 watch state needs a profile", () => {
   });
 });
 
-describe("I20a a superseded fetch is never drawn", () => {
+describe("SPEC-CORE-062 I20a a superseded fetch is never drawn", () => {
   it("draws only the latest response after a quick sort change", async () => {
     const pending: Array<{
       params: Params;
