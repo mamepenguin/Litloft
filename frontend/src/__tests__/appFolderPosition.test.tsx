@@ -110,11 +110,13 @@ interface AppCase {
   Route: () => React.ReactNode;
   ShelfRoute: () => React.ReactNode;
   emptyText: string;
+  /** A further spec the chip tests verify: the one that revises Reading's earlier chip invariant. */
+  chips?: string;
 }
 
 const APPS: AppCase[] = [
   { spec: "SPEC-CORE-165", id: "video", Route: VideoRoute, ShelfRoute: VideoShelfRoute, emptyText: "No files" },
-  { spec: "SPEC-CORE-166", id: "reading", Route: ReadingRoute, ShelfRoute: ReadingShelfRoute, emptyText: "No books" },
+  { spec: "SPEC-CORE-166", id: "reading", Route: ReadingRoute, ShelfRoute: ReadingShelfRoute, emptyText: "No books", chips: " SPEC-CORE-171" },
 ];
 
 // ---- the drive's folders --------------------------------------------------------
@@ -457,6 +459,7 @@ afterEach(() => {
 
 describe.each(APPS)("$spec $id: the folder position", (appCase) => {
   const S = appCase.spec;
+  const C = `${S}${appCase.chips ?? ""}`;
 
   beforeEach(() => {
     app = appCase;
@@ -464,7 +467,7 @@ describe.each(APPS)("$spec $id: the folder position", (appCase) => {
   });
 
   describe("the top of the target", () => {
-    it(`${S} D5 asks for the chips with no folder, draws no crumbs, and draws a chip link per child folder with its count`, async () => {
+    it(`${C} D5 asks for the chips with no folder, draws no crumbs, and draws a chip link per child folder with its count`, async () => {
       open(app, "");
       await waitForChips();
 
@@ -511,7 +514,7 @@ describe.each(APPS)("$spec $id: the folder position", (appCase) => {
   });
 
   describe("choosing a chip", () => {
-    it(`${S} I4 pushes one history entry with the folder, scrolls to the top, and asks again under it`, async () => {
+    it(`${C} I4 pushes one history entry with the folder, scrolls to the top, and asks again under it`, async () => {
       open(app, "");
       await waitForChips();
       const before = wire.calls.length;
@@ -617,7 +620,7 @@ describe.each(APPS)("$spec $id: the folder position", (appCase) => {
       await waitFor(() => expect(chipFolders()).toEqual(["Videos", "Archive", "Music"]));
     });
 
-    it(`${S} I8 draws from a deeper base, every segment from the position down plain, and the chips one level below base`, async () => {
+    it(`${C} I8 draws from a deeper base, every segment from the position down plain, and the chips one level below base`, async () => {
       open(app, q("Archive"));
       await waitForChips();
 
@@ -677,7 +680,7 @@ describe.each(APPS)("$spec $id: the folder position", (appCase) => {
       await waitFor(() => expect(chipFolders()).toEqual(["Videos/Study/Math", "Videos/Study/Physics"]));
     });
 
-    it(`${S} I1 under a folder-limited target, the position replaces the target's folder it lies inside`, async () => {
+    it(`${C} I1 under a folder-limited target, the position replaces the target's folder it lies inside`, async () => {
       writeAppPrefs(DRIVE, { target: "sf-videos" }, app.id);
       open(app, q("Videos/Study"));
       await waitForChips();
@@ -711,7 +714,7 @@ describe.each(APPS)("$spec $id: the folder position", (appCase) => {
   });
 
   describe("I6 the chips ignore the filters", () => {
-    it(`${S} I6 sends no tag, state or name with the chip request and draws the same chips and crumbs`, async () => {
+    it(`${C} I6 sends no tag, state or name with the chip request and draws the same chips and crumbs`, async () => {
       open(app, q("Videos"));
       await waitForChips();
       const plainChips = chipFolders();
@@ -790,7 +793,7 @@ describe.each(APPS)("$spec $id: the folder position", (appCase) => {
       for (const call of wire.calls.filter(isChips)) expect(param(call, "shelf_limit")).toBe("24");
     });
 
-    it(`${S} keeps the first page's base when a later chip page fails`, async () => {
+    it(`${C} keeps the first page's base when a later chip page fails`, async () => {
       chipAnswer = (call) => {
         const offset = Number(param(call, "offset") ?? "0");
         if (offset > 0) return json({ detail: "boom" }, 500);
@@ -814,11 +817,13 @@ describe.each(APPS)("$spec $id: the folder position", (appCase) => {
       expect(chipLinks()).toHaveLength(24);
     });
 
-    it(`${S} I11 a failed chip request offers Retry, draws the crumbs from the position, and still draws the shelves`, async () => {
+    it(`${C} I11 a failed chip request offers Retry, draws the crumbs from the position, and still draws the shelves`, async () => {
       chipAnswer = () => json({ detail: "boom" }, 500);
       open(app, q("Videos/Study"));
 
       expect(await screen.findByRole("button", { name: /retry/i })).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "All" })).toBeNull();
+      expect(screen.queryByRole("link", { name: "All" })).toBeNull();
       expect(crumbs()).not.toBeNull();
       expect(crumbs()!.textContent).toContain("Study");
       expect(chipFolders()).toEqual([]);
@@ -880,7 +885,7 @@ describe.each(APPS)("$spec $id: the folder position", (appCase) => {
   });
 
   describe("I5 the position against the target", () => {
-    it(`${S} I5 another target chosen removes folder with replace and adds no history entry`, async () => {
+    it(`${C} I5 another target chosen removes folder with replace and adds no history entry`, async () => {
       open(app, q("Videos/Study"));
       await waitForChips();
       expect(crumbs()).not.toBeNull();
@@ -938,7 +943,7 @@ describe.each(APPS)("$spec $id: the folder position", (appCase) => {
       expect(foldersOf(chipCalls.at(-1)!)).toEqual(["Videos"]);
     });
 
-    it(`${S} I5 I9 reloading keeps the position, and opening without folder is the top`, async () => {
+    it(`${C} I5 I9 reloading keeps the position, and opening without folder is the top`, async () => {
       open(app, q("Videos/Study"));
       await waitForChips();
       expect(crumbs()).not.toBeNull();
