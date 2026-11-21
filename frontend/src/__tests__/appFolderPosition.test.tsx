@@ -793,7 +793,7 @@ describe.each(APPS)("$spec $id: the folder position", (appCase) => {
       for (const call of wire.calls.filter(isChips)) expect(param(call, "shelf_limit")).toBe("24");
     });
 
-    it(`${S} keeps the first page's base when a later chip page fails`, async () => {
+    it(`${C} keeps the first page's base when a later chip page fails`, async () => {
       chipAnswer = (call) => {
         const offset = Number(param(call, "offset") ?? "0");
         if (offset > 0) return json({ detail: "boom" }, 500);
