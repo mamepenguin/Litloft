@@ -7,8 +7,30 @@ import {
 } from "./officeGridActive";
 
 interface SpreadsheetHandle {
-  xs?: { sheet?: { reload?: () => void; focusing?: boolean } };
+  xs?: {
+    datas?: unknown;
+    sheet?: { reload?: () => void; focusing?: boolean };
+  };
   observer?: MutationObserver | null;
+}
+
+function multiplyFontSizes(datas: unknown): void {
+  if (!Array.isArray(datas)) return;
+  const corrected = new Set<object>();
+  for (const sheet of datas) {
+    if (sheet === null || typeof sheet !== "object") continue;
+    const styles: unknown = (sheet as { styles?: unknown }).styles;
+    if (!Array.isArray(styles)) continue;
+    for (const style of styles) {
+      if (style === null || typeof style !== "object") continue;
+      const font: unknown = (style as { font?: unknown }).font;
+      if (font === null || typeof font !== "object" || corrected.has(font)) continue;
+      const { size } = font as { size?: unknown };
+      if (typeof size !== "number") continue;
+      corrected.add(font);
+      (font as { size: number }).size = size * 1.333333;
+    }
+  }
 }
 
 export async function drawExcel(
@@ -104,7 +126,15 @@ export async function drawExcel(
     dispose();
     throw error;
   }
-  drawn = true;
+  // The library divides point sizes by 1.333333 on load, then draws a size missing
+  // from its points-to-pixels table as that many pixels, so 6 pt text is 5 px. The
+  // literal is deliberate: with 4/3, 6 pt is exactly 8, a table value drawn at 11 px.
+  try {
+    multiplyFontSizes(spreadsheet.xs?.datas);
+  } catch {
+    // Unreadable styles keep the sizes the library loaded; nothing is logged.
+  }
   spreadsheet.xs?.sheet?.reload?.();
+  drawn = true;
   return dispose;
 }
