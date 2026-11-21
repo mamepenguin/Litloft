@@ -2,7 +2,7 @@
 
 SPEC-ID: SPEC-CORE-170
 
-Approval: sha256:2011aaf4ffa87f09e871fe06a3155b1ff55bfeedd87625aca031a54e29fa84dd Yuichi Senga 2026-11-21
+Approval:
 
 ## Summary
 
@@ -48,8 +48,13 @@ This adds to the one place Litloft corrects the library's drawing (SPEC-CORE-155
      `bottom` or `left`; the grid draws only those four), no `bgcolor`, and a `font.size`
      that is either absent or a number.
 3. The candidate's text width is measured with a 2D context of a canvas made with
-   `document.createElement("canvas")`, created on the first measurement of the
-   `transformData` call and reused for the rest of it. Its `font` is the one the grid
+   `document.createElement("canvas")` on the first measurement of the `transformData`
+   call, appended (hidden, `display: none`) to the element the library draws in, reused
+   for the rest of the call, and removed when the pass ends, also when it throws. The
+   browser picks the fallback font for characters the named font lacks by the canvas's
+   language, which a canvas inherits from the page only while it is in it: measured on
+   R-5's page, "bold 19px 游ゴシック" gave 237.5 px for a title on a detached canvas and
+   245.6 px on the grid's, so a detached canvas took too few cells. Its `font` is the one the grid
    will use: `[italic ][bold ]<px>px <name>`, where `<px>` is the style's numeric
    `font.size` truncated to a whole number (13 when the size is absent: the grid's
    default 10 pt through its table) and `<name>` the style's `font.name` or `Arial`. The
@@ -139,7 +144,8 @@ dependency.
 
 ## Touch points
 
-- `frontend/src/components/office/excelAdapter.ts`: the run-on step in `transformData`.
+- `frontend/src/components/office/excelAdapter.ts`: the run-on step in `transformData`,
+  which is given the element the library draws in for the measuring canvas.
 - `frontend/src/components/__tests__/FilePreview.excelActualSize.test.tsx`: may stub the
   canvas context in its setup, since jsdom's `getContext` logs to the console and those
   tests assert no console output; none of its assertions changes.
