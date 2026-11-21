@@ -101,6 +101,10 @@ const chars = (n: number, ch = "x") => ch.repeat(n);
 interface Measured {
   font: string;
   text: string;
+  /** Where the context's canvas was when this text was measured. */
+  parent: Element | null;
+  connected: boolean;
+  display: string;
 }
 
 interface Canvas {
@@ -109,18 +113,28 @@ interface Canvas {
   contexts: number;
   canvasesMade: number;
   mode: "context" | "null" | "throws";
+  measureThrows: boolean;
+  /** Every canvas element made through document.createElement. */
+  elements: HTMLCanvasElement[];
 }
 
 let canvas: Canvas;
 
 function installCanvas() {
-  canvas = { perChar: 10, measured: [], contexts: 0, canvasesMade: 0, mode: "context" };
+  canvas = { perChar: 10, measured: [], contexts: 0, canvasesMade: 0, mode: "context", measureThrows: false, elements: [] };
   const realCreate = document.createElement.bind(document);
   vi.spyOn(document, "createElement").mockImplementation(((tag: string, opts?: ElementCreationOptions) => {
-    if (String(tag).toLowerCase() === "canvas") canvas.canvasesMade += 1;
-    return realCreate(tag, opts);
+    const el = realCreate(tag, opts);
+    if (String(tag).toLowerCase() === "canvas") {
+      canvas.canvasesMade += 1;
+      canvas.elements.push(el as HTMLCanvasElement);
+    }
+    return el;
   }) as typeof document.createElement);
-  vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockImplementation(((kind: string) => {
+  vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockImplementation((function (this: HTMLCanvasElement, kind: string) {
+    const parentOf = () => this.parentElement;
+    const connected = () => this.isConnected;
+    const display = () => this.style.display;
     if (kind !== "2d") return null;
     canvas.contexts += 1;
     if (canvas.mode === "throws") throw new Error("no canvas");
@@ -134,7 +148,14 @@ function installCanvas() {
         font = v;
       },
       measureText(text: string) {
-        canvas.measured.push({ font, text });
+        canvas.measured.push({
+          font,
+          text,
+          parent: parentOf(),
+          connected: connected(),
+          display: display(),
+        });
+        if (canvas.measureThrows) throw new Error("measure failed");
         return { width: [...text].length * canvas.perChar };
       },
     };
@@ -152,6 +173,10 @@ type Fn = (x: unknown) => unknown;
 
 interface Drawing {
   options: Options;
+  /** The element the library was given to draw in. */
+  container: HTMLElement;
+  /** Canvas elements inside the document right after transformData returned. */
+  canvasesAfterTransform: number[];
   xs: {
     datas: unknown;
     loadData: (d: unknown) => void;
@@ -185,6 +210,8 @@ function installLibrary(load: (index: number) => unknown) {
     const index = drawings.length;
     const drawing: Drawing = {
       options,
+      container,
+      canvasesAfterTransform: [],
       xs: {
         datas: [],
         loadData: (d: unknown) => {
@@ -217,6 +244,7 @@ function installLibrary(load: (index: number) => unknown) {
         if (typeof transform === "function") {
           drawing.passed.push(sheets);
           sheets = transform(sheets);
+          drawing.canvasesAfterTransform.push(document.querySelectorAll("canvas").length);
         }
         drawing.xs.loadData(sheets);
         const grid = drawnBy(id, " sheet tabs");
@@ -868,6 +896,101 @@ describe("SPEC-CORE-170 I6 and I7 a missing canvas context, a sheet of unexpecte
     const trapRowZero = trapRow.rows[0].cells[0];
     if (trapRowZero.merge) expect(trapRow.merges).toEqual(["A1:B1"]);
     else expect(trapRow.merges).toEqual([]);
+    expectNoConsole();
+  });
+});
+
+describe("SPEC-CORE-170 §1.3 the measuring canvas is in the element the library draws in, hidden, only while the pass measures", () => {
+  function expectMeasuredInside(container: HTMLElement) {
+    expect(canvas.measured.length).toBeGreaterThan(0);
+    for (const m of canvas.measured) {
+      expect(m.parent, `canvas parent while measuring "${m.text}"`).toBe(container);
+      expect(m.connected).toBe(true);
+      expect(m.display).toBe("none");
+    }
+  }
+
+  function expectNoCanvasLeft(container: HTMLElement) {
+    expect(container.querySelector("canvas")).toBeNull();
+    expect(document.querySelectorAll("canvas")).toHaveLength(0);
+    for (const el of canvas.elements) expect(el.isConnected).toBe(false);
+  }
+
+  it("every measurement is made on a hidden canvas appended to the library's element, gone when transformData returns", async () => {
+    const { s, drawing } = await drawOne({
+      rows: {
+        0: { 0: { text: CONTROL_TEXT } },
+        1: { 0: { text: chars(14, "p") } },
+        2: { 0: { text: chars(16, "q") } },
+      },
+    });
+
+    expectControlRanOn(s);
+    expect(canvas.canvasesMade).toBe(1);
+    expect(measuredTexts()).toHaveLength(3);
+    expectMeasuredInside(drawing.container);
+    expect(drawing.canvasesAfterTransform).toEqual([0]);
+    expectNoCanvasLeft(drawing.container);
+    expectShownWithoutFallback(drawing);
+    expectNoConsole();
+  });
+
+  it("a direct transformData call measures inside the same element and removes its canvas", async () => {
+    const transform = await adapterTransform();
+    const container = drawings[0].container;
+    canvas.measured = [];
+    canvas.elements = [];
+    const again = [sheet({ rows: { 0: { 0: { text: CONTROL_TEXT } }, 3: { 2: { text: chars(20) } } } })];
+
+    transform(again);
+
+    expectControlRanOn(again[0]);
+    expectMeasuredInside(container);
+    expectNoCanvasLeft(container);
+  });
+
+  it("a step that throws after measuring still removes the canvas", async () => {
+    const transform = await adapterTransform();
+    const container = drawings[0].container;
+    canvas.measured = [];
+    canvas.elements = [];
+    let trapsHit = 0;
+    const first = sheet({ name: "First", rows: { 0: { 0: { text: CONTROL_TEXT } } } });
+    const trapRow = sheet({ name: "Trap", rows: { 0: { 0: { text: CONTROL_TEXT } } } });
+    Object.defineProperty(trapRow.rows, 1, {
+      enumerable: true,
+      get() {
+        trapsHit += 1;
+        throw new Error("unreadable row");
+      },
+    });
+    const given = [first, trapRow];
+
+    let out: unknown;
+    expect(() => {
+      out = transform(given);
+    }).not.toThrow();
+
+    expect(out).toBe(given);
+    expect(trapsHit).toBeGreaterThan(0);
+    expectControlRanOn(first);
+    expectMeasuredInside(container);
+    expectNoCanvasLeft(container);
+    expectNoConsole();
+  });
+
+  it("a measurement that throws still removes the canvas and shows the workbook", async () => {
+    canvas.measureThrows = true;
+    const { s, drawing } = await drawOne({
+      styles: [{ font: { size: 11 } }],
+      rows: { 0: { 0: { text: CONTROL_TEXT, style: 0 } } },
+    });
+
+    expect((s.styles[0].font as { size: number }).size).toBeCloseTo(11.01, 9);
+    expectMeasuredInside(drawing.container);
+    expect(drawing.canvasesAfterTransform).toEqual([0]);
+    expectNoCanvasLeft(drawing.container);
+    expectShownWithoutFallback(drawing);
     expectNoConsole();
   });
 });
