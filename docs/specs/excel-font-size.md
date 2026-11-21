@@ -59,14 +59,19 @@ at 100 %) clipped text at the row edges, because rows stay at 3/4.
 
 1. The Excel adapter (`frontend/src/components/office/excelAdapter.ts`) calls
    `preview(bytes)` as today.
-2. When `preview` resolves, inside the adapter's existing `try`, the adapter walks every
+2. When `preview` resolves, after the adapter's existing `try` around `preview` and
+   before `drawn` is set, the adapter walks every
    sheet the library loaded (`xs.datas`, one per sheet) and each sheet's `styles` list,
    and multiplies `font.size` by 1.333333 for each distinct `font` object whose `size` is
    a number. A `font` object reached from more than one style or sheet is corrected once.
+   The walk has its own `try`/`catch`; nothing it throws reaches the `try` around
+   `preview`, so it can never cause the fallback or a `dispose`.
 3. It then calls the `reload` it already calls on the grid's sheet, so the first frame
    the viewer shows has the corrected sizes, and only then marks the drawing drawn.
 4. Switching to another sheet tab shows that sheet with its sizes already corrected,
-   because every sheet was corrected in step 2.
+   because every sheet was corrected in step 2: the library's tab switch hands the
+   sheet's already-loaded entry of `xs.datas` to the grid (`sheet.resetData(datas[i])`)
+   and does not convert styles again.
 
 ### 2. Failure cases
 
@@ -81,8 +86,11 @@ at 100 %) clipped text at the row edges, because rows stay at 3/4.
 
 The correction has two states per drawing: not applied (between `init` and the end of
 `preview`) and applied. It goes from not applied to applied once, never back and never
-again: a redraw, a resize, an inspector toggle or a sheet switch does not multiply the
-sizes a second time. A new identity (SPEC-CORE-155 §3) is a new drawing, with its own
+again. The triggers that redraw an existing drawing are: a `reload` of the grid's sheet
+(called by the frame's `ResizeObserver`, which fires when the frame changes size, for
+example when the inspector opens or closes), and a sheet switch. Neither multiplies the
+sizes a second time. (SPEC-CORE-155 I7's "does not redraw" means no new fetch or
+`preview`; a `reload` of the grid is not that.) A new identity (SPEC-CORE-155 §3) is a new drawing, with its own
 library instance and its own single correction.
 
 ### 4. Data read and written
@@ -126,8 +134,10 @@ measurable time. No new dependency.
 
 ## Touch points
 
-- `frontend/src/components/office/excelAdapter.ts`: the correction after `preview`,
-  inside the existing `try`, before the existing `reload` and before `drawn` is set.
+- `frontend/src/components/office/excelAdapter.ts`: the correction after the `try`
+  around `preview`, with its own `try`/`catch`, before the existing `reload` and before
+  `drawn` is set.
+- `docs/specs/INDEX.md`: the SPEC-CORE-167 row's state.
 - A test under `frontend/src/components/__tests__/` with the library mocked: the mock's
   `xs.datas` carry styles with and without `font.size`, a `font` object shared by two
   styles, and a `reload` that records the sizes it sees.
@@ -139,11 +149,11 @@ measurable time. No new dependency.
 
 ## Invariants
 
-I1. After an Excel file is shown, every distinct `font` object reachable from any sheet's `styles` whose `size` was a number `n` when `preview` resolved has `size` equal to `n × 1.333333`, and every other style and font is unchanged.
-I2. The correction is applied exactly once per drawing: a redraw, a frame resize or a sheet switch leaves each `size` as I1 left it.
-I3. Row heights, column widths and every style property other than `font.size` are the values the library loaded.
+I1. When the correction does not throw, after an Excel file is shown every distinct `font` object reachable from any sheet's `styles` whose `size` was a number `n` when `preview` resolved has `size` equal to `n × 1.333333` (the literal, not 4/3).
+I2. The correction is applied exactly once per drawing: further `reload` calls on the grid's sheet, the frame's `ResizeObserver` firing, and a sheet switch leave each `size` as I1 left it.
+I3. Row heights, column widths, every style property other than `font.size`, and the `size` of any font that was not a number, are the values the library loaded.
 I4. When the first `reload` after `preview` runs, every size I1 names already has its corrected value.
-I5. A workbook whose `xs.datas` is missing or not an array, or whose styles hold unexpected shapes, or whose correction throws, is still shown, with no fallback panel and no `console.warn`.
+I5. A workbook whose `xs.datas` is missing or not an array, or whose styles hold unexpected shapes, or whose correction throws, is still shown, with no fallback panel, no `dispose`, and no `console` output of any kind from the correction.
 
 ## Checked, no action
 
@@ -162,6 +172,7 @@ I5. A workbook whose `xs.datas` is missing or not an array, or whose styles hold
   drawing is R-5's, at 1280 px, on the three workbooks in *Touch points*: on
   `要件定義署のサンプル` the 6 pt descriptions are larger than before and their wrapped
   lines fit inside their rows on the first sheet and on one other sheet reached by its
-  tab; on `EnglishCore工数実績表` the dates fit their cells on two sheets and stay fitting
-  after the inspector is closed and reopened (a redraw); on
+  tab; on `EnglishCore工数実績表` the dates fit their cells on two sheets and stay the same
+  size after the inspector is closed and reopened (a frame resize, which calls
+  `reload`); on
   `19_書き込みエンコード画面_r2` the text looks as before.
