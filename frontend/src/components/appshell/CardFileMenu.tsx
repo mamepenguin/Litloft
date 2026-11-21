@@ -73,7 +73,8 @@ export async function fetchAlignedPage<T>(
   const numbers = Array.from({ length: page - first + 1 }, (_, i) => first + i);
   const pages = await Promise.all(numbers.map(fetchByNumber));
   const items = pages.flatMap((one) => one.items).slice(start - (first - 1) * size);
-  return { items, total: pages[pages.length - 1].total };
+  // The held list still counts the removed items, so the total does too.
+  return { items, total: pages[pages.length - 1].total + removedBefore };
 }
 
 const CardFileMenuContext = createContext<CardFileMenuContextValue | null>(null);

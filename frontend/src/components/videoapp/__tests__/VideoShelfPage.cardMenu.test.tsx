@@ -285,6 +285,24 @@ describe("SPEC-CORE-157 I4 paging after a removal on See all", () => {
     expect(drawn()).toEqual(server.folder);
   });
 
+  it.each([121, 122])(
+    "SPEC-CORE-157 I4 after a trash a list of %i reaches its last file, whose page holds no more than the removed count",
+    async (size) => {
+      server.folder = ids(size);
+      page("folder");
+      await screen.findByText("Video k0");
+
+      await trash("k3");
+      await waitFor(() => expect(drawn()).not.toContain("k3"));
+      for (let i = 0; i < 5 && drawn().length < server.folder.length; i++) {
+        const before = drawn().length;
+        await nextPage();
+        await waitFor(() => expect(drawn().length).toBeGreaterThan(before));
+      }
+      expect(drawn()).toEqual(server.folder);
+    },
+  );
+
   it("SPEC-CORE-157 I4 after Remove from Continue the next Continue page neither skips nor repeats a file", async () => {
     server.continue = ids(130);
     page("watch");
