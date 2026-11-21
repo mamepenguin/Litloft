@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: ship — the owner wrote 「出荷」 on 2026-11-21 after reading r1 triage (HUMAN_REVIEW_REQUIRED, A 0, B 5)
 ran_in_app: yes
 at: fa3c28b7d70530f28e7034086a90e58cf412ff25
 by: agent

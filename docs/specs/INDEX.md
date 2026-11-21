@@ -334,6 +334,6 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-CORE-157 | implemented | docs/specs/app-card-menu.md | sha256:bc4a87bf34809c8be86599a681b4fbd76ae5a41de44bddd76036f00ced3a3d78 |
 | SPEC-ADDON-164 | implemented | docs/specs/app-card-menu.md | sha256:bc4a87bf34809c8be86599a681b4fbd76ae5a41de44bddd76036f00ced3a3d78 |
 | SPEC-CORE-167 | implemented | docs/specs/excel-font-size.md | sha256:4ed8d920a10cbebae7d7f1bc7a16c143bfc77f9969be085c5d10855033059c3b |
-| SPEC-ADDON-165 | approved | docs/specs/media-import-caption-languages.md | sha256:2c6e2227ff6782339b7e487560771a02643e4a8a839e5cd6b269d54e00e2f5ed |
-| SPEC-ADDON-166 | approved | docs/specs/media-import-caption-languages.md | sha256:2c6e2227ff6782339b7e487560771a02643e4a8a839e5cd6b269d54e00e2f5ed |
-| SPEC-ADDON-167 | approved | docs/specs/media-import-caption-languages.md | sha256:2c6e2227ff6782339b7e487560771a02643e4a8a839e5cd6b269d54e00e2f5ed |
+| SPEC-ADDON-165 | implemented | docs/specs/media-import-caption-languages.md | sha256:2c6e2227ff6782339b7e487560771a02643e4a8a839e5cd6b269d54e00e2f5ed |
+| SPEC-ADDON-166 | implemented | docs/specs/media-import-caption-languages.md | sha256:2c6e2227ff6782339b7e487560771a02643e4a8a839e5cd6b269d54e00e2f5ed |
+| SPEC-ADDON-167 | implemented | docs/specs/media-import-caption-languages.md | sha256:2c6e2227ff6782339b7e487560771a02643e4a8a839e5cd6b269d54e00e2f5ed |

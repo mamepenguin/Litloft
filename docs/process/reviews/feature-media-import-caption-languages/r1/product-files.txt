@@ -1,0 +1,4 @@
+addons/media_import/backend/service.py
+addons/media_import/backend/subscription/manager.py
+addons/media_import/backend/subscription/providers/youtube.py
+addons/media_import/backend/subscription/registry.py
