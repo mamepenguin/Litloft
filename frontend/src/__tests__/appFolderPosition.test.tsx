@@ -110,11 +110,13 @@ interface AppCase {
   Route: () => React.ReactNode;
   ShelfRoute: () => React.ReactNode;
   emptyText: string;
+  /** A further spec the chip tests verify: the one that revises Reading's earlier chip invariant. */
+  chips?: string;
 }
 
 const APPS: AppCase[] = [
   { spec: "SPEC-CORE-165", id: "video", Route: VideoRoute, ShelfRoute: VideoShelfRoute, emptyText: "No files" },
-  { spec: "SPEC-CORE-166", id: "reading", Route: ReadingRoute, ShelfRoute: ReadingShelfRoute, emptyText: "No books" },
+  { spec: "SPEC-CORE-166", id: "reading", Route: ReadingRoute, ShelfRoute: ReadingShelfRoute, emptyText: "No books", chips: " SPEC-CORE-171" },
 ];
 
 // ---- the drive's folders --------------------------------------------------------
@@ -457,6 +459,7 @@ afterEach(() => {
 
 describe.each(APPS)("$spec $id: the folder position", (appCase) => {
   const S = appCase.spec;
+  const C = `${S}${appCase.chips ?? ""}`;
 
   beforeEach(() => {
     app = appCase;
@@ -464,7 +467,7 @@ describe.each(APPS)("$spec $id: the folder position", (appCase) => {
   });
 
   describe("the top of the target", () => {
-    it(`${S} D5 asks for the chips with no folder, draws no crumbs, and draws a chip link per child folder with its count`, async () => {
+    it(`${C} D5 asks for the chips with no folder, draws no crumbs, and draws a chip link per child folder with its count`, async () => {
       open(app, "");
       await waitForChips();
 
@@ -511,7 +514,7 @@ describe.each(APPS)("$spec $id: the folder position", (appCase) => {
   });
 
   describe("choosing a chip", () => {
-    it(`${S} I4 pushes one history entry with the folder, scrolls to the top, and asks again under it`, async () => {
+    it(`${C} I4 pushes one history entry with the folder, scrolls to the top, and asks again under it`, async () => {
       open(app, "");
       await waitForChips();
       const before = wire.calls.length;
@@ -677,7 +680,7 @@ describe.each(APPS)("$spec $id: the folder position", (appCase) => {
       await waitFor(() => expect(chipFolders()).toEqual(["Videos/Study/Math", "Videos/Study/Physics"]));
     });
 
-    it(`${S} I1 under a folder-limited target, the position replaces the target's folder it lies inside`, async () => {
+    it(`${C} I1 under a folder-limited target, the position replaces the target's folder it lies inside`, async () => {
       writeAppPrefs(DRIVE, { target: "sf-videos" }, app.id);
       open(app, q("Videos/Study"));
       await waitForChips();

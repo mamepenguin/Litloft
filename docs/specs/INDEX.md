@@ -338,3 +338,4 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-CORE-169 | implemented | docs/specs/photo-diary-card-menu.md | sha256:9ff25c0f6938a18d113641c4809206eaac6703f3fbf7435bfa6ad6c1a316d19d |
 | SPEC-CORE-165 | implemented | docs/specs/app-folder-position.md | sha256:2ae76dd926a84a3a8f3ac2c31f57d230a34d20024399010d35478959fdf08961 |
 | SPEC-CORE-166 | implemented | docs/specs/app-folder-position.md | sha256:2ae76dd926a84a3a8f3ac2c31f57d230a34d20024399010d35478959fdf08961 |
+| SPEC-CORE-171 | draft | docs/specs/reading-chips-follow-position.md | |
