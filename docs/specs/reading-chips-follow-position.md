@@ -7,8 +7,8 @@ Approval:
 ## Summary
 
 SPEC-CORE-166 (`docs/specs/app-folder-position.md`, shipped in #667) replaced the Reading
-Library's chip row: there is no All chip any more, a chip is a link one level below the
-folder position, and going back up is the breadcrumb's job. That spec did not declare the
+Library's chip row: there is no All chip any more, a chip is a link to a child folder of the
+position's `base`, and going back up is the breadcrumb's job. That spec did not declare the
 earlier invariants it changes in `docs/specs/reading-app.md` (SPEC-CORE-062): I18 still
 describes the All chip and a chip that narrows in place, I16b a chip that resets to All on
 a fresh open, and I26 an All chip beside the retry. This spec revises those three

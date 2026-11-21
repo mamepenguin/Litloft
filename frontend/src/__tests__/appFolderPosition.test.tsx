@@ -822,6 +822,8 @@ describe.each(APPS)("$spec $id: the folder position", (appCase) => {
       open(app, q("Videos/Study"));
 
       expect(await screen.findByRole("button", { name: /retry/i })).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "All" })).toBeNull();
+      expect(screen.queryByRole("link", { name: "All" })).toBeNull();
       expect(crumbs()).not.toBeNull();
       expect(crumbs()!.textContent).toContain("Study");
       expect(chipFolders()).toEqual([]);
