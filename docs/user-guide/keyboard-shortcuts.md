@@ -254,13 +254,14 @@ In the question field on a file page's Ask tab and on the Ask page.
 | Action | Result |
 |---|---|
 | Right-click a file or folder | Menu (rename, move, copy, delete, pin, and more) |
+| Right-click a card in Video or Reading | The file menu for that card |
 | Long-press (touch) | Same as right-click |
 | `Shift`+click a file | Select a range |
 | `Cmd/Ctrl`+click a file | Add or remove it from the selection |
 | Drag a file onto a folder | Move it there |
 | Hold a drag over a closed folder in the tree | Open it, so you can drop inside |
 
-On the video app's **Recommended** cards, right-click or long-press opens a short menu (**Open in new tab**, **Not interested**) instead of the browser's own.
+On the video app's **Recommended** cards, right-click or long-press opens the addon's actions (**Not interested**) first, one divider, then the file menu instead of the browser's own.
 
 ## Video player gestures
 

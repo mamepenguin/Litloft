@@ -1,11 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useMemo, useRef, useState, type ReactNode } from "react";
 import { BookOpen, ChevronLeft, Search } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 
 import { EmptyState } from "@/components/EmptyState";
+import {
+  CardFileMenuProvider,
+  fetchAlignedPage,
+  useCardFileMenu,
+} from "@/components/appshell/CardFileMenu";
 import { NameFilter } from "@/components/appshell/NameFilter";
 import { RetryButton } from "@/components/appshell/RetryButton";
 import { ShelfBlock } from "@/components/appshell/ShelfBlock";
@@ -108,6 +113,20 @@ export function ReadingShelfPage({
     [chooseAppTarget, onTargetChosen, targetId, urlFilters],
   );
   const state = useMemo(() => ({ ...appState, chooseTarget }), [appState, chooseTarget]);
+  const continuePage = by === "watch" && shelfKey === "continue";
+  const cards = useCardFileMenu({
+    scope: JSON.stringify([
+      drive,
+      state.requests.key,
+      state.targetId,
+      state.nickname,
+      state.hasProfile,
+      state.params,
+    ]),
+    hasProfile: state.hasProfile,
+    continueListKeys: continuePage ? ["page"] : [],
+  });
+  const removedBefore = useRef(0);
   const offered: readonly ShelfSortChoice[] =
     by === "watch" && shelfKey === "continue" ? CONTINUE_SORT_CHOICES : SORT_CHOICES;
   const initialChoice = parseShelfSortId(initialSort ?? null, offered) ?? offered[0].id;
@@ -157,28 +176,30 @@ export function ReadingShelfPage({
       by === null || query === null || watchBlocked || !keyValid
         ? null
         : (page: number) =>
-            requests
-              .shelves(drive, {
-                ...query,
-                ...(watch ? { watch } : {}),
-                ...(requestedName ? { search: requestedName } : {}),
-                by,
-                key: shelfKey,
-                sort: sort.sort,
-                order: sort.order,
-                per_shelf: SHELF_PAGE_SIZE,
-                page,
-              })
-              .then(
-                (response) => {
-                  const shelf = response.shelves[0];
-                  return { items: shelf?.items ?? [], total: shelf?.count ?? 0 };
-                },
-                (error: unknown) => {
-                  if (isViewerRequired(error)) rejectViewer();
-                  throw error;
-                },
-              ),
+            fetchAlignedPage<ShelfItem>(page, removedBefore.current, SHELF_PAGE_SIZE, (n) =>
+              requests
+                .shelves(drive, {
+                  ...query,
+                  ...(watch ? { watch } : {}),
+                  ...(requestedName ? { search: requestedName } : {}),
+                  by,
+                  key: shelfKey,
+                  sort: sort.sort,
+                  order: sort.order,
+                  per_shelf: SHELF_PAGE_SIZE,
+                  page: n,
+                })
+                .then(
+                  (response) => {
+                    const shelf = response.shelves[0];
+                    return { items: shelf?.items ?? [], total: shelf?.count ?? 0 };
+                  },
+                  (error: unknown) => {
+                    if (isViewerRequired(error)) rejectViewer();
+                    throw error;
+                  },
+                ),
+            ),
     [
       drive,
       by,
@@ -194,7 +215,9 @@ export function ReadingShelfPage({
       rejectViewer,
     ],
   );
-  const paged = usePaged<ShelfItem>(fetchPage);
+  const paged = usePaged<ShelfItem>(fetchPage, cards.context.version);
+  removedBefore.current = cards.removedCount("page", paged.items);
+  const pageItems = cards.filter("page", paged.items);
   const sentinel = useNearEnd(paged.hasMore && paged.more === "idle", paged.loadMore);
 
   const title =
@@ -213,7 +236,7 @@ export function ReadingShelfPage({
     body = <EmptyState icon={BookOpen} title={t("noBooks")} />;
   } else if (paged.phase === "failed") {
     body = <RetryButton onRetry={paged.retry} />;
-  } else if (paged.phase === "ready" && paged.items.length === 0) {
+  } else if (paged.phase === "ready" && pageItems.length === 0) {
     body = filtersActive ? (
       <EmptyState icon={Search} title={tFilters("filterEmpty")} />
     ) : (
@@ -223,8 +246,10 @@ export function ReadingShelfPage({
     body = (
       <>
         <ReadingGrid
-          items={paged.items}
-          renderItem={(item) => <ReadingCard item={item} drive={drive} />}
+          items={pageItems}
+          renderItem={(item) => (
+            <ReadingCard item={item} drive={drive} fileMenu={{ listKey: "page" }} />
+          )}
         />
         <div ref={sentinel} aria-hidden="true" className="h-px" />
         {paged.more === "loading" && (
@@ -252,10 +277,11 @@ export function ReadingShelfPage({
   }
 
   return (
-    <PageFrame
-      width="wide"
-      header={
-        <ReadingAppHeader
+    <CardFileMenuProvider value={cards.context}>
+      <PageFrame
+        width="wide"
+        header={
+          <ReadingAppHeader
           drive={drive}
           state={state}
           title={title}
@@ -299,7 +325,9 @@ export function ReadingShelfPage({
         />
       }
     >
-      <div className="px-4 pb-6 pt-4 sm:pb-8">{body}</div>
-    </PageFrame>
+        <div className="px-4 pb-6 pt-4 sm:pb-8">{body}</div>
+      </PageFrame>
+      {cards.menu}
+    </CardFileMenuProvider>
   );
 }

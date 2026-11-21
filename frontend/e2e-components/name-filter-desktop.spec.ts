@@ -14,6 +14,7 @@ import {
   box,
   clipsTabs,
   fieldBox,
+  gapAboveTabRule,
   fieldIcon,
   fieldInput,
   noSidewaysScroll,
@@ -47,6 +48,7 @@ for (const app of ["video", "reading"] as const) {
         expect(Math.round(field.height), "36px tall on a fine pointer").toBe(36);
         expect(field.x).toBeGreaterThanOrEqual(library.x + library.width);
         expect(Math.abs(field.y + field.height / 2 - (library.y + library.height / 2)), "on the tab row").toBeLessThanOrEqual(2);
+        expect(await gapAboveTabRule(tabs[1], field), "the field clears the rule under the tabs").toBeGreaterThanOrEqual(4);
         expect(await widths(tabs), "the tabs keep their width").toEqual(before);
         expect(await fieldInput(page, locale).evaluate((el) => getComputedStyle(el).fontSize)).toBe("14px");
         await noSidewaysScroll(page);
@@ -119,6 +121,7 @@ for (const locale of ["en", "ja"] as const) {
       expect(await widths(tabs), "the tabs keep their width").toEqual(before);
       expect(Math.round(field.width), "a 260px field").toBe(260);
       expect(field.x).toBeGreaterThanOrEqual(library.x + library.width);
+      expect(await gapAboveTabRule(tabs[1], field), "the field clears the rule under the tabs").toBeGreaterThanOrEqual(4);
       await noSidewaysScroll(page);
     });
   }

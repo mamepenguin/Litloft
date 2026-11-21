@@ -127,6 +127,7 @@ import { FILE_MENU_DIVIDER_ARRANGEMENTS } from "./fileMenuDivider";
 import { BATCH_PROGRESS_ARRANGEMENTS } from "./batchProgress";
 import { FOCUS_MODE_ARRANGEMENTS } from "./focusMode";
 import { TRANSCRIPT_TOUCH_ARRANGEMENTS } from "./transcriptTouch";
+import { APP_CARD_MENU_ARRANGEMENTS } from "./appCardMenu";
 import {
   InspectorArchiveArrangement,
   InspectorPdfArrangement,
@@ -2930,6 +2931,7 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   ...BATCH_PROGRESS_ARRANGEMENTS,
   ...FOCUS_MODE_ARRANGEMENTS,
   ...TRANSCRIPT_TOUCH_ARRANGEMENTS,
+  ...APP_CARD_MENU_ARRANGEMENTS,
 };
 
 function App(): ReactElement {

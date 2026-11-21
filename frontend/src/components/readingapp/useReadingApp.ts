@@ -51,6 +51,8 @@ export interface ReadingAppState {
   view: { group: ReadingGroup; sort: SortId };
   setGroup: (group: ReadingGroup) => void;
   setSort: (sort: SortId) => void;
+  /** The profile's name, or `null` when none is set. */
+  nickname: string | null;
   /** The profile exists and the server has not turned it away. */
   hasProfile: boolean;
   /** Call when a request answered `viewer_required`. */
@@ -355,6 +357,7 @@ export function useReadingApp(
     view,
     setGroup,
     setSort,
+    nickname,
     hasProfile,
     rejectViewer,
     smartFolders,

@@ -14,6 +14,8 @@ The Target menu narrows everything on the page, on both tabs, to **All notes**, 
 - **Notes with sources** shows up to five recently updated notes that cite a file, each with the first source's thumbnail. When the note cites a video position or a document page, a badge on the thumbnail shows it (`1:23`, `p. 4`). Only the target's newest notes are checked, so an older note that cites a source may not appear. The section is hidden when there is nothing to show.
 - **Recently updated** shows the five most recently changed notes. **See in Library** opens the Library. Adding a tag or a favorite counts as a change.
 
+Right-click any note card or row — or hold it on a touch screen — for the file menu: open it in a new tab, download it, add it to a collection, copy or cut it, copy its ID, rename it, move it, or move it to the trash. **Continue writing** also offers **Remove from history** when you have a profile.
+
 ## Library
 
 The Library lists the notes of the target and shows the chosen note beside the list.
@@ -92,6 +94,7 @@ While a note is open, `Cmd/Ctrl+K` opens search limited to this drive's notes. T
   A Folder or Date Added shelf's **See all** opens that shelf as a page, with a link back to
   the Library grouped the same way.
 - A clip is a card: its first picture, the title, then the site it came from and a reading time. Home and shelf pages add how long ago it was clipped. A red dot marks a clip you have not opened. Choosing a card opens the clip's file page.
+- Right-click any clip card or row — or hold it — for the file menu. **Recently opened** also offers **Remove from history** on Home and on its own page when you have a profile; on an **Unverified** row the menu opens from the picture and the title, not from **Mark as verified**.
 - A clip with no picture shows a plain grey block, and so does one whose picture does not load. The site is the host of the clip's `url`, or failing that of the first link in the start of the page.
 
 A clip's first picture is either a file in the drive or an image on the source site. In the second case your browser loads it from that site when the card is drawn, without telling the site which page it came from. A site that is slow or refuses leaves the grey block; the clip itself is not affected.
