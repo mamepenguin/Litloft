@@ -34,6 +34,12 @@ nothing above it moves.
   **購読の新着** / **New from subscriptions**, for the subscriptions you chose to show.
 - **New**: the most recently added videos.
 
+Right-click or long-press any card to open the file menu: download, add to a
+collection, copy, cut, copy the ID, rename, move and move to trash. On a
+**Continue** card with a profile the menu also has **Remove from Continue** and
+**Remove from history**, and on a **Recommended** card the addon's actions come
+first, then one divider, then the file menu.
+
 A shelf with no videos is not shown. If Continue or New fails to load, only that
 shelf shows **Retry**. A Recommended or addon shelf that fails or comes to nothing
 is simply absent, with no Retry. A Recommended or addon shelf slower than about a

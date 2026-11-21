@@ -3,14 +3,20 @@
 import { Film } from "lucide-react";
 import { useTranslations } from "next-intl";
 
-import { EmptyState } from "@/components/EmptyState";
+import {
+  CardFileMenuProvider,
+  discoverListKey,
+  useCardFileMenu,
+} from "@/components/appshell/CardFileMenu";
 import { AppTabs } from "@/components/appshell/AppTabs";
 import { NameFilter } from "@/components/appshell/NameFilter";
 import { useLibraryFilters } from "@/components/appshell/libraryFilters";
 import { RetryButton } from "@/components/appshell/RetryButton";
 import { ShelfBlock } from "@/components/appshell/ShelfBlock";
+import { EmptyState } from "@/components/EmptyState";
 import { PageFrame } from "@/components/PageFrame";
 import { DiscoverFace } from "./DiscoverFace";
+import { removeCachedItem, stableJson } from "./discoverCache";
 import { LibraryFace } from "./LibraryFace";
 import { useDiscover } from "./useDiscover";
 import { useVideoApp } from "./useVideoApp";
@@ -49,6 +55,22 @@ export function VideoApp({
     onViewerRejected: state.rejectViewer,
   });
 
+  const cardMenu = useCardFileMenu({
+    scope: stableJson([
+      drive,
+      state.requests.key,
+      state.targetId,
+      state.nickname,
+      state.hasProfile,
+      state.params,
+    ]),
+    hasProfile: state.hasProfile,
+    continueListKeys: [discoverListKey("continue")],
+    onTrashed: (id) => {
+      for (const key of discover.cacheKeys) removeCachedItem(key, id);
+    },
+  });
+
   const tabs = (
     <AppTabs
       label={t("tabsLabel")}
@@ -71,51 +93,54 @@ export function VideoApp({
   );
 
   return (
-    <PageFrame
-      width="wide"
-      header={<VideoAppHeader drive={drive} state={state} tabs={tabs} homeEntry={homeEntry} />}
-    >
-      <div
-        id={PANEL_ID}
-        role="tabpanel"
-        aria-labelledby={`video-app-tab-${face ?? "discover"}`}
-        className="px-4 pb-6 pt-4 sm:pb-8"
+    <CardFileMenuProvider value={cardMenu.context}>
+      <PageFrame
+        width="wide"
+        header={<VideoAppHeader drive={drive} state={state} tabs={tabs} homeEntry={homeEntry} />}
       >
-        {state.targetFailed ? (
-          <RetryButton onRetry={state.retryTarget} />
-        ) : state.targetUnusable ? (
-          <EmptyState icon={Film} title={t("targetUnusable")} />
-        ) : !state.ready ? (
-          <ShelfBlock
-            title=""
-            view={{ status: "loading" }}
-            onRetry={() => {}}
-            renderItem={() => null}
-          />
-        ) : face === "library" ? (
-          <LibraryFace
-            drive={drive}
-            params={state.params}
-            requests={state.requests}
-            empty={state.empty}
-            group={state.view.group}
-            hasProfile={state.hasProfile}
-            sortId={state.view.sort}
-            onGroup={state.setGroup}
-            onSort={state.setSort}
-            onViewerRejected={state.rejectViewer}
-          />
-        ) : (
-          <DiscoverFace
-            drive={drive}
-            empty={state.empty || discover.empty}
-            hasProfile={state.hasProfile}
-            shelves={discover.shelves}
-            pending={discover.pending}
-            viewer={state.nickname}
-          />
-        )}
-      </div>
-    </PageFrame>
+        <div
+          id={PANEL_ID}
+          role="tabpanel"
+          aria-labelledby={`video-app-tab-${face ?? "discover"}`}
+          className="px-4 pb-6 pt-4 sm:pb-8"
+        >
+          {state.targetFailed ? (
+            <RetryButton onRetry={state.retryTarget} />
+          ) : state.targetUnusable ? (
+            <EmptyState icon={Film} title={t("targetUnusable")} />
+          ) : !state.ready ? (
+            <ShelfBlock
+              title=""
+              view={{ status: "loading" }}
+              onRetry={() => {}}
+              renderItem={() => null}
+            />
+          ) : face === "library" ? (
+            <LibraryFace
+              drive={drive}
+              params={state.params}
+              requests={state.requests}
+              empty={state.empty}
+              group={state.view.group}
+              hasProfile={state.hasProfile}
+              sortId={state.view.sort}
+              onGroup={state.setGroup}
+              onSort={state.setSort}
+              onViewerRejected={state.rejectViewer}
+            />
+          ) : (
+            <DiscoverFace
+              drive={drive}
+              empty={state.empty || discover.empty}
+              hasProfile={state.hasProfile}
+              shelves={discover.shelves}
+              pending={discover.pending}
+              viewer={state.nickname}
+            />
+          )}
+        </div>
+      </PageFrame>
+      {cardMenu.menu}
+    </CardFileMenuProvider>
   );
 }

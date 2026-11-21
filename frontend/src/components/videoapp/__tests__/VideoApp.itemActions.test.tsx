@@ -83,6 +83,17 @@ vi.mock("@/addons/intelligence/slots.ts", () => ({
 vi.mock("@/addons/media_import/slots.ts", () => ({ slotComponents: {}, slotProviders: {} }));
 vi.mock("@/addons/knowledge/slots.ts", () => ({ slotComponents: {} }));
 
+vi.mock("@/components/ClipboardProvider", () => ({
+  useClipboard: () => ({
+    clipboard: null,
+    copy: vi.fn(),
+    cut: vi.fn(),
+    paste: vi.fn(),
+    clear: vi.fn(),
+    isCut: () => false,
+  }),
+}));
+
 let nickname: string | null = "alice";
 
 vi.mock("next/navigation", () => ({
@@ -115,6 +126,7 @@ const intelligenceLinked = (() => {
 })();
 
 const NEW_TAB = "Open in new tab";
+const FILE_ROWS = [NEW_TAB, "Download", "Add to collection", "Copy", "Cut", "Copy ID", "Rename", "Move", "Move to Trash"];
 const ACTION = "Not interested";
 const MESSAGE = "Removed from your picks";
 const UNDO = "Undo";
@@ -253,7 +265,7 @@ afterEach(() => {
 
 describe("SPEC-CORE-150 the Recommended card's menu", () => {
   it.runIf(intelligenceLinked)(
-    "SPEC-CORE-150 I7 D2 a right-click opens exactly Open in new tab and the provider's actions, instead of the browser's menu",
+    "SPEC-CORE-150 I7 as revised by SPEC-CORE-157 a right-click opens the provider's actions, then the file menu, instead of the browser's menu",
     async () => {
       removing();
       declare({ recommended: [PICKUP] });
@@ -263,7 +275,7 @@ describe("SPEC-CORE-150 the Recommended card's menu", () => {
       const browserMenu = await rightClick("r1");
 
       expect(browserMenu).toBe(false);
-      expect(rows()).toEqual([NEW_TAB, ACTION]);
+      expect(rows()).toEqual([ACTION, ...FILE_ROWS]);
     },
   );
 
@@ -282,7 +294,7 @@ describe("SPEC-CORE-150 the Recommended card's menu", () => {
 
       expect(factory).toHaveBeenCalled();
       expect(factory.mock.calls[0][0]).toMatchObject({ drive, locale: "en" });
-      expect(rows()).toEqual([NEW_TAB, "See all"]);
+      expect(rows()).toEqual(["See all", ...FILE_ROWS]);
     },
   );
 
@@ -332,7 +344,7 @@ describe("SPEC-CORE-150 the Recommended card's menu", () => {
         fireEvent.touchStart(card("r1"), { touches: [{ clientX: 5, clientY: 5 }] });
       });
       await advance(500);
-      expect(rows()).toEqual([NEW_TAB, ACTION]);
+      expect(rows()).toEqual([ACTION, ...FILE_ROWS]);
       let followingClick = true;
       await act(async () => {
         fireEvent.touchEnd(card("r1"));
@@ -363,7 +375,7 @@ describe("SPEC-CORE-150 the Recommended card's menu", () => {
 
       await rightClick("r1");
 
-      expect(rows()).toEqual([NEW_TAB, "Alpha", "Delta"]);
+      expect(rows()).toEqual(["Alpha", "Delta", ...FILE_ROWS]);
     },
   );
 
@@ -383,27 +395,27 @@ describe("SPEC-CORE-150 the Recommended card's menu", () => {
   ];
 
   it.runIf(intelligenceLinked).each(noActions)(
-    "SPEC-CORE-150 I7 with %s the card leaves the browser's menu alone, while valid actions open the app's",
+    "SPEC-CORE-150 I7 as revised by SPEC-CORE-157 with %s the card opens the file menu without action rows",
     async (_name, arrange) => {
       declare({ recommended: [PICKUP] });
       intel.pickup = restricting(["r1"]);
       removing();
       const withActions = await visit();
       expect(await rightClick("r1")).toBe(false);
-      expect(rows()).toEqual([NEW_TAB, ACTION]);
+      expect(rows()).toEqual([ACTION, ...FILE_ROWS]);
       withActions.unmount();
 
       for (const k of Object.keys(intelActions)) delete intelActions[k];
       arrange();
       await visit();
 
-      expect(await rightClick("r1")).toBe(true);
-      expect(rows()).toEqual([]);
+      expect(await rightClick("r1")).toBe(false);
+      expect(rows()).toEqual(FILE_ROWS);
     },
   );
 
   it.runIf(intelligenceLinked)(
-    "SPEC-CORE-150 rule 7 an addon shelf's cards never read item actions, even keyed by their entry id",
+    "SPEC-CORE-150 rule 7 SPEC-CORE-157 I1 an addon shelf's cards never read item actions, even keyed by their entry id, and open the file menu",
     async () => {
       const shelf: Entry = { id: "pickup-shelf", label: "Shelf Alpha", priority: 10, addonName: "intelligence" };
       removing();
@@ -414,15 +426,15 @@ describe("SPEC-CORE-150 the Recommended card's menu", () => {
       await visit();
 
       expect(await rightClick("r1")).toBe(false);
-      expect(rows()).toEqual([NEW_TAB, ACTION]);
+      expect(rows()).toEqual([ACTION, ...FILE_ROWS]);
       await act(async () => {
         fireEvent.keyDown(document, { key: "Escape" });
       });
       await flush();
 
       expect(shelfCards("Shelf Alpha")).toEqual([title("s1")]);
-      expect(await rightClick("s1")).toBe(true);
-      expect(rows()).toEqual([]);
+      expect(await rightClick("s1")).toBe(false);
+      expect(rows()).toEqual(FILE_ROWS);
     },
   );
 });
@@ -461,7 +473,7 @@ describe("SPEC-CORE-150 running an action and undoing it on Discover", () => {
       expect(shelfCards("Recommended")).toEqual([title("r1"), title("r2")]);
 
       await rightClick("r1");
-      expect(rows()).toEqual([NEW_TAB, ACTION]);
+      expect(rows()).toEqual([ACTION, ...FILE_ROWS]);
       expect(row(ACTION)).toBeDisabled();
       await act(async () => {
         fireEvent.click(row(ACTION));

@@ -41,6 +41,7 @@ const DEVICE_HEIGHT_PX = 727;
 const AT_THE_PHONE_WIDTH = [
   "add-menu.spec.ts",
   "admin-settings-touch.spec.ts",
+  "app-card-menu.spec.ts",
   "app-header.spec.ts",
   "anchored-direction.spec.ts",
   "header-row-crowding.spec.ts",

@@ -30,11 +30,11 @@ Without a nickname, resume positions are kept only in this browser, and Home sho
 
 ### Setting an item aside
 
-Right-click a card in **Continue** on Home, or long-press it on a touch screen, and choose **Remove from Continue**. The file leaves **Continue**; its resume position is kept, and it appears in **Recently Viewed** when it is among the newest files there. Opening the file again puts it back in **Continue**.
+Right-click a card in **Continue** on Home, or long-press it on a touch screen, and choose **Remove from Continue**. The file leaves **Continue**; its resume position is kept, and it appears in **Recently Viewed** when it is among the newest files there. Opening the file again puts it back in **Continue**. In the Video and Reading apps the same row is on a **Continue** card's menu on Discover and on the Continue See all page, when a profile is set.
 
 ### Removing an item
 
-Right-click a card in **Continue** or **Recently Viewed** on Home, or long-press it on a touch screen, and choose **Remove from history**. This deletes the history row, so the card leaves both rows and the resume position is lost. Items are removed one at a time; there is no way to clear the whole history.
+Right-click a card in **Continue** or **Recently Viewed** on Home, or long-press it on a touch screen, and choose **Remove from history**. This deletes the history row, so the card leaves both rows and the resume position is lost. Items are removed one at a time; there is no way to clear the whole history. In the Video and Reading apps the row is on a **Continue** card's menu on Discover and on the Continue See all page, when a profile is set.
 
 Clearing your nickname or your cookies does not delete your history. Enter the same nickname again and it comes back.
 

@@ -3,6 +3,11 @@
 import { useCallback, useRef } from "react";
 
 import { ShelfBlock } from "@/components/appshell/ShelfBlock";
+import {
+  discoverListKey,
+  useCardFileLists,
+  type CardFileLists,
+} from "@/components/appshell/CardFileMenu";
 import { EmptyState } from "@/components/EmptyState";
 import type { ShelfItem } from "@/lib/api";
 import { removeCachedItem, restoreCachedItem } from "./discoverCache";
@@ -17,15 +22,19 @@ function DiscoverShelf({
   shelf,
   viewer,
   isSameViewer,
+  lists,
 }: {
   shelf: DrawnShelf;
   viewer: string | null;
   isSameViewer: (viewer: string | null) => boolean;
+  lists: CardFileLists;
 }) {
   const supplied = shelf.state.status === "loaded" ? shelf.state.items : EMPTY_ITEMS;
   const { items, remove, restore } = useRemovableItems(supplied, shelf.cacheKey);
   const cacheKeyRef = useRef(shelf.cacheKey);
   cacheKeyRef.current = shelf.cacheKey;
+  const listKey = discoverListKey(shelf.id);
+  const shown = lists.filter(listKey, items);
 
   const onRemoved = useCallback(
     (item: ShelfItem) => {
@@ -55,7 +64,7 @@ function DiscoverShelf({
     );
   }
 
-  if (items.length === 0) return null;
+  if (shown.length === 0) return null;
 
   const menu: VideoCardMenu | undefined =
     shelf.itemActions !== undefined &&
@@ -74,10 +83,15 @@ function DiscoverShelf({
     <ShelfBlock<ShelfItem>
       title={shelf.title}
       seeAllHref={shelf.href}
-      view={{ status: "loaded", items }}
+      view={{ status: "loaded", items: shown }}
       onRetry={shelf.retry}
       renderItem={(item) => (
-        <VideoCard item={item} byline={shelf.bylines?.get(item.id)} menu={menu} />
+        <VideoCard
+          item={item}
+          byline={shelf.bylines?.get(item.id)}
+          menu={menu}
+          fileMenu={{ listKey }}
+        />
       )}
     />
   );
@@ -99,6 +113,7 @@ export function DiscoverFace({
   /** The profile's nickname; item actions need it and check it again on undo. */
   viewer?: string | null;
 }) {
+  const lists = useCardFileLists();
   const viewerRef = useRef(viewer);
   viewerRef.current = viewer;
   const isSameViewer = useCallback(
@@ -108,6 +123,15 @@ export function DiscoverFace({
 
   if (empty) return <EmptyState variant="no-files" />;
 
+  const drawnShelves = shelves.filter(
+    (shelf) =>
+      shelf.state.status !== "loaded" ||
+      lists.filter(discoverListKey(shelf.id), shelf.state.items).length > 0,
+  );
+  if (!pending && shelves.length > 0 && drawnShelves.length === 0) {
+    return <EmptyState variant="no-files" />;
+  }
+
   return (
     <div className="space-y-10">
       {shelves.map((shelf) => (
@@ -116,6 +140,7 @@ export function DiscoverFace({
           shelf={shelf}
           viewer={viewer}
           isSameViewer={isSameViewer}
+          lists={lists}
         />
       ))}
       {pending && (

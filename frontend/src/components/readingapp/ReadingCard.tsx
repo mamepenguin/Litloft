@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 
+import { useCardFileMenuHandlers } from "@/components/appshell/CardFileMenu";
 import { getThumbnailUrl, type ShelfItem } from "@/lib/api";
 import { fileLinkHref } from "@/lib/canonicalFileUrl";
 import { formatRelativeAge } from "@/lib/format";
@@ -18,21 +19,35 @@ export function ReadingCard({
   item,
   drive,
   showProgress = false,
+  fileMenu,
 }: {
   item: ShelfItem;
   drive: string;
   /** Only Continue reading carries a bar. */
   showProgress?: boolean;
+  /** Attach the page's file menu; absent leaves the card as it was. */
+  fileMenu?: { listKey: string };
 }) {
   const t = useTranslations("readingApp");
   const locale = useLocale();
   const format = bookFormat(item);
   const percent = showProgress ? progressPercent(item) : null;
+  const handlers = useCardFileMenuHandlers(item, {
+    enabled: fileMenu !== undefined,
+    listKey: fileMenu?.listKey ?? "",
+  });
 
   return (
     <Link
       href={fileLinkHref(item)}
-      className="group block min-w-0 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring"
+      onClick={handlers.onClick}
+      onContextMenu={handlers.onContextMenu}
+      onTouchStart={handlers.onTouchStart}
+      onTouchEnd={handlers.onTouchEnd}
+      onTouchMove={handlers.onTouchMove}
+      className={`group block min-w-0 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus-ring${
+        fileMenu ? " select-none [-webkit-touch-callout:none]" : ""
+      }`}
     >
       <div
         data-testid="reading-cover"
@@ -66,7 +81,7 @@ export function ReadingCard({
       </div>
       <span className="mt-2 line-clamp-2 text-sm font-semibold text-text-primary">
         {item.title}
-      </span>
+      </span>{" "}
       <span className="mt-0.5 block truncate text-xs text-text-muted">
         {folderLabel(item.folder_path, drive)} · {formatRelativeAge(item.created_at, locale)}
       </span>
