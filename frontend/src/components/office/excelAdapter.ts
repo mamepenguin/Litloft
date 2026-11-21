@@ -19,6 +19,13 @@ interface SpreadsheetOptions {
 
 type UnknownRecord = Record<string, unknown>;
 
+interface KeptColumns {
+  worksheet: UnknownRecord;
+  columns: unknown[] | null;
+  widths: number[];
+  defaultWidth: number;
+}
+
 const ROWS_TO_CREATE = 100;
 const SIZE_SCALE = 4 / 3;
 const ROW_DEFAULT_POINTS = 15;
@@ -93,17 +100,53 @@ function scaleRows(worksheet: UnknownRecord, defaultHeight: unknown, fonts: Set<
   return widest;
 }
 
-function scaleColumns(worksheet: UnknownRecord, widest: number, defaultWidth: unknown): void {
+function columnPixels(column: UnknownRecord, defaultWidth: unknown): number {
+  return (
+    pixels(column.width, COLUMN_UNIT_PX) ??
+    pixels(defaultWidth, COLUMN_UNIT_PX) ??
+    COLUMN_DEFAULT_PX
+  );
+}
+
+function scaleColumn(
+  column: unknown,
+  defaultWidth: unknown,
+  scaled: Set<object>,
+  pixelsOf: WeakMap<object, number>,
+): void {
+  if (!isRecord(column) || scaled.has(column)) return;
+  scaled.add(column);
+  const px = columnPixels(column, defaultWidth);
+  pixelsOf.set(column, column.hidden ? 0.1 : px);
+  column.width = px / COLUMN_DIVISOR;
+}
+
+function scaleColumns(
+  worksheet: UnknownRecord,
+  widest: number,
+  defaultWidth: unknown,
+  scaled: Set<object>,
+  pixelsOf: WeakMap<object, number>,
+): void {
   if (typeof worksheet.getColumn !== "function") return;
   for (let i = 1; i <= widest; i += 1) {
-    const column = worksheet.getColumn(i);
-    if (!isRecord(column)) continue;
-    const width =
-      pixels(column.width, COLUMN_UNIT_PX) ??
-      pixels(defaultWidth, COLUMN_UNIT_PX) ??
-      COLUMN_DEFAULT_PX;
-    column.width = width / COLUMN_DIVISOR;
+    scaleColumn(worksheet.getColumn(i), defaultWidth, scaled, pixelsOf);
   }
+}
+
+function keepColumns(
+  worksheet: UnknownRecord,
+  defaultWidth: unknown,
+  scaled: Set<object>,
+  pixelsOf: WeakMap<object, number>,
+): KeptColumns {
+  const columns = Array.isArray(worksheet.columns) ? worksheet.columns : null;
+  const fallback = pixels(defaultWidth, COLUMN_UNIT_PX) ?? COLUMN_DEFAULT_PX;
+  const widths = (columns ?? []).map((column) => {
+    scaleColumn(column, defaultWidth, scaled, pixelsOf);
+    return isRecord(column) ? (pixelsOf.get(column) ?? fallback) : fallback;
+  });
+  return { worksheet, columns, widths, defaultWidth: fallback };
 }
 
 function scalePictures(worksheet: UnknownRecord, scaled: Set<object>): void {
@@ -130,48 +173,94 @@ function scalePictures(worksheet: UnknownRecord, scaled: Set<object>): void {
   }
 }
 
-function scaleWorksheet(worksheet: unknown, fonts: Set<object>, pictures: Set<object>): void {
-  if (!isRecord(worksheet)) return;
+function scaleWorksheet(
+  worksheet: unknown,
+  fonts: Set<object>,
+  pictures: Set<object>,
+  scaledColumns: Set<object>,
+  columnPixelsOf: WeakMap<object, number>,
+): KeptColumns | null {
+  if (!isRecord(worksheet)) return null;
   const properties = worksheet.properties;
   const sheetProperties = isRecord(properties) ? properties : {};
   const widest = scaleRows(worksheet, sheetProperties.defaultRowHeight, fonts);
-  scaleColumns(worksheet, widest, sheetProperties.defaultColWidth);
+  let kept: KeptColumns | null = null;
+  if (typeof worksheet.getColumn === "function") {
+    scaleColumns(worksheet, widest, sheetProperties.defaultColWidth, scaledColumns, columnPixelsOf);
+    kept = keepColumns(worksheet, sheetProperties.defaultColWidth, scaledColumns, columnPixelsOf);
+  }
   scalePictures(worksheet, pictures);
+  return kept;
 }
 
-function beforeTransformData(workbook: unknown): unknown {
-  const fonts = new Set<object>();
-  const pictures = new Set<object>();
-  try {
-    if (!isRecord(workbook) || typeof workbook.eachSheet !== "function") return workbook;
-    workbook.eachSheet((worksheet: unknown) => {
-      try {
-        scaleWorksheet(worksheet, fonts, pictures);
-      } catch {}
-    });
-  } catch {}
-  return workbook;
+function scaleTextOffset(sheet: UnknownRecord, scaled: Set<object>): void {
+  const styles: unknown[] = Array.isArray(sheet.styles) ? sheet.styles : [];
+  for (const style of styles) {
+    if (!isRecord(style)) continue;
+    const font = style.font;
+    if (!isRecord(font) || scaled.has(font)) continue;
+    const size = font.size;
+    if (!isFiniteNumber(size)) continue;
+    scaled.add(font);
+    font.size = size + TEXT_SIZE_OFFSET;
+  }
 }
 
-function transformData(sheets: unknown): unknown {
-  const scaled = new Set<object>();
-  try {
-    if (!Array.isArray(sheets)) return sheets;
-    for (const sheet of sheets) {
-      if (!isRecord(sheet)) continue;
-      const styles: unknown[] = Array.isArray(sheet.styles) ? sheet.styles : [];
-      for (const style of styles) {
-        if (!isRecord(style)) continue;
-        const font = style.font;
-        if (!isRecord(font) || scaled.has(font)) continue;
-        const size = font.size;
-        if (!isFiniteNumber(size)) continue;
-        scaled.add(font);
-        font.size = size + TEXT_SIZE_OFFSET;
-      }
+function applyColumns(sheet: UnknownRecord, kept: KeptColumns): void {
+  const cols = sheet.cols;
+  if (isRecord(cols)) {
+    const length = isFiniteNumber(cols.len) ? Math.floor(cols.len) : 0;
+    for (let k = 0; k < length; k += 1) {
+      if (k in cols) continue;
+      const px = k < kept.widths.length ? kept.widths[k] : kept.defaultWidth;
+      cols[k] = { width: px };
     }
-  } catch {}
-  return sheets;
+  }
+  // The picture code counts a column with no object as 80 px; putting back the
+  // array the library trimmed makes it read the widths the grid draws.
+  kept.worksheet._columns = kept.columns;
+}
+
+function createSheetSizing(): {
+  beforeTransformData: (workbook: unknown) => unknown;
+  transformData: (sheets: unknown) => unknown;
+} {
+  const records: (KeptColumns | null)[] = [];
+
+  const beforeTransformData = (workbook: unknown): unknown => {
+    const fonts = new Set<object>();
+    const pictures = new Set<object>();
+    const columns = new Set<object>();
+    const columnPixels = new WeakMap<object, number>();
+    try {
+      if (!isRecord(workbook) || typeof workbook.eachSheet !== "function") return workbook;
+      workbook.eachSheet((worksheet: unknown) => {
+        let kept: KeptColumns | null = null;
+        try {
+          kept = scaleWorksheet(worksheet, fonts, pictures, columns, columnPixels);
+        } catch {}
+        records.push(kept);
+      });
+    } catch {}
+    return workbook;
+  };
+
+  const transformData = (sheets: unknown): unknown => {
+    const scaled = new Set<object>();
+    try {
+      if (!Array.isArray(sheets)) return sheets;
+      for (let i = 0; i < sheets.length; i += 1) {
+        const sheet = sheets[i];
+        if (!isRecord(sheet)) continue;
+        scaleTextOffset(sheet, scaled);
+        const kept = records[i];
+        if (kept) applyColumns(sheet, kept);
+      }
+    } catch {}
+    return sheets;
+  };
+
+  return { beforeTransformData, transformData };
 }
 
 export async function drawExcel(
@@ -181,10 +270,11 @@ export async function drawExcel(
 ): Promise<() => void> {
   await import("@js-preview/excel/lib/index.css");
   const { default: previewExcel } = await import("@js-preview/excel");
+  const sizing = createSheetSizing();
   const options: SpreadsheetOptions = {
     showContextmenu: false,
-    beforeTransformData,
-    transformData,
+    beforeTransformData: sizing.beforeTransformData,
+    transformData: sizing.transformData,
   };
   const instance = previewExcel.init(container, options);
   const spreadsheet = instance as unknown as SpreadsheetHandle;
