@@ -8,7 +8,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { EmptyState } from "@/components/EmptyState";
 import {
   CardFileMenuProvider,
-  pagedParams,
+  fetchAlignedPage,
   useCardFileMenu,
 } from "@/components/appshell/CardFileMenu";
 import { NameFilter } from "@/components/appshell/NameFilter";
@@ -176,28 +176,30 @@ export function ReadingShelfPage({
       by === null || query === null || watchBlocked || !keyValid
         ? null
         : (page: number) =>
-            requests
-              .shelves(drive, {
-                ...query,
-                ...(watch ? { watch } : {}),
-                ...(requestedName ? { search: requestedName } : {}),
-                by,
-                key: shelfKey,
-                sort: sort.sort,
-                order: sort.order,
-                per_shelf: SHELF_PAGE_SIZE,
-                ...pagedParams(page, removedBefore.current, SHELF_PAGE_SIZE),
-              })
-              .then(
-                (response) => {
-                  const shelf = response.shelves[0];
-                  return { items: shelf?.items ?? [], total: shelf?.count ?? 0 };
-                },
-                (error: unknown) => {
-                  if (isViewerRequired(error)) rejectViewer();
-                  throw error;
-                },
-              ),
+            fetchAlignedPage<ShelfItem>(page, removedBefore.current, SHELF_PAGE_SIZE, (n) =>
+              requests
+                .shelves(drive, {
+                  ...query,
+                  ...(watch ? { watch } : {}),
+                  ...(requestedName ? { search: requestedName } : {}),
+                  by,
+                  key: shelfKey,
+                  sort: sort.sort,
+                  order: sort.order,
+                  per_shelf: SHELF_PAGE_SIZE,
+                  page: n,
+                })
+                .then(
+                  (response) => {
+                    const shelf = response.shelves[0];
+                    return { items: shelf?.items ?? [], total: shelf?.count ?? 0 };
+                  },
+                  (error: unknown) => {
+                    if (isViewerRequired(error)) rejectViewer();
+                    throw error;
+                  },
+                ),
+            ),
     [
       drive,
       by,

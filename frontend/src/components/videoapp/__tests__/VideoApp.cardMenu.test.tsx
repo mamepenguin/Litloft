@@ -8,7 +8,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { createPortal } from "react-dom";
 import { existsSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -176,7 +176,8 @@ const continueItem = (id: string) => asItem(id, { watch_progress: { position: 30
 
 function slice(ids: string[], p: Params): string[] {
   const size = Number(p.per_shelf ?? p.limit ?? ids.length);
-  const start = p.offset !== undefined ? Number(p.offset) : (Number(p.page ?? 1) - 1) * size;
+  // A keyed shelf pages by `page` only; the backend reads `offset` as a shelf index.
+  const start = (Number(p.page ?? 1) - 1) * size;
   return ids.slice(start, start + size);
 }
 
@@ -978,5 +979,12 @@ describe("SPEC-CORE-157 I3 I4 the ungrouped Library grid", () => {
     expect(drawn).toEqual(fresh);
     expect(new Set(drawn).size).toBe(drawn.length);
     expect(drawn.length).toBeGreaterThan(firstPage.length);
+
+    for (let i = 0; i < 5 && drawnIds().length < server.all.length; i++) {
+      const before = drawnIds().length;
+      await nextPage();
+      await waitFor(() => expect(drawnIds().length).toBeGreaterThan(before));
+    }
+    expect(drawnIds()).toEqual(server.all);
   });
 });

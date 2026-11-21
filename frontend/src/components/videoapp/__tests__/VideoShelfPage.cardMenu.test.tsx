@@ -101,7 +101,8 @@ const server = { continue: [] as string[], folder: [] as string[] };
 function answer(_d: string, p: Params) {
   const list = p.by === "watch" ? server.continue : server.folder;
   const size = Number(p.per_shelf ?? 60);
-  const start = p.offset !== undefined ? Number(p.offset) : (Number(p.page ?? 1) - 1) * size;
+  // A keyed shelf pages by `page` only; the backend reads `offset` as a shelf index.
+  const start = (Number(p.page ?? 1) - 1) * size;
   const items = list.slice(start, start + size).map(item);
   return { by: p.by, total_shelves: 1, base: "", shelves: [{ key: p.key, label: String(p.key), count: list.length, items }] };
 }
@@ -275,6 +276,13 @@ describe("SPEC-CORE-157 I4 paging after a removal on See all", () => {
     const shown = drawn();
     expect(shown).toEqual(server.folder.slice(0, shown.length));
     expect(new Set(shown).size).toBe(shown.length);
+
+    for (let i = 0; i < 5 && drawn().length < server.folder.length; i++) {
+      const before = drawn().length;
+      await nextPage();
+      await waitFor(() => expect(drawn().length).toBeGreaterThan(before));
+    }
+    expect(drawn()).toEqual(server.folder);
   });
 
   it("SPEC-CORE-157 I4 after Remove from Continue the next Continue page neither skips nor repeats a file", async () => {
@@ -292,5 +300,12 @@ describe("SPEC-CORE-157 I4 paging after a removal on See all", () => {
     const shown = drawn();
     expect(shown).toEqual(server.continue.slice(0, shown.length));
     expect(new Set(shown).size).toBe(shown.length);
+
+    for (let i = 0; i < 5 && drawn().length < server.continue.length; i++) {
+      const before = drawn().length;
+      await nextPage();
+      await waitFor(() => expect(drawn().length).toBeGreaterThan(before));
+    }
+    expect(drawn()).toEqual(server.continue);
   });
 });

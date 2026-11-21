@@ -109,8 +109,9 @@ export function usePaged<T>(
           return {
             ...now,
             items: [...now.items, ...added],
-            // A page with nothing in it ends the list, whatever the total says.
-            total: page.items.length === 0 ? now.items.length : page.total,
+            // A page that adds nothing ends the list, whatever the total says:
+            // asking for the next page again would get the same answer.
+            total: added.length === 0 ? now.items.length : page.total,
             pages: now.pages + 1,
             more: "idle",
           };

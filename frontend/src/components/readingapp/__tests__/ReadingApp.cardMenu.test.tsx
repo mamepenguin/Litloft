@@ -134,7 +134,8 @@ function answerShelves(_d: string, p: Params) {
   if (p.by === "watch" && p.key === "unwatched") return oneShelf("watch", "unwatched", server.unread.map((id) => book(id)));
   if (p.by === "all") {
     const size = Number(p.per_shelf ?? 60);
-    const start = p.offset !== undefined ? Number(p.offset) : (Number(p.page ?? 1) - 1) * size;
+  // A keyed shelf pages by `page` only; the backend reads `offset` as a shelf index.
+  const start = (Number(p.page ?? 1) - 1) * size;
     const items = server.library.slice(start, start + size).map((id) => book(id));
     return { by: "all", total_shelves: 1, base: "", shelves: [{ key: "all", label: "", count: server.library.length, items }] };
   }
@@ -404,5 +405,13 @@ describe("SPEC-CORE-157 I4 Reading's ungrouped Library grid", () => {
     const shown = drawnIds();
     expect(shown).toEqual(server.library.slice(0, shown.length));
     expect(new Set(shown).size).toBe(shown.length);
+
+    for (let i = 0; i < 5 && drawnIds().length < server.library.length; i++) {
+      const before = drawnIds().length;
+      await waitFor(() => expect(FakeObserver.instances.some((o) => o.live)).toBe(true));
+      act(() => FakeObserver.instances.filter((o) => o.live).at(-1)!.trigger());
+      await waitFor(() => expect(drawnIds().length).toBeGreaterThan(before));
+    }
+    expect(drawnIds()).toEqual(server.library);
   });
 });

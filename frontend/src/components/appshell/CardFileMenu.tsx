@@ -11,6 +11,7 @@ import {
 import { useTranslations } from "next-intl";
 
 import { FileContextMenu } from "@/components/FileContextMenu";
+import type { Page } from "@/components/appshell/usePaged";
 import { useToast } from "@/components/ToastProvider";
 import type { ShelfItemAction } from "@/lib/addons";
 import {
@@ -55,18 +56,24 @@ export function discoverListKey(id: string): string {
 }
 
 /**
- * A page request that stays aligned after items left the pages already held.
- * A page-number request after a removal would start past the shifted boundary;
- * the offset starts where the held list now ends.
+ * Page `page` of a list whose held pages lost `removedBefore` items. A keyed
+ * shelf pages by page number only (its `offset` counts shelves), and the
+ * removals moved that many items back across the page boundary, so the pages
+ * from the one holding the new boundary are fetched and cut at the boundary.
  */
-export function pagedParams(
+export async function fetchAlignedPage<T>(
   page: number,
   removedBefore: number,
   size: number,
-): { page: number } | { offset: number } {
-  if (removedBefore === 0) return { page };
-  if (page === 1) return { offset: 0 };
-  return { offset: Math.max(0, (page - 1) * size - removedBefore) };
+  fetchByNumber: (page: number) => Promise<Page<T>>,
+): Promise<Page<T>> {
+  if (removedBefore === 0 || page === 1) return fetchByNumber(page);
+  const start = Math.max(0, (page - 1) * size - removedBefore);
+  const first = Math.floor(start / size) + 1;
+  const numbers = Array.from({ length: page - first + 1 }, (_, i) => first + i);
+  const pages = await Promise.all(numbers.map(fetchByNumber));
+  const items = pages.flatMap((one) => one.items).slice(start - (first - 1) * size);
+  return { items, total: pages[pages.length - 1].total };
 }
 
 const CardFileMenuContext = createContext<CardFileMenuContextValue | null>(null);

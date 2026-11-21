@@ -5,7 +5,7 @@ import { BookOpen, Search } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 
 import { EmptyState } from "@/components/EmptyState";
-import { pagedParams, useCardFileLists } from "@/components/appshell/CardFileMenu";
+import { fetchAlignedPage, useCardFileLists } from "@/components/appshell/CardFileMenu";
 import { FilterMenus } from "@/components/appshell/FilterMenus";
 import { mergeLibraryTags, useLibraryFilters } from "@/components/appshell/libraryFilters";
 import { RetryButton } from "@/components/appshell/RetryButton";
@@ -143,26 +143,28 @@ export function LibraryFace({
       query === null || blocked
         ? null
         : (page: number) =>
-            requests
-              .shelves(drive, {
-                ...query,
-                by: "all",
-                key: "all",
-                sort: sort.sort,
-                order: sort.order,
-                per_shelf: LIBRARY_PAGE_SIZE,
-                ...pagedParams(page, removedBefore.current, LIBRARY_PAGE_SIZE),
-              })
-              .then(
-                (response) => {
-                  const shelf = response.shelves[0];
-                  return { items: shelf?.items ?? [], total: shelf?.count ?? 0 };
-                },
-                (error: unknown) => {
-                  if (isViewerRequired(error)) onViewerRejected();
-                  throw error;
-                },
-              ),
+            fetchAlignedPage<ShelfItem>(page, removedBefore.current, LIBRARY_PAGE_SIZE, (n) =>
+              requests
+                .shelves(drive, {
+                  ...query,
+                  by: "all",
+                  key: "all",
+                  sort: sort.sort,
+                  order: sort.order,
+                  per_shelf: LIBRARY_PAGE_SIZE,
+                  page: n,
+                })
+                .then(
+                  (response) => {
+                    const shelf = response.shelves[0];
+                    return { items: shelf?.items ?? [], total: shelf?.count ?? 0 };
+                  },
+                  (error: unknown) => {
+                    if (isViewerRequired(error)) onViewerRejected();
+                    throw error;
+                  },
+                ),
+            ),
     [drive, query, requests, blocked, sort.sort, sort.order, onViewerRejected],
   );
 

@@ -4,7 +4,7 @@ import { useCallback, useMemo, useRef } from "react";
 import { Search } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 
-import { pagedParams, useCardFileLists } from "@/components/appshell/CardFileMenu";
+import { fetchAlignedPage, useCardFileLists } from "@/components/appshell/CardFileMenu";
 import { RetryButton } from "@/components/appshell/RetryButton";
 import { FilterMenus } from "@/components/appshell/FilterMenus";
 import { mergeLibraryTags, useLibraryFilters } from "@/components/appshell/libraryFilters";
@@ -13,7 +13,7 @@ import { GroupMenu, LibraryControlRow, SortMenu } from "@/components/appshell/Vi
 import { useNearEnd } from "@/components/appshell/useNearEnd";
 import { usePaged } from "@/components/appshell/usePaged";
 import { EmptyState } from "@/components/EmptyState";
-import { type Shelf, type ShelfGrouping, type ShelfWatchState } from "@/lib/api";
+import { type Shelf, type ShelfGrouping, type ShelfItem, type ShelfWatchState } from "@/lib/api";
 import type { AppRequests } from "@/lib/memberTarget";
 import type { VideoTargetParams } from "@/lib/videoAppTarget";
 import { SORT_CHOICES, VIDEO_GROUPS, shelfTitle, type SortId, type VideoGroup } from "./labels";
@@ -128,26 +128,28 @@ export function LibraryFace({
       query === null || !none
         ? null
         : (page: number) =>
-            requests
-              .shelves(drive, {
-                ...query,
-                by: "all",
-                key: "all",
-                sort: sort.sort,
-                order: sort.order,
-                per_shelf: LIBRARY_NONE_PAGE_SIZE,
-                ...pagedParams(page, removedBefore.current, LIBRARY_NONE_PAGE_SIZE),
-              })
-              .then(
-                (response) => {
-                  const shelf = response.shelves[0];
-                  return { items: shelf?.items ?? [], total: shelf?.count ?? 0 };
-                },
-                (error: unknown) => {
-                  if (isViewerRequired(error)) onViewerRejected();
-                  throw error;
-                },
-              ),
+            fetchAlignedPage<ShelfItem>(page, removedBefore.current, LIBRARY_NONE_PAGE_SIZE, (n) =>
+              requests
+                .shelves(drive, {
+                  ...query,
+                  by: "all",
+                  key: "all",
+                  sort: sort.sort,
+                  order: sort.order,
+                  per_shelf: LIBRARY_NONE_PAGE_SIZE,
+                  page: n,
+                })
+                .then(
+                  (response) => {
+                    const shelf = response.shelves[0];
+                    return { items: shelf?.items ?? [], total: shelf?.count ?? 0 };
+                  },
+                  (error: unknown) => {
+                    if (isViewerRequired(error)) onViewerRejected();
+                    throw error;
+                  },
+                ),
+            ),
     [drive, query, requests, none, sort.sort, sort.order, onViewerRejected],
   );
   const flat = usePaged(fetchFlat, lists.version);
