@@ -58,6 +58,8 @@ type Box = {
 
 type Row = Box & { scrollWidth: number; clientWidth: number };
 
+type ScrollBox = Row & { scrollHeight: number; clientHeight: number };
+
 type Shelf = Row & {
   gridScrollWidth: number;
   gridClientWidth: number;
@@ -71,8 +73,11 @@ type Measurement = {
   frame: Box;
   tabs: Row;
   shelves: Shelf[];
-  chipRow: Row | null;
+  chipRow: ScrollBox | null;
   controls: Row | null;
+  crumbRow: ScrollBox | null;
+  crumbItems: Box[];
+  chipItems: Box[];
   shapes: string[];
 };
 
@@ -159,20 +164,43 @@ test.describe("a mouse environment", () => {
             inside(shelf.seeAll, m.frame);
           }
 
+          expect(m.crumbRow).toBeDefined();
+          expect(m.crumbItems).toBeDefined();
+          expect(m.chipItems).toBeDefined();
+
           if (face === "library") {
-            if (app === "video") expect(m.chipRow).toBeNull();
             expect(m.controls).not.toBeNull();
             inside(m.controls!, m.frame);
             noSidewaysScroll(m.controls!);
           } else {
             expect(m.chipRow).toBeNull();
+            expect(m.crumbRow).toBeNull();
             expect(m.controls).toBeNull();
           }
 
-          if (app === "reading" && face === "library") {
+          if (face === "library") {
+            // SPEC-CORE-165 SPEC-CORE-166 D1 D2 D9
+            expect(m.crumbRow).not.toBeNull();
             expect(m.chipRow).not.toBeNull();
-            inside(m.chipRow!, m.frame);
-            noSidewaysScroll(m.chipRow!);
+            const crumbRow = m.crumbRow!;
+            const chipRow = m.chipRow!;
+
+            expect(m.tabs.bottom).toBeLessThanOrEqual(crumbRow.top + PX);
+            expect(crumbRow.bottom).toBeLessThanOrEqual(chipRow.top + PX);
+            expect(chipRow.bottom).toBeLessThanOrEqual(m.controls!.top + PX);
+
+            inside(crumbRow, m.frame);
+            noSidewaysScroll(crumbRow);
+            expect(crumbRow.scrollHeight).toBeLessThanOrEqual(crumbRow.clientHeight);
+            if (width === 320) {
+              const tops = new Set(m.crumbItems.map((b) => Math.round(b.top)));
+              expect(tops.size).toBeGreaterThan(1);
+            }
+
+            inside(chipRow, m.frame);
+            noSidewaysScroll(chipRow);
+            expect(chipRow.height).toBeLessThanOrEqual(128 + PX);
+            expect(chipRow.scrollHeight).toBeGreaterThan(chipRow.clientHeight);
           }
         });
       }
@@ -220,16 +248,34 @@ test.describe("a touch environment", () => {
     isMobile: true,
   });
 
-  test("the chip row scrolls sideways and the page does not", async ({
-    page,
-  }) => {
-    const { m } = await layout(page, "reading", "library", 320);
+  for (const [app, width] of [
+    ["reading", 320],
+    ["reading", 390],
+    ["video", 320],
+    ["video", 390],
+  ] as const) {
+    test(`SPEC-CORE-165 SPEC-CORE-166 D4 ${app} at ${width}px: the crumbs and the chips are one line each that scrolls sideways, every item 44 px tall, and the page does not scroll`, async ({
+      page,
+    }) => {
+      const { m } = await layout(page, app, "library", width);
 
-    expect(m.media.coarse).toBe(true);
-    expect(m.media.fine).toBe(false);
-    expect(m.pageOverflowsX).toBe(false);
-    expect(m.chipRow).not.toBeNull();
-    expect(m.chipRow!.scrollWidth).toBeGreaterThan(m.chipRow!.clientWidth);
-    inside(m.chipRow!, m.frame);
-  });
+      expect(m.media.coarse).toBe(true);
+      expect(m.media.fine).toBe(false);
+      expect(m.pageOverflowsX).toBe(false);
+
+      for (const [row, items] of [
+        [m.crumbRow, m.crumbItems],
+        [m.chipRow, m.chipItems],
+      ] as const) {
+        expect(row).toBeDefined();
+        expect(row).not.toBeNull();
+        expect(items).toBeDefined();
+        expect(items.length).toBeGreaterThan(1);
+        inside(row!, m.frame);
+        expect(row!.scrollWidth).toBeGreaterThan(row!.clientWidth);
+        expect(new Set(items.map((b) => Math.round(b.top))).size).toBe(1);
+        for (const item of items) expect(item.height).toBeGreaterThanOrEqual(44 - PX);
+      }
+    });
+  }
 });
