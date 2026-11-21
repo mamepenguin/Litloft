@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [],
+  "specification_compliance": [
+    "Every path the diff reaches is on the declared touch-point list, or is one of the implicit touch points (docs/specs/photo-diary-card-menu.md, docs/specs/INDEX.md). The full mapping: FileGrid.tsx (appCardMenu prop, onOpenInNewTab, immediateRows, flag passed to cards); FileCard.tsx and JustifiedFileCell.tsx (a boolean prop that adds select-none [-webkit-touch-callout:none] to the Wrapper); justified-grid.html, justifiedGridFixtureParity.test.tsx and justified-grid.spec.ts (the new linkedOnlyAppCardMenu shape, both SHAPE_COUNTs set to 11); e2e-components/fixtures/fileGridAppCardMenu.tsx registered in fixtures/app.tsx, with file-grid-app-card-menu.spec.ts (computed user-select in Chromium); __tests__/fileGridAppCardMenu.test.tsx (menu rows, href, in-click rows); docs/ADDON-DEVELOPMENT.md (the appCardMenu prop beside extraMenuItems).",
+    "canonicalFileUrl.ts, useContextMenu.ts, useFileCardLink.ts and DismissScrim.tsx are only imported, not edited. That matches the list's 'read only / used unchanged'.",
+    "None of the files the list excludes (videoapp/*, readingapp/*, Breadcrumb.tsx, the apps' video/reading pages, reading-video-faces.spec.ts and its fixture) appears in the diff.",
+    "In the justified fixture's new shape, only the link node's class differs. The outer cell class is still 'justified-grid-cell relative', which matches the touch-point note that PHOTO_CELL_CLASSES does not change."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "FileGrid.tsx:107-112 builds openInNewTab as a new closure on every render, and only when appCardMenu is set and target is not null. It is passed to FileContextMenu, not to the memoised cards, so card memo is unaffected. I did not check whether FileContextMenu or useFileMenuItems memoises on the identity of onOpenInNewTab."
+  ],
+  "regression_risks": [
+    "FileCard and JustifiedFileCell have a new third branch in the Wrapper className ternary. If selectable is set it still wins, so selectable cards keep 'cursor-pointer select-none' and gain no touch-callout class. Callers that do not pass the prop (CarouselSection, ContinueWatchingSection) still default to false."
+  ],
+  "test_coverage": [
+    "The justified-grid.spec.ts loops at :259 and :429 iterate Object.keys(SHAPES), so the new linkedOnlyAppCardMenu shape runs the same geometry cases as the others, and SHAPE_COUNT=11 at :37 guards the count.",
+    "justifiedGridFixtureParity.test.tsx:208 adds the linkedOnlyAppCardMenu state, and :312 asserts the shape count.",
+    "fileGridAppCardMenu.test.tsx covers I1, I2, I3/I6, I5 and the class-level I4/I6 in both layouts. file-grid-app-card-menu.spec.ts covers the computed user-select (I4) in Chromium for 4 cards and 20 justified cells."
+  ],
+  "not_verified": [
+    "I did not run any test (vitest or Playwright). Pass/fail status was not observed.",
+    "I did not read FileContextMenu.tsx, useFileMenuItems or ContextMenu.tsx to confirm where the Open in new tab row is placed or how immediateRows behaves.",
+    "The reviewed commit c562726 itself (a docs/review record) was not inspected separately from the branch diff supplied in the prompt.",
+    "I did not read docs/ADDON-DEVELOPMENT.md beyond the diff hunk, or the repository's process/rules documents in full."
+  ],
+  "coverage": [
+    {
+      "path": "frontend/e2e-components/file-grid-app-card-menu.spec.ts",
+      "read": "full",
+      "reason": "New file; its whole content was read in the supplied diff."
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/app.tsx",
+      "read": "partial",
+      "reason": "Read only the two changed hunks in the diff (the import near line 131 and the ARRANGEMENTS spread near line 2936)."
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/fileGridAppCardMenu.tsx",
+      "read": "full",
+      "reason": "New file; its whole content was read in the supplied diff."
+    },
+    {
+      "path": "frontend/e2e-layout/fixtures/justified-grid.html",
+      "read": "partial",
+      "reason": "Read the added linkedOnlyAppCardMenu shape (lines 373-408) in the diff, and grepped for the neighbouring linkedOnly shape at line 337."
+    },
+    {
+      "path": "frontend/e2e-layout/justified-grid.spec.ts",
+      "read": "partial",
+      "reason": "Read the changed SHAPE_COUNT line (37) and grepped its uses at 256, 259 and 429."
+    },
+    {
+      "path": "frontend/src/components/FileCard.tsx",
+      "read": "partial",
+      "reason": "Read lines 1-140, which contain every changed hunk (props and Wrapper className) inside FileCardImpl."
+    },
+    {
+      "path": "frontend/src/components/FileGrid.tsx",
+      "read": "full",
+      "reason": "Read the whole file (1-200)."
+    },
+    {
+      "path": "frontend/src/components/JustifiedFileCell.tsx",
+      "read": "full",
+      "reason": "Read the whole file (1-160)."
+    },
+    {
+      "path": "frontend/src/components/__tests__/fileGridAppCardMenu.test.tsx",
+      "read": "full",
+      "reason": "New file; its whole content was read in the supplied diff."
+    },
+    {
+      "path": "frontend/src/components/__tests__/justifiedGridFixtureParity.test.tsx",
+      "read": "partial",
+      "reason": "Read the changed hunks (SHAPE_COUNT at 108, the PhotoState type, the PHOTO_STATES entry at 208, renderPhotoCell) in the diff, and grepped the count assertion at 312."
+    }
+  ],
+  "confidence": 88
+}

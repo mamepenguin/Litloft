@@ -17,6 +17,10 @@ export default defineConfig({
       "node_modules/**",
     ],
     pool: "forks",
+    // Several agent sessions run the suite at once on one machine, and the
+    // default of one worker per core makes them oversubscribe it together.
+    // CI keeps the default: its runner has few cores and runs nothing else.
+    maxWorkers: process.env.CI ? undefined : 4,
     teardownTimeout: 5000,
     // Above `asyncUtilTimeout` in src/test/setup.ts, so a wait that runs
     // out reports what it could not find instead of a bare test timeout.

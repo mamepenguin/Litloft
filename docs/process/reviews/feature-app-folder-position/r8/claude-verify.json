@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [],
+  "specification_compliance": [
+    "No findings were listed to verify. As a spot check I read the crumb logic changed by the head commit, against I8 (r6). In frontend/src/components/appshell/folderPosition.ts:65-71 a folder crumb is a link only when it is a strict ancestor of the position (position !== folder && position.startsWith(folder + '/')) and opensAnotherView holds, meaning its narrowed folders differ from both the top's folders and the currently shown folders. This matches 'strict ancestor whose view differs from the current one'.",
+    "In frontend/src/components/appshell/FolderPositionRows.tsx:61-75 the home crumb is an <a> whenever position !== null and a plain span at the top. This matches I8 r6, 'the home crumb is a link whenever the URL holds a folder', provided an invalid folder is normalised to null and replaced out of the URL (I10)."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The code reads 'differs from the current one' to include 'differs from the top view'. A crumb whose narrowing equals the top's folders is not a link, even when it differs from the current view (folderPosition.ts:82). The home crumb still reaches that view, but I8's wording names only the current view."
+  ],
+  "regression_risks": [
+    "opensAnotherView compares the folder arrays in order (sameFolders). If narrowFolders can return the same set in a different order, a crumb could be linked when it should not be."
+  ],
+  "test_coverage": [
+    "I did not inspect the tests for folderCrumbs link decisions in this session."
+  ],
+  "not_verified": [
+    "Invariants I1-I7 and I9-I15 (requests, history, URL replace, See all pages) were not checked",
+    "narrowFolders and normalizeFolder semantics in appshell/folders.ts were not read",
+    "The e2e layout spec and fixture parity were not checked",
+    "The chip half of I8 (chips one level below the last crumb) was not verified"
+  ],
+  "confidence": 75,
+  "coverage": [
+    {
+      "path": "frontend/src/components/appshell/folderPosition.ts",
+      "read": "full",
+      "reason": "crumb link logic changed by head commit"
+    },
+    {
+      "path": "frontend/src/components/appshell/FolderPositionRows.tsx",
+      "read": "full",
+      "reason": "home crumb and crumb rendering"
+    }
+  ]
+}

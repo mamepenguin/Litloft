@@ -5,17 +5,20 @@ import { Search } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 
 import { fetchAlignedPage, useCardFileLists } from "@/components/appshell/CardFileMenu";
+import { FolderPositionRows } from "@/components/appshell/FolderPositionRows";
 import { RetryButton } from "@/components/appshell/RetryButton";
 import { FilterMenus } from "@/components/appshell/FilterMenus";
 import { mergeLibraryTags, useLibraryFilters } from "@/components/appshell/libraryFilters";
 import { ShelfBlock } from "@/components/appshell/ShelfBlock";
-import { GroupMenu, LibraryControlRow, SortMenu } from "@/components/appshell/ViewMenus";
 import { useNearEnd } from "@/components/appshell/useNearEnd";
 import { usePaged } from "@/components/appshell/usePaged";
+import { GroupMenu, LibraryControlRow, SortMenu } from "@/components/appshell/ViewMenus";
 import { EmptyState } from "@/components/EmptyState";
 import { type Shelf, type ShelfGrouping, type ShelfItem, type ShelfWatchState } from "@/lib/api";
 import type { AppRequests } from "@/lib/memberTarget";
 import type { VideoTargetParams } from "@/lib/videoAppTarget";
+import { narrowFolders, normalizeFolder } from "@/components/appshell/folders";
+import { useFolderChips } from "@/components/appshell/useFolderChips";
 import { SORT_CHOICES, VIDEO_GROUPS, shelfTitle, type SortId, type VideoGroup } from "./labels";
 import { videoShelfHref, type ShelfLinkConditions } from "./shelfLinks";
 import { isViewerRequired } from "./useVideoApp";
@@ -27,6 +30,7 @@ export const LIBRARY_SHELVES_PER_PAGE = 12;
 export const LIBRARY_NONE_PAGE_SIZE = 60;
 
 const WATCH_STATES: readonly ShelfWatchState[] = ["unwatched", "in_progress", "finished"];
+const noop = () => {};
 
 export function seeAllHref(
   drive: string,
@@ -42,6 +46,32 @@ function listOf(value: string | readonly string[] | undefined): string[] {
   return value === undefined ? [] : ([value].flat() as string[]);
 }
 
+/** The chips of the target under the position, never the face's own conditions. */
+function useVideoFolderChips(
+  drive: string,
+  params: VideoTargetParams | null,
+  folders: readonly string[],
+  enabled: boolean,
+  requests: AppRequests,
+) {
+  const loadPage = useMemo(
+    () =>
+      params === null || !enabled
+        ? null
+        : (offset: number) =>
+            requests.shelves(drive, {
+              ...params,
+              ...(folders.length > 0 ? { folder: folders } : {}),
+              by: "folder",
+              per_shelf: 1,
+              shelf_limit: 24,
+              ...(offset > 0 ? { offset } : {}),
+            }),
+    [drive, params, folders, enabled, requests],
+  );
+  return useFolderChips(loadPage);
+}
+
 export function LibraryFace({
   drive,
   params,
@@ -49,7 +79,10 @@ export function LibraryFace({
   empty,
   group,
   hasProfile,
+  position = null,
   sortId,
+  libraryPath = `/drive/${encodeURIComponent(drive)}/apps/video`,
+  onChooseFolder = noop,
   onGroup,
   onSort,
   onViewerRejected,
@@ -60,7 +93,12 @@ export function LibraryFace({
   empty: boolean;
   group: VideoGroup;
   hasProfile: boolean;
+  /** The folder the URL holds; `null` at the top of the target. */
+  position?: string | null;
   sortId: SortId;
+  /** The Library's own URL, without a query. */
+  libraryPath?: string;
+  onChooseFolder?: (folder: string | null) => void;
   onGroup: (value: VideoGroup) => void;
   onSort: (value: SortId) => void;
   onViewerRejected: () => void;
@@ -74,22 +112,42 @@ export function LibraryFace({
   const name = filters.name;
   const watch = hasProfile && filters.state !== "all" ? (filters.state as ShelfWatchState) : undefined;
 
+  const targetFolders = useMemo(
+    () => listOf(params?.folder).map(normalizeFolder),
+    [params],
+  );
+  const folders = useMemo(
+    () =>
+      params === null
+        ? []
+        : position === null
+          ? targetFolders
+          : narrowFolders(targetFolders, position),
+    [params, position, targetFolders],
+  );
+  const blocked = empty || (position !== null && folders.length === 0);
+  const chips = useVideoFolderChips(drive, params, folders, !empty && !blocked, requests);
+  const chipsBase = blocked ? "" : chips.state.base;
+
   const query = useMemo<VideoTargetParams | null>(() => {
     if (params === null) return null;
     const merged = mergeLibraryTags(listOf(params.tag), filters.tags);
     return {
       ...params,
+      ...(folders.length > 0 ? { folder: folders } : {}),
       ...(merged.length > 0 ? { tag: merged } : {}),
       ...(watch ? { watch } : {}),
       ...(name ? { search: name } : {}),
     };
-  }, [params, filters.tags, name, watch]);
+  }, [params, folders, filters.tags, name, watch]);
   const excludedTags = useMemo(() => listOf(params?.tag), [params]);
   const conditionsKey = useMemo(() => JSON.stringify(query ?? null), [query]);
   const loadCandidates = useCallback(
     (signal: AbortSignal) =>
-      query === null ? Promise.resolve([]) : requests.tagCounts(drive, query, { signal }),
-    [drive, query, requests],
+      query === null || blocked
+        ? Promise.resolve([])
+        : requests.tagCounts(drive, query, { signal }),
+    [drive, query, requests, blocked],
   );
   const filtersActive = filters.tags.length > 0 || watch !== undefined || name !== "";
 
@@ -98,7 +156,7 @@ export function LibraryFace({
 
   const fetchGrouped = useMemo(
     () =>
-      query === null || none
+      query === null || none || blocked
         ? null
         : (page: number) =>
             requests
@@ -118,14 +176,14 @@ export function LibraryFace({
                   throw error;
                 },
               ),
-    [drive, query, requests, none, group, sort.sort, sort.order, onViewerRejected],
+    [drive, query, requests, none, blocked, group, sort.sort, sort.order, onViewerRejected],
   );
   const shelves = usePaged<Shelf>(fetchGrouped, lists.version);
   const sentinel = useNearEnd(shelves.hasMore && shelves.more === "idle", shelves.loadMore);
 
   const fetchFlat = useMemo(
     () =>
-      query === null || !none
+      query === null || !none || blocked
         ? null
         : (page: number) =>
             fetchAlignedPage<ShelfItem>(page, removedBefore.current, LIBRARY_NONE_PAGE_SIZE, (n) =>
@@ -150,7 +208,7 @@ export function LibraryFace({
                   },
                 ),
             ),
-    [drive, query, requests, none, sort.sort, sort.order, onViewerRejected],
+    [drive, query, requests, none, blocked, sort.sort, sort.order, onViewerRejected],
   );
   const flat = usePaged(fetchFlat, lists.version);
   removedBefore.current = lists.removedCount("grid", flat.items);
@@ -170,14 +228,35 @@ export function LibraryFace({
     ...WATCH_STATES.map((value) => ({ value, label: t(`state.${value}`) })),
   ];
   const conditions: ShelfLinkConditions = {
+    ...(position !== null && folders.length > 0 ? { folder: folders } : {}),
+    ...(position !== null ? { fromFolder: position } : {}),
     ...(filters.tags.length > 0 ? { tag: filters.tags } : {}),
     ...(watch ? { watch } : {}),
     ...(name ? { name } : {}),
   };
   const filteredEmpty = <EmptyState icon={Search} title={tFilters("filterEmpty")} />;
 
+  const libraryHref = (folder: string | null) =>
+    folder === null ? libraryPath : `${libraryPath}?folder=${encodeURIComponent(folder)}`;
+
   return (
     <div className="space-y-6">
+      {!empty && params !== null && (
+        <div className="space-y-3 pointer-coarse:mb-3 pointer-coarse:space-y-1">
+          <FolderPositionRows
+            position={position}
+            targetFolders={targetFolders}
+            base={chipsBase}
+            chips={chips.state.chips}
+            chipsStatus={chips.state.status}
+            chipsError={chips.state.error}
+            onRetry={chips.retry}
+            href={libraryHref}
+            onChoose={onChooseFolder}
+          />
+        </div>
+      )}
+
       <LibraryControlRow
         filters={
           <FilterMenus
@@ -204,11 +283,11 @@ export function LibraryFace({
         {none ? (
           <VideoPagedGrid
             paged={{ ...flat, items: flatItems }}
-            empty={empty}
+            empty={empty || blocked}
             filtered={filtersActive}
             listKey="grid"
           />
-        ) : empty ? (
+        ) : blocked || empty ? (
           <EmptyState variant="no-files" />
         ) : shelves.phase === "ready" && shelves.items.length === 0 ? (
           filtersActive ? filteredEmpty : <EmptyState variant="no-files" />

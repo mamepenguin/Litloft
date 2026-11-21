@@ -107,6 +107,7 @@ import { HomeAppEntriesArrangement } from "./homeAppEntries";
 import { DiscoverPrefixArrangement } from "./discoverPrefix";
 import { VideoCardBylineArrangement } from "./videoCardByline";
 import { VideoCardSpacingArrangement } from "./videoCardSpacing";
+import { FolderRowsArrangement } from "./folderRows";
 import { AppHeaderArrangement } from "./appHeader";
 import { PersistentHighlightsArrangement } from "./persistentHighlights";
 import {
@@ -128,6 +129,7 @@ import { BATCH_PROGRESS_ARRANGEMENTS } from "./batchProgress";
 import { FOCUS_MODE_ARRANGEMENTS } from "./focusMode";
 import { TRANSCRIPT_TOUCH_ARRANGEMENTS } from "./transcriptTouch";
 import { APP_CARD_MENU_ARRANGEMENTS } from "./appCardMenu";
+import { FILE_GRID_APP_CARD_MENU_ARRANGEMENTS } from "./fileGridAppCardMenu";
 import {
   InspectorArchiveArrangement,
   InspectorPdfArrangement,
@@ -2850,6 +2852,7 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "discover-prefix": DiscoverPrefixArrangement,
   "video-card-byline": VideoCardBylineArrangement,
   "video-card-spacing": VideoCardSpacingArrangement,
+  "folder-rows": FolderRowsArrangement,
   "app-header": AppHeaderArrangement,
   "persistent-highlights": PersistentHighlightsArrangement,
   "scenes-351": () => <ScenesSectionArrangement hostWidth={351} hostHeight={900} />,
@@ -2932,6 +2935,7 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   ...FOCUS_MODE_ARRANGEMENTS,
   ...TRANSCRIPT_TOUCH_ARRANGEMENTS,
   ...APP_CARD_MENU_ARRANGEMENTS,
+  ...FILE_GRID_APP_CARD_MENU_ARRANGEMENTS,
 };
 
 function App(): ReactElement {

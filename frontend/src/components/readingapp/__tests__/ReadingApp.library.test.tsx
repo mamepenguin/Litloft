@@ -1,10 +1,10 @@
 /**
- * The Reading app's Library face: folder chips, the Tag / State / Group /
- * Sort controls, paging, and the empty and failed states.
+ * The Reading app's Library face: the Tag / State / Group / Sort controls,
+ * paging, and the empty and failed states.
  */
 
 import { useState } from "react";
-import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { readTargetView, writeAppPrefs } from "@/lib/appPrefs";
@@ -125,20 +125,6 @@ function defaultFiles(_drive: string, params: Params) {
   };
 }
 
-function smartFolder(id: string, name: string, query: string) {
-  return {
-    id,
-    drive: DRIVE,
-    name,
-    query,
-    file_type: null,
-    sort_by: null,
-    sort_order: null,
-    created_at: "2026-01-01T00:00:00Z",
-    updated_at: null,
-  };
-}
-
 function shelfCalls(match: Params) {
   return getShelves.mock.calls.filter(([, params]) =>
     Object.entries(match).every(([key, value]) =>
@@ -147,12 +133,6 @@ function shelfCalls(match: Params) {
         : (params as Params)[key] === value,
     ),
   );
-}
-
-function chipLabels(): string[] {
-  return within(screen.getByTestId("reading-chips"))
-    .getAllByRole("button")
-    .map((button) => button.textContent ?? "");
 }
 
 beforeEach(() => {
@@ -168,124 +148,7 @@ beforeEach(() => {
   ]);
 });
 
-describe("SPEC-CORE-062 I18 the folder chips", () => {
-  beforeEach(() => {
-    writeAppPrefs(DRIVE, { face: "library" }, "reading");
-  });
-
-  it("asks for the child folders of base under the target alone", async () => {
-    render(<ReadingApp drive={DRIVE} />);
-    await screen.findByText("Flat one");
-
-    const call = shelfCalls({ by: "folder" })[0][1] as Params;
-    expect(call).toMatchObject({
-      per_shelf: 1,
-      shelf_limit: 24,
-      type: ["pdf", "epub", "archive"],
-    });
-    expect(call).not.toHaveProperty("key");
-    expect(call).not.toHaveProperty("watch");
-    expect(call).not.toHaveProperty("tag");
-    expect(call).not.toHaveProperty("folder");
-  });
-
-  it("draws All first and the child folders in the server's order, never the base shelf", async () => {
-    render(<ReadingApp drive={DRIVE} />);
-    await screen.findByText("Flat one");
-
-    expect(chipLabels()).toEqual(["All", "Comics", "Novels", "Poetry"]);
-  });
-
-  it("narrows the listing to the chosen chip's folder", async () => {
-    render(<ReadingApp drive={DRIVE} />);
-    await screen.findByText("Flat one");
-
-    fireEvent.click(within(screen.getByTestId("reading-chips")).getByRole("button", { name: "Comics" }));
-
-    await waitFor(() => {
-      const narrowed = shelfCalls({ by: "all", folder: ["Books/Comics"] });
-      expect(narrowed.length).toBeGreaterThan(0);
-    });
-    expect(shelfCalls({ by: "folder" }).every(([, p]) => (p as Params).folder === undefined)).toBe(
-      true,
-    );
-  });
-
-  it("never widens the target past a folder it carries", async () => {
-    writeAppPrefs(DRIVE, { face: "library", target: "sf-books" }, "reading");
-    getSmartFolders.mockResolvedValue([smartFolder("sf-books", "Books", "path:Books")]);
-    render(<ReadingApp drive={DRIVE} />);
-    await screen.findByText("Flat one");
-    const before = shelfCalls({ by: "all" }).length;
-
-    fireEvent.click(within(screen.getByTestId("reading-chips")).getByRole("button", { name: "Novels" }));
-
-    await waitFor(() => {
-      const narrowed = shelfCalls({ by: "all", folder: ["Books/Novels"] });
-      expect(narrowed.length).toBeGreaterThan(0);
-    });
-    const after = shelfCalls({ by: "all" }).slice(before);
-    expect(
-      after.every(([, p]) => JSON.stringify((p as Params).folder) === JSON.stringify(["Books/Novels"])),
-    ).toBe(true);
-  });
-
-  it("shows No books and sends no listing request when the chip leaves nothing", async () => {
-    writeAppPrefs(DRIVE, { face: "library", target: "sf-books" }, "reading");
-    getSmartFolders.mockResolvedValue([smartFolder("sf-books", "Books", "path:Books")]);
-    getShelves.mockImplementation(async (_d, params: Params) => {
-      if (params.by === "folder") {
-        return {
-          by: "folder",
-          base: "",
-          total_shelves: 1,
-          shelves: [chipShelf("Music", "Music", 1)],
-        };
-      }
-      return defaultShelves(_d, params);
-    });
-    render(<ReadingApp drive={DRIVE} />);
-    await screen.findByTestId("reading-chips");
-
-    fireEvent.click(await screen.findByRole("button", { name: "Music" }));
-
-    expect(await screen.findByText("No books")).toBeInTheDocument();
-    expect(shelfCalls({ by: "all", folder: ["Music"] })).toHaveLength(0);
-  });
-
-  it("keeps the chips already loaded and offers a retry when a later page fails", async () => {
-    getShelves.mockImplementation(async (_d, params: Params) => {
-      if (params.by === "folder") {
-        if (params.offset) throw new Error("boom");
-        return {
-          by: "folder",
-          base: "Books",
-          total_shelves: 48,
-          shelves: [chipShelf("Books/", "Books", 2), chipShelf("Books/Comics", "Comics", 7)],
-        };
-      }
-      return defaultShelves(_d, params);
-    });
-    render(<ReadingApp drive={DRIVE} />);
-
-    expect(await screen.findByRole("button", { name: "Comics" })).toBeInTheDocument();
-    expect(await screen.findByRole("button", { name: /retry/i })).toBeInTheDocument();
-    expect(chipLabels()).toContain("Comics");
-  });
-
-  it("shows All and a retry when the first chip page fails", async () => {
-    getShelves.mockImplementation(async (_d, params: Params) => {
-      if (params.by === "folder") throw new Error("boom");
-      return defaultShelves(_d, params);
-    });
-    render(<ReadingApp drive={DRIVE} />);
-
-    expect(await screen.findByRole("button", { name: "All" })).toBeInTheDocument();
-    expect(await screen.findByRole("button", { name: /retry/i })).toBeInTheDocument();
-  });
-});
-
-describe("I19 grouping and sort", () => {
+describe("SPEC-CORE-062 I19 grouping and sort", () => {
   beforeEach(() => {
     writeAppPrefs(DRIVE, { face: "library" }, "reading");
   });
@@ -388,7 +251,7 @@ function LibraryHarness({
   );
 }
 
-describe("I20 watch state needs a profile", () => {
+describe("SPEC-CORE-062 I20 watch state needs a profile", () => {
   it("draws no State and sends no watch without a profile", async () => {
     render(<LibraryHarness hasProfile={false} />);
     await screen.findByText("Flat one");
@@ -417,7 +280,7 @@ describe("I20 watch state needs a profile", () => {
   });
 });
 
-describe("I20a a superseded fetch is never drawn", () => {
+describe("SPEC-CORE-062 I20a a superseded fetch is never drawn", () => {
   it("draws only the latest response after a quick sort change", async () => {
     const pending: Array<{
       params: Params;

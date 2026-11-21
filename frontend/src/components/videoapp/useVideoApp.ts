@@ -113,6 +113,7 @@ export function useVideoApp(
   drive: string,
   targetParam: string | null = null,
   onTargetHandled?: () => void,
+  onTargetChosen?: () => void,
 ): VideoAppState {
   const { nickname } = useProfile();
   const [prefs, setPrefs] = useState<AppPrefs | null>(null);
@@ -346,8 +347,9 @@ export function useVideoApp(
       setChosen(null);
       resetLibraryFilters("video", drive);
       updatePrefs({ target: id });
+      onTargetChosen?.();
     },
-    [drive, targetId, updatePrefs],
+    [drive, targetId, updatePrefs, onTargetChosen],
   );
 
   return {

@@ -75,6 +75,12 @@ at the right end of the tab row opens a field that keeps videos whose title or f
 contains the text, and a **See all** page opened from the Library carries the text with it.
 It lasts with the tag and state filters and empties with them.
 
+Under the tabs the Library shows where in the folders you are: a breadcrumb trail ending at
+the current folder, and under it one chip per child folder with how many videos it holds.
+Choosing a chip walks one level down; choosing a crumb or the home button walks back up.
+The position is kept in the address, so **Back** returns to the previous folder and
+reloading keeps it. Choosing another target starts again at that target's top folder.
+
 When the filters leave no video, the Library says **条件に合う項目はありません** /
 **Nothing matches these filters**. A target that matches nothing, and an empty drive, keep
 their own empty state.

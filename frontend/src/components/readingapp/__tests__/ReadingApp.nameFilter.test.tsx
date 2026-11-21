@@ -133,7 +133,7 @@ async function fakeFetch(input: RequestInfo | URL, init?: RequestInit): Promise<
   return json({ detail: "Not Found" }, 404);
 }
 
-type App = ComponentType<{ drive: string }>;
+type App = ComponentType<{ drive: string; position?: string | null }>;
 type Prefs = typeof import("@/lib/appPrefs");
 
 async function load(): Promise<{ ReadingApp: App; prefs: Prefs }> {
@@ -144,10 +144,10 @@ async function load(): Promise<{ ReadingApp: App; prefs: Prefs }> {
   return { ReadingApp: app.ReadingApp as App, prefs };
 }
 
-async function openLibrary(drive = DRIVE, target?: string) {
+async function openLibrary(drive = DRIVE, target?: string, position: string | null = null) {
   const { ReadingApp, prefs } = await load();
   prefs.writeAppPrefs(drive, target ? { face: "library", target } : { face: "library" }, "reading");
-  const view = render(<ReadingApp drive={drive} />);
+  const view = render(<ReadingApp drive={drive} position={position} />);
   return { ...view, ReadingApp, prefs };
 }
 
@@ -275,13 +275,13 @@ describe("SPEC-CORE-156 I1 I2 which of Reading's requests carry the name", () =>
 
     for (const p of chipCalls()) expect(p.search).toBeUndefined();
     for (const call of getDriveFiles.mock.calls) expect(carriesName(call)).toBe(false);
-    expect(within(screen.getByTestId("reading-chips")).getByRole("button", { name: "Comics" })).toBeInTheDocument();
+    expect(screen.getByTestId("folder-chips")).toBeInTheDocument();
+    expect(within(screen.getByTestId("folder-chips")).getByRole("link", { name: /Comics/ })).toBeInTheDocument();
   });
 
-  it("SPEC-CORE-156 I1 a chosen chip and the name go together on the grid request", async () => {
-    await openLibrary();
+  it("SPEC-CORE-156 I1 a position and the name go together on the grid request", async () => {
+    await openLibrary(DRIVE, undefined, "Books/Comics");
     await screen.findByText("Flat one");
-    fireEvent.click(within(screen.getByTestId("reading-chips")).getByRole("button", { name: "Comics" }));
 
     await applyName(NAME);
 

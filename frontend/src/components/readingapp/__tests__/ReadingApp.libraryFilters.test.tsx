@@ -11,7 +11,7 @@
  */
 
 import type { ComponentType } from "react";
-import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const DRIVE = "main";
@@ -134,7 +134,7 @@ async function fakeFetch(input: RequestInfo | URL, init?: RequestInit): Promise<
   return json({ detail: "Not Found" }, 404);
 }
 
-type App = ComponentType<{ drive: string }>;
+type App = ComponentType<{ drive: string; position?: string | null }>;
 type Prefs = typeof import("@/lib/appPrefs");
 
 async function load(): Promise<{ ReadingApp: App; prefs: Prefs }> {
@@ -145,10 +145,10 @@ async function load(): Promise<{ ReadingApp: App; prefs: Prefs }> {
   return { ReadingApp: app.ReadingApp as App, prefs };
 }
 
-async function openLibrary(drive = DRIVE, target?: string) {
+async function openLibrary(drive = DRIVE, target?: string, position: string | null = null) {
   const { ReadingApp, prefs } = await load();
   prefs.writeAppPrefs(drive, target ? { face: "library", target } : { face: "library" }, "reading");
-  const view = render(<ReadingApp drive={drive} />);
+  const view = render(<ReadingApp drive={drive} position={position} />);
   return { ...view, ReadingApp, prefs };
 }
 
@@ -227,10 +227,9 @@ describe("SPEC-CORE-147 I3 I12 Reading's tag candidates", () => {
     expect(screen.queryByRole("menuitemcheckbox", { name: /elsewhere/ })).not.toBeInTheDocument();
   });
 
-  it("SPEC-CORE-147 I12 the request carries the chip, the state and the chosen tags", async () => {
-    await openLibrary();
+  it("SPEC-CORE-147 I12 the request carries the position, the state and the chosen tags", async () => {
+    await openLibrary(DRIVE, undefined, "Books/Comics");
     await screen.findByText("Flat one");
-    fireEvent.click(within(screen.getByTestId("reading-chips")).getByRole("button", { name: "Comics" }));
     await chooseState("In progress");
     await waitFor(() =>
       expect(lastLibrary()).toMatchObject({ folder: ["Books/Comics"], watch: "in_progress" }),
