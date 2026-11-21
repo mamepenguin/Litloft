@@ -28,7 +28,7 @@ the ExcelJS workbook into the grid's sheets, and the one that draws pictures):
 maximum digit width of the workbook's default font, 7 px for Calibri 11 and Arial 10. The
 library does not expose the default font, so this change uses 7 for every workbook.
 
-The library offers two options that `init` accepts and `preview` calls, both public:
+The library reads two options that `init` accepts and `preview` calls. Neither is in its type declarations or README; the exact version pin (SPEC-CORE-155) is what keeps them:
 
 - `beforeTransformData(workbook)`, called with the ExcelJS workbook before the library
   converts it; what it returns is converted.
@@ -43,8 +43,8 @@ keep text sizes off the points-to-pixels table:
   4/3`, for rows 1 to 100 and every existing row after them; a height or default that is
   not a positive number counts as missing;
 - every column the library can draw (1 to the largest cell count of any row) gets the
-  width `px / 6`, where `px` is `Math.round(its width × 7)`, or for a column without a
-  width `Math.round(sheet default width × 7)`, or 64 when the sheet has no positive
+  width `px / 6`, where `px` is `Math.round(its width × 7)` when that is positive, or
+  otherwise (no width, or a width that is not positive or rounds to 0) `Math.round(sheet default width × 7)`, or 64 when the sheet has no positive
   default width; the library then draws it at `6 × px / 6`, which is `px` up to
   floating-point error;
 - every distinct font's numeric `size` (points) is multiplied by 16/9, so the library's
@@ -67,7 +67,7 @@ What each part is drawn at, in CSS px at devicePixelRatio 1 and 2:
 | Text 11 pt | 11 | 15 |
 | Text 14 pt | 15 | 19 |
 
-Tried on copies of three production workbooks and two others with pictures: wrapped
+Tried on five workbooks, copies of three production workbooks and two others with pictures: wrapped
 text stayed inside its rows, a sequence-diagram picture stayed on the cells it covers
 in Excel, and text that the library clipped at a cell edge because its column was
 narrower than Excel's ("セキュリティ要件" in a 14.44-character column) fitted.
@@ -196,7 +196,8 @@ the change may not add more than one second to it. No new dependency.
   and its numeric `font.size` becomes `Math.round(size / 1.333333)`. The tests assert the
   values the functions set (row heights and column widths to within 1e-9 of the
   formulas; fractional heights stay fractional) and what the fake conversion hands the
-  grid. Pictures, hidden-row placement and drawn pixels are R-5's.
+  grid, including the picture values of I4 (each member ×4/3 once, a missing member
+  skipped). Where a picture lands on screen, and drawn pixels, are R-5's.
 - `docs/specs/INDEX.md`: the SPEC-CORE-168 row, and SPEC-CORE-167 set to `superseded`.
 - R-5, at a 1280 px window, on the copies in the local 「動画」 drive's `Inbox` (test data,
   not committed): `EnglishCore工数実績表.xlsx`, `要件定義署のサンプル.xlsx`,
@@ -214,9 +215,9 @@ the change may not add more than one second to it. No new dependency.
 ## Invariants
 
 I1. For every worksheet the library loads, rows 1 to 100 and every existing row after them are drawn at `(its height, else the sheet's positive default row height, else 15) × 4/3` px, except hidden rows; no row past 100 is created.
-I2. For every worksheet, every column the library draws is drawn at `Math.round(its width × 7)` px, else `Math.round(the sheet's positive default width × 7)`, else 64, except hidden columns.
+I2. For every worksheet, every column the library draws is drawn at `Math.round(its width × 7)` px when that is positive, else `Math.round(the sheet's positive default width × 7)`, else 64, except hidden columns.
 I3. Cell text whose font has a numeric size of `p` points is drawn at `Math.round(p × 4/3)` CSS px at a whole-number devicePixelRatio; every numeric `size` the grid receives is a whole number plus 0.01.
-I4. A picture's anchor offsets and its one-cell-anchor size are 4/3 of the values the library loaded, so it stays on the same cells as the scaled grid.
+I4. Every picture's anchor offsets (`nativeColOff`, `nativeRowOff` of `tl` and `br`) and one-cell-anchor size (`ext.width`, `ext.height`) are 4/3 of the values the library loaded, so a picture that lies over the columns the library keeps and the rows that exist stays on the same cells as the scaled grid.
 I5. Each font object, row, column and picture is scaled exactly once per drawing; a `reload`, the frame's `ResizeObserver`, a window `resize` and a sheet switch scale nothing again.
 I6. The grid's first render after `preview` already uses the scaled rows, columns and sizes.
 I7. A workbook of unexpected shape, or a scaling that throws, is still shown, with no fallback panel, no `dispose`, and no `console` output of any kind from the scaling.
@@ -241,8 +242,19 @@ SPEC-CORE-167 I6. Superseded by SPEC-CORE-168 I3: 8 pt text is drawn at 11 CSS p
   text to the cell; Excel lets it run on. A separate change.
 - **Cells without a numeric font size** draw at the library's default 13 px rather than
   the workbook's default font size (Excel writes a cell in the Normal style without a
-  style id, and ExcelJS then gives it no font). In the six workbooks tried, 0 of 8,692
+  style id, and ExcelJS then gives it no font). In the five workbooks above and one more
+  without pictures, 0 of 8,692
   cells with a value had no style id, so no case was seen.
+- **A picture past the columns the library keeps, or over rows past 100 that do not
+  exist.** The library drops columns after the last cell column before its picture code
+  runs, and that code then counts 80 px per missing column and 24 px per missing row.
+  Such a picture is drawn wider than in Excel (80 against 64 px per column), more than
+  today relative to the now-exact rows. Changing it would mean adding cells or columns
+  the library does not keep.
+- **`baseColWidth`.** ExcelJS does not read it, so a sheet that sets it (Mac Excel often
+  writes 10) without `defaultColWidth` gets 64 px columns where Excel draws them wider.
+- **A `<col>` without a `width` attribute** gets ExcelJS's default of 9 characters, so
+  63 px rather than the sheet's default. Excel does not write one; other tools may.
 - **A picture past a hidden row or column** is placed as if the row or column had its
   size: the library's picture code ignores the hidden flag. That offset exists today and
   grows by 4/3 with this change.
