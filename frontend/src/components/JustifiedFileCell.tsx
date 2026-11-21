@@ -26,6 +26,7 @@ function JustifiedFileCellImpl({
   onMetaSelect,
   onShiftSelect,
   sortQuery,
+  appCardMenu = false,
   draggable,
   isDragging,
   onDragStart,
@@ -43,6 +44,8 @@ function JustifiedFileCellImpl({
   onMetaSelect?: (id: string) => void;
   onShiftSelect?: (id: string) => void;
   sortQuery?: string;
+  /** The app card menu's press: no text selection on the card. */
+  appCardMenu?: boolean;
   draggable?: boolean;
   isDragging?: boolean;
   onDragStart?: (e: React.DragEvent, file: FileItem) => void;
@@ -94,7 +97,11 @@ function JustifiedFileCellImpl({
         aria-label={file.title}
         data-file-thumb=""
         className={`group relative block h-full w-full overflow-hidden rounded-xl bg-bg-elevated ${
-          selectable ? "cursor-pointer select-none" : ""
+          selectable
+            ? "cursor-pointer select-none"
+            : appCardMenu
+              ? "select-none [-webkit-touch-callout:none]"
+              : ""
         } ${selected ? "ring-2 ring-accent" : ""}`}
         onContextMenu={selectable || !onContextMenu ? undefined : (e: React.MouseEvent) => onContextMenu(e, file)}
         onTouchStart={selectable || !onTouchStart ? undefined : (e: React.TouchEvent) => onTouchStart(e, file)}
