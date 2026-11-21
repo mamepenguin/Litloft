@@ -60,7 +60,9 @@ the card's own link in a new tab). Its rows are therefore, in the core's order:
 新しいタブで開く, ダウンロード, コレクションに追加, コピー, 切り取り, IDをコピー,
 名前を変更 (the dialog; no card offers inline rename), 移動 (the dialog), then the history
 rows below where they apply, then ゴミ箱に移動 (the confirm dialog). 「編集」 is never
-offered.
+offered. The card menus pass `FileContextMenu`'s optional `immediateRows`, which runs a
+row's handler in the click itself rather than on the next frame; a caller that does not
+pass it is unchanged.
 
 History rows, only with a profile:
 
@@ -138,7 +140,7 @@ the viewer confirms the discard dialog; cancelling it cancels the menu action). 
 - after a trash, the pane shows what it shows today when the URL's `note` names no row
   (the URL's `note` is removed with `replace`);
 - after a rename or move, the pane shows the same note again, read anew, with its new name
-  and folder.
+  and folder; while it is read, the pane draws its loading state, as on opening a note.
 
 ### 2. Failure cases
 
@@ -194,13 +196,16 @@ need a profile and are not offered without one.
 
 ### 7. Effect on existing features
 
-- `FileContextMenu`: three new optional callbacks and one optional gate; callers that pass none (Home, the file
+- `FileContextMenu`: three new optional callbacks, one optional gate and `immediateRows`; callers that pass none (Home, the file
   list, Inbox, the folder tree, search) render and behave as today.
   `useFileMenuItems`, `ContextMenu`, `useContextMenu` are used unchanged.
 - `VideoCard`: gains an opt-in way to attach the file menu. Used without it, it renders
   and behaves as today. The media_import channel view (SPEC-ADDON-163, on
   `feature/loft-channel-videos`, not yet merged) wraps `VideoCard` without the opt-in, so
   it keeps one menu whichever lands first.
+- `ReadingCard`: for every caller, with or without the menu, a space text node now
+  separates the title from the folder, so the card's text reads as two words; nothing
+  drawn changes.
 - Recommended's menu grows from 「新しいタブで開く」 + actions to actions + divider + the
   file menu (revises SPEC-CORE-150 I7, replaces its design D2). `docs/ADDON-DEVELOPMENT.md`
   describes that menu and changes with it.
@@ -245,8 +250,11 @@ As in section 2. Toasts are the existing ones (`couldNotRemoveFromContinue`,
 
 Core (SPEC-CORE-157):
 
-- `frontend/src/components/FileContextMenu.tsx` (the three optional callbacks and the
-  optional `beforeChange` gate).
+- `frontend/src/components/FileContextMenu.tsx` (the three optional callbacks, the
+  optional `beforeChange` gate, and the optional `immediateRows`).
+- `frontend/src/components/appshell/CardFileMenu.tsx` (new: the page's menu for both core
+  apps, its list removals, the re-read, and a new caller of `dismissContinueItem` and
+  `deleteWatchProgress`).
 - `frontend/src/components/videoapp/VideoApp.tsx`, `VideoCard.tsx`, `DiscoverFace.tsx`,
   `LibraryFace.tsx`, `VideoPagedGrid.tsx`, `VideoShelfPage.tsx`, `useProviderShelfPage.ts`,
   `useRemovableItems.ts`, `discoverCache.ts`, `useDiscover.ts`, `useVideoApp.ts`.
@@ -263,18 +271,24 @@ Core (SPEC-CORE-157):
   actions section, and the new optional `FileContextMenu` props).
 - Rules passed through: `.claude/rules/frontend-conventions.md` (`DESIGN.md`, i18n),
   `.claude/rules/design-decisions.md` (watch history: removal only on an explicit user
-  action).
+  action). Its guard `frontend/src/__tests__/watchHistoryCallSites.test.ts` lists the
+  `deleteWatchProgress` callers exactly: `CardFileMenu.tsx` joins in the core PR and the
+  addon's `cardMenu/PageFileMenu.tsx` in the pointer bump.
 
 Knowledge addon (SPEC-ADDON-164), in `addons/knowledge/frontend/` at the commit the core
 pins:
 
-- Notes: `ContinueCard.tsx`, `notesapp/Home.tsx` (holds the removals and re-reads shared by
-  its three sections), `notesapp/ContinueWritingSection.tsx`,
+- `cardMenu/PageFileMenu.tsx` (new: the page's menu host for Notes and Clips, drawn with
+  `FileContextMenu`; its list removals, the re-read, and a new caller of
+  `deleteWatchProgress`).
+- Notes: `ContinueCard.tsx`, `NotesPage.tsx` (holds the removals and re-reads shared by
+  Home's three sections and the Library), `notesapp/ContinueWritingSection.tsx`,
   `notesapp/NotesWithSourcesSection.tsx`, `notesapp/useNotesWithSources.ts`,
   `NoteRow.tsx`, `notesapp/RecentlyUpdatedSection.tsx`, `library/LibraryList.tsx`,
   `library/NotesLibrary.tsx`, `library/useNotesList.ts`,
-  `library/pane/NotePaneContainer.tsx` (the change gate, reused), `library/shownNote.ts`
-  (read, unchanged).
+  `library/pane/NotePaneContainer.tsx` (the change gate, reused),
+  `library/pane/useNoteData.ts` (reads the shown note again after a menu rename or move),
+  `library/shownNote.ts` (read, unchanged).
 - Clips: `clipsapp/ClipCard.tsx`, `clipsapp/CoverShelf.tsx`, `clipsapp/ClipShelfBlock.tsx`,
   `clipsapp/ClipRow.tsx`, `clipsapp/Home.tsx`, `clipsapp/Library.tsx`,
   `clipsapp/ShelfPage.tsx`, `clipsapp/useShelfData.ts`, `clipsapp/useGroupedShelves.ts`,
