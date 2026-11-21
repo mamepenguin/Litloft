@@ -78,7 +78,9 @@ disappear exits without having waited.
     decisions as checkable lines: regions and their order, columns at a stated width,
     card size and proportion, controls and their labels, the states drawn.
   - R-5 screenshots every artboard's screen and state at the artboard's width, plus the
-    phone width.
+    phone width. Screenshots and recordings under `docs/process/reviews/` are
+    gitignored (only `design/` is tracked): they serve the review in the checkout that
+    took them, and `decisions.md` records in words what each one showed.
   - After R-5 and before `review.sh`, the `design-checker` subagent writes
     `docs/process/reviews/<topic>/design-check.md`, ending in `TOTAL: N findings`.
   - A design difference is not triaged by frequency and impact, and is not bucket B.

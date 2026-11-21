@@ -1,0 +1,28 @@
+{
+  "risk": "MEDIUM",
+  "score": 4,
+  "base": 0,
+  "zone_max": "MEDIUM",
+  "modifiers": [],
+  "promotions": [],
+  "zones_touched": [
+    {
+      "path": ".claude/agents/design-checker.md",
+      "level": "MEDIUM"
+    },
+    {
+      "path": ".gitignore",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "docs/process/PROJECT.md",
+      "level": "LOW"
+    }
+  ],
+  "human_zones_touched": [],
+  "protected_paths_touched": [],
+  "docs_only": false,
+  "reasons": [
+    "highest zone MEDIUM (4 points)"
+  ]
+}

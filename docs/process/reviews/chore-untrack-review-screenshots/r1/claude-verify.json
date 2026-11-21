@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "MEDIUM",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-1",
+      "status": "confirmed",
+      "note": ".gitignore:72-81 adds ignore rules for png/jpg/jpeg/webp/gif/mp4/webm under /docs/process/reviews/** and the negation !/docs/process/reviews/*/design/** (line 81). The review directory docs/process/reviews/chore-untrack-review-screenshots/ has decisions.md and r1/* but no invariants file, so no touch-point list exists. Glob shows design images only at one topic level: feature-scenes-change-points/design/*.png (4), feature-search-results-layout/design/before/*.png (3) and feature-video-card-spacing/design/*.png (8). Glob docs/process/reviews/*/*/design/** returns nothing. All of these match `*/design/**`. The ignore patterns exclude files, not directories, so the negation can re-include them."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-2",
+      "status": "confirmed",
+      "note": ".claude/agents/design-checker.md:21-23 now says screenshots are not committed and exist only in the checkout where R-5 ran, and tells the agent to stop and report if a named screenshot is missing. This file is not in any declared touch-point list because the change has no invariants file."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-3",
+      "status": "confirmed",
+      "note": "docs/process/PROJECT.md:80-83 says screenshots and recordings under docs/process/reviews/ are gitignored and only design/ is tracked. This matches .gitignore:74-81. The file is outside any declared touch-point list because no invariants file exists."
+    }
+  ],
+  "specification_compliance": [
+    "The documented policy (PROJECT.md:80-83, design-checker.md:21-23) matches the .gitignore rules at lines 74-81: media under docs/process/reviews/ is ignored, and design/ is re-included."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "A design directory nested deeper than one topic level (for example reviews/<topic>/r1/design/) would not be re-included by `*/design/**`. None exists at this commit."
+  ],
+  "regression_risks": [
+    "Image file types outside the seven listed extensions (for example .avif, .svg or .mov) placed under docs/process/reviews/ would still be tracked."
+  ],
+  "test_coverage": [
+    "No automated test covers the .gitignore behaviour. decisions.md:7 records a manual `git check-ignore` check."
+  ],
+  "not_verified": [
+    "I could not run git, so I did not check the index state (git ls-files) or git check-ignore. Tracked versus untracked status is inferred from the pattern semantics and from decisions.md.",
+    "I did not read the base-branch versions of the files to see the exact diff hunks."
+  ],
+  "confidence": 85
+}
