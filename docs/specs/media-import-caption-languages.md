@@ -65,18 +65,24 @@ same extraction's `subtitles` and `automatic_captions`:
   `live_chat`) or of `automatic_captions`; `None` when no candidate is listed.
 - Keys are compared as exact strings.
 
-Both paths pass `caption_track` to the caption download as the language it requests,
-in place of the video's language:
+Both paths request `caption_track` when it is set, and otherwise the value they request
+today (the video's `language`, which `_download_captions_sync` turns into `ja` when it is
+unknown):
 
-- fetch path: `_fetch_and_update` passes `meta["caption_track"]`;
-- subscription path: `ItemMetadata` gains `caption_track`, and `SubscriptionManager`
-  passes it to `fetch_transcript` as `language`.
+- fetch path: `_fetch_and_update` passes `meta.get("caption_track")` or else
+  `meta.get("language")`;
+- subscription path: `ItemMetadata` gains `caption_track` (default `None`), and
+  `SubscriptionManager` passes `meta.caption_track` or else `meta.language` to
+  `fetch_transcript` as `language`.
+
+The "otherwise" branch is reached only by a subscription with `include_no_transcript`
+attempting a video with no candidate track, where the request is the same as today and
+finds nothing (no candidate means `L` is not listed), and by test doubles that return
+metadata without `caption_track`.
 
 `_download_captions_sync` itself is unchanged: it requests `subtitleslangs: [<that
 value>]`, yt-dlp writes the manual subtitle for that key when one is listed and otherwise
-the automatic caption, and `_dedup_rolling_vtt` runs on the saved file as today. When a
-subscription with `include_no_transcript` attempts a video with `caption_track` `None`,
-the request falls back to `ja`, as it does today for an unknown language.
+the automatic caption, and `_dedup_rolling_vtt` runs on the saved file as today.
 
 #### Has captions (SPEC-ADDON-166)
 
@@ -91,11 +97,16 @@ the request falls back to `ja`, as it does today for an unknown language.
 
 #### Unavailable at metadata (SPEC-ADDON-167)
 
-When `_fetch_metadata_sync` raises in `_fetch_and_update` and the message classifies as
-`permanent` under the existing markers (`_classify_caption_error`), the fetch path sets
-`loft_metadata.caption_error_kind = 'permanent'` for that file before the error propagates
-as today (logged by `_worker`). No other column is written. Any other metadata error
-writes nothing, as today.
+When `_fetch_metadata_sync` raises in `_fetch_and_update`, the fetch path classifies the
+error with the subscription provider's `_classify_fetch_error` (the classifier that already
+decides `subscription_videos` outcomes). When it returns `ItemUnavailable` (members-only,
+age-gated, private, removed, unavailable, region-locked), the fetch path runs
+`UPDATE loft_metadata SET caption_error_kind = 'permanent' WHERE file_id = :id` and the
+error then propagates as today (logged by `_worker`). No other column is written, and when
+the file has no `loft_metadata` row yet (a first URL import of an unavailable video)
+nothing is written. `ItemRateLimited`, `ItemNotStarted` (a premiere or live event that
+has not begun) and any unclassified error write nothing, as today, so those rows stay in
+the retry set.
 
 #### The existing rows
 
@@ -115,7 +126,8 @@ selected too, because the query does not exclude `no_transcript`.
 - Metadata extraction raises a throttling or unclassified error: nothing written, as
   today; the row stays selected and is tried at the next start.
 - Metadata extraction raises an unavailability error: `permanent` on the fetch path
-  (above). On the subscription path the item fails as today
+  when a row exists (above); a premiere or live event that has not begun is not an
+  unavailability error. On the subscription path the item fails as today
   (`subscription_videos` handling is unchanged).
 - Metadata extraction returns nothing: `_fetch_and_update` returns early, as today.
 - `caption_track` is set but the download raises or writes nothing: recorded exactly as
@@ -146,19 +158,33 @@ A Downloaded row whose metadata error is `permanent` (a video that went private 
 captions were saved) gets `caption_error_kind` `permanent` and keeps `captions_downloaded`
 true and its `.vtt`; the badge reads `captions_downloaded` first and shows nothing.
 
+Combinations not in the table:
+
+- `has_captions` false with `captions_downloaded` true cannot be produced: a download
+  runs with `has_captions` false only under `include_no_transcript` with no candidate
+  listed, and its request (`L`, or `ja` for an unknown language) is then not listed.
+- A Downloaded row whose refreshed metadata has no candidate any more (YouTube removed the
+  track) moves to No usable track with `captions_downloaded` false while its `.vtt` stays
+  on disk. This is today's behaviour for a refresh that finds no captions, unchanged.
+
 ### 4. Data read and written
 
 - Core DB `loft_metadata`: `has_captions` (new meaning), `caption_error_kind` (new
   `permanent` write on the fetch path); other columns as today. No schema change.
-- Core DB `subscription_videos`: unchanged.
+- Core DB `subscription_videos`: written as today, but a new import with no usable track
+  on a subscription without `include_no_transcript` records `error_kind` NULL instead of
+  `no_transcript`, because no transcript fetch runs. `error_kind` is shown
+  (`SubscriptionItemRow.tsx`) and read (`subscription/db.py`) only for failed or retry
+  rows, and such an item is `imported`, so nothing reads the difference.
 - `.vtt` beside the `.loft`: written when a track is saved, as today.
 - Intelligence `search.db`: not written by media_import; intelligence indexes new `.vtt`
   files through the existing `scan.complete` handling.
 
 ### 5. External services
 
-YouTube through yt-dlp: the same calls per attempt as today (one metadata extraction, one
-caption download with one requested key). Slow, throttled or failing calls are handled as
+YouTube through yt-dlp: an attempt with a usable track makes the same calls as today (one
+metadata extraction, one caption download with one requested key); an attempt without
+one makes only the metadata extraction, one call fewer than today. Slow, throttled or failing calls are handled as
 today. The first start after deployment makes the same 452 attempts it makes on every start
 now; later starts attempt only rows still in the Download failed state.
 
@@ -176,9 +202,11 @@ None changes.
 - **Subscription import**: an item with `caption_track` `None` is not sent to
   `fetch_transcript` unless the subscription has `include_no_transcript`. It is imported
   either way.
-- **CaptionStatusBadge**: a video with no usable track shows "YouTube has no captions"
-  (not retryable) instead of "Caption download failed" (retryable). Unavailable rows show
-  the existing permanent-failure label.
+- **CaptionStatusBadge** (unchanged code; it checks `has_captions` before
+  `caption_error_kind`): a video with no usable track shows "YouTube has no captions"
+  (not retryable) instead of "Caption download failed" (retryable). An Unavailable row
+  with `has_captions` true shows the existing permanent-failure label; one with
+  `has_captions` false keeps showing "YouTube has no captions".
 - **SPEC-ADDON-142 (yt-dlp Node runtime)**: the captions options dict keeps the same keys
   and shape, `subtitleslangs: [lang]`; only the value passed as `lang` changes. No
   options dict is added.
@@ -198,13 +226,18 @@ ref(s)" at start, now counting fewer rows).
 - Region-language videos (production: Samson Wrestle, Oscar Moves, Omi Claudio Bulos and
   two others) get captions; the player offers the track.
 - Live archives with only a chat replay show "YouTube has no captions".
-- Videos that went private or were removed show the permanent-failure label.
+- Videos that went private or were removed, and still count as having a usable track,
+  show the permanent-failure label.
 - Backend start no longer spends about 38 minutes re-fetching the same videos.
 
 ### 10. Non-functional
 
 - No YouTube call is added on any path.
-- One `.vtt` per `.loft`, as today. No video or audio is downloaded by this change.
+- One `.vtt` per `.loft`, as today.
+- Audio: the only new audio download is the one item 7 names, a URL import in "If no
+  captions" mode of a video with no usable track, which now gets speech-to-text as that
+  mode promises. For a live archive that is hours of audio and an intelligence job. The
+  owner chooses the mode per import; subscriptions and the startup retry download none.
 - No change to what is sent off the host.
 
 ### Premises about YouTube, and who checks them
@@ -226,7 +259,7 @@ download" line, and reports them to the owner.
 
 - `addons/media_import/backend/service.py`: `_fetch_metadata_sync` (`caption_track`,
   `has_captions`), `_fetch_and_update` (passes `caption_track`; `permanent` on a metadata
-  error). `_download_captions_sync` and `_retry_failed_captions` are not changed.
+  error, classified by `subscription/providers/youtube.py`'s `_classify_fetch_error`). `_download_captions_sync` and `_retry_failed_captions` are not changed.
 - `addons/media_import/backend/subscription/registry.py`: `ItemMetadata.caption_track`.
 - `addons/media_import/backend/subscription/providers/youtube.py`: `fetch_item` fills
   `caption_track`.
@@ -234,10 +267,11 @@ download" line, and reports them to the owner.
   `fetch_transcript`.
 - Core DB table `loft_metadata` (`has_captions`, `caption_error_kind`). No schema change.
 - The `.vtt` file beside each `.loft`.
-- `addons/media_import/backend/tests/`: new tests citing the SPEC-IDs. Existing test fakes
-  whose metadata lists captions only under the video's exact language keep passing; a fake
-  that lists only `live_chat` or only non-candidate keys and expects `has_captions` true is
-  changed to the new meaning.
+- `addons/media_import/backend/tests/`: new tests citing the SPEC-IDs. Existing fakes that
+  return a metadata dict or `ItemMetadata` without `caption_track` keep requesting their
+  `language` through the "otherwise" branch and are not edited. A fake that feeds
+  `_fetch_metadata_sync` a yt-dlp info listing only `live_chat` or only non-candidate keys
+  and expects `has_captions` true is changed to the new meaning; none is known.
 - `docs/addons/media-import.md`: one sentence that a live stream's chat replay is not
   captions, and that a region language also matches the base language's captions.
 - Rules passed through: `.claude/rules/design-decisions.md` (nothing in core changes).
@@ -251,10 +285,10 @@ download" line, and reports them to the owner.
 
 I1. For a video whose language is `xx-YY`, when YouTube lists neither `xx-YY` nor `xx-YY-orig` but lists `xx` or `xx-orig`, the fetch path and the subscription path each save a `.vtt` beside the `.loft` and record `captions_downloaded` true.
 I2. `caption_track` is the first of `L`, `L-orig`, base, `base-orig` that is listed in `subtitles` (other than `live_chat`) or `automatic_captions`, and is `None` when none is.
-I3. The caption download requests exactly one key, `caption_track`, and the same number of yt-dlp extractions is made per attempt as before this change.
+I3. When `caption_track` is set, the caption download requests exactly the one key `caption_track`, and the attempt makes two yt-dlp extractions (metadata, then the download); when it is `None` on the fetch path, no caption download runs.
 I4. `has_captions` is true exactly when `caption_track` is not `None`; a video whose only subtitle is `live_chat` and which has no automatic captions has `has_captions` false.
 I5. A video for which today's code saves a `.vtt` (its language key, or `ja` for an unknown language, is listed) saves the track of that same key after this change.
-I6. A fetch-path metadata extraction that raises an error classified `permanent` sets `caption_error_kind` to `permanent` and changes no other column; one classified otherwise writes nothing.
+I6. A fetch-path metadata extraction that raises an error `_classify_fetch_error` maps to `ItemUnavailable` sets `caption_error_kind` to `permanent` on the file's existing `loft_metadata` row and changes no other column or file; with no row, or with any other error (rate limit, not started, unclassified), it writes nothing.
 I7. The startup caption retry selects the same rows as before this change: `has_captions` true, `captions_downloaded` false, `caption_error_kind` not `permanent`, active file.
 I8. Neither a subscription import nor the startup caption retry starts speech-to-text for any video.
 I9. A subscription item with `caption_track` `None` on a subscription without `include_no_transcript` is imported, and no caption download is attempted for it.
