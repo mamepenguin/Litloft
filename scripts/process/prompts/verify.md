@@ -29,13 +29,17 @@ and needs no reproduction: `repro` may be `not_reproduced`.
 No threat model is declared.
 @end
 
-@if invariants
 ## Declared invariants
 
-The invariants are declared in {{INVARIANTS_PATH}}; where an id appears twice, the later
-line is the one in force:
+@if invariants
+The invariants are declared in {{INVARIANTS_PATH}}. Their text follows; where an id
+appears twice, the later line is the one in force. A finding in bucket A must cite one of
+these ids in `invariant_ref`.
 
 {{INVARIANTS}}
+@end
+@if noinvariants
+No invariants file exists for this change. Bucket A is not available without one.
 @end
 
 ## Findings to verify
@@ -50,9 +54,15 @@ line is the one in force:
   required for `needs_human` and for `rejected_with_evidence`, and for a rejection it must
   carry the evidence: `file:line` and what the code does.
 - Reproduce the claim before you confirm or reject it. Severity is not yours to change.
-- If you find a defect no reader listed, report it as a finding with `origin` `verifier`,
-  carrying `claim`, `impact`, `evidence`, `repro`, `introduced`, `bucket_proposal`
-  and `severity` as any finding does. It needs no record.
+- If you find a defect no reader listed, report it as a finding with `origin` `verifier`.
+  It needs no record. It carries `id`, `claim` (one sentence: what is wrong, no remedy),
+  `impact`, `evidence` (`file:line` and the observed behavior), `repro`
+  (`not_reproduced` is allowed), `introduced` (`introduced`, `pre-existing` or
+  `unverified`), `bucket_proposal` (A, B or C with a reason; A requires an
+  `invariant_ref` that is declared), `severity` (BLOCKER, HIGH, MEDIUM, LOW or INFO;
+  BLOCKER requires bucket A or C) and, optionally, `proposed_fix`.
+- Bucket A breaks a declared invariant. Bucket B breaks none but reads wrong. Bucket C
+  means the design itself is wrong.
 - `not_verified` must list at least one thing you did not check. Confidence 100 with an
   empty `not_verified` is invalid, and an artifact with confidence below 70 is not accepted.
   Report your honest confidence.

@@ -37,8 +37,9 @@ done
 inv='null'
 if [ -n "$inv_file" ]; then
   [ -f "$inv_file" ] || die_usage "no such invariants file: $inv_file"
-  # An id is the whole token before the first . or :, so I4 does not match I40.
-  inv="$(sed -n 's/^\(I[0-9][0-9]*\)[.:].*/\1/p' "$inv_file" | jq -R . | jq -s .)" || die_usage "cannot read $inv_file"
+  # An id is the whole token before the first . or :, so I4 does not match I40. Lowercase
+  # letters before the separator are part of the id, so I16 and I16b are different ids.
+  inv="$(sed -n 's/^\(I[0-9][0-9]*[a-z]*\)[.:].*/\1/p' "$inv_file" | jq -R . | jq -s .)" || die_usage "cannot read $inv_file"
 fi
 
 if ! jq -e . "$file" >/dev/null 2>&1; then

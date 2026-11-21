@@ -20,6 +20,8 @@ VALIDATE="${PROCESS_VALIDATE_CMD:-$HERE/validate-artifact.sh}"
 MERGE="${PROCESS_MERGE_CMD:-$HERE/merge-reviews.sh}"
 RENDER="${PROCESS_RENDER_CMD:-$HERE/render-triage.sh}"
 
+. "$HERE/lib/invariants.sh"
+
 # The last `base_ref = <ref>` in <root>/process/process.conf, trimmed; empty when there is none.
 conf_base_ref() {
   [ -f "$1/process/process.conf" ] || return 0
@@ -542,31 +544,12 @@ build_context() {
     return 0
   fi
   [ -f "$SPEC_FILE" ] || die "$INV_FILE names the spec $SPEC_FILE, which does not exist"
+  approved_specs "$W/ctx/approved.tsv" || die "cannot build the list of approved specs"
   { awk '/^## / { on = ($0 ~ /^## (Touch points|Invariants|Revises)[[:space:]]*$/) } on' "$SPEC_FILE"
-    echo; grep -v '^spec:' "$INV_FILE"; later_revisions "$SPEC_FILE"; } >"$W/ctx/invariants.txt"
+    echo; grep -v '^spec:' "$INV_FILE"; } >"$W/ctx/invariants.txt"
+  later_revisions "$SPEC_FILE" "$W/ctx/approved.tsv" >>"$W/ctx/invariants.txt" \
+    || die "cannot read the approved specs"
   INV_ARG="$W/ctx/invariants.txt"; INV_SHOWN="\`$SPEC_FILE\`, revised by \`$INV_FILE\`"
-}
-
-# later_revisions <spec>: each `<SPEC-ID> I<N>. <sentence>` line under `## Revises` in another
-# approved spec that names one of this spec's SPEC-IDs, as `I<N>. (<that spec>) <sentence>`,
-# oldest Approval date first and then by file name. A spec is approved when the hash on its
-# Approval line matches its content.
-later_revisions() {
-  local ids f rec
-  ids="$(sed -n 's/^SPEC-ID:[[:space:]]*\([^[:space:]]*\).*/\1/p' "$1" | tr '\n' ' ')"
-  [ -n "$ids" ] || return 0
-  for f in docs/specs/*.md; do
-    [ -f "$f" ] && [ "$f" != "$1" ] || continue
-    rec="$(tr -d '\r' <"$f" | grep -E '^Approval: ' | tail -n 1)"
-    [ "$(printf '%s\n' "$rec" | awk '{print $2}')" = "$(bash "$HERE/spec-hash.sh" "$f")" ] || continue
-    printf '%s\t%s\n' "$(printf '%s\n' "$rec" | awk '{print $NF}')" "$f"
-  done | LC_ALL=C sort -t "$(printf '\t')" -k1,1 -k2,2 | cut -f2- | while IFS= read -r f; do
-    awk -v ids="$ids" -v src="$f" '/^## / { on = ($0 ~ /^## Revises[[:space:]]*$/); next }
-      on && index(" " ids, " " $1 " ") && match($2, /^I[0-9]+[.:]$/) {
-        rest = $0; sub(/^[^[:space:]]+[[:space:]]+[^[:space:]]+[[:space:]]*/, "", rest)
-        print $2 " (" src ") " rest }' "$f"
-  done >"$W/ctx/later.txt"
-  [ ! -s "$W/ctx/later.txt" ] || { printf '\n## Revised by later specs\n\n'; cat "$W/ctx/later.txt"; }
 }
 
 # The earlier runs render-triage.sh shows: the latest run of each commit other than HEAD.
