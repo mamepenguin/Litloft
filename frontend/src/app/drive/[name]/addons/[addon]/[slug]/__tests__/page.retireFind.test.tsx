@@ -66,7 +66,7 @@ describe("SPEC-ADDON-158 I4 /drive/{drive}/addons/intelligence/find", () => {
   });
 
   it("still loads a subpage intelligence keeps", async () => {
-    nav.params = { name: "family", addon: "intelligence", slug: "pickup" };
+    nav.params = { name: "family", addon: "intelligence", slug: "search-compare" };
     const { container } = render(
       <Boundary>
         <DriveScopedAddonSubpage />
@@ -76,5 +76,6 @@ describe("SPEC-ADDON-158 I4 /drive/{drive}/addons/intelligence/find", () => {
     await waitFor(() => expect(container.innerHTML).not.toBe(""), { timeout: 5000 });
     expect(nav.notFound).not.toHaveBeenCalled();
     expect(container.textContent).not.toContain(NOT_FOUND);
+    expect(container.querySelector('[data-testid="caught"]')).toBeNull();
   });
 });

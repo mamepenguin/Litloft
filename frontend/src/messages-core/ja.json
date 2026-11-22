@@ -97,7 +97,6 @@
     "appShortcutLabel": "{app}・{target}",
     "empty": "ドライブがありません",
     "emptyDescription": "drives.jsonを設定してドライブを追加してください。",
-    "pickup": "ピックアップ",
     "recentAdded": "最近追加",
     "favorites": "お気に入り",
     "liked": "Liked",
