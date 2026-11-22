@@ -32,27 +32,28 @@ With this change, each of the three treats a line repeated from an earlier segme
 - Find drops the occurrence. On the 25 videos, the 2,322 rows fall to 188.
 - Exact search drops the hit when every matching line in it was already seen.
 
-A kept find row or exact hit then ends where the line's run on screen ends. Nothing stored
-changes.
+A kept find row or exact hit keeps today's times. Nothing stored changes.
 
 ## Terms
 
 - **Segment**: the `video_frame_texts` rows of one video with the same `start_time` and
   `end_time`; one segment is one frame-OCR read, and its chunks are its rows in
   `chunk_index` order. Segments are ordered by `start_time`.
-- **Line**: one `\n`-separated part of a text, with surrounding whitespace removed; an empty
-  part is not a line. Lines are compared as whole strings, in any script, exactly. A part
-  that a chunk boundary or the 200-character chunk overlap cut in the middle is a line as it
-  stands and matches only an identical string.
-- **Lines of a segment**: the lines of each of its chunks' stored text, as a set.
+- **Line**: one `\n`-separated part of a text, with surrounding whitespace removed by
+  Python's `str.strip()` (Unicode whitespace, U+3000 included); a part that is empty after
+  that is not a line. Lines are compared as whole strings, in any script, exactly.
+- **Merged text of a segment**: its chunks' stored texts joined as the find route joins them
+  today (`_merge_chunks` in `app/file_find.py`: each next chunk's longest overlap of 20 to
+  200 characters with the end of the text so far is dropped, and a chunk with no such
+  overlap is appended after a `\n`).
+- **Lines of a segment**: the lines of its merged text, as a set. A part of a chunk that a
+  chunk boundary cut in the middle of a line is not among them unless the merged text has
+  the identical line, so such a part is never repeated.
 - **Repeated**: a line `L` of segment `S` is repeated when an earlier segment (smaller
   `start_time`) has `L` among its lines and `S.start_time − U ≤ 60`, where `U` is the
   largest `end_time` among the earlier segments that have `L`. Equal lines inside one
   segment are never repeated against each other. The window, 60 seconds, is a module
   constant (`OCR_REPEAT_WINDOW_SECONDS`) shared by the three readers.
-- **Run end**: for a line `L` first seen, or seen again after a gap, in segment `S`, the
-  `end_time` of the last segment in the chain that starts at `S`, where each next segment
-  in the chain has `L` and is one in which `L` is repeated.
 - **Frame-text row** (Ask): a passage of a video built from an `fts_text_content` row whose
   `chunk_index` is an integer with a `video_frame_texts` row for the same file and index;
   its segment is that row's, and its position is the segment's `start_time`
@@ -67,14 +68,15 @@ changes.
 1. A viewer asks about a video from the file Ask tab, or sends a follow-up, as today
    (`POST /api/addons/intelligence/files/{file_id}/ask`).
 2. `load_material` reads the file's rows as today. For a file whose `file_type` is
-   `video` (a YouTube `.loft` included), it also reads `end_time` for each frame-text row.
-3. Each frame-text row's text is filtered: every line of the row's text that is repeated in
-   the row's segment is removed. Lines are judged against every segment of the file, not
-   only against the rows that end up sent.
+   `video` (a YouTube `.loft` included), it also reads every `video_frame_texts` row of the
+   file (`chunk_index`, `start_time`, `end_time`, `text`) to form its segments.
+3. Each frame-text row's text is filtered. Its stored text is split on `\n`; a part whose
+   stripped form is a line repeated in the row's segment is removed. Lines are judged
+   against every segment of the file, not only against the rows that end up sent.
    - A row in which nothing was removed keeps its stored text, unchanged byte for byte.
-   - A row in which a line was removed becomes its remaining lines joined by `\n`, in their
-     order.
-   - A row with no remaining line is removed.
+   - A row in which a part was removed becomes its remaining parts, as stored (blank parts
+     included), joined by `\n` in their order.
+   - A row whose remaining parts are all blank is removed.
 4. From here, the budget, ranking (each frame-text row by the stored embedding of its whole
    chunk), fitting, numbering, `partial`, prompts, frames, `get_frames`, history and
    citations work exactly as today, on the filtered rows. The prompts are not changed.
@@ -86,23 +88,24 @@ changes.
    as today. Each occurrence belongs to the line of the merged text that contains its
    first character.
 3. An occurrence whose line is repeated in its segment is left out. A kept occurrence's row
-   has `end` equal to the run end of its line from its segment. Its `start`, `snippet`,
-   offsets, `ordinal`, `boxes` and `frame_size` are as today.
+   is exactly today's row: `start`, `end`, `snippet`, offsets, `ordinal`, `boxes` and
+   `frame_size` are computed as today from the unfiltered merged text.
 4. `total`, `truncated`, the order of rows and the 2,000-row cap are computed over the kept
    rows, exactly as today's rule computes them over all rows. Transcript, document,
    picture-text and Visual Index scene rows are unchanged.
 
 **SPEC-ADDON-173, exact search**
 
-1. `/search/exact` (and through it the MCP `search_exact` tool) finds matching
-   `fts_text_content` chunks as today.
-2. For a hit on a video's frame-text chunk, the matching lines are the lines of the chunk
-   that contain the folded term.
-   - The hit is left out when every matching line is repeated in its segment.
-   - A kept hit has `end_time` equal to the largest run end among its matching lines that
-     are not repeated. Its other fields (`start_time`, `snippet`, `match_count`, the
-     location) are as today.
-   - A hit with no matching line (the term crosses a line break) is kept, unchanged.
+1. `/search/exact` finds matching `fts_text_content` chunks as today. Its callers are the
+   agent route itself and the MCP `search_exact` tool; no page of the web UI calls it.
+2. For a hit on a video's frame-text chunk, the matching lines are the stripped `\n`-parts
+   of the chunk's stored text that contain the folded term (ASCII folding, as the match).
+   - The hit is left out when it has at least one matching line and every matching line is
+     repeated in its segment.
+   - Every kept hit, including one with no matching line (the term crosses a line break),
+     is exactly today's hit: `start_time`, `end_time`, `snippet`, `match_count` and the
+     location are unchanged.
+   - The segments are read for the videos that have a frame-text hit, before paging.
 3. The total and the paging (`limit`, `offset`) are over the kept hits, in today's order.
    Transcript, document and scene hits are unchanged.
 
@@ -147,8 +150,7 @@ on rows those checks already admitted.
   The frame numbers `[P+1]…` follow the reduced `P`.
 - `app/file_find.py`: the find bar, its count, chips and next/previous step through the kept
   rows.
-- `app/exact_search.py`: `/search/exact`, the MCP `search_exact` tool and the Search page's
-  exact mode get the kept hits.
+- `app/exact_search.py`: `/search/exact` and the MCP `search_exact` tool get the kept hits.
 - Unchanged: the normal Ask (`/ask`, `rag/context.py`, `rag/service.py`, including the
   shortlist's exact-match step, which does not call `find_exact`), semantic search and the
   passage results view, scene search, the Visual Index, `video_contents`, the OCR worker and
@@ -166,26 +168,33 @@ No new error, log line or status.
   seconds away.
 - Find: a line on screen for several segments is one row at the time it appeared, instead of
   one row per segment. The count and chips are smaller by the same amount.
-- Exact search: the same, one hit per run of a line on screen. Its `end_time` is the end of
-  that run.
+- Exact search: the same, one hit per run of a line on screen, at the segment where it
+  appeared.
 
 ### 10. Non-functional
 
 - Time: one pass over a video's segments per request, in memory. Exact search reads the
-  segments of the matched videos only.
+  segments of the matched videos only. Measured on production with the most common
+  on-screen strings: 43,975 hits in 283 videos read 54,853 segments in 0.07 s, on top of
+  0.22 s for today's match query. No new cap is needed under the 30 s proxy timeout.
 - Privacy and cost: less text reaches the model for the same question.
 - Docs:
   - `docs/addons/intelligence.md` gains one sentence each in the file Ask budget paragraph,
     the find paragraph and the MCP `search_exact` sentence.
   - `docs/reference/api.md`'s find entry states the rule.
+  - The MCP `search_exact` description (`mcp-server/src/tools/search.ts`) says that a line
+    on screen across consecutive frame-text segments gives one hit, at the time it
+    appeared.
 
 ## Touch points
 
 - `addons/intelligence/app/rag/file_question.py` (`load_material`)
 - `addons/intelligence/app/file_find.py` (`_frame_occurrences`)
-- `addons/intelligence/app/exact_search.py` (`_text_hits` and its paging in `find_exact`)
-- A shared helper for segments, lines, repeats and run ends, with the window constant, in the
-  intelligence addon
+- `addons/intelligence/app/exact_search.py` (`_text_hits`, `_frame_segments` and the paging
+  in `find_exact`)
+- A shared helper for segments, merged text, lines and repeats, with the window constant, in
+  the intelligence addon
+- `mcp-server/src/tools/search.ts` (the `search_exact` description, core repository)
 - `addons/intelligence/tests/` (acceptance tests for this spec)
 - The three files above are committed in the intelligence addon repository. In the core
   repository, the `addons/intelligence` gitlink moves to the merged addon commit, and with it
@@ -201,11 +210,11 @@ No new error, log line or status.
 ## Invariants
 
 I1. For a video, a frame-text line is repeated exactly when an earlier segment has the identical line and the latest `end_time` among such earlier segments is at most 60 seconds before this segment's `start_time`; identical lines within one segment are never repeated against each other.
-I2. Ask sends no repeated frame-text line, and sends every other line of every frame-text row it sends, in its order within its row; a frame-text row in which no line was removed is sent with its stored text unchanged, and a row with no line left takes no `[n]`.
+I2. Ask sends no `\n`-part of a frame-text row whose stripped form is a repeated line, and sends every other part of every frame-text row it sends, as stored and in its order within its row; a frame-text row in which nothing was removed is sent with its stored text unchanged, and a row whose remaining parts are all blank takes no `[n]`.
 I3. Ask numbers the passages it sends consecutively in file order, frames follow from that count, and every `citations` entry names a number that was sent, with that passage's position.
 I4. Ask's budget, ranking, fitting and `partial` are those of SPEC-ADDON-053 step 4 (with SPEC-ADDON-081 step 5), applied to the filtered rows: a video whose filtered rows total at most the passage budget is sent whole with `partial` false.
-I5. Find returns no frame-text row whose occurrence lies in a repeated line, returns every other occurrence it returns today with the same `start`, `snippet`, offsets, `ordinal`, `boxes` and `frame_size`, and gives each kept frame-text row an `end` equal to the run end of its line; `total`, `truncated`, order and the cap are today's rule over the kept rows.
-I6. Exact search leaves out a frame-text hit exactly when it has at least one matching line and every matching line is repeated; a kept hit has today's fields except `end_time`, which is the largest run end of its matching lines that are not repeated, and the total and pages are over the kept hits.
+I5. Find returns no frame-text row whose occurrence lies in a repeated line of its segment's merged text, and returns every other row exactly as today, field for field; `total`, `truncated`, order and the cap are today's rule over the kept rows.
+I6. Exact search leaves out a frame-text hit exactly when it has at least one matching line and every matching line is repeated; every kept hit is exactly today's hit, field for field, and the total and pages are over the kept hits.
 I7. Transcript chunks, documents, pictures, audio, Visual Index scenes, and every frame-text row or hit of a video in which no line is repeated are returned or sent exactly as before this change.
 I8. The change writes nothing: `search.db`, the frame cache and every other store hold the same rows after any of the three requests as before it, and semantic search, the normal Ask and `video_contents` return what they returned before.
 
@@ -216,9 +225,8 @@ SPEC-ADDON-081 I1. A file question with no `history` or an empty one sends the m
 SPEC-ADDON-108 I1. A video with at least one `transcript_chunks` or `fts_text_content` row gets the availability it had before SPEC-ADDON-108, the passages it had then with its repeated frame-text lines removed as SPEC-ADDON-171 states, and its frames by SPEC-ADDON-114; availability answers `true` for a text-less video only when some profile can see, and `false` for audio with no text chunk and for a `.loft` that is unreadable or whose source is not YouTube.
 SPEC-ADDON-114 I8. Pictures, audio, documents, a `.loft` that is not a text video, every request whose profile cannot see, the availability route, the normal Ask with its agentic loop and the MCP tools answer as they did before this change, except that a video's passages have their repeated frame-text lines removed as SPEC-ADDON-171 states and `search_exact` leaves out the frame-text hits SPEC-ADDON-173 leaves out; text-less videos differ only by the request layout of I11 and by SPEC-ADDON-116.
 SPEC-ADDON-061 I1. The find answer's `total` equals the number of non-overlapping occurrences of the folded term within the file's text units (a video's units being its frame-text segments), transcript chunks that have a start, and — only while the drive's Visual Index is open — scene `visible_text` (never `scene_label`), less the frame-text occurrences that SPEC-ADDON-172 leaves out because their line is repeated; an occurrence inside the overlap of two adjacent text chunks of one unit counts once; `rows` is the first `min(total, 2000)` of them in position order, `truncated` is true exactly when `total > 2000`, and each row's `snippet[match_start:match_start+match_length]` folds to the term.
-SPEC-ADDON-066 I9. The find answer for a video includes one `scene` row per occurrence in each frame-text segment whose line is not repeated (SPEC-ADDON-172), with the segment's `start` and, as `end`, the run end of that line, whether or not the drive's Visual Index is open, ordered by `start` with utterance, then Visual Index scene, then frame text at an equal start; the answer's `indexed` is true for a video whose `frame_ocr_indexed` is true; for a scanned PDF it includes `page` rows for the stored page text.
+SPEC-ADDON-066 I9. The find answer for a video includes one `scene` row per occurrence in each frame-text segment, except an occurrence in a line repeated in its segment (SPEC-ADDON-172), with the segment's `start` and `end`, whether or not the drive's Visual Index is open, ordered by `start` with utterance, then Visual Index scene, then frame text at an equal start; the answer's `indexed` is true for a video whose `frame_ocr_indexed` is true; for a scanned PDF it includes `page` rows for the stored page text.
 SPEC-ADDON-032 I2. `/search/exact` returns exactly the segments of the requested sources whose text contains `q` under the stated comparison, for every length of `q`, less the video frame-text segments that SPEC-ADDON-173 leaves out because every matching line is repeated: `total` equals their number, and paging by `offset` in steps of `limit` visits each once, in the stated order; no character of `q` acts as a wildcard (`%`, `_` and `\` match only themselves).
-SPEC-CORE-048 I10. A `text_content` match on a video becomes a `screen_text` passage with its segment's `start` and `end`, `frame_url` at `floor(start)`, and a link to `?t=<floor(start)>`, or, for a keyword-matched passage with a link term, to `?t=<start with three decimals>&find=<link term>` (SPEC-CORE-134), shown as 「mm:ss」 over 「画面内の文字」 with its excerpt; no video becomes a `text` or `picture_text` passage, search by image returns no video, a video's text hit in `/search/exact` carries its segment's `start_time` and, as `end_time`, the run end of SPEC-ADDON-173, and no detailed-summary citation of a video points at its `text_content` rows; Ask's context for a video places its frame text after the transcript snippets, or first when only frame text matched, an Ask citation of frame text carries its segment's `m:ss`, and the single-file question gives it `{"seconds": start_time}`.
 
 ## Checked, no action
 
@@ -247,10 +255,15 @@ SPEC-CORE-048 I10. A `text_content` match on a video becomes a `screen_text` pas
 - **Telling the model that a frame-text passage holds only what newly appeared.** The human
   chose not to change the prompts. That would revise SPEC-ADDON-114 I10 and needs checking
   against the production model. Revisit if answers show the model misreads it.
-- **SPEC-ADDON-114 I8** ("…every request whose profile cannot see … answer as they did
-  before this change") is about the frame path of 114, and the passages are governed by
-  053 I2, which is revised above. Answering as before 114 with respect to frames still
-  holds.
+- **Extending a kept find row's `end` or exact hit's `end_time` to the end of the line's
+  run on screen.** The human chose to keep today's times. The player's find outline draws
+  a row's boxes from its `start` to its `end` and outlines together the rows sharing both,
+  so a longer `end` would keep the first segment's boxes up after the line moved or left,
+  and split rows of one screen apart.
+- **Opening a video from a `screen_text` search passage (`?t=<start>&find=<term>`) whose
+  segment has the term only in a repeated line.** The find answer then has no row at `t`,
+  so the bar opens with no row current and no outline (frame-ocr-hit-place I6's "no row
+  otherwise"); the player still seeks to `t`. The human accepted this.
 - **Near-duplicate lines** (OCR misreads of the same text, fragments cut by chunking). Exact
   match only: a fuzzy rule would need a threshold that behaves differently per script. In
   the find probe, rows whose line differs from the most common one were 585 of 2,322, and
@@ -260,6 +273,9 @@ SPEC-CORE-048 I10. A `text_content` match on a video becomes a `screen_text` pas
   question. A row can rank on text that was removed from it; accepted.
 - **Changing `snippet` or `match_count` of a kept exact hit** to skip repeated lines. The
   snippet still shows a real occurrence in that chunk. Accepted as today's.
+- **Lines taken per chunk instead of from the merged text.** The merged text is the form the
+  find route already reads, and it has no chunk overlap, so a line cut by a chunk boundary
+  is whole there. One definition then serves all three readers.
 - **Semantic search and the passage results view.** They rank chunks by meaning, at most 3
   per file in the passage view, so a whole chunk is not a repeat even when one of its lines
   is.
