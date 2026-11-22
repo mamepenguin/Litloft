@@ -20,7 +20,7 @@ those repeats on:
   videos' frame-text characters are lines repeated from another segment.
 - **SPEC-ADDON-172, find in file.** The find bar lists one row per segment for each
   occurrence. On 25 production videos with over 100 segments, searching each one's most
-  repeated line gives 2,322 rows today.
+  repeated line gives 3,534 rows today.
 - **SPEC-ADDON-173, exact search.** `/search/exact` (and the MCP `search_exact` tool) returns
   one hit per matching frame-text chunk, so the same line on screen for a minute gives a
   hit per segment.
@@ -28,8 +28,8 @@ those repeats on:
 With this change, each of the three treats a line repeated from an earlier segment, within
 60 seconds of the last time it was on screen, as already seen:
 
-- Ask drops it from the passage. Videos over budget fall from 757 to 464.
-- Find drops the occurrence. On the 25 videos, the 2,322 rows fall to 188.
+- Ask drops it from the passage. Videos over budget fall from 757 to 461.
+- Find drops the occurrence. On the 25 videos, the 3,534 rows fall to 214.
 - Exact search drops the hit when every matching line in it was already seen.
 
 A kept find row or exact hit keeps today's times. Nothing stored changes.
@@ -170,21 +170,26 @@ No new error, log line or status.
   one row per segment. The count and chips are smaller by the same amount.
 - Exact search: the same, one hit per run of a line on screen, at the segment where it
   appeared.
+- The player's find outline: stepping to a row draws, in the mark style, the other rows of
+  the same segment. A line that stays on screen has a row only in the segment where it
+  appeared, so on later segments of its run it is no longer outlined in the mark style. The
+  current row and lines new to the segment are outlined as today. The human accepted this.
 
 ### 10. Non-functional
 
 - Time: one pass over a video's segments per request, in memory. Exact search reads the
-  segments of the matched videos only. Measured on production with the most common
-  on-screen strings: 43,975 hits in 283 videos read 54,853 segments in 0.07 s, on top of
-  0.22 s for today's match query. No new cap is needed under the 30 s proxy timeout.
+  segments of the matched videos only. Measured on production in the largest drive, with
+  the merge and the repeat pass included:
+  - `q = "e"`: 20,647 hits in 4,319 videos, 337,121 segment rows; read 0.48 s, repeat pass
+    0.31 s, on top of 0.28 s for today's match query.
+  - `q = "の"`: 18,571 hits in 3,713 videos; read 0.40 s, repeat pass 0.30 s.
+
+  No new cap is needed under the 30 s proxy timeout.
 - Privacy and cost: less text reaches the model for the same question.
 - Docs:
-  - `docs/addons/intelligence.md` gains one sentence each in the file Ask budget paragraph,
-    the find paragraph and the MCP `search_exact` sentence.
+  - `docs/addons/intelligence.md` gains one sentence each in the file Ask budget paragraph
+    and the find paragraph.
   - `docs/reference/api.md`'s find entry states the rule.
-  - The MCP `search_exact` description (`mcp-server/src/tools/search.ts`) says that a line
-    on screen across consecutive frame-text segments gives one hit, at the time it
-    appeared.
 
 ## Touch points
 
@@ -192,9 +197,14 @@ No new error, log line or status.
 - `addons/intelligence/app/file_find.py` (`_frame_occurrences`)
 - `addons/intelligence/app/exact_search.py` (`_text_hits`, `_frame_segments` and the paging
   in `find_exact`)
-- A shared helper for segments, merged text, lines and repeats, with the window constant, in
-  the intelligence addon
-- `mcp-server/src/tools/search.ts` (the `search_exact` description, core repository)
+- A new module `addons/intelligence/app/frame_text_lines.py`: the segments, lines, the
+  repeat test and the window constant. `_overlap` and `_merge_chunks` move into it
+  unchanged, and `app/file_find.py` imports them, so `from app.file_find import
+  _merge_chunks` keeps working. `exact_search.py` imports the new module, not `file_find`,
+  which already imports `exact_search`.
+- `addons/intelligence/app/routers/files.py` (`_rebuild_picture_text` imports
+  `_merge_chunks` and `_replay_limit` from `app.file_find`): not edited, and its output must
+  not change.
 - `addons/intelligence/tests/` (acceptance tests for this spec)
 - The three files above are committed in the intelligence addon repository. In the core
   repository, the `addons/intelligence` gitlink moves to the merged addon commit, and with it
@@ -217,6 +227,7 @@ I5. Find returns no frame-text row whose occurrence lies in a repeated line of i
 I6. Exact search leaves out a frame-text hit exactly when it has at least one matching line and every matching line is repeated; every kept hit is exactly today's hit, field for field, and the total and pages are over the kept hits.
 I7. Transcript chunks, documents, pictures, audio, Visual Index scenes, and every frame-text row or hit of a video in which no line is repeated are returned or sent exactly as before this change.
 I8. The change writes nothing: `search.db`, the frame cache and every other store hold the same rows after any of the three requests as before it, and semantic search, the normal Ask and `video_contents` return what they returned before.
+I9. `_merge_chunks` returns the same text as before for every input, so the find route's merged text and the picture-text original rebuild of `routers/files.py` are unchanged.
 
 ## Revises
 
@@ -234,15 +245,15 @@ SPEC-ADDON-032 I2. `/search/exact` returns exactly the segments of the requested
   change stored data, the OCR worker and every reader of `video_frame_texts`, and needs a
   re-read or migration of 679,067 segments. The three request-time filters give the measured
   benefit with no stored change.
-- **Other windows.** Production, Ask over-budget videos by window: 0 s 490, 30 s 457,
-  60 s 453, 300 s 442 (measured with repeats inside a segment also dropped). Under 60 s,
-  OCR flicker (a line missed in one segment) makes a line new again. Beyond 60 s the gain is
-  about 11 videos, and a line shown again much later (a revisited slide) would lose its
-  second time.
+- **Other windows.** Production, Ask over-budget videos by window, with this spec's
+  definition (merged-text lines, repeats inside a segment kept): 0 s 492, 30 s 462,
+  60 s 461, 300 s 448. Under 60 s, OCR flicker (a line missed in one segment) makes a line
+  new again. Beyond 60 s the gain is 13 videos, and a line shown again much later (a
+  revisited slide) would lose its second time.
 - **Dropping repeats inside one segment.** It would also drop short lines whose position
   carries meaning: cells of a table (`Yes`, `0`), braces and `else:` in code, list
-  numbering. That leaves a table or code block on one screen misaligned. Keeping them
-  costs 8 videos (464 against 456 over budget).
+  numbering. That leaves a table or code block on one screen misaligned. Measured with
+  per-chunk lines, keeping them cost 8 videos (464 against 456 over budget).
 - **A table or code block that changes slightly between segments** loses its unchanged lines
   in the later segment. The full block was in the earlier segment's passage, and Ask sends
   frames to a profile that can see. Accepted.
@@ -266,8 +277,8 @@ SPEC-ADDON-032 I2. `/search/exact` returns exactly the segments of the requested
   otherwise"); the player still seeks to `t`. The human accepted this.
 - **Near-duplicate lines** (OCR misreads of the same text, fragments cut by chunking). Exact
   match only: a fuzzy rule would need a threshold that behaves differently per script. In
-  the find probe, rows whose line differs from the most common one were 585 of 2,322, and
-  the rule still removed 92% of rows.
+  the find probe, rows whose line differs from the most common one were 510 of 3,534, and
+  the rule still removed 94% of rows.
 - **Re-embedding filtered Ask rows for ranking.** The stored embedding of the whole chunk
   still describes the row, and recomputing would add an embedding call per row per
   question. A row can rank on text that was removed from it; accepted.
@@ -283,5 +294,7 @@ SPEC-ADDON-032 I2. `/search/exact` returns exactly the segments of the requested
   per section and is a separate reader; out of scope.
 - **The remaining over-budget videos** (approved chapters as an overview, a
   `get_transcript(start, end)` tool, hybrid ranking) are a separate change.
-- **User guide.** A viewer needs nothing new to use these. The addon reference and the API
-  reference change.
+- **User guide, MCP descriptions and the MCP README.** They say find and `search_exact` list
+  every place a string appears. A line that stays on screen across segments is one place,
+  so the sentences stay true; listing it once per segment was the defect. The human decided
+  this. Only the addon reference and the API reference describe the rule.
