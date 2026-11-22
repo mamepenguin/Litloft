@@ -1,208 +1,271 @@
-# Ask about a video sends each on-screen line once while it stays on screen
+# A line that stays on screen counts once in Ask, find and exact search
 
 SPEC-ID: SPEC-ADDON-171
+SPEC-ID: SPEC-ADDON-172
+SPEC-ID: SPEC-ADDON-173
 
 Approval:
 
 ## Summary
 
-A file question about a video sends the video's on-screen text (frame OCR) as passages, one
-passage per stored `fts_text_content` chunk. Frame OCR opens a new segment whenever any text
-on screen changes, and every segment stores everything on screen, so a line that stays up —
-a channel name, a watermark, a slide title — is repeated in every segment while subtitles
-under it change. Measured on the production library on 2026-11-23: of 12,247 videos with
-text, 757 exceed `rag.file_question_max_chars` (16,000) and are answered from part of the
-file; for 471 of them the transcript alone fits and the frame text pushes them over, and 57%
-of those videos' frame-text characters are lines repeated from another segment.
+Frame OCR opens a new segment whenever any text on screen changes, and every segment stores
+everything on screen. A line that stays up — a channel name, a watermark, a slide title — is
+therefore repeated in every segment while the subtitles under it change. Three readers pass
+those repeats on:
 
-This change drops, at question time, each frame-text line that a passage sent for the same
-question already showed within the previous 60 seconds. Measured the same way, the videos
-over budget fall from 757 to 453. Nothing stored changes; search, scenes and every other
-reader of the frame text are untouched. It is for the person asking about a long or
-text-heavy video, who today gets an answer from part of the file because of text the model
-has already been shown.
+- **SPEC-ADDON-171, file Ask.** A question about a video sends the frame text as passages.
+  On the production library (2026-11-23), 757 of 12,247 videos with text exceed
+  `rag.file_question_max_chars` (16,000) and are answered from part of the file. For 471 of
+  them the transcript alone fits and the frame text pushes them over, and 57% of those
+  videos' frame-text characters are lines repeated from another segment.
+- **SPEC-ADDON-172, find in file.** The find bar lists one row per segment for each
+  occurrence. On 25 production videos with over 100 segments, searching each one's most
+  repeated line gives 2,322 rows today.
+- **SPEC-ADDON-173, exact search.** `/search/exact` (and the MCP `search_exact` tool) returns
+  one hit per matching frame-text chunk, so the same line on screen for a minute gives a
+  hit per segment.
+
+With this change, each of the three treats a line repeated from an earlier segment, within
+60 seconds of the last time it was on screen, as already seen:
+
+- Ask drops it from the passage. Videos over budget fall from 757 to 464.
+- Find drops the occurrence. On the 25 videos, the 2,322 rows fall to 188.
+- Exact search drops the hit when every matching line in it was already seen.
+
+A kept find row or exact hit then ends where the line's run on screen ends. Nothing stored
+changes.
 
 ## Terms
 
-- **Frame-text row**: a passage of a video built from an `fts_text_content` row whose
-  `chunk_index` is an integer with a `video_frame_texts` row for the same file and index; its
-  position is that row's `start_time` (`{ "seconds": start_time }`) as today, and its span
-  ends at that row's `end_time`.
-- **Line**: one `\n`-separated part of a frame-text row's stored text, with surrounding
-  whitespace removed; an empty part is not a line. Lines are compared as whole strings, in
-  any script. A part that a chunk boundary or the 200-character chunk overlap cut in the
-  middle is a line as it stands and matches only an identical string.
-- **Sent rows**: the frame-text rows of this question's passages: every frame-text row when
-  the material fits the budget, otherwise the rows chosen by fitting (step 4).
-- **Seen until**: for a line, the latest `end_time` among the sent rows, earlier in file
-  order than the row being read, that contain the line, whether or not the line was kept in
-  them. Lines earlier in the same row count, with the row's own `end_time`.
-- **Window**: 60 seconds, a module constant (`OCR_REPEAT_WINDOW_SECONDS`).
-- **Filtering** a sequence of frame-text rows: walk them in file order (`chunk_index` as an
-  integer, which is time order), and in each row walk its lines in order. A line is dropped
-  when it has a seen-until time and the row's `start_time` minus that time is at most the
-  window (zero or negative included); every line, kept or dropped, then updates its
-  seen-until time before the next line is read. A row in which nothing was dropped keeps its
-  stored text unchanged. A row in which a line was dropped becomes its kept lines joined by
-  `\n`, in their order. A row with no kept line is removed.
+- **Segment**: the `video_frame_texts` rows of one video with the same `start_time` and
+  `end_time`; one segment is one frame-OCR read, and its chunks are its rows in
+  `chunk_index` order. Segments are ordered by `start_time`.
+- **Line**: one `\n`-separated part of a text, with surrounding whitespace removed; an empty
+  part is not a line. Lines are compared as whole strings, in any script, exactly. A part
+  that a chunk boundary or the 200-character chunk overlap cut in the middle is a line as it
+  stands and matches only an identical string.
+- **Lines of a segment**: the lines of each of its chunks' stored text, as a set.
+- **Repeated**: a line `L` of segment `S` is repeated when an earlier segment (smaller
+  `start_time`) has `L` among its lines and `S.start_time − U ≤ 60`, where `U` is the
+  largest `end_time` among the earlier segments that have `L`. Equal lines inside one
+  segment are never repeated against each other. The window, 60 seconds, is a module
+  constant (`OCR_REPEAT_WINDOW_SECONDS`) shared by the three readers.
+- **Run end**: for a line `L` first seen, or seen again after a gap, in segment `S`, the
+  `end_time` of the last segment in the chain that starts at `S`, where each next segment
+  in the chain has `L` and is one in which `L` is repeated.
+- **Frame-text row** (Ask): a passage of a video built from an `fts_text_content` row whose
+  `chunk_index` is an integer with a `video_frame_texts` row for the same file and index;
+  its segment is that row's, and its position is the segment's `start_time`
+  (`{ "seconds": start_time }`), as today.
 
 ## Required items
 
 ### 1. Normal flow
 
+**SPEC-ADDON-171, file Ask**
+
 1. A viewer asks about a video from the file Ask tab, or sends a follow-up, as today
    (`POST /api/addons/intelligence/files/{file_id}/ask`).
-2. `load_material` reads the file's transcript chunks and `fts_text_content` rows as today,
-   and for a video reads `end_time` beside `start_time` from `video_frame_texts`.
-3. Only for a file whose `file_type` is `video` (a YouTube `.loft` included), the frame-text
-   rows are filtered as a whole, in file order. If the transcript chunks, the other rows and
-   the filtered frame-text rows total at most the passage budget, all of them are sent in
-   file order with `partial` false.
-4. Otherwise rows are ranked as today (SPEC-ADDON-053 step 4 with the ranking text of
-   SPEC-ADDON-081 step 5; a frame-text row ranks by the stored embedding of its whole
-   chunk) and fitted in rank order. A candidate frame-text row is measured as the text it
-   keeps when filtered against the frame-text rows already taken; a candidate is skipped
-   when that length would exceed the remaining budget, as today. Every other row is measured
-   by its text, as today. A frame-text row that keeps nothing is skipped and takes no budget.
-   If nothing fits, the best-ranked row is sent cut to the budget, as today (filtered first
-   when it is a frame-text row).
-5. The taken frame-text rows are filtered again among themselves, in file order, and the
-   result is sent with the other taken rows in file order, with `partial` true. Adding an
-   earlier row can only remove lines from later ones, so the total stays within the budget.
-6. Numbering, prompts, frames, `get_frames`, history and citations then work as today on the
-   rows sent.
+2. `load_material` reads the file's rows as today. For a file whose `file_type` is
+   `video` (a YouTube `.loft` included), it also reads `end_time` for each frame-text row.
+3. Each frame-text row's text is filtered: every line of the row's text that is repeated in
+   the row's segment is removed. Lines are judged against every segment of the file, not
+   only against the rows that end up sent.
+   - A row in which nothing was removed keeps its stored text, unchanged byte for byte.
+   - A row in which a line was removed becomes its remaining lines joined by `\n`, in their
+     order.
+   - A row with no remaining line is removed.
+4. From here, the budget, ranking (each frame-text row by the stored embedding of its whole
+   chunk), fitting, numbering, `partial`, prompts, frames, `get_frames`, history and
+   citations work exactly as today, on the filtered rows. The prompts are not changed.
+
+**SPEC-ADDON-172, find in file**
+
+1. The find bar asks `GET /api/addons/intelligence/files/{file_id}/find?q=` as today.
+2. For a video's frame-text segments, occurrences are found in each segment's merged text
+   as today. Each occurrence belongs to the line of the merged text that contains its
+   first character.
+3. An occurrence whose line is repeated in its segment is left out. A kept occurrence's row
+   has `end` equal to the run end of its line from its segment. Its `start`, `snippet`,
+   offsets, `ordinal`, `boxes` and `frame_size` are as today.
+4. `total`, `truncated`, the order of rows and the 2,000-row cap are computed over the kept
+   rows, exactly as today's rule computes them over all rows. Transcript, document,
+   picture-text and Visual Index scene rows are unchanged.
+
+**SPEC-ADDON-173, exact search**
+
+1. `/search/exact` (and through it the MCP `search_exact` tool) finds matching
+   `fts_text_content` chunks as today.
+2. For a hit on a video's frame-text chunk, the matching lines are the lines of the chunk
+   that contain the folded term.
+   - The hit is left out when every matching line is repeated in its segment.
+   - A kept hit has `end_time` equal to the largest run end among its matching lines that
+     are not repeated. Its other fields (`start_time`, `snippet`, `match_count`, the
+     location) are as today.
+   - A hit with no matching line (the term crosses a line break) is kept, unchanged.
+3. The total and the paging (`limit`, `offset`) are over the kept hits, in today's order.
+   Transcript, document and scene hits are unchanged.
 
 ### 2. Failure cases
 
 - An `fts_text_content` row of a video whose `chunk_index` is not an integer or has no
-  `video_frame_texts` row is not a frame-text row (as today it gets the document position):
-  its text is sent unfiltered and it gives no line a seen-until time.
-- A frame-text row whose stored text has no line is removed (today an empty text is already
-  skipped).
+  `video_frame_texts` row is not part of any segment. Ask sends it unfiltered and exact
+  search keeps it unchanged. It adds no line to any segment.
 - A video with a transcript whose frame-text rows all filter away still has its transcript
-  passages; a video with any frame-text line keeps at least the row where the line first
-  appears, so the material is never empty where it is not empty today.
-- Everything else fails as today; the filter reads only what `load_material` reads and calls
-  nothing.
+  passages. A video with any frame-text line keeps at least the row of the first segment
+  that has it, so the Ask material is never empty where it is not empty today.
+- A video with no `video_frame_texts` rows: nothing is repeated, and all three readers
+  answer as today.
+- Everything else fails as today. The filter reads `video_frame_texts`, which every reader
+  already reads, and calls nothing.
 
 ### 3. States
 
-None. The filtering is a pure function of the rows read for one question; nothing persists
-between questions.
+None. Each reader computes repeats from the rows of one request; nothing persists.
 
 ### 4. Data read and written
 
-- Read: `indexed_files`, `transcript_chunks`, `fts_text_content`, `embeddings` in `search.db`,
-  as today; `video_frame_texts` (`chunk_index`, `start_time`, and now `end_time`).
+- Read: `video_frame_texts` (`chunk_index`, `start_time`, `end_time`, `text`) for the files
+  concerned, in addition to what each reader reads today. Exact search reads the segments of
+  every video with a frame-text hit.
 - Written: nothing. No table, cache or file changes.
 
 ### 5. External services
 
-None added. The LLM and embedding calls are those of today; the embedding call happens only
-when the material exceeds the budget, which is now less often.
+None added. Ask's embedding call happens only when the material exceeds the budget, which is
+now less often.
 
 ### 6. Authorization
 
-Unchanged: the file must be an active file of the `X-Lit-Drive` drive the viewer can access
-with `rag` on (SPEC-ADDON-053 I1 as revised). The filter runs after those checks, on the
-same file's rows.
+Unchanged for each reader. The filter runs after the existing drive, file and policy checks,
+on rows those checks already admitted.
 
 ### 7. Effect on existing features
 
-- Only `load_material` and its fitting helper in `app/rag/file_question.py` change, so the
-  file Ask tab, follow-ups and the frame paths built on its `Material` (SPEC-ADDON-071, 108,
-  114, 116) see the filtered passages. The frame numbers `[P+1]…` follow the reduced `P`.
-- Unchanged: the normal Ask (`/ask`, `rag/context.py`, `rag/service.py`), search, exact
-  search, scene search, find in file, the Visual Index, `video_contents` (the section list of
-  SPEC-ADDON-116, which reads `video_frame_texts` itself), the MCP tools, the OCR worker and
+- `app/rag/file_question.py` (`load_material`): the file Ask tab, follow-ups and the frame
+  paths built on its `Material` (SPEC-ADDON-071, 108, 114, 116) see the filtered passages.
+  The frame numbers `[P+1]…` follow the reduced `P`.
+- `app/file_find.py`: the find bar, its count, chips and next/previous step through the kept
+  rows.
+- `app/exact_search.py`: `/search/exact`, the MCP `search_exact` tool and the Search page's
+  exact mode get the kept hits.
+- Unchanged: the normal Ask (`/ask`, `rag/context.py`, `rag/service.py`, including the
+  shortlist's exact-match step, which does not call `find_exact`), semantic search and the
+  passage results view, scene search, the Visual Index, `video_contents`, the OCR worker and
   what it stores.
-- Pictures, audio and documents: no frame-text rows, so unchanged.
 
 ### 8. Error behavior
 
-No new error, log line or status. A question that used to say it read part of the file may
-now read the whole file.
+No new error, log line or status.
 
 ### 9. User-visible behavior
 
-- For a video whose on-screen text repeats, fewer answers carry the "read part of the file"
-  notice (`partial` false where it was true).
-- Citation numbers of a video's frame-text passages can differ from today's, since a fully
-  repeated row no longer takes a number. Pills still seek to the cited row's start.
-- A line that stays on screen is cited at the time it first appeared in a sent row, or
-  reappeared after more than 60 seconds away, not at each later segment.
+- Ask: for a video whose on-screen text repeats, fewer answers carry the "read part of the
+  file" notice. Citation numbers of frame-text passages can differ from today's. A line that
+  stays on screen is cited at the time it first appeared, or reappeared after more than 60
+  seconds away.
+- Find: a line on screen for several segments is one row at the time it appeared, instead of
+  one row per segment. The count and chips are smaller by the same amount.
+- Exact search: the same, one hit per run of a line on screen. Its `end_time` is the end of
+  that run.
 
 ### 10. Non-functional
 
-- Time: filtering is linear in the frame-text lines; fitting filters each candidate against
-  the rows already taken, at most once per candidate. No measurable cost against the LLM
-  call.
-- Privacy and cost: strictly less text is sent to the model for the same question.
-- `docs/addons/intelligence.md` (the file Ask paragraph on `rag.file_question_max_chars`)
-  gains one sentence: on-screen text a video repeats within a minute is sent once.
+- Time: one pass over a video's segments per request, in memory. Exact search reads the
+  segments of the matched videos only.
+- Privacy and cost: less text reaches the model for the same question.
+- Docs:
+  - `docs/addons/intelligence.md` gains one sentence each in the file Ask budget paragraph,
+    the find paragraph and the MCP `search_exact` sentence.
+  - `docs/reference/api.md`'s find entry states the rule.
 
 ## Touch points
 
-- `addons/intelligence/app/rag/file_question.py` (`load_material`, `_fit`; a new constant and
-  the line filter), committed in the intelligence addon repository
-- `addons/intelligence/tests/` (acceptance tests for this spec), in the addon repository
-- `addons/intelligence` gitlink in the core repository (the pointer bump to the merged addon
-  commit, with which the ledger row becomes `implemented`)
-- `docs/addons/intelligence.md`
+- `addons/intelligence/app/rag/file_question.py` (`load_material`)
+- `addons/intelligence/app/file_find.py` (`_frame_occurrences`)
+- `addons/intelligence/app/exact_search.py` (`_text_hits` and its paging in `find_exact`)
+- A shared helper for segments, lines, repeats and run ends, with the window constant, in the
+  intelligence addon
+- `addons/intelligence/tests/` (acceptance tests for this spec)
+- The three files above are committed in the intelligence addon repository. In the core
+  repository, the `addons/intelligence` gitlink moves to the merged addon commit, and with it
+  the ledger rows become `implemented`.
+- `docs/addons/intelligence.md`, `docs/reference/api.md`
 - `docs/specs/INDEX.md`
-- Rules passed through: `.claude/rules/design-decisions.md` (LLM features; frame OCR lines are
-  machine output and are not corrected), `.claude/rules/backend-conventions.md` (no
-  language-dependent rules: the filter compares whole lines exactly, in any script)
+- Rules passed through:
+  - `.claude/rules/design-decisions.md`: LLM features; frame OCR lines are machine output and
+    are not corrected.
+  - `.claude/rules/backend-conventions.md`: no language-dependent rules. The filter compares
+    whole lines exactly, in any script.
 
 ## Invariants
 
-I1. For a video, a frame-text line is not sent when an identical line was in a sent frame-text row earlier in file order (or earlier in the same row) whose `end_time` is at most 60 seconds before this row's `start_time`; every other line of a sent frame-text row is sent, in its order within its row.
-I2. A line that stays on screen through consecutive segments is sent once, in the first sent row that contains it, however long each segment lasts; a line is sent again only after 60 seconds in which no sent row contained it.
-I3. Whenever a row containing a frame-text line is taken, the line appears in at least one sent passage: a line dropped from a sent row is present in another sent row of the same question, also when the material is over budget.
-I4. A frame-text row with no kept line takes no `[n]` number and is not sent; the remaining passages are numbered consecutively in file order, frames follow from the reduced count, and every `citations` entry names a number that was sent, with that passage's position.
-I5. Transcript chunks, the chunks of pictures, audio and documents, and every frame-text row in which no line was dropped are sent with exactly the stored text, order and positions they had before this change.
-I6. A video whose transcript, other rows and filtered frame-text rows total at most the passage budget is sent whole with `partial` false; otherwise the sent text, after the final filtering, totals at most the passage budget and `partial` is true.
-I7. The change writes nothing: `search.db`, the frame cache and every other store hold the same rows after a question as before it, and search, scene search, exact search, the normal Ask and `video_contents` return what they returned before.
+I1. For a video, a frame-text line is repeated exactly when an earlier segment has the identical line and the latest `end_time` among such earlier segments is at most 60 seconds before this segment's `start_time`; identical lines within one segment are never repeated against each other.
+I2. Ask sends no repeated frame-text line, and sends every other line of every frame-text row it sends, in its order within its row; a frame-text row in which no line was removed is sent with its stored text unchanged, and a row with no line left takes no `[n]`.
+I3. Ask numbers the passages it sends consecutively in file order, frames follow from that count, and every `citations` entry names a number that was sent, with that passage's position.
+I4. Ask's budget, ranking, fitting and `partial` are those of SPEC-ADDON-053 step 4 (with SPEC-ADDON-081 step 5), applied to the filtered rows: a video whose filtered rows total at most the passage budget is sent whole with `partial` false.
+I5. Find returns no frame-text row whose occurrence lies in a repeated line, returns every other occurrence it returns today with the same `start`, `snippet`, offsets, `ordinal`, `boxes` and `frame_size`, and gives each kept frame-text row an `end` equal to the run end of its line; `total`, `truncated`, order and the cap are today's rule over the kept rows.
+I6. Exact search leaves out a frame-text hit exactly when it has at least one matching line and every matching line is repeated; a kept hit has today's fields except `end_time`, which is the largest run end of its matching lines that are not repeated, and the total and pages are over the kept hits.
+I7. Transcript chunks, documents, pictures, audio, Visual Index scenes, and every frame-text row or hit of a video in which no line is repeated are returned or sent exactly as before this change.
+I8. The change writes nothing: `search.db`, the frame cache and every other store hold the same rows after any of the three requests as before it, and semantic search, the normal Ask and `video_contents` return what they returned before.
 
 ## Revises
 
-SPEC-ADDON-053 I2. When the file's chunk text, after a video's frame-text lines are filtered as SPEC-ADDON-171 states, totals at most the passage budget (`rag.file_question_max_chars` minus the characters of the history turns sent), all chunks are sent in file order and `partial` is false; otherwise the sent chunk text totals at most the passage budget, chosen by the ranking and fitting rule of 053 step 4 with the ranking text of SPEC-ADDON-081 step 5 and the fitting of SPEC-ADDON-171 step 4, sent in file order, and `partial` is true.
-SPEC-ADDON-081 I1. A file question with no `history` or an empty one sends the model the same system prompt, user prompt and chunks, ranked by the new question alone, as before SPEC-ADDON-081, with a video's frame-text lines filtered as SPEC-ADDON-171 states; with history and a file over budget, ranking embeds the last `history` entry's question as sent, a newline, and the new question.
-SPEC-ADDON-108 I1. A video with at least one `transcript_chunks` or `fts_text_content` row gets the availability it had before SPEC-ADDON-108, the passages it had then with the frame-text line filter of SPEC-ADDON-171 applied, and its frames by SPEC-ADDON-114; availability answers `true` for a text-less video only when some profile can see, and `false` for audio with no text chunk and for a `.loft` that is unreadable or whose source is not YouTube.
+SPEC-ADDON-053 I2. When the file's chunk text, after a video's repeated frame-text lines are removed as SPEC-ADDON-171 states, totals at most the passage budget (`rag.file_question_max_chars` minus the characters of the history turns sent), all chunks are sent in file order and `partial` is false; otherwise the sent chunk text totals at most the passage budget, chosen by the ranking and fitting rule of 053 step 4 with the ranking text of SPEC-ADDON-081 step 5, sent in file order, and `partial` is true.
+SPEC-ADDON-081 I1. A file question with no `history` or an empty one sends the model the same system prompt, user prompt and chunks, ranked by the new question alone, as before SPEC-ADDON-081, with a video's repeated frame-text lines removed as SPEC-ADDON-171 states; with history and a file over budget, ranking embeds the last `history` entry's question as sent, a newline, and the new question.
+SPEC-ADDON-108 I1. A video with at least one `transcript_chunks` or `fts_text_content` row gets the availability it had before SPEC-ADDON-108, the passages it had then with its repeated frame-text lines removed as SPEC-ADDON-171 states, and its frames by SPEC-ADDON-114; availability answers `true` for a text-less video only when some profile can see, and `false` for audio with no text chunk and for a `.loft` that is unreadable or whose source is not YouTube.
+SPEC-ADDON-114 I8. Pictures, audio, documents, a `.loft` that is not a text video, every request whose profile cannot see, the availability route, the normal Ask with its agentic loop and the MCP tools answer as they did before this change, except that a video's passages have their repeated frame-text lines removed as SPEC-ADDON-171 states and `search_exact` leaves out the frame-text hits SPEC-ADDON-173 leaves out; text-less videos differ only by the request layout of I11 and by SPEC-ADDON-116.
+SPEC-ADDON-061 I1. The find answer's `total` equals the number of non-overlapping occurrences of the folded term within the file's text units (a video's units being its frame-text segments), transcript chunks that have a start, and — only while the drive's Visual Index is open — scene `visible_text` (never `scene_label`), less the frame-text occurrences that SPEC-ADDON-172 leaves out because their line is repeated; an occurrence inside the overlap of two adjacent text chunks of one unit counts once; `rows` is the first `min(total, 2000)` of them in position order, `truncated` is true exactly when `total > 2000`, and each row's `snippet[match_start:match_start+match_length]` folds to the term.
+SPEC-ADDON-066 I9. The find answer for a video includes one `scene` row per occurrence in each frame-text segment whose line is not repeated (SPEC-ADDON-172), with the segment's `start` and, as `end`, the run end of that line, whether or not the drive's Visual Index is open, ordered by `start` with utterance, then Visual Index scene, then frame text at an equal start; the answer's `indexed` is true for a video whose `frame_ocr_indexed` is true; for a scanned PDF it includes `page` rows for the stored page text.
+SPEC-ADDON-032 I2. `/search/exact` returns exactly the segments of the requested sources whose text contains `q` under the stated comparison, for every length of `q`, less the video frame-text segments that SPEC-ADDON-173 leaves out because every matching line is repeated: `total` equals their number, and paging by `offset` in steps of `limit` visits each once, in the stated order; no character of `q` acts as a wildcard (`%`, `_` and `\` match only themselves).
+SPEC-CORE-048 I10. A `text_content` match on a video becomes a `screen_text` passage with its segment's `start` and `end`, `frame_url` at `floor(start)`, and a link to `?t=<floor(start)>`, or, for a keyword-matched passage with a link term, to `?t=<start with three decimals>&find=<link term>` (SPEC-CORE-134), shown as 「mm:ss」 over 「画面内の文字」 with its excerpt; no video becomes a `text` or `picture_text` passage, search by image returns no video, a video's text hit in `/search/exact` carries its segment's `start_time` and, as `end_time`, the run end of SPEC-ADDON-173, and no detailed-summary citation of a video points at its `text_content` rows; Ask's context for a video places its frame text after the transcript snippets, or first when only frame text matched, an Ask citation of frame text carries its segment's `m:ss`, and the single-file question gives it `{"seconds": start_time}`.
 
 ## Checked, no action
 
-- **Merging at index time instead (store lines with start and end times).** It would also
-  shrink search and scene rows, but changes stored data, the OCR worker, every reader of
-  `video_frame_texts`, and needs a re-read or migration of 679,067 segments. The question-time
-  filter gets the measured benefit with no stored change. Revisit if another reader needs it.
-- **Other windows.** Production, over-budget videos after filtering every row, by window
-  measured from the previous containing row's end: 0 s 490, 30 s 457, 60 s 453, 300 s 442
-  (from its start instead, whole file: 439). Under 60 s OCR flicker (a line missed in one
-  segment) makes a line new again; beyond it the gain is 11 videos, and a line shown again
-  much later (a revisited slide) would lose its second time. The measurement read the stored
-  chunk text, cut fragments included, as the filter will.
-- **Filtering against every row rather than the sent rows.** Simpler, but over budget a
-  line kept only in a row that loses the ranking would reach the model in no passage (a slide
-  title or a name card missing from the answer). Filtering against the sent rows keeps the
-  line in the first sent row that has it.
-- **Filtering only when the text exceeds the budget.** Always filtering keeps one rule for
-  every video and removes noise for videos that fit too; the model loses only an exact line
-  it was shown in another sent passage under a minute before, and it still has the frames.
-- **Annotating a kept line with how long it stays on screen.** Adds characters to every
-  line; no question type measured needs it. The frames and `get_frames` cover "what is on
-  screen at t".
-- **Near-duplicate lines (OCR misreads of the same text, fragments cut by chunking).** Exact
-  match only: a fuzzy rule would need a threshold that behaves differently per script.
-- **Re-embedding filtered rows for ranking.** The stored embedding of the whole chunk still
-  describes the row; recomputing would add an embedding call per row per question. A row
-  can rank on text that was removed from it; accepted.
-- **`video_contents` excerpts (the section list) also repeat the same lines.** It is capped
-  at 120 characters per section and is a separate reader; out of scope.
-- **The normal Ask.** Its context is built from search hits in `rag/context.py`, not from a
-  whole file; unchanged.
-- **The remaining 453 over-budget videos** (approved chapters as an overview, a
-  `get_transcript(start, end)` tool, hybrid ranking) are a separate change, decided after
-  this one ships.
-- **User guide.** A viewer needs nothing new to use Ask; only the addon reference paragraph
-  on the budget changes.
+- **Merging at index time instead** (store each line with start and end times). It would
+  change stored data, the OCR worker and every reader of `video_frame_texts`, and needs a
+  re-read or migration of 679,067 segments. The three request-time filters give the measured
+  benefit with no stored change.
+- **Other windows.** Production, Ask over-budget videos by window: 0 s 490, 30 s 457,
+  60 s 453, 300 s 442 (measured with repeats inside a segment also dropped). Under 60 s,
+  OCR flicker (a line missed in one segment) makes a line new again. Beyond 60 s the gain is
+  about 11 videos, and a line shown again much later (a revisited slide) would lose its
+  second time.
+- **Dropping repeats inside one segment.** It would also drop short lines whose position
+  carries meaning: cells of a table (`Yes`, `0`), braces and `else:` in code, list
+  numbering. That leaves a table or code block on one screen misaligned. Keeping them
+  costs 8 videos (464 against 456 over budget).
+- **A table or code block that changes slightly between segments** loses its unchanged lines
+  in the later segment. The full block was in the earlier segment's passage, and Ask sends
+  frames to a profile that can see. Accepted.
+- **Ask judging repeats only against the rows actually sent** (so a line whose first row
+  loses the ranking stays in a later sent row). The human chose judging against every
+  segment. It is the rule the measurement used and the one find and exact search use, and
+  fitting against the taken rows raised four contradictions in the spec design review. The
+  loss happens only when `partial` is true, and the answer then says it read part of the
+  file.
+- **Telling the model that a frame-text passage holds only what newly appeared.** The human
+  chose not to change the prompts. That would revise SPEC-ADDON-114 I10 and needs checking
+  against the production model. Revisit if answers show the model misreads it.
+- **SPEC-ADDON-114 I8** ("…every request whose profile cannot see … answer as they did
+  before this change") is about the frame path of 114, and the passages are governed by
+  053 I2, which is revised above. Answering as before 114 with respect to frames still
+  holds.
+- **Near-duplicate lines** (OCR misreads of the same text, fragments cut by chunking). Exact
+  match only: a fuzzy rule would need a threshold that behaves differently per script. In
+  the find probe, rows whose line differs from the most common one were 585 of 2,322, and
+  the rule still removed 92% of rows.
+- **Re-embedding filtered Ask rows for ranking.** The stored embedding of the whole chunk
+  still describes the row, and recomputing would add an embedding call per row per
+  question. A row can rank on text that was removed from it; accepted.
+- **Changing `snippet` or `match_count` of a kept exact hit** to skip repeated lines. The
+  snippet still shows a real occurrence in that chunk. Accepted as today's.
+- **Semantic search and the passage results view.** They rank chunks by meaning, at most 3
+  per file in the passage view, so a whole chunk is not a repeat even when one of its lines
+  is.
+- **`video_contents`** (the section list) also repeats lines. It is capped at 120 characters
+  per section and is a separate reader; out of scope.
+- **The remaining over-budget videos** (approved chapters as an overview, a
+  `get_transcript(start, end)` tool, hybrid ranking) are a separate change.
+- **User guide.** A viewer needs nothing new to use these. The addon reference and the API
+  reference change.

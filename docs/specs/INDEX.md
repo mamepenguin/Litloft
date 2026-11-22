@@ -347,3 +347,5 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-169 | implemented | docs/specs/remove-home-pickup.md | sha256:05808e6afdb6d79a42de2c5e2f5007b4be3a71b25455ebb43b14f1f5f387dbb2 |
 | SPEC-ADDON-170 | implemented | docs/specs/remove-home-pickup.md | sha256:05808e6afdb6d79a42de2c5e2f5007b4be3a71b25455ebb43b14f1f5f387dbb2 |
 | SPEC-ADDON-171 | draft | docs/specs/ask-ocr-line-dedupe.md | |
+| SPEC-ADDON-172 | draft | docs/specs/ask-ocr-line-dedupe.md | |
+| SPEC-ADDON-173 | draft | docs/specs/ask-ocr-line-dedupe.md | |
