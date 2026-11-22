@@ -82,7 +82,9 @@ What needs a human is a kind of question, not a risk level. Bugs and broken prec
 are found by the reviewers and fixed by the author (bucket A); risk selects only how deep
 the automated review goes. A human is needed for:
 
-- a design judgment (an open C, a `needs_human` record, `unspecified_behavior_found`);
+- a design judgment (an open C, a `needs_human` record, an unspecified-behavior entry over
+  the threshold of `unspecified_stop`, or every raised entry when the row is absent; see
+  `review.md`, Unspecified behavior);
 - a disagreement between reviewers (a rejected high-consequence finding);
 - a change to a human zone;
 - a change to a protected path.
