@@ -46,8 +46,9 @@ are written.
 Each invariant is an observable sentence that a mutation could violate. "A thumbnail
 failure leaves the record and the stored bytes untouched" is an invariant; "handle errors
 properly" is an intention and is rejected. Give each an id, because a bucket A finding
-cites it. Invariants are lines that start with `I<N>.` (for example
-`I4. A finding without a claim is rejected.`), and `invariant_ref` is that `I<N>`.
+cites it. Invariants are lines that start with an id, `I<N>.` or `I<N><letters>.` (for
+example `I4. A finding without a claim is rejected.` or `I16b. ...`), and `invariant_ref` is
+that id. `I16` and `I16b` are different ids.
 
 Where the list comes from, in order:
 
@@ -95,6 +96,17 @@ spec declares that SPEC-ID is reviewed later, `review.sh` appends the revision f
 other spec that has an Approval line, as `I7. (<revising spec>) <sentence>`, after the
 topic's own revisions and in the order of the approval commits, so the newest approved
 revision replaces that invariant.
+
+### Finding the earlier specs a change reaches
+
+Before writing `## Invariants` and `## Revises`, the author runs
+`bash scripts/process/related-specs.sh <spec>` and reads the listed invariants. It names the
+earlier approved specs that share a touch-point path, rarest path first, with their
+invariants and the revisions later specs made to them. `/spec` saves the output to
+`$(git rev-parse --path-format=absolute --git-path process/related-specs.txt)` after the touch points are written
+and again whenever they change, and gives that path to the spec design reviewer, which
+reports a listed invariant the draft contradicts that `## Revises` does not name. The list
+is an aid, not a gate: it finds most but not all of them, and the author may search beyond it.
 
 ### Finding what the spec could not see
 
