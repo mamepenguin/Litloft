@@ -119,6 +119,38 @@ def ccheck($i):
     (if (.reason | ne) then empty else "\($label): reason is missing or empty" end)
   end;
 
+def score0($label; $k; $lo):
+  if (.[$k] | type) == "number" and .[$k] == (.[$k] | floor) and .[$k] >= $lo and .[$k] <= 10 then empty
+  else "\($label): \($k) must be an integer from \($lo) to 10" end;
+
+def scorecheck($label):
+  score0($label; "frequency"; 0), score0($label; "impact"; 1),
+  (if (.reason | ne) then empty else "\($label): reason is missing or empty" end);
+
+def ucheck($i):
+  "potential_unspecified_behavior[\($i)]" as $label |
+  if type != "object" then "\($label): not an object" else
+    (if (.behavior | ne) then empty else "\($label): behavior is missing or empty" end),
+    scorecheck($label)
+  end;
+
+def uscheck($i):
+  "unspecified_scores[\($i)]" as $label |
+  if type != "object" then "\($label): not an object" else
+    (if (.source_reviewer | ne) then empty else "\($label): source_reviewer is missing or empty" end),
+    (if (.index | type) == "number" and .index == (.index | floor) and .index >= 0 then empty
+     else "\($label): index must be a non-negative integer" end),
+    scorecheck($label)
+  end;
+
+# An array of strings is the shape of earlier kits; an array of objects carries the scores.
+def unspecified:
+  .potential_unspecified_behavior as $u |
+  if ($u | strarr) then empty
+  elif ($u | type) == "array" and all($u[]; type == "object") then
+    ($u | to_entries[] | .key as $i | .value | ucheck($i))
+  else "potential_unspecified_behavior must be an array of non-blank strings or an array of scored entries" end;
+
 def covercheck:
   (.coverage | to_entries[] | .key as $i | .value | ccheck($i)),
   ([.coverage[] | select(type == "object") | .path | select(type == "string")]
@@ -183,7 +215,20 @@ def acheck($inv; $second; $spec; $allow):
     (if $spec and ((.specification_compliance | type == "array" and length > 0) | not)
      then "specification_compliance must be non-empty when a spec is present" else empty end),
     (if (.unspecified_behavior_found | bool) then empty else "unspecified_behavior_found must be a boolean" end),
-    (("potential_unspecified_behavior", "regression_risks", "test_coverage") as $k
+
+    unspecified,
+
+    (if .role == "verify" then
+       if (.unspecified_scores | type) == "array" then
+         (.unspecified_scores | to_entries[] | .key as $i | .value | uscheck($i)),
+         ([.unspecified_scores[] | select(type == "object" and (.source_reviewer | ne) and (.index | type) == "number") | [.source_reviewer, .index]]
+           | group_by(.) | .[] | select(length > 1) | "duplicate unspecified score for \(.[0][0]):\(.[0][1])")
+       elif has("unspecified_scores") then "unspecified_scores must be an array when present"
+       else empty end
+     elif (.unspecified_scores // []) | (type == "array" and length == 0) then empty
+     else "unspecified_scores must be empty or absent for role \(.role)" end),
+
+    (("regression_risks", "test_coverage") as $k
       | if ($a[$k] | strarr) then empty else "\($k) must be an array of non-blank strings" end),
 
     (if (.not_verified | strarr) then

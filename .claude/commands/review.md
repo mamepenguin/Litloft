@@ -54,7 +54,12 @@ user sees.
 
 ## 5. Say what is needed
 
-- **PASS**: no decision is needed. Leave `decision:` empty.
+- **PASS**: no decision is needed. Leave `decision:` empty. If open B findings or entries
+  under *Unspecified behavior, recorded* remain, do not ask the human about them: resolve
+  each as `fix` or `accept` under `author_resolutions:` in `decisions.md`, one line each
+  with its reason (`- <reviewer>:<finding id or entry index> fix|accept: <reason>`), and
+  run `/review` again when you fixed anything. Put the same list in the pull request
+  description for the human to read before merge.
 - **FAIL**: the author fixes. Reproduce each open bucket A or BLOCKER finding before
   fixing it. An invalid or missing artifact means running that reviewer again; never
   edit an artifact. Commit the fixes, then run `/review` again. Items under *Needs a

@@ -162,6 +162,49 @@ reviewer's own overall judgement is ignored. A finding the verifier adds
 The prompts ask for every text value in English, whatever language the repository or the
 conversation uses.
 
+## Unspecified behavior
+
+`potential_unspecified_behavior` lists the behaviors the change has that the spec does not
+describe, one object each: `behavior`, `frequency`, `impact` and `reason`. The reviewer that
+lists an entry scores it. Every `verify` reviewer scores each entry of every other artifact
+again, in `unspecified_scores`: `source_reviewer`, `index` (the entry's position), and the
+same three fields. When `unspecified_stop` is set (below), an entry without a score from a
+verifier makes that verifier's artifact not valid; without the row the scores cannot change
+the verdict and none is required. An entry a verifier adds is scored by that verifier alone. The author never
+scores.
+
+The scale, judged as the behavior would reach a user in ordinary use:
+
+- Frequency (0-10): 0 = no ordinary condition (an artificial delay, a crash at a precise
+  moment, hand-edited data, or use outside the threat model in `PROJECT.md`); 1 = a few
+  times a year; 3 = a few times a month; 5 = a few times a week; 8 = almost every day;
+  10 = every use.
+- Impact (1-10): 1 = a trivial visual difference, or harmless; 3 = inconvenient, easy to
+  work around; 5 = a feature does not work and the user notices; 8 = silently wrong, or
+  lost data that takes effort to recover; 10 = unrecoverable loss or a broken security
+  boundary.
+
+Which entries stop the change is set by the `unspecified_stop` row of
+`process/process.conf`:
+
+```
+unspecified_stop=product:15 impact:8
+```
+
+- Without the row, every entry of an artifact that sets `unspecified_behavior_found` stops
+  the change.
+- With the row, the scores decide and `unspecified_behavior_found` is not read: an entry
+  stops the change when any of its scores, the reviewer's or a verifier's, has
+  F×I ≥ `product`, or F ≥ 1 and I ≥ `impact`. The other entries are recorded in
+  `triage.md` with their scores and do not change the verdict.
+- An entry written as a plain string (an artifact from an earlier kit) has no scores and
+  stops exactly when its artifact sets `unspecified_behavior_found`.
+
+The scores of every entry, with the threshold, are in `verdict.json` under `unspecified`
+and `unspecified_stop`.
+
+## Verification records
+
 Every finding in a `read` or `mutate` artifact gets exactly one record from `verify`:
 `confirmed`, `rejected_with_evidence` or `needs_human`, severity unchanged, and a `note`
 string. `note` is required for `needs_human` and for `rejected_with_evidence`. A record's
@@ -186,7 +229,7 @@ The one principle: a rejection removes a finding from FAIL and from nothing else
 | Verdict | When |
 |---|---|
 | FAIL | An artifact of the expected set is missing or not valid; the fingerprint changed; an open finding in bucket A or of severity BLOCKER |
-| HUMAN_REVIEW_REQUIRED | Not FAIL, and any of: a product file not read or missing from `coverage` (`incomplete_read`); an open C; a `needs_human` record; `unspecified_behavior_found`; a rejected high-consequence finding; a change that touches a human zone or a protected path |
+| HUMAN_REVIEW_REQUIRED | Not FAIL, and any of: a product file not read or missing from `coverage` (`incomplete_read`); an open C; a `needs_human` record; an unspecified-behavior entry that stops (see *Unspecified behavior*); a rejected high-consequence finding; a change that touches a human zone or a protected path |
 | PASS | Otherwise |
 
 Merging is a union over the expected set: every finding appears, and the merge never
@@ -236,7 +279,9 @@ reading `triage.md` decides what to do.
 `trajectory`. It consists of, in order, *Trajectory* (this review's answer, every earlier
 one, and the number of C findings so far), *Verdict*, *Read coverage* (every product and
 test file with what the readers recorded, or that it is missing), *Needs a human* (only
-when needed), *Findings* (with the A/B/C counts) and *Not verified*, and its last line is
+when needed), *Unspecified behavior, recorded* (the entries that do not stop, with every
+score; only when there are some), *Findings* (with the A/B/C counts) and *Not verified*,
+and its last line is
 `TOTAL: N findings`. Each finding shows its id and bucket, `claim`, `impact`, `evidence`, `repro` and `introduced`;
 then the reviewer's and the author's bucket side by side (the author's is display only);
 then `proposed_fix`, last and collapsed.
@@ -244,8 +289,8 @@ then `proposed_fix`, last and collapsed.
 When a human is needed, `triage.md` has a section *Needs a human*, after *Verdict*, that
 lists only those items. A finding appears with its `claim` (the question), `impact`, `evidence` and
 the reviewer's recommendation (`proposed_fix`). An item without a finding appears with the
-verification record's `note`, the artifact field that raised it
-(`potential_unspecified_behavior`), or, for a human zone or a protected path, the changed
+verification record's `note`, the entries that stop with every score and reason
+(`potential_unspecified_behavior`; an entry with one score is marked single-scored), or, for a human zone or a protected path, the changed
 paths (the human reads the diff). The reviewers prepare the review; the human
 decides. The section is shown on FAIL as well as on HUMAN_REVIEW_REQUIRED, and the author
 does not decide its items. Findings the author can resolve alone are not in that section.

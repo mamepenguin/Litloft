@@ -46,6 +46,34 @@ No invariants file exists for this change. Bucket A is not available without one
 
 {{FINDINGS}}
 
+## Unspecified behavior to score
+
+The readers listed these behaviors that the spec does not describe:
+
+{{UNSPECIFIED}}
+
+Score every entry above yourself, without regard to how the reader scored it, and return
+one record per entry in `unspecified_scores`: `source_reviewer` (the `reviewer` shown),
+`index` (the `index` shown), `frequency`, `impact` and `reason`. An entry with no record
+makes your artifact invalid.
+
+Score each entry on two scales, as it would reach a user in ordinary use. Judge frequency
+against the threat model above: use outside it scores 0. Score the behavior as it is, not
+the worst thing that could be imagined.
+
+- `frequency` (0-10): 0 = no ordinary condition (it needs an artificial delay, a crash at a
+  precise moment, hand-edited data, or use outside the threat model); 1 = a few times a
+  year; 3 = a few times a month; 5 = a few times a week; 8 = almost every day; 10 = every
+  use. Values in between are allowed.
+- `impact` (1-10): 1 = a trivial visual difference, or harmless; 3 = inconvenient, easy to
+  work around; 5 = a feature does not work and the user notices; 8 = silently wrong, or
+  lost data that takes effort to recover; 10 = unrecoverable loss or a broken security
+  boundary.
+- `reason`: one sentence naming what triggers it and what the user sees.
+
+A behavior no reader listed goes in your own `potential_unspecified_behavior`, as an object
+with `behavior`, `frequency`, `impact` and `reason`; it needs no record.
+
 ## Rules for what you return
 
 - Return exactly one verification record per finding above, in `verification`:
@@ -71,7 +99,7 @@ No invariants file exists for this change. Bucket A is not available without one
 ## Output
 
 Return one JSON object through the structured output, with `schema_version` 1, `reviewer`
-`{{REVIEWER}}`, `role` `verify`, `risk` `{{RISK}}`, `findings`, `verification`,
+`{{REVIEWER}}`, `role` `verify`, `risk` `{{RISK}}`, `findings`, `verification`, `unspecified_scores`,
 `specification_compliance`, `unspecified_behavior_found`, `potential_unspecified_behavior`,
 `regression_risks`, `test_coverage`, `not_verified` and `confidence`. Text outside the
 structured result is discarded.

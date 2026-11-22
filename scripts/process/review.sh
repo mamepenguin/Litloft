@@ -404,13 +404,22 @@ fingerprint() {
 
 # ------------------------------------------------------------------ run state
 # MAXB: the cap on each attached diff, from `max_diff_bytes = N` in process/process.conf.
+# USTOP: the `unspecified_stop = product:N impact:M` row, normalized; empty when there is none.
 parse_process_conf() {
   local f=process/process.conf line n=0 v
   MAXB=200000
+  USTOP=""
   [ -r "$f" ] || return 0
   while IFS= read -r line || [ -n "$line" ]; do
     n=$((n + 1)); line="${line%$'\r'}"
-    case "$(trim "$line")" in max_diff_bytes|max_diff_bytes[!A-Za-z0-9_]*) ;; *) continue ;; esac
+    case "$(trim "$line")" in
+      unspecified_stop|unspecified_stop[!A-Za-z0-9_]*)
+        v="$(printf '%s' "$line" | sed -n 's/^[[:space:]]*unspecified_stop[[:space:]]*=[[:space:]]*product:\([0-9]\{1,3\}\)[[:space:]][[:space:]]*impact:\([0-9]\{1,2\}\)[[:space:]]*$/product:\1 impact:\2/p')"
+        [ -n "$v" ] || die "$f:$n: unspecified_stop must be 'product:N impact:M'"
+        USTOP="$v"; continue ;;
+      max_diff_bytes|max_diff_bytes[!A-Za-z0-9_]*) ;;
+      *) continue ;;
+    esac
     v="$(printf '%s' "$line" | sed -n 's/^[[:space:]]*max_diff_bytes[[:space:]]*=[[:space:]]*\([0-9]\{1,9\}\)[[:space:]]*$/\1/p')"
     [ -n "$v" ] && [ "$((10#$v))" -gt 0 ] || die "$f:$n: max_diff_bytes must be a positive integer of at most 9 digits"
     MAXB=$((10#$v))
@@ -580,7 +589,7 @@ render_template() { # <template> ; env: T_*, F_*, IF_*
     { line = $0; for (k = 1; k <= n; k++) line = rep(line, "{{" names[k] "}}", ENVIRON["T_" names[k]]); print line }' "$1"
 }
 
-# findings_list <dir>: every finding of the read artifacts of <dir>
+# findings_list <dir>: every finding and every unspecified-behavior entry of the read artifacts of <dir>
 findings_list() {
   local id role f out=""
   while IFS="$US" read -r id _ role _ _; do
@@ -588,6 +597,12 @@ findings_list() {
     jq -r '. as $a | .findings[] | "- reviewer: \($a.reviewer)\n  id: \(.id)\n  claim: \(.claim | gsub("[\r\n]+"; " "))\n  evidence: \(.evidence | gsub("[\r\n]+"; " "))\n"' "$1/$id.json"
   done <"$W/rev.dat" >"$W/ctx/findings.txt"
   [ -s "$W/ctx/findings.txt" ] || echo "(none)" >"$W/ctx/findings.txt"
+  while IFS="$US" read -r id _ role _ _; do
+    [ "$role" = read ] && [ -n "$1" ] && [ -f "$1/$id.json" ] || continue
+    jq -r '. as $a | .potential_unspecified_behavior | to_entries[]
+      | "- reviewer: \($a.reviewer)\n  index: \(.key)\n  behavior: \(.value | if type == "string" then . else .behavior end | gsub("[\r\n]+"; " "))\n"' "$1/$id.json"
+  done <"$W/rev.dat" >"$W/ctx/unspecified.txt"
+  [ -s "$W/ctx/unspecified.txt" ] || echo "(none)" >"$W/ctx/unspecified.txt"
 }
 
 # brief_for <id> <role> <perspectives> <artifact dir> <out>
@@ -599,7 +614,7 @@ brief_for() {
   findings_list "$4"
   T_COMMIT="$HEAD_SHA" T_BASE="$BASE" T_RISK="$RISK" T_REVIEWER="$1" T_PERSPECTIVES="$pers" T_INVARIANTS_PATH="$INV_SHOWN" \
   F_BASE_DIFF="$W/ctx/base.diff" F_FIXES_DIFF="$W/ctx/fixes.diff" F_FIXES="$W/ctx/fixes.list" F_EARLIER="$W/ctx/earlier.txt" \
-  F_INVARIANTS="$W/ctx/invariants.txt" F_FINDINGS="$W/ctx/findings.txt" F_THREAT_MODEL="$W/ctx/threat.txt" \
+  F_INVARIANTS="$W/ctx/invariants.txt" F_FINDINGS="$W/ctx/findings.txt" F_UNSPECIFIED="$W/ctx/unspecified.txt" F_THREAT_MODEL="$W/ctx/threat.txt" \
   F_PRODUCT_FILES="$W/ctx/product-files.prompt.txt" F_TEST_FILES="$W/ctx/test-files.prompt.txt" \
   IF_first="$first" IF_later="$later" IF_invariants="$inv" IF_noinvariants="$noinv" IF_perspectives="$([ -n "$pers" ] && echo 1 || echo 0)" \
   IF_threat="$THREAT" IF_nothreat="$((1 - THREAT))" \
@@ -728,6 +743,7 @@ cp "$W/cls.json" "$RUN/classification.json"
 cp "$W/ctx/fixes.txt" "$RUN/fixes.txt"
 cp "$W/ctx/product-files.txt" "$RUN/product-files.txt"
 cp "$W/ctx/test-files.txt" "$RUN/test-files.txt"
+[ -z "$USTOP" ] || printf '%s\n' "$USTOP" >"$RUN/unspecified-stop.txt"
 
 mkdir "$W/out"
 : >"$W/usage.parts"
