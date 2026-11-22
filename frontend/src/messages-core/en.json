@@ -97,7 +97,6 @@
     "appShortcutLabel": "{app} · {target}",
     "empty": "No drives found",
     "emptyDescription": "Configure drives.json to add drives.",
-    "pickup": "Pickup",
     "recentAdded": "Recently Added",
     "favorites": "Favorites",
     "liked": "Liked",

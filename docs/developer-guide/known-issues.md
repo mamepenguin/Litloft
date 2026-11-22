@@ -202,8 +202,8 @@ notice without opening the earlier clip. The Add menu's notice opens it.
 
 **Right after a drive switch, the previous drive's addon slots can render with the
 new drive's props.** `AddonSlotsProvider` keeps the old drive's `slots` until the
-new drive's catalogue arrives, so an addon turned off on the new drive (Home's
-Pickup, for example) can draw for a frame or more there, and may call its API
+new drive's catalogue arrives, so an addon turned off on the new drive can draw
+for a frame or more there, and may call its API
 for that drive. The proxy's `pre_check` should answer those calls with 404; that
 has not been measured. The sidebar's addon rows do not do this.
 

@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-1",
+      "status": "confirmed",
+      "note": "frontend/src/app/drive/[name]/addons/[addon]/[slug]/__tests__/page.retirePickup.test.tsx exists (91 lines). It renders DriveScopedAddonSubpage for slug 'pickup' and for 'no-such-subpage' and checks that both reach notFound with the same caught text (lines 85-90). The touch-point list at docs/specs/remove-home-pickup.md:95-113 names only page.retireFind.test.tsx in that directory (line 107). addons/intelligence/frontend/pages/ now holds only search-compare.tsx and its test. The file is an acceptance test for I3 (SPEC-ADDON-170, which is declared by this spec at line 4), so it is a scope gap in the touch-point list, not a behavior defect."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-2",
+      "status": "confirmed",
+      "note": "addons/intelligence/frontend/__tests__/retirePickup.driveHome.test.tsx exists (164 lines). It tests I1/I8 (empty drive-home-sections render for a viewer with and without a profile, lines 147-154) and I2 (no Pickup API request, lines 156-163). No touch point in docs/specs/remove-home-pickup.md:95-113 names it, and invariants.md adds no revisions. It cites SPEC-ADDON-169, which this spec declares (spec line 3). The gap is in the touch-point list, not in behavior."
+    }
+  ],
+  "specification_compliance": [
+    "Both added test files target invariants declared by this spec (I1, I2, I8 for the drive-home test; I3 for the subpage test), but the Touch points section does not list them."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "retirePickup.driveHome.test.tsx locates the addon root through process.cwd() candidates and fails at module load (non-null assertion on find) if neither candidate has manifest.json."
+  ],
+  "test_coverage": [
+    "page.retirePickup.test.tsx covers I3 by comparing the 'pickup' slug with a slug that was never shipped.",
+    "retirePickup.driveHome.test.tsx covers I1, I2 and I8 by using the real manifest entries for drive-home-sections."
+  ],
+  "not_verified": [
+    "Did not run either test; it is unknown whether they pass at this commit.",
+    "Did not inspect the git diff directly. File existence and contents were checked in the worktree, which is assumed to match commit 2dd3c8b5a.",
+    "Did not check whether the submodule pointer in the core references the submodule commit that contains retirePickup.driveHome.test.tsx."
+  ],
+  "confidence": 90
+}

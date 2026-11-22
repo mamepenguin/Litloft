@@ -1,0 +1,60 @@
+{
+  "risk": "HIGH",
+  "score": 6,
+  "base": 2,
+  "zone_max": "MEDIUM",
+  "modifiers": [],
+  "promotions": [],
+  "zones_touched": [
+    {
+      "path": "addons/intelligence",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "docs/ADDON-DEVELOPMENT.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/addons/intelligence.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/developer-guide/known-issues.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/INDEX.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/remove-home-pickup.md",
+      "level": "LOW"
+    },
+    {
+      "path": "frontend/src/__tests__/section-headings.test.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/app/drive/[name]/addons/[addon]/[slug]/__tests__/page.retireFind.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/app/drive/[name]/addons/[addon]/[slug]/__tests__/page.retirePickup.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/messages-core/en.json",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/messages-core/ja.json",
+      "level": "MEDIUM"
+    }
+  ],
+  "human_zones_touched": [],
+  "protected_paths_touched": [],
+  "docs_only": false,
+  "reasons": [
+    "highest zone MEDIUM (4 points)"
+  ]
+}

@@ -2035,7 +2035,6 @@ Slot entries each addon declares, for reference when designing your own.
 | `intelligence` | `file-detail-actions` | `file-ai-actions` |
 | `intelligence` | `file-actions-menu` | `index-details` |
 | `intelligence` | `folder-bulk-actions-menu` | `folder-ai-actions` |
-| `intelligence` | `drive-home-sections` | `pickup` |
 | `intelligence` | `video-discover-recommended` | `pickup` |
 | `intelligence` | `dashboard-widgets` | `index-status` |
 | `intelligence` | `dashboard-alerts` | `failed-jobs` |
