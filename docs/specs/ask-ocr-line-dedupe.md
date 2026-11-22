@@ -206,7 +206,7 @@ No new error, log line or status.
   `_merge_chunks` and `_replay_limit` from `app.file_find`): not edited, and its output must
   not change.
 - `addons/intelligence/tests/` (acceptance tests for this spec)
-- The three files above are committed in the intelligence addon repository. In the core
+- The addon files above are committed in the intelligence addon repository. In the core
   repository, the `addons/intelligence` gitlink moves to the merged addon commit, and with it
   the ledger rows become `implemented`.
 - `docs/addons/intelligence.md`, `docs/reference/api.md`
