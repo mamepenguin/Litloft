@@ -1,0 +1,154 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "TP-1",
+      "origin": "reviewer",
+      "claim": "The diff adds frontend/src/app/drive/[name]/addons/[addon]/[slug]/__tests__/page.retirePickup.test.tsx, a path that the declared touch-point list does not name.",
+      "impact": "No user-visible effect. The file is a new acceptance test for I3 that sits beside the listed page.retireFind.test.tsx and only reads the core subpage route. The touch-point list simply leaves out a test file that was planned in practice.",
+      "evidence": "The diff creates page.retirePickup.test.tsx with 91 lines. The touch-point list names only page.retireFind.test.tsx in that directory. The test renders DriveScopedAddonSubpage for slug 'pickup' and for 'no-such-subpage' and checks that both reach notFound with the same caught text. The route resolves pages with import(`@/addons/${addonName}/pages/${slug}`) in page.tsx:22, and the pages directory now holds only search-compare.tsx.",
+      "repro": "Compare the files in the diff against the touch-point list in docs/specs/remove-home-pickup.md.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "No invariant breaks. The file is a test that the touch-point list does not name."
+      },
+      "severity": "INFO",
+      "proposed_fix": "None in code. If the list should be exhaustive, a person can add the test path to the touch points through invariants.md."
+    },
+    {
+      "id": "TP-2",
+      "origin": "reviewer",
+      "claim": "The submodule diff adds addons/intelligence/frontend/__tests__/retirePickup.driveHome.test.tsx, a path that the declared touch-point list does not name.",
+      "impact": "No user-visible effect. The file is a new acceptance test for I1, I2 and I8. It reads the real manifest.json and renders AddonSlot for drive-home-sections with the intelligence entries. The touch-point list leaves out a test file that was planned in practice.",
+      "evidence": "The submodule diff creates __tests__/retirePickup.driveHome.test.tsx with 164 lines. No touch point names it. Inside the submodule, the touch points list only manifest.json, slots.ts, the deleted Pickup files and the messages files.",
+      "repro": "Compare the files in the submodule diff against the touch-point list in docs/specs/remove-home-pickup.md.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "No invariant breaks. The file is a test that the touch-point list does not name."
+      },
+      "severity": "INFO",
+      "proposed_fix": "None in code. A person may add the path to the touch points through invariants.md."
+    }
+  ],
+  "specification_compliance": [
+    "I1/I8: manifest.json no longer has a drive-home-sections key, and slots.ts no longer maps 'pickup' to PickupWidget, so intelligence gives the drive-home-sections slot nothing. retirePickup.driveHome.test.tsx renders AddonSlot from the real manifest entries and expects innerHTML to be empty, with and without a profile.",
+    "I2: no remaining component calls the Pickup API from the drive home. The only callers of fetchPickup and readPickupPage left in api.ts serve the Recommended providers.",
+    "I3: pages/pickup.tsx is deleted. The subpage route imports pages/${slug} dynamically (page.tsx:22), so 'pickup' now reaches the same notFound as an unknown slug. page.retirePickup.test.tsx checks this.",
+    "I4/I6: slotProviders.pickup and slotPageProviders.pickup (pickupShelfProvider and pickupPageProvider) and the manifest entry for video-discover-recommended are unchanged.",
+    "I5/I9: slotItemActions.pickup is unchanged. intelligence.pickup.notInterested and notInterestedToast remain in both en.json and ja.json (lines 37-38).",
+    "I7: the diff touches no backend code, worker or DB.",
+    "The repository has no remaining reference to PickupWidget, drive.pickup or the removed pickup.heading, description, empty, loading or retry keys, outside historical specs and review records.",
+    "The touch-point list covers every product path in the diff. The only unlisted paths are two new test files, reported as TP-1 and TP-2."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "On a drive where the video app is hidden, the viewer has no way left to see Pickup. The spec accepts this under 'Checked, no action'."
+  ],
+  "regression_risks": [
+    "If another addon later adds a drive-home-sections entry, the hard-coded DRIVE_HOME_GLYPHS = 4 in section-headings.test.ts only counts core files, so it stays correct.",
+    "The intelligence submodule's test suite depends on cwd: ADDON_ROOT in retirePickup.driveHome.test.tsx tries ../addons/intelligence and then addons/intelligence. If neither path exists, the non-null assertion makes the test fail loudly rather than pass silently."
+  ],
+  "test_coverage": [
+    "I1, I2 and I8 are covered by retirePickup.driveHome.test.tsx, which reads the real manifest. Re-adding the manifest entry and the slots.ts mapping would make it fail.",
+    "I3 is covered by page.retirePickup.test.tsx. Restoring pages/pickup.tsx would make it fail, because notFound would never be called and waitFor would time out.",
+    "The retireFind test now uses search-compare, which exists, and also asserts that no error was caught.",
+    "I4, I5, I6 and I9 get no new tests in this diff. The spec relies on the existing tests for pickupShelfProvider, pickupPageProvider and pickupNotInterestedAction, which I did not read.",
+    "Deleting the two notInterested tests removes the SPEC-ADDON-154 coverage for the home row and for the Pickup page. The surfaces they tested are gone."
+  ],
+  "not_verified": [
+    "I did not run any test, because the tools here are read-only.",
+    "I did not read the existing Recommended provider tests or the item-action tests that I4, I5, I6 and I9 rely on.",
+    "I did not check that AddonSlot leaves no wrapper element in the DriveHome layout when the slot is empty (I8 in the real DriveHome.tsx).",
+    "I did not inspect the backend or DB code for I7, though the diff touches neither."
+  ],
+  "coverage": [
+    {
+      "path": "addons/intelligence/frontend/PickupWidget.notInterested.test.tsx",
+      "read": "full",
+      "reason": "The file is deleted. I read its full content in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/PickupWidget.test.tsx",
+      "read": "full",
+      "reason": "The file is deleted. I read its full content in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/PickupWidget.tsx",
+      "read": "full",
+      "reason": "The file is deleted. I read its full content in the diff and found no remaining references with grep."
+    },
+    {
+      "path": "addons/intelligence/frontend/messages/en.json",
+      "read": "partial",
+      "reason": "I read the changed hunk in the diff and lines 36-38 through grep."
+    },
+    {
+      "path": "addons/intelligence/frontend/messages/ja.json",
+      "read": "partial",
+      "reason": "I read the changed hunk in the diff and lines 36-38 through grep."
+    },
+    {
+      "path": "addons/intelligence/frontend/pages/pickup.notInterested.test.tsx",
+      "read": "full",
+      "reason": "The file is deleted. I read its full content in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/pages/pickup.test.tsx",
+      "read": "full",
+      "reason": "The file is deleted. I read its full content in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/pages/pickup.tsx",
+      "read": "full",
+      "reason": "The file is deleted. I read its full content in the diff and confirmed that pages/ now holds only search-compare."
+    },
+    {
+      "path": "addons/intelligence/frontend/slots.ts",
+      "read": "full",
+      "reason": "I read the whole file."
+    },
+    {
+      "path": "addons/intelligence/manifest.json",
+      "read": "partial",
+      "reason": "I read the changed hunk in the diff and the 'pickup' occurrences with context (lines 105-113 and 267-286)."
+    },
+    {
+      "path": "frontend/src/messages-core/en.json",
+      "read": "partial",
+      "reason": "I read only the changed hunk in the diff, which removes one key. Grep found no remaining uses of drive.pickup."
+    },
+    {
+      "path": "frontend/src/messages-core/ja.json",
+      "read": "partial",
+      "reason": "I read only the changed hunk in the diff, which removes one key. Grep found no remaining uses of drive.pickup."
+    },
+    {
+      "path": "addons/intelligence/frontend/__tests__/retirePickup.driveHome.test.tsx",
+      "read": "full",
+      "reason": "The file is new. I read its full content in the diff."
+    },
+    {
+      "path": "frontend/src/__tests__/section-headings.test.ts",
+      "read": "full",
+      "reason": "I read the whole file."
+    },
+    {
+      "path": "frontend/src/app/drive/[name]/addons/[addon]/[slug]/__tests__/page.retireFind.test.tsx",
+      "read": "full",
+      "reason": "I read the whole file."
+    },
+    {
+      "path": "frontend/src/app/drive/[name]/addons/[addon]/[slug]/__tests__/page.retirePickup.test.tsx",
+      "read": "full",
+      "reason": "The file is new. I read its full content in the diff."
+    }
+  ],
+  "confidence": 85
+}

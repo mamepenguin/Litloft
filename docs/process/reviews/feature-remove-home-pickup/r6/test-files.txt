@@ -1,0 +1,4 @@
+addons/intelligence/frontend/__tests__/retirePickup.driveHome.test.tsx
+frontend/src/__tests__/section-headings.test.ts
+frontend/src/app/drive/[name]/addons/[addon]/[slug]/__tests__/page.retireFind.test.tsx
+frontend/src/app/drive/[name]/addons/[addon]/[slug]/__tests__/page.retirePickup.test.tsx

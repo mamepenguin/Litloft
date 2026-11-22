@@ -343,5 +343,5 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-166 | implemented | docs/specs/media-import-caption-languages.md | sha256:2c6e2227ff6782339b7e487560771a02643e4a8a839e5cd6b269d54e00e2f5ed |
 | SPEC-ADDON-167 | implemented | docs/specs/media-import-caption-languages.md | sha256:2c6e2227ff6782339b7e487560771a02643e4a8a839e5cd6b269d54e00e2f5ed |
 | SPEC-CORE-170 | implemented | docs/specs/excel-text-overflow.md | sha256:82b9ea10279573681aeb28ab8bf47d94144518e1dede5c5367ac8866594aeeb7 |
-| SPEC-ADDON-169 | approved | docs/specs/remove-home-pickup.md | sha256:05808e6afdb6d79a42de2c5e2f5007b4be3a71b25455ebb43b14f1f5f387dbb2 |
-| SPEC-ADDON-170 | approved | docs/specs/remove-home-pickup.md | sha256:05808e6afdb6d79a42de2c5e2f5007b4be3a71b25455ebb43b14f1f5f387dbb2 |
+| SPEC-ADDON-169 | implemented | docs/specs/remove-home-pickup.md | sha256:05808e6afdb6d79a42de2c5e2f5007b4be3a71b25455ebb43b14f1f5f387dbb2 |
+| SPEC-ADDON-170 | implemented | docs/specs/remove-home-pickup.md | sha256:05808e6afdb6d79a42de2c5e2f5007b4be3a71b25455ebb43b14f1f5f387dbb2 |
