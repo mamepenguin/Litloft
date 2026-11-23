@@ -41,9 +41,10 @@ does.
 - **Folder**: for a stored relative `file_path`, its directory part as stored, whether or not
   the drive has a mount. For a stored absolute `file_path` whose normalised form is inside the
   mount by whole path segments (`os.path.commonpath([mount, path]) == mount`), the directory
-  part of `os.path.relpath(path, mount)`. Empty when the file is at the top of its drive;
-  undefined for an absolute path when the drive has no mount or the path is not inside it. The
-  spelling is the stored one (it may be NFD).
+  part of `os.path.relpath(path, mount)`. When that directory part is empty (the file is at the
+  top of its drive), the Folder is `(top of the drive)`. Undefined, and the line left out, for an
+  absolute path when the drive has no mount or the path is not inside it. The spelling is the
+  stored one (it may be NFD).
 - **Type**: the stored `mime_type`, except for a `.loft` (`mime_type` is `LOFT_MIME`), where
   `source` is `_loft_source(file_path, drive)`:
   - `source` is `None` (unreadable, or readable with no provider or URL):
@@ -55,8 +56,10 @@ does.
   Type is computed inside `load_material`, which already runs off the event loop, and stored on
   `Material`; no route reads the `.loft` for it.
 - **S179** (system-prompt rule): `- The File, Type and Folder lines at the start of the
-  message describe the file: its name, its format and the folder it is in. They are part of
-  what you were given; use them when the question is about what the file is or where it is.`
+  message, those that are there, describe the file: its name, its format and the folder it is
+  in. They are part of what you were given. A question about the file itself (what it is, its
+  name, its format, where it is) is answered from them; the rules below about passages, the
+  image and frames are about what the file says and shows.`
 - **S180**: `- If neither the passages nor the image contain the answer, say so plainly instead
   of guessing.`
 - **S181a**: `- Never call what you were given passages, frames or numbered items, in any
@@ -66,8 +69,8 @@ does.
 - **Passages-only sentence** (today's): `- If the passages do not contain the answer, say so
   plainly instead of guessing.`
 - **Passages-only opener** (today's): `You answer a question about a single file, using only the
-  numbered passages below.` It becomes `You answer a question about a single file, using the
-  numbered passages below.`
+  numbered passages below.` It becomes `You answer a question about a single file, using only the
+  numbered passages below and the File, Type and Folder lines.`
 
 ## Required items
 
@@ -93,7 +96,8 @@ does.
    - every tool request, the final request, and the fallback request after a tool failure,
      which is the same request as the matching path without the tool.
 4. `build_file_question_system_prompt` writes S179 on every path as the first line after
-   `Rules:`. The passages-only opener drops "only" (SPEC-ADDON-179).
+   `Rules:`. The passages-only opener names the file block beside the passages
+   (SPEC-ADDON-179).
 5. On the passages-and-image branch, S180 is written where the passages-only sentence stands
    today, and the passages-only sentence is not written. The existing image rule ("An image of
    the file is attached. Where the image and the passages differ, take exact characters from
@@ -110,7 +114,7 @@ does.
 
 - Absolute stored path, and no mount for the drive or the path not inside it: no `Folder:`
   line; the question proceeds.
-- File at the top of its drive: no `Folder:` line.
+- File at the top of its drive: `Folder: (top of the drive)`.
 - `filename` empty: no `File:` line. `mime_type` empty and not a `.loft`: no `Type:` line.
   (Both columns are `NOT NULL`, so this is the empty string only.)
 - A `.loft` whose source cannot be read: Type as Terms states; no error, nothing logged.
@@ -144,10 +148,15 @@ same file, and rides only on requests the route already sends under the `llm_clo
 
 - Every caller of the two builders in `app/routers/rag.py` changes its prompt text.
 - The golden prompt files `tests/golden_prompts/frame_request_today_*.json` (recorded from
-  the addon at 895d334 through `frame_request_doubles.todays_request`) are re-recorded the
-  same way from the new code. Their fixture has a fixed filename and Type, and the test's
-  `drive_mounts` has no mount covering the seeded `tmp_path`, so they carry no `Folder:` line.
-  The diff to each is the file block and the S179/S181a/S181b lines, nothing else.
+  the addon at 895d334) are not re-recorded. `frame_request_doubles.todays_request` returns the
+  golden with the file block of its fixture (`File: vid000000216.bin`, `Type: video/mp4`, no
+  `Folder:` line, since the test's `drive_mounts` is empty) and the S179/S181a/S181b lines
+  inserted at the positions this spec states, so the fallback tests of SPEC-ADDON-116 and
+  SPEC-ADDON-174 still compare the new code with the old request plus exactly these lines.
+- `tests/test_spec_addon_071_image_stream.py` asserts `"image" not in` the text-only retry
+  prompt and the prompts of profiles that cannot see. A picture's `Type:` line now carries its
+  MIME (`image/png`), so those assertions become: "image" does not appear outside the file
+  block.
 - `tests/file_question_doubles.py` and `tests/frame_request_doubles.py` seed `IndexedFile`
   rows, which already carry `filename`.
 - Drive-wide Ask (`answer_system.jinja2`, `answer_user.jinja2`, the agentic prompts) and the
@@ -171,12 +180,19 @@ Only the answer text, and only as the model follows the prompt:
 
 Citation numbers, the order of the answer, the 質問 tab and its controls are unchanged.
 
-R-5 runs on the local stack with the profile it routes `rag` to, three questions three times
-each: "これは何のファイル？" about a picture with a little indexed text, a question about a
-PDF whose answer is in it, and a question about a video whose answer is not in it. It passes
-when the picture answers name the file and its format and describe what the picture shows, no
-answer speaks of passages, frames or numbered items in any language, and the video answers
-say the answer is not there without listing other unknowns.
+R-5 runs on the local stack with the profile it routes `rag` to, each question three times:
+
+1. "これは何のファイル？" about a picture with a little indexed text (passages and image);
+2. "これは何のファイル？" about a PDF (passages only);
+3. a question about a PDF whose answer is not in it (passages only);
+4. a question about a video whose answer is not in it (frames).
+
+Every run must pass: answers 1 and 2 name the file and its format, and answer 1 names at least
+one thing visible in the picture that its indexed text does not contain; answers 3 and 4 say
+the answer is not there, without listing other unknowns and without answering from general
+knowledge; no answer speaks of passages, frames or numbered items in any language. A miss is
+reported to the human with the answer, and is not fixed by changing the spec's wording
+without a new approval.
 
 ### 10. Non-functional
 
@@ -201,6 +217,8 @@ say the answer is not there without listing other unknowns.
 - `addons/intelligence/tests/golden_prompts/frame_request_today_*.json`
 - `addons/intelligence/tests/file_question_doubles.py`,
   `addons/intelligence/tests/frame_request_doubles.py`
+- `addons/intelligence/tests/test_spec_addon_071_image_stream.py` (the `"image" not in`
+  assertions)
 - `docs/addons/intelligence.md` ("Ask about one file": the name and folder reach the provider)
 - `indexed_files` table (read only)
 - `.claude/rules/design-decisions.md` (LLM features: routing and `llm_cloud` policy)
@@ -208,19 +226,19 @@ say the answer is not there without listing other unknowns.
 ## Invariants
 
 I1. (SPEC-ADDON-179) On every path of Normal flow step 3, the user prompt starts with the file block, before any history and before `Question:`; its `File:` line carries the row's `filename` and its `Type:` line the Type of Terms; a line whose value is empty is absent, and with all three absent the prompt starts as it does today.
-I2. (SPEC-ADDON-179) The `Folder:` line carries the Folder of Terms; for an absolute stored path it is absent at the drive's top, for a drive with no mount, and for a path not inside the mount by whole segments (a sibling mount sharing a name prefix, such as `/drives/videos` beside `/drives/video`, is not inside it); a trailing slash on the mount changes nothing; a relative stored path gives its directory part with or without a mount.
+I2. (SPEC-ADDON-179) The `Folder:` line carries the Folder of Terms, `(top of the drive)` for a file at its drive's top; for an absolute stored path it is absent for a drive with no mount and for a path not inside the mount by whole segments (a sibling mount sharing a name prefix, such as `/drives/videos` beside `/drives/video`, is not inside it); a trailing slash on the mount changes nothing; a relative stored path gives its directory part with or without a mount.
 I3. (SPEC-ADDON-179) No text this change adds to a prompt contains the drive's mount path.
-I4. (SPEC-ADDON-179) Every file-question system prompt has S179 as the first line after `Rules:`, once, and no system prompt contains the passages-only opener with "only".
+I4. (SPEC-ADDON-179) Every file-question system prompt has S179 as the first line after `Rules:`, once, and the passages-only branch's opener is the new passages-only opener of Terms.
 I5. (SPEC-ADDON-180) With an image and passages and no frames, the system prompt contains S180 in the place the passages-only sentence holds on the passages-only branch, does not contain the passages-only sentence, and still contains the image rule.
 I6. (SPEC-ADDON-181) Every file-question system prompt contains S181a then S181b, once each, immediately before the "Answer in short Markdown" line, and every "say so" rule and every rule to call `get_frames` or `get_transcript` before saying something is not shown or not said that it carried before is still there.
-I7. (SPEC-ADDON-179) With no history, every file-question request on every path, the text-only retry included, is today's apart from the file block, S179, the passages-only opener without "only", S181a, S181b and, on the passages-and-image branch, S180 in place of the passages-only sentence; no request is added, and the numbers offered for citation and the rule that only they may be cited are unchanged.
+I7. (SPEC-ADDON-179) With no history, every file-question request on every path, the text-only retry included, is today's apart from the file block, S179, the new passages-only opener, S181a, S181b and, on the passages-and-image branch, S180 in place of the passages-only sentence; no request is added, and the numbers offered for citation and the rule that only they may be cited are unchanged.
 
 ## Revises
 
 SPEC-ADDON-081 I1. A file question with no `history` or an empty one sends the model the same system prompt, user prompt and chunks, ranked by the new question alone, as before SPEC-ADDON-081, with a video's repeated frame-text lines removed as SPEC-ADDON-171 states, for cut material on the tool path the system prompt and tools of SPEC-ADDON-174, and on every path the file block and rules of SPEC-ADDON-179, SPEC-ADDON-180 and SPEC-ADDON-181; with history and a file over budget, ranking embeds the last `history` entry's question as sent, a newline, and the new question.
 SPEC-ADDON-174 I1. With cut material, every tool request offers exactly `get_frames` then `get_transcript`, and the final request lists the same two with `tool_choice` `"none"` (OpenAI-compatible) or no tools (ollama); with material that is not cut, every request, tool result and log line on the path is byte for byte SPEC-ADDON-116's apart from the file block and rules of SPEC-ADDON-179 and SPEC-ADDON-181 in its prompts.
 SPEC-ADDON-071 I1. A question's passages, picture and frames come only from the requested file, an active file of the `X-Lit-Drive` drive that the viewer can access and whose `rag` feature is on, and the only other text sent is the history the request carried, the file block of SPEC-ADDON-179 and, for a video on the path of SPEC-ADDON-116, its duration, contents, the definitions of its tools (`get_frames`, and `get_transcript` under SPEC-ADDON-174) and the tool results, whose requested passages are rows of the same file; a picture gets at most one image of at most 1024 px on its long edge, and a video gets at most 8 initial frames and 12 requested frames of at most 1280 px when its profile can see.
-SPEC-ADDON-071 I5. The prompt mentions an image or frames, and tells the model to take exact characters from the passages when they and the image or frames differ, only when an image or frames are attached, apart from S181a of SPEC-ADDON-181, which names frames on every path; it states a position only when `position_seconds` was sent for a video or audio file.
+SPEC-ADDON-071 I5. The prompt mentions an image or frames, and tells the model to take exact characters from the passages when they and the image or frames differ, only when an image or frames are attached, apart from S181a of SPEC-ADDON-181, which names frames on every path, and the `Type:` line of SPEC-ADDON-179's file block, which carries a picture's MIME type; it states a position only when `position_seconds` was sent for a video or audio file.
 SPEC-ADDON-114 I8. Pictures, audio, documents, a `.loft` that is not a text video, every request whose profile cannot see, the availability route, the normal Ask with its agentic loop and the MCP tools answer as they did before this change, except that a video's passages have their repeated frame-text lines removed as SPEC-ADDON-171 states, `search_exact` leaves out the frame-text hits SPEC-ADDON-173 leaves out, and every file question carries the file block and rules of SPEC-ADDON-179, SPEC-ADDON-180 and SPEC-ADDON-181; text-less videos differ only by the request layout of I11 and by SPEC-ADDON-116.
 SPEC-ADDON-076 I6. Ask on a YouTube `.loft` that has a text chunk, with a profile that can see, sends the frame set of SPEC-ADDON-114 read through the `large` frame route, under every invariant of SPEC-ADDON-071 (profile, `llm_cloud`, one slot, nothing stored or logged but the `large` cache entries); any frame failure leaves that frame out, and when none is sent the answer is from the text with `"unavailable"`; a YouTube `.loft` with no text chunk is answered from frames by SPEC-ADDON-108; Ask on a `.loft` of another provider is unchanged apart from the file block and rules of SPEC-ADDON-179, SPEC-ADDON-180 and SPEC-ADDON-181.
 
