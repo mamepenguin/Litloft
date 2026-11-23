@@ -209,7 +209,7 @@ export function useFileSearch({ open, drive, query, scopeType, browsing }: FileS
             }
             if (ctrl.signal.aborted) return;
             if (outcome.status !== "resolved") {
-              setInNameError(outcome.status);
+              if (outcome.status !== "refused") setInNameError(outcome.status);
               setMerged([]);
               setTotal(0);
               setLoading(false);

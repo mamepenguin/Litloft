@@ -83,7 +83,7 @@ interface ContinuationAnswer {
 const NO_HITS: SemanticHit[] = [];
 
 type InNameState =
-  | { key: string; status: "resolving" | "failed" | "tooLarge" }
+  | { key: string; status: "resolving" | "failed" | "tooLarge" | "refused" }
   | {
       key: string;
       status: "resolved";
