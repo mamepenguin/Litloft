@@ -1,0 +1,4 @@
+addons/intelligence/app/exact_search.py
+addons/intelligence/app/file_find.py
+addons/intelligence/app/frame_text_lines.py
+addons/intelligence/app/rag/file_question.py

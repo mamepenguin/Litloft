@@ -1,0 +1,102 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "R1",
+      "origin": "reviewer",
+      "claim": "The diff edits the acceptance test of another spec, addons/intelligence/tests/test_spec_addon_136_frame_hit_lines.py (SPEC-ADDON-136 failure 2), which the touch-point list does not name: it lists `addons/intelligence/tests/` only as \"acceptance tests for this spec\", and SPEC-ADDON-136 is not among the Revises entries.",
+      "impact": "No user-facing defect. The edit moves the second segment from 30–40 s to 90–100 s so that its line 'warehouse moved to Osaka' is no longer a repeat of the 10–20 s segment (it is 70 s later, outside the 60 s window). Under the new rule, the old fixture would have dropped the 30 s find row, and the test would then fail with a KeyError on rows[30.0]. The test still checks that a row whose lines JSON has another shape gets no boxes and no frame_size. However, a reader of the touch points would not expect an existing spec's test to change, and the failure-2 path for a segment that falls inside the window is no longer tested by the SPEC-ADDON-136 test.",
+      "evidence": "addons/intelligence/tests/test_spec_addon_136_frame_hit_lines.py:599-610: segment 0 at 10–20 s holds LINES (including 'warehouse moved to Osaka'); the diff changes segment 1 from (30.0, 40.0) to (90.0, 100.0) and the asserts from rows[30.0] to rows[90.0]. app/frame_text_lines.py:103-107 marks a line repeated when start − latest_end ≤ 60, and 30 − 20 = 10 ≤ 60, so at the old times the occurrence would be skipped at app/file_find.py:135-137.",
+      "repro": "not_reproduced (read only). Mutation in thought: revert the test to 30.0/40.0; _frame_occurrences skips the 30 s occurrence because 'warehouse moved to Osaka' is in segment.repeated, so rows has no 30.0 key and the assert raises KeyError.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is a reach outside the declared touch-point list (a test of another spec), not a broken invariant. The behavior change it absorbs is covered by the revised SPEC-ADDON-066 I9 and SPEC-ADDON-061 I1.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Name tests/test_spec_addon_136_frame_hit_lines.py in the touch points as an existing test whose fixture moves outside the repeat window, or keep the 30 s fixture with a second-segment line that is not in the first segment."
+    }
+  ],
+  "specification_compliance": [
+    "Product code reaches only the declared touch points: app/rag/file_question.py (load_material plus a new private helper _filter_frame_text in the same module), app/file_find.py (_frame_occurrences; _overlap/_merge_chunks/_OVERLAP_MIN moved out and _merge_chunks re-imported), app/exact_search.py (_frame_segments, _text_hits plus a new helper _matching_lines), and the new app/frame_text_lines.py.",
+    "app/routers/files.py is not edited; its `from app.file_find import _merge_chunks, _replay_limit` (routers/files.py:565) still resolves because file_find imports _merge_chunks from frame_text_lines (file_find.py:26). No other module imported _overlap or _OVERLAP_MIN from app.file_find.",
+    "exact_search.py imports app.frame_text_lines, not file_find, as the touch points require; no import cycle is introduced.",
+    "The paging in find_exact is not edited; filtering happens in _text_hits before find_exact pages, which is consistent with the touch point.",
+    "The core docs touched (docs/addons/intelligence.md, docs/reference/api.md, docs/specs/INDEX.md, the spec file) and the addons/intelligence gitlink are all in the touch-point list or are implicit.",
+    "Callers reached through the edited functions are routers/rag.py (file Ask → load_material), routers/exact_search.py (/search/exact → find_exact, also used by the MCP search_exact tool through HTTP), and the find route via _text_occurrences. All are named in the spec's effect section."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "frame_segments casts start_time/end_time to float for its grouping key; _frame_occurrences then looks up FrameLineReader().segments(file_id) with those float keys. Float and int keys hash equally in Python, so the lookup is unchanged for integer-stored times, but I did not read FrameLineReader to confirm its key types."
+  ],
+  "regression_risks": [
+    "The SPEC-ADDON-136 failure-2 fixture was moved outside the repeat window. Other existing find or exact-search tests whose fixtures place an identical line in two segments within 60 s would now behave differently; only this one test was updated in the diff, and I did not run the suite to confirm no other existing test depends on per-segment duplicate rows."
+  ],
+  "test_coverage": [
+    "New acceptance tests cover I1 boundaries (exactly 60 s and 60.001 s), the chain, reappearance after 70 s, same-segment duplicates and the merged-text fragment for Ask, find and exact search; I2 byte-for-byte keeping and blank-part joining; I3 numbering and citations; I4 fitting; I7 per kind; I8 writes; and I9 _merge_chunks parity.",
+    "test_spec_addon_136 failure 2 no longer exercises a second segment inside the repeat window."
+  ],
+  "not_verified": [
+    "I did not run any test; the KeyError outcome of reverting the 136 fixture is reasoned, not executed.",
+    "I did not read FrameLineReader in app/search.py to confirm the types of its segment keys.",
+    "I did not read mcp-server sources beyond confirming they call the HTTP route.",
+    "I did not check whether files outside the shown diff in the addon commit (for example addons/intelligence/.flash/spec.md) are part of the submodule commit."
+  ],
+  "coverage": [
+    {
+      "path": "addons/intelligence/app/exact_search.py",
+      "read": "partial",
+      "reason": "Read lines 75-184 (_frame_segments, _matching_lines, _text_hits, _section_titles, start of _transcript_hits), which contain every changed hunk with its enclosing function; the import hunk was read in the diff."
+    },
+    {
+      "path": "addons/intelligence/app/file_find.py",
+      "read": "partial",
+      "reason": "Read lines 95-244 (_frame_occurrences whole, _overlapped_quads, _text_occurrences), which contain the changed function; the import and removal hunks were read in the diff."
+    },
+    {
+      "path": "addons/intelligence/app/frame_text_lines.py",
+      "read": "full",
+      "reason": "Read the whole new module."
+    },
+    {
+      "path": "addons/intelligence/app/rag/file_question.py",
+      "read": "partial",
+      "reason": "Read lines 360-469 of load_material, which hold the changed hunk; _filter_frame_text and the import were read in the diff."
+    },
+    {
+      "path": "addons/intelligence/tests/frame_repeat_doubles.py",
+      "read": "full",
+      "reason": "Read the whole new file in the diff."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_136_frame_hit_lines.py",
+      "read": "partial",
+      "reason": "Read lines 1-120 (fixtures and _segment) and 570-613 (the changed test)."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_171_file_ask.py",
+      "read": "full",
+      "reason": "Read the whole new file in the diff."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_171_merge_chunks.py",
+      "read": "full",
+      "reason": "Read the whole new file in the diff."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_172_find.py",
+      "read": "full",
+      "reason": "Read the whole new file in the diff."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_173_exact_search.py",
+      "read": "full",
+      "reason": "Read the whole new file in the diff."
+    }
+  ],
+  "confidence": 82
+}

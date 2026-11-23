@@ -1,0 +1,6 @@
+addons/intelligence/tests/frame_repeat_doubles.py
+addons/intelligence/tests/test_spec_addon_136_frame_hit_lines.py
+addons/intelligence/tests/test_spec_addon_171_file_ask.py
+addons/intelligence/tests/test_spec_addon_171_merge_chunks.py
+addons/intelligence/tests/test_spec_addon_172_find.py
+addons/intelligence/tests/test_spec_addon_173_exact_search.py

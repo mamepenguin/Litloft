@@ -299,6 +299,8 @@ Examples:
 - `GET /api/addons/cloud-sync/config`, `PUT /api/addons/cloud-sync/config`
 - `POST /api/addons/media_import/link`
 
+In `GET /api/addons/intelligence/files/{id}/find` and `GET /api/addons/intelligence/search/exact`, a video's on-screen text line that stays on screen is listed once, in the segment where it appears: a line that was in an earlier segment ending at most 60 seconds before is not listed again, and a line gone for longer is.
+
 A `picture_text` row of `GET /api/addons/intelligence/files/{id}/find` carries `boxes` when the picture's OCR lines are usable: a list of quads, each eight numbers as fractions of the picture, in row-major corner order. Rows of other kinds never carry it.
 
 Each addon's page under [`docs/addons/`](../addons/) documents its endpoints.
