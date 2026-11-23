@@ -53,11 +53,10 @@ export function useLauncherRows(
     );
   }, [query, scope?.type]);
   const off = !!scope || !drive || browsing || impossible;
-  const searching = query.trim() !== "" && !impossible;
   const { hidden: hiddenKeys } = useEntryVisibility(drive);
-  const destinations = useJumpDestinations(open && !scope && searching, drive, hiddenKeys);
-  const folderIndex = useJumpFolders(open && !scope && searching, drive);
-  const tags = useDriveTagNames(open && searching, drive);
+  const destinations = useJumpDestinations(open && !scope && !impossible, drive, hiddenKeys);
+  const folderIndex = useJumpFolders(open && !scope && !impossible, drive);
+  const tags = useDriveTagNames(open && !impossible, drive);
   const suggestions = useMemo<JumpDestination[]>(() => {
     const active = browsing || !drive ? null : activeOperatorValue(query);
     if (!active) return [];

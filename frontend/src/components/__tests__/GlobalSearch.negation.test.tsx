@@ -279,6 +279,16 @@ describe("SPEC-CORE-172 sending 3-4, I11: the window sends the new conditions", 
   });
 });
 
+describe("SPEC-CORE-172 I1: the window still loads its Go to rows when it opens", () => {
+  it("an empty window asks for the drive's collections before anything is typed", async () => {
+    shell();
+    fireEvent.click(screen.getByLabelText("Search"));
+    await settle();
+
+    expect(wire.calls.filter((c) => c.url.pathname.endsWith("/collections"))).toHaveLength(1);
+  });
+});
+
 describe("SPEC-CORE-172 I7: an impossible combination requests nothing in the window", () => {
   it.each([
     ["a tag in both polarities", "京都 tag:x -tag:X"],
@@ -286,7 +296,13 @@ describe("SPEC-CORE-172 I7: an impossible combination requests nothing in the wi
     ["a folder inside an excluded folder", "京都 path:A/b -path:A"],
     ["a collection in both polarities", '京都 in:"Trip" -in:"trip"'],
   ])("%s", async (_name, query) => {
-    openWindow(query);
+    // The window's Go to rows load the drive's collections when it opens, before
+    // any query; I1 keeps that. What the impossible query sends starts at typing.
+    shell();
+    fireEvent.click(screen.getByLabelText("Search"));
+    await settle();
+    wire.calls.length = 0;
+    typeQuery(query);
 
     await settle();
 
