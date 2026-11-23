@@ -382,6 +382,7 @@ describe("SPEC-CORE-172 the impossible combination, I7", () => {
     expect(listsOf("smart-folders")).toEqual([]);
     expect(screen.queryByTestId("rows")).toBeNull();
     expect(screen.getByRole("group", { name: "Filters" })).toBeInTheDocument();
+    expect(screen.getByText("No matching files found")).toBeInTheDocument();
   });
 
   it.each([

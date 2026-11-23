@@ -782,6 +782,7 @@ export function useFolderFiles({
 
   const inNameResolving = inNameBlocked && inNameState === null;
   const inNamePending =
+    !impossible &&
     inKey !== "" &&
     inNameState === null &&
     (activeResolution?.status !== "resolved" || listedResolution !== activeResolution);
