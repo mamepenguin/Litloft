@@ -98,7 +98,7 @@ export function SearchFilterChips({
             key={`${chip.operator}:${side}:${value ?? (chip.operator === "is" ? chip.flag : chip.operator === "has" ? chip.value : "")}`}
             title={value ?? undefined}
             className={`inline-flex min-w-0 max-w-full items-center gap-1 rounded-full py-0.5 pl-2 pr-1 text-xs text-text-primary ${
-              negated ? "ring-1 ring-inset ring-warm-silver/50" : "bg-sand"
+              negated ? "ring-1 ring-inset ring-warm-silver/65" : "bg-sand"
             }`}
           >
             <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
