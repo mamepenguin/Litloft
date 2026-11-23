@@ -31,3 +31,19 @@ resolution in the spec.
 16. Cross-drive Tag rows for `has_tag`. Resolved: follows `tags`; Checked, no action.
 
 TOTAL: 16 findings
+
+# Spec review r2 (spec-design-reviewer, at 445943756)
+
+1. Video counts only the direct target, so new-token Smart Collections would be disabled.
+   Resolved: sending step 9 names `VideoAppHeader.tsx` and `useVideoApp.ts`; I17.
+2. SPEC-CORE-059 I12b and SPEC-CORE-117 I8 contradicted. Resolved: both revised.
+3. Revision lines for 116 I6, 109 I12, 044 I10 contradicted this spec. Resolved: reworded.
+4. Precedence of impossible / failed / refused / evaluation and the `in:` key. Resolved:
+   sending step 1, I18; SPEC-CORE-116 I4 and SPEC-CORE-138 I18 revised.
+5. `epub` rejected by the addon. Resolved: the addon's kinds gain `epub`; I19.
+6. 10,000-member cap for exclusion-only Smart Collections. Human decision (2026-11-23):
+   accepted; stated in step 9, section 9 and the user guide line.
+7. "Exactly as before" invariants of SPEC-CORE-115 and SPEC-CORE-093. Resolved: Checked,
+   no action (scoped to their own changes).
+
+TOTAL: 7 findings

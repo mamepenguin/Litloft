@@ -66,7 +66,7 @@ SPEC-CORE-172, parsing (`searchQuery.ts`):
    `notFavorite`, `-is:liked` sets `notLiked`.
 4. Caps: `excludedFolders` holds at most 10 and `excludedCollections` at most 10, counted
    apart from `folders` and `collections`; a further distinct negated value is text, as
-   for the positive operators. Excluded kinds are bounded by the eight kinds. Excluded
+   for the positive operators. Excluded kinds are bounded by the parser's kinds. Excluded
    tags have no parser cap, as `tag:` has none.
 5. Any new token sets `hasOperators`. The text that remains is the tokens left as text,
    as today.
@@ -138,7 +138,13 @@ SPEC-CORE-172, sending:
    reload, which classify again. A failed classification shows `inNameFailed` as today.
    Everything SPEC-CORE-116 says of an `in:` name about waiting for the lists,
    discarding a running resolution and the search cache applies to a `-in:` name too; a
-   query with neither loads no list, as today.
+   query with neither loads no list, as today. The query's *`in:` key* is its `in:` and
+   `-in:` names together with their polarity, so adding, removing or changing either
+   kind classifies again and re-evaluates the `in:` Smart Collections with a new `now`.
+   Precedence: an impossible combination is checked first and loads no list; then a
+   failed list load (`inNameFailed`); then the refused state, in which no `in:` Smart
+   Collection is evaluated; then the evaluation of `in:` Smart Collections, which may end
+   failed or too large as today.
 2. Saving or overwriting a Smart Collection (`SmartFolderSaveButton.tsx`) whose query
    has a `-in:` name that only a Smart Collection carries writes nothing and shows the
    refusal toast that an `in:` naming a Smart Collection shows, after loading the lists
@@ -181,7 +187,7 @@ SPEC-CORE-172, sending:
    `collection`), with the same normalisation and the caps of 10. On `/files/matching`
    and in the addon a bad value is 422: `exclude_tags` follows `tags` (200 characters, 20
    distinct, counted apart from `tags`), `exclude_kinds` follows `kinds` (the `markdown`
-   alias, eight), `exclude_folders` and `exclude_collections` follow `folders` and
+   alias, at most 8 distinct), `exclude_folders` and `exclude_collections` follow `folders` and
    `collections`, and the `has_` keys are strict booleans.
 8. Smart Collection evaluation (`smartCollectionEval.ts`) passes the new conditions on
    its listing requests and in its `filter`, and treats an impossible combination as it
@@ -195,7 +201,13 @@ SPEC-CORE-172, sending:
    (`resolveMemberTarget`) accepts a query that has free text or a new token, so such a
    Smart Collection is usable through its evaluated members, exclusions applied; a query
    with `modified:` stays refused, as today. A query with neither free text nor a new
-   token resolves exactly as today.
+   token resolves exactly as today. Every place that decides whether a Smart Collection
+   can be chosen counts the member path: Video's header (`VideoAppHeader.tsx`) and its
+   `?target=` handling (`useVideoApp.ts`) take `resolveVideoTarget(folder).usable ||
+   resolveVideoMemberTarget(folder) !== null`, as Reading and Notes already do. The
+   member path's limit of 10,000 members holds: a Smart Collection of exclusions alone
+   (`-path:Work`) on a drive with more files than that shows この対象は使えません in the
+   apps, as any member target over the limit does (user choice, 2026-11-23).
 10. Deployment: the addon PR merges first and the core PR carries the pointer bump, as
     for SPEC-ADDON-143.
 
@@ -204,7 +216,9 @@ SPEC-ADDON-177:
 1. `SearchFilter` gains `exclude_tags`, `exclude_kinds`, `exclude_folders`,
    `exclude_collections` (lists, default `[]`) and `has_tag`, `has_collection`
    (`StrictBool | None`, default `None`), normalised and capped as the core does (sending
-   step 7).
+   step 7). The addon's accepted kinds gain `epub`, for `kinds` and `exclude_kinds`
+   alike, so `type:epub` and `-type:epub` pass the meaning stage as the parser and the
+   core accept them.
 2. The body sent to `/files/matching` carries each new key only when it is set (a
    non-empty list, a non-null boolean), after normalisation and unchanged, so a filter
    with none of them sends exactly today's body.
@@ -284,7 +298,8 @@ as today.
   the drive's untagged files, newest first. `-path:Work` alone lists every file outside
   `Work`; saved as a Smart Collection it keeps listing every such file, files added
   outside `Work` included. `path:Photos -path:Photos/raw` lists Photos without its `raw`
-  subtree.
+  subtree. As the target of Video, Reading, Notes or Clips, such a Smart Collection
+  works up to 10,000 files and is unusable above that.
 - Negated chips and `has:` chips as in chips step 1 and the Design section.
 - 「＋ 条件」 gains 「タグなし」 and 「コレクション未登録」.
 - New strings in `messages-core/ja.json` and `en.json`: the 「除外」 word, the four `has:`
@@ -292,7 +307,8 @@ as today.
 - `docs/user-guide/search.md`: the operators table gains `has:tag` and `has:collection`,
   and a paragraph on `-`: which operators take it, that operators alone list everything
   they let through (`-path:Work`), that `-in:` takes regular collections only, that size,
-  duration, modification time and plain words do not take it.
+  duration, modification time and plain words do not take it, and that a Smart
+  Collection with `-` or `has:` serves as an app's target up to 10,000 files.
   `docs/reference/api.md`: the listing's new parameters. `docs/ADDON-DEVELOPMENT.md`: the
   `/files/matching` body, the `filtered_drive_files` parameters, and `unsupported_part`
   naming `has:`. `docs/addons/intelligence.md`: the `filter` keys.
@@ -338,6 +354,8 @@ Core:
 - `frontend/src/lib/smartCollectionEval.ts`, `frontend/src/lib/appTarget.ts`,
   `frontend/src/lib/videoAppTarget.ts`, `frontend/src/lib/memberTarget.ts`,
   `frontend/src/lib/readingAppTarget.ts`,
+  `frontend/src/components/videoapp/VideoAppHeader.tsx`,
+  `frontend/src/components/videoapp/useVideoApp.ts`,
   `frontend/src/app/app-api/smart-collection-members/route.ts`.
 - `frontend/src/components/search/SearchFilterChips.tsx`,
   `frontend/src/components/search/ConditionMenu.tsx`,
@@ -365,7 +383,7 @@ Core:
   `docs/ADDON-DEVELOPMENT.md`, `docs/addons/intelligence.md`.
 
 Addon (`addons/intelligence`, its own PR, then the pointer bump):
-- `app/file_matching.py`: `SearchFilter` and the `/files/matching` body.
+- `app/file_matching.py`: `SearchFilter`, `KINDS` (`epub`) and the `/files/matching` body.
 - `tests/`: the parity table against the core's validators, and the wire shape.
 
 ## Invariants
@@ -387,14 +405,22 @@ I14. 「タグなし」 and 「コレクション未登録」 each append exactl
 I15. `-tag:`, `-type:` and `-is:` suggest the positive operator's values and completing keeps the `-`; a tag held in either polarity is not suggested.
 I16. A negated chip's accessible name and its ✕'s contain 「除外」 / "Exclude"; the four `has:` chips carry their labels; at 375 px in a real browser a negated chip with a 200-character value is no wider than the chip row and 「除外」, its label and ✕ stay visible.
 
+I17. A Smart Collection whose query holds a new token and whose evaluation has at most 10,000 members can be chosen as the target of Video, Reading, Notes and Clips, and Video accepts its `?target=` link; above 10,000 it shows この対象は使えません.
+I18. A query whose `-in:` name is refused evaluates no `in:` Smart Collection; an impossible query loads no list; adding or removing a `-in:` name classifies again.
+I19. `has:` and `-has:` suggest only `tag` and `collection` not already held in either polarity; `type:epub` and `-type:epub` pass the addon's `filter` validation.
+
 ## Revises
 
-SPEC-CORE-116 I6. A query with no `in:` and no `-in:` name loads no list, waits for nothing and sends exactly today's requests on the search page and in the search window, and `evaluateSmartCollection` sends exactly today's requests for every query with no new token.
+SPEC-CORE-116 I6. A query with no `in:` name and no new token loads no list, waits for nothing and sends exactly today's requests on the search page and in the search window; a query whose new tokens include no `-in:` loads no list and waits for nothing; and `evaluateSmartCollection` sends exactly today's requests for every query with no new token.
 SPEC-CORE-116 I7. Creating or overwriting a Smart Collection whose query has an `in:` or `-in:` name resolving only to a Smart Collection writes nothing and shows the refusal toast; a needed list that fails to load writes nothing and shows today's failure toast; while the lists load a second press sends nothing; a query with neither saves exactly as today.
 SPEC-CORE-103 I3. Pressing the button or the enabled menu row, for a query with no `in:` and no `-in:` name, sends exactly one `PATCH /api/drives/{drive}/smart-folders/{id}` for the page's drive and that id, whose body is `{query: <trimmed URL q>, file_type: <URL type or null>}` as they were at the press and nothing else, without opening a dialog; for a query with such a name it first loads the needed lists and sends that one `PATCH` only when no name resolves only to a Smart Collection; while the lists load or the request is in flight the button and the row are disabled and a second press sends nothing.
-SPEC-CORE-109 I12. The search page's own loading is unchanged for every query with no `in:` and no `-in:` name: the same requests, page size, merge, search cache and continuation offer as before; a query with such a name waits for its resolution, skips the search cache, sends `file_ids` through the POST routes when an `in:` name resolves to a Smart Collection, and sends nothing when a `-in:` name resolves only to one.
+SPEC-CORE-109 I12. The search page's own loading is unchanged for every query with no `in:` name and no new token: the same requests, page size, merge, search cache and continuation offer as before; a query with such a name waits for its resolution, skips the search cache, sends `file_ids` through the POST routes when an `in:` name resolves to a Smart Collection, and sends nothing when a `-in:` name resolves only to one.
 SPEC-CORE-109 I1. For the same drive, query, type, sort (other than random), order and scene-search value, `evaluateSmartCollection` returns the same files in the same order as the search page's Files view after every page has loaded (both with a successful addon status), image continuation rows excluded, and for a fixed fixture equals that fixture's expected list, except for a query with an `in:` name that resolves only to a Smart Collection, which the page expands (SPEC-CORE-116) and the evaluation sends as a collection name, and a query with a `-in:` name that resolves only to one, which the page refuses and the evaluation sends as an excluded collection name; meaning search failing (other than 404) or the availability lookup failing gives `complete: false`, and a cached failed lookup is fetched again; the addon off for the drive, or meaning search answering 404, gives a complete listing-only result; an impossible query sends no request.
-SPEC-CORE-044 I10. `SearchQueryHeader` offers the same entries in the same order, with the same exclusions and submit, as before `ConditionMenu` was extracted, except that on the search page its 「コレクション」 lists collections and Smart Collections together (SPEC-CORE-116 step 6) and its first level ends with 「タグなし」 and 「コレクション未登録」 after 「お気に入り」 (SPEC-CORE-172); the Ask page's menu offers 「フォルダ」, 「コレクション」, 「タグ」, 「種類」 and never 「お気に入り」, 「タグなし」 or 「コレクション未登録」, and a choice there sends no request to `/ask`; the collection page with no `collection-actions` entry renders the same DOM as before.
+SPEC-CORE-044 I10. `SearchQueryHeader` offers the same entries in the same order, with the same exclusions and submit, as before `ConditionMenu` was extracted, except that on the search page its 「コレクション」 lists collections and Smart Collections together (SPEC-CORE-116 step 6) its first level ends with 「タグなし」 and 「コレクション未登録」 after 「お気に入り」, and its lists and 「お気に入り」 also leave out or disable what menu step 3 of SPEC-CORE-172 names; the Ask page's menu offers 「フォルダ」, 「コレクション」, 「タグ」, 「種類」 and never 「お気に入り」, 「タグなし」 or 「コレクション未登録」, and a choice there sends no request to `/ask`; the collection page with no `collection-actions` entry renders the same DOM as before.
+SPEC-CORE-059 I12b. A smart folder with a query part the app does not support as a direct target (`duration`, and a negated or `has:` token among them) is chosen only through the member path, when its query has free text or a negated or `has:` token and no `modified:`; otherwise it cannot be chosen.
+SPEC-CORE-117 I8. In Video and Reading, a member target sends no request under the target before its evaluation succeeds; every request after it carries `file_ids` = the evaluated members and `type` within the app's base kinds, and none of the target query's own conditions, while the face's and page's own conditions (folder chips, tag filter, watch state, URL folder and tag, `key`, `ids`) apply as today; no Discover cache entry is read or written; a failed evaluation replaces each face's or page's body with one retry control and a set over 10,000 with the この対象は使えません line, the header count is hidden, the Target control shows the Smart Collection's name, and neither falls back to the default target; a Smart Collection with neither free text nor a negated or `has:` token produces exactly today's requests carrying the target and today's usability (the apps also request the collection list on mount, SPEC-CORE-118).
+SPEC-CORE-116 I4. On the search page and in the search window, an `in:` name that equals a collection (case-insensitively) is sent in `collection` / `collections` and never evaluated; one that equals only a Smart Collection is never sent as a name and contributes that Smart Collection's members (evaluated with its own `in:` names as collections only) to `file_ids`; a name equal to neither kind is sent in `collection` / `collections` without evaluation; the Smart Collection list is requested only when some `in:` or `-in:` name equals no collection; every listing page and meaning-search request of one resolution carries the same `file_ids`, and only a change of the `in:` key (the query's `in:` and `-in:` names with their polarity), 再試行 or a reload resolves again (a `q`, `type`, sort, order, view, scene-search or `trust` change and a listing reset do not).
+SPEC-CORE-138 I18. Within one search run, every listing request, the meaning `filter`, the continuation and "Show more by similarity" carry identical `modified` wire forms. A Smart Collection named by `in:` keeps the `now` of the run that resolved its names and is not evaluated again until the `in:` key changes (the `in:` and `-in:` names, SPEC-CORE-116 I4 as revised by SPEC-CORE-172).
 SPEC-CORE-099 I6. `resolveReadingTarget` returns the same result as before for every folder with neither free text nor a negated or `has:` token, so the Reading app requests and lists the same books for those; a folder with free text or such a token is a member target that lists its evaluated members of the base kinds and is always usable unless it holds `modified:`.
 
 ## Checked, no action
@@ -406,14 +432,19 @@ SPEC-CORE-099 I6. `resolveReadingTarget` returns the same result as before for e
 - `has_tag` and `exclude_tags` count every Tag row a file links to, as `tags` does; the
   shelves' `no_tag` group counts only this drive's rows. They differ only for a file
   moved across drives before its tags followed it; not aligned here.
+- SPEC-CORE-115 I2 ("answer exactly as before for every request") and SPEC-CORE-093 I8
+  are scoped to their own changes: a request that carries one of this change's new keys
+  is a new request, as the `size` and `modified` keys were for them; requests without
+  the new keys are unchanged (I1).
 - Negating `size:`, `duration:`, `modified:`: the opposite comparison says the same.
 - Negating free text: not added (Summary).
 - `-in:` of a Smart Collection: refused (Summary). Expanding it would add an excluded-id
   list to the listing, the meaning request and the addon; it can be added later without
   changing what is written here.
-- Direct app targets for new tokens: not added. The member path already lists the
-  evaluated members with the exclusions applied, and a direct target would need every
-  addon app (Notes, Clips) to forward six more keys.
+- Direct app targets for new tokens: not added (user choice, 2026-11-23). The member path
+  lists the evaluated members with the exclusions applied; a direct target would lift
+  the 10,000 limit but add six keys to every app's See-all URL and request, where a
+  missed key silently drops an exclusion.
 - OR between operators (`tag:a OR tag:b`): not part of this change.
 - A chip action that switches polarity: not added (user choice, 2026-11-23); `-` is
   typed and 「＋ 条件」 offers only the two `has:` entries.
