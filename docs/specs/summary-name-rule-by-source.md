@@ -19,9 +19,9 @@ nouns" premise is not stated. The choice is made by the code from the file's con
 type, with no extra LLM call.
 
 - SPEC-ADDON-175: the person-name rule and its attribution examples depend on the context
-  type.
+  type. Invariants I1, I2, I3, I5, I6, I7.
 - SPEC-ADDON-176: the shared proper-noun handling states the misrecognition premise only
-  for transcripts.
+  for transcripts. Invariants I1, I4, I6, I7.
 
 ## Required items
 
@@ -41,10 +41,14 @@ type, with no extra LLM call.
 4. For `transcript`, every system prompt is byte-identical to today's for every
    `output_language`. Nothing in the transcript branch is reworded, including the premise
    "(speech recognition or text extraction)".
-5. For `text`, these parts differ and nothing else:
+5. For `text`, these parts differ and nothing else. Each substitution replaces exactly the
+   named line or span; no blank line is added or removed around it, and every other line,
+   blank lines included, is the same as the transcript prompt:
 
-   **`_common_rules.jinja2`, the whole `## Handling proper nouns` section** (its heading
-   through the last "Handle with care" bullet) is replaced by:
+   **`_common_rules.jinja2`, the whole `## Handling proper nouns` section**: the span from
+   the line `## Handling proper nouns` through the last bullet under `### Handle with care`
+   is replaced by the block below. The blank line after that span, before
+   `## Handling numeric information`, stays.
 
    ```
    ## Handling proper nouns
@@ -56,8 +60,9 @@ type, with no extra LLM call.
    ```
 
    **`_common_rules.jinja2`, Procedural notes**: the bullet beginning "For culinary names,
-   technique names, and operation names that ASR tends to distort" is omitted. The
-   numeric-information section is the same in both branches.
+   technique names, and operation names that ASR tends to distort" is removed as a whole
+   line, leaving no line in its place. The numeric-information section is the same in
+   both branches.
 
    **`short_long_system.jinja2`**: the bullet beginning "In both short and long, write a
    person's name only if" is replaced by:
@@ -70,10 +75,12 @@ type, with no extra LLM call.
    - "Maintain the narrator's tone and energy but write from an observer (third-person)
      perspective" becomes "Maintain the source's tone and energy but write from an
      observer (third-person) perspective; a first-person narrator is referred to by name
-     when the content gives one".
-   - In the Speculation, Evaluation and evaluative-words examples, "the narrator" becomes
-     "the author" ("the author speculates that ...", "the author evaluates ... positively",
-     "the author describes it as ..."). "the author calls it ..." stays.
+     when the content gives one". The indented `e.g. "states that ...", ...` line under it
+     stays unchanged.
+   - In the Speculation, Evaluation and evaluative-words examples, the words "the
+     narrator" become "the author" ("the author speculates that ...", "the author
+     evaluates ... positively", "the author describes it as ..."); the rest of each line is
+     unchanged. "the author calls it ..." stays.
    - The bullet beginning "Write a person's name only if it appears in the filename" is
      replaced by:
 
@@ -117,13 +124,19 @@ Unchanged.
 ### 7. Effect on existing features
 
 - Video, audio and `.loft` summaries receive byte-identical system prompts.
-- `scripts/poc_hierarchical_summary.py` calls `_build_detailed_system_prompt()` with no
-  argument; it keeps working and gets the transcript prompt, as today. It is not edited.
+- `scripts/poc_hierarchical_summary.py` calls `_build_detailed_system_prompt()` for its
+  "existing detailed prompt" baseline on PDF documents. It is changed to pass
+  `"document"`, so its baseline stays the prompt production uses for documents.
 - Detailed-summary citations, the summary edit API, embeddings of summaries and Ask read
   the stored text; they are unaffected.
-- The golden test of `_common_rules.jinja2` keeps its current file for the transcript
-  rendering; a second golden is added for the text rendering, and the baseline script
-  captures both.
+- Goldens: before any template is edited, the full system prompts of both builders are
+  captured from the unchanged templates for `output_language` `ja`, `en`, `auto` and `fr`
+  (a value outside the table), as `summaries_short_long_system_<lang>.txt` and
+  `summaries_detailed_system_<lang>.txt`, and `_baseline.py` is extended to write them
+  (building the transcript prompt). The existing `summaries_common_rules.txt` stays as it
+  is. These goldens are the "before" reference for I1. The document expectation is not a
+  golden: the test derives it from the transcript golden by applying step 5's
+  substitutions.
 
 ### 8. Error behavior
 
@@ -153,15 +166,17 @@ None new. Rendering failures surface as today.
 - `addons/intelligence/tests/test_prompt_loader.py`
 - `addons/intelligence/tests/golden_prompts/_baseline.py`
 - `addons/intelligence/tests/golden_prompts/summaries_common_rules.txt` (kept unchanged)
-- `addons/intelligence/tests/golden_prompts/summaries_common_rules_text.txt` (new)
-- `addons/intelligence/scripts/poc_hierarchical_summary.py` (read, not edited)
+- `addons/intelligence/tests/golden_prompts/summaries_short_long_system_{ja,en,auto,fr}.txt` (new)
+- `addons/intelligence/tests/golden_prompts/summaries_detailed_system_{ja,en,auto,fr}.txt` (new)
+- `addons/intelligence/scripts/poc_hierarchical_summary.py` (passes `"document"`)
 - `.claude/rules/design-decisions.md` (LLM features; read, not edited)
 
 ## Invariants
 
-I1. For every `output_language`, the short/long and detailed system prompts built for
-`video`, for `audio`, with no argument, and with any other value are byte-identical to the
-prompts the builders produced before this change, and `_common_rules.jinja2` rendered with
+I1. For `output_language` `ja`, `en`, `auto` and `fr`, the short/long and detailed system
+prompts built for `video`, for `audio`, for `None`, with no argument, and for `text` (a raw
+file type, not a context type) are byte-identical to the goldens captured from the
+unchanged templates, and `_common_rules.jinja2` rendered with
 no variables equals `tests/golden_prompts/summaries_common_rules.txt`.
 I2. The short/long and detailed system prompts built for `document` contain neither
 "Names heard only in a transcript are often misrecognized" nor "even when a speaker
@@ -171,11 +186,16 @@ content gives no name".
 I4. The short/long and detailed system prompts built for `document` contain "This content
 is text, so proper nouns are written as they appear in it." and do not contain "This
 content originates from a transcript" or "ASR tends to distort".
-I5. The detailed system prompt built for `document` does not contain "the narrator
-speculates" or "Maintain the narrator's tone".
+I5. The detailed system prompt built for `document` contains none of "the narrator
+speculates", "the narrator evaluates", "the narrator describes it as" and "Maintain the
+narrator's tone", and still contains "the author calls it".
 I6. In the worker path, a document job's LLM call receives the system prompt built for
 `document` and a video, audio or `.loft` job's receives the transcript prompt, with exactly
 one LLM call per summary variant.
+I7. For `output_language` `ja`, `en`, `auto` and `fr`, each builder's system prompt for
+`document` equals its transcript golden with exactly the substitutions of step 5 applied,
+so the topic-boundary, numeric and type-specific sections other than the removed bullet
+are present unchanged.
 
 ## Checked, no action
 
