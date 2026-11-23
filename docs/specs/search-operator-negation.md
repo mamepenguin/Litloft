@@ -66,7 +66,8 @@ SPEC-CORE-172, parsing (`searchQuery.ts`):
    `notFavorite`, `-is:liked` sets `notLiked`.
 4. Caps: `excludedFolders` holds at most 10 and `excludedCollections` at most 10, counted
    apart from `folders` and `collections`; a further distinct negated value is text, as
-   for the positive operators. Excluded kinds are bounded by the parser's kinds. Excluded
+   for the positive operators. `excludedTypes` holds at most 8 distinct kinds; a ninth
+   distinct negated kind is text. Excluded
    tags have no parser cap, as `tag:` has none.
 5. Any new token sets `hasOperators`. The text that remains is the tokens left as text,
    as today.
@@ -205,9 +206,14 @@ SPEC-CORE-172, sending:
    can be chosen counts the member path: Video's header (`VideoAppHeader.tsx`) and its
    `?target=` handling (`useVideoApp.ts`) take `resolveVideoTarget(folder).usable ||
    resolveVideoMemberTarget(folder) !== null`, as Reading and Notes already do. The
-   member path's limit of 10,000 members holds: a Smart Collection of exclusions alone
-   (`-path:Work`) on a drive with more files than that shows この対象は使えません in the
-   apps, as any member target over the limit does (user choice, 2026-11-23).
+   member path's limit of 10,000 members holds (user choice, 2026-11-23): a Smart
+   Collection of exclusions alone (`-path:Work`) on a drive with more files than that
+   shows この対象は使えません in Video and Reading, and in Notes and Clips is shown
+   disabled while the default target stays in force, as any member target over the limit
+   does today in each app. When the query has no free text, the member evaluation and
+   the `in:` resolution stop after the first listing page whose `meta.total` exceeds
+   10,000 and report too large without reading further pages; with free text they read
+   every page, as today.
 10. Deployment: the addon PR merges first and the core PR carries the pointer bump, as
     for SPEC-ADDON-143.
 
@@ -286,6 +292,8 @@ folders and collections, no addon; R3, row 15's exception stands; R4, read-only.
   query hides scene search and the operator-free slots as any operator query does.
 - `core-search-vocabulary.test.ts` counts change with the new keys.
 - `in:` handling, `size:`, `duration:` and `modified:` are unchanged.
+- The addon's `epub` kind also makes an Ask scope with `type:epub` work, which the addon
+  answered 422 before (SPEC-ADDON-064 I3 parity).
 
 ### 8. Error behavior
 
@@ -351,7 +359,7 @@ Core:
 - `frontend/src/lib/api.ts`, `frontend/src/lib/listingRequest.ts`,
   `frontend/src/components/folder/useFolderFiles.ts`,
   `frontend/src/components/search/useFileSearch.ts`.
-- `frontend/src/lib/smartCollectionEval.ts`, `frontend/src/lib/appTarget.ts`,
+- `frontend/src/lib/smartCollectionEval.ts` (the early stop), `frontend/src/lib/appTarget.ts`,
   `frontend/src/lib/videoAppTarget.ts`, `frontend/src/lib/memberTarget.ts`,
   `frontend/src/lib/readingAppTarget.ts`,
   `frontend/src/components/videoapp/VideoAppHeader.tsx`,
@@ -397,7 +405,7 @@ I6. `-has:tag` keeps exactly the files with no tag; `has:collection` keeps exact
 I7. Every impossible combination listed in this spec requests nothing, and `in:x -has:collection`, `type:document -type:pdf` and `path:A -path:A/b` are requested.
 I8. Removing a chip removes exactly the tokens with its operator, value and polarity and leaves every other token's raw string, including the opposite polarity of the same value, unchanged.
 I9. A `-in:` naming only a Smart Collection requests no listing and no meaning search, shows the refused notice without 再試行 on the page and in the window, and saving or overwriting a Smart Collection with it writes nothing; a `-in:` naming a regular collection excludes its members.
-I10. The parser turns into text every negated folder, collection, kind and `has:` value the core or the addon would reject, and the listing, `/files/matching` and the addon's `SearchFilter` accept and reject the same new values.
+I10. The parser turns into text every negated folder, collection and kind and every `has:` value that the core or the addon would reject; for the folder, collection and kind values and the booleans `true` / `false` the frontend sends, the listing, `/files/matching` and the addon's `SearchFilter` accept and reject the same values.
 I11. A query with new tokens sends equivalent conditions to the listing and inside `filter` on the search page, the image-query page and in the window, in the continuation and in "Show more by similarity", and the addon forwards them to `/files/matching` unchanged.
 I12. A Smart Collection evaluation and a member target built from a query with new tokens never list a file the search page for the same query does not list, except for a `-in:` name that only a Smart Collection carries, which the page refuses; a direct app target with a new token is `unsupported_part` and sends no listing request.
 I13. With `in:` naming a Smart Collection, a member of it that an exclusion names is not listed.
@@ -405,13 +413,13 @@ I14. 「タグなし」 and 「コレクション未登録」 each append exactl
 I15. `-tag:`, `-type:` and `-is:` suggest the positive operator's values and completing keeps the `-`; a tag held in either polarity is not suggested.
 I16. A negated chip's accessible name and its ✕'s contain 「除外」 / "Exclude"; the four `has:` chips carry their labels; at 375 px in a real browser a negated chip with a 200-character value is no wider than the chip row and 「除外」, its label and ✕ stay visible.
 
-I17. A Smart Collection whose query holds a new token and whose evaluation has at most 10,000 members can be chosen as the target of Video, Reading, Notes and Clips, and Video accepts its `?target=` link; above 10,000 it shows この対象は使えません.
+I17. A Smart Collection whose query holds a new token and whose evaluation has at most 10,000 members can be chosen as the target of Video, Reading, Notes and Clips, and Video accepts its `?target=` link; above 10,000 Video and Reading show この対象は使えません and Notes and Clips keep their current fallback; with no free text the evaluation reads no listing page after the first one whose `meta.total` exceeds 10,000.
 I18. A query whose `-in:` name is refused evaluates no `in:` Smart Collection; an impossible query loads no list; adding or removing a `-in:` name classifies again.
 I19. `has:` and `-has:` suggest only `tag` and `collection` not already held in either polarity; `type:epub` and `-type:epub` pass the addon's `filter` validation.
 
 ## Revises
 
-SPEC-CORE-116 I6. A query with no `in:` name and no new token loads no list, waits for nothing and sends exactly today's requests on the search page and in the search window; a query whose new tokens include no `-in:` loads no list and waits for nothing; and `evaluateSmartCollection` sends exactly today's requests for every query with no new token.
+SPEC-CORE-116 I6. A query with no `in:` name and no new token loads no list, waits for nothing and sends exactly today's requests on the search page and in the search window; a query with no `in:` or `-in:` name, whatever new tokens it holds, loads no list and waits for nothing; and `evaluateSmartCollection` sends exactly today's requests for every query with no new token.
 SPEC-CORE-116 I7. Creating or overwriting a Smart Collection whose query has an `in:` or `-in:` name resolving only to a Smart Collection writes nothing and shows the refusal toast; a needed list that fails to load writes nothing and shows today's failure toast; while the lists load a second press sends nothing; a query with neither saves exactly as today.
 SPEC-CORE-103 I3. Pressing the button or the enabled menu row, for a query with no `in:` and no `-in:` name, sends exactly one `PATCH /api/drives/{drive}/smart-folders/{id}` for the page's drive and that id, whose body is `{query: <trimmed URL q>, file_type: <URL type or null>}` as they were at the press and nothing else, without opening a dialog; for a query with such a name it first loads the needed lists and sends that one `PATCH` only when no name resolves only to a Smart Collection; while the lists load or the request is in flight the button and the row are disabled and a second press sends nothing.
 SPEC-CORE-109 I12. The search page's own loading is unchanged for every query with no `in:` name and no new token: the same requests, page size, merge, search cache and continuation offer as before; a query with such a name waits for its resolution, skips the search cache, sends `file_ids` through the POST routes when an `in:` name resolves to a Smart Collection, and sends nothing when a `-in:` name resolves only to one.

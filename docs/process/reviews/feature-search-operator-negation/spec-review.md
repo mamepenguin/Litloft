@@ -47,3 +47,17 @@ TOTAL: 16 findings
    no action (scoped to their own changes).
 
 TOTAL: 7 findings
+
+# Spec review r3 (spec-design-reviewer, at 18d743744)
+
+1. Notes and Clips fall back to the default target over 10,000 rather than showing この
+   対象は使えません. Resolved: step 9 and I17 describe each app's current behaviour; no
+   addon change, SPEC-ADDON-130 I9 holds.
+2. SPEC-CORE-116 I6 revision contradicted step 1 for `in:` plus a new token. Resolved:
+   reworded.
+3. Reaching the over-10,000 verdict reads every page. Resolved: early stop on the first
+   page's `meta.total` when there is no free text; I17.
+4. I10 could not hold for a ninth kind and lax listing booleans. Resolved: excluded kinds
+   capped at 8 in the parser; I10 limited to the values the frontend sends.
+
+TOTAL: 4 findings
