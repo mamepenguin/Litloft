@@ -1,0 +1,12 @@
+addons/intelligence/tests/golden_prompts/_baseline.py
+addons/intelligence/tests/golden_prompts/summaries_detailed_system_auto.txt
+addons/intelligence/tests/golden_prompts/summaries_detailed_system_en.txt
+addons/intelligence/tests/golden_prompts/summaries_detailed_system_fr.txt
+addons/intelligence/tests/golden_prompts/summaries_detailed_system_ja.txt
+addons/intelligence/tests/golden_prompts/summaries_short_long_system_auto.txt
+addons/intelligence/tests/golden_prompts/summaries_short_long_system_en.txt
+addons/intelligence/tests/golden_prompts/summaries_short_long_system_fr.txt
+addons/intelligence/tests/golden_prompts/summaries_short_long_system_ja.txt
+addons/intelligence/tests/summary_text_variant.py
+addons/intelligence/tests/test_prompt_loader.py
+addons/intelligence/tests/test_summaries.py

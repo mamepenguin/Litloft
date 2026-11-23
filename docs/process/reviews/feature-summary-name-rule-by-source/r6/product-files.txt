@@ -1,0 +1,5 @@
+addons/intelligence/app/prompts/summaries/_common_rules.jinja2
+addons/intelligence/app/prompts/summaries/detailed_system.jinja2
+addons/intelligence/app/prompts/summaries/short_long_system.jinja2
+addons/intelligence/app/workers/summaries.py
+addons/intelligence/scripts/poc_hierarchical_summary.py
