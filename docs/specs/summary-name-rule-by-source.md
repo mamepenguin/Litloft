@@ -12,14 +12,14 @@ person's name only when it appears in the filename, title or description, and to
 everyone else by a role. The rule exists because names heard only in a speech-recognition
 transcript are often misrecognized. It is applied to every source, so a novel or article,
 whose names are printed in the text, is summarised with "the narrator" or "the speaker"
-in place of the protagonist and the other characters. This change keeps the rule for
-transcripts (video, audio, `.loft`) and lifts it for documents, where names that appear
-in the body may be used. The "transcript may contain mis-recognized proper nouns" premise
-of the shared rules is scoped to transcripts in the same way. The choice is made by the
-code from the file's context type, with no extra LLM call.
+in place of the protagonist and the other characters. This change keeps the prompts for
+transcripts (video, audio, `.loft`) byte-identical to today and gives documents a text
+variant, where names that appear in the body may be used and the "misrecognized proper
+nouns" premise is not stated. The choice is made by the code from the file's context
+type, with no extra LLM call.
 
-- SPEC-ADDON-175: the person-name rule depends on the context type (documents may use
-  names from the body; transcripts keep the filename/title/description rule).
+- SPEC-ADDON-175: the person-name rule and its attribution examples depend on the context
+  type.
 - SPEC-ADDON-176: the shared proper-noun handling states the misrecognition premise only
   for transcripts.
 
@@ -30,41 +30,69 @@ code from the file's context type, with no extra LLM call.
 1. A summary job (on-index, manual generate, or regenerate; short/long or detailed)
    resolves the file's context type with `_classify_file_type`: `video` (including
    `.loft`), `audio` or `document`.
-2. The worker builds the system prompt with that context type.
-   `_build_system_prompt(context_type)` and `_build_detailed_system_prompt(context_type)`
-   pass a `source_kind` of `transcript` (video, audio) or `text` (document) to the
-   templates.
-3. The templates render one of two person-name rules:
-   - `transcript`: the current rule, verbatim in meaning: a name only if it is in the
-     filename, title or description, even when a speaker introduces themselves;
-     otherwise a role.
-   - `text`: names that appear in the content, filename, title or description may be
-     used. A person (a character, a first-person narrator, an author, an interviewee) is
-     referred to by name when the content gives one; a role such as "the narrator" or
-     "the author" is used only when no name is given.
-4. `_common_rules.jinja2` renders its proper-noun section by the same `source_kind`:
-   - `transcript`: unchanged (the misrecognition premise, "actively correct" and "handle
-     with care").
-   - `text`: proper nouns are written as they appear in the content. The text is not
-     assumed to be misrecognized; when the content spells one entity in more than one way,
-     the spelling used in the filename, title or description wins, otherwise the most
-     frequent spelling in the content.
-5. In the detailed prompt, the attribution examples that name "the narrator" stay for
-   transcripts. For text they name the person, with "the author" / "the narrator" as the
-   fallback when the content gives no name.
-6. The LLM is called once, as today, and the output is stored as today.
+2. The worker passes that same context type to both the user-prompt builder (as today) and
+   the system-prompt builder. `_build_system_prompt(context_type=None)` and
+   `_build_detailed_system_prompt(context_type=None)` take it as an optional argument and
+   pass `source_kind` to the templates: `text` for `document`, `transcript` for every other
+   value, `None` and the no-argument call included.
+3. Every template that reads `source_kind` treats a missing value as `transcript`
+   (`source_kind | default("transcript")`), so `_common_rules.jinja2` rendered on its own
+   with no variables gives exactly today's text.
+4. For `transcript`, every system prompt is byte-identical to today's for every
+   `output_language`. Nothing in the transcript branch is reworded, including the premise
+   "(speech recognition or text extraction)".
+5. For `text`, these parts differ and nothing else:
+
+   **`_common_rules.jinja2`, the whole `## Handling proper nouns` section** (its heading
+   through the last "Handle with care" bullet) is replaced by:
+
+   ```
+   ## Handling proper nouns
+
+   This content is text, so proper nouns are written as they appear in it.
+
+   - When the content spells one entity in more than one way, use the spelling in the filename, title or description; otherwise use the most frequent spelling in the content
+   - Do not substitute a different spelling, character or reading by guesswork
+   ```
+
+   **`_common_rules.jinja2`, Procedural notes**: the bullet beginning "For culinary names,
+   technique names, and operation names that ASR tends to distort" is omitted. The
+   numeric-information section is the same in both branches.
+
+   **`short_long_system.jinja2`**: the bullet beginning "In both short and long, write a
+   person's name only if" is replaced by:
+
+   ```
+   - In both short and long, use a person's name when it appears in the content, filename, title or description (a character, a first-person narrator, an author, an interviewee); use a role such as the narrator, the author or the speaker only when the content gives no name
+   ```
+
+   **`detailed_system.jinja2`, Common rules**:
+   - "Maintain the narrator's tone and energy but write from an observer (third-person)
+     perspective" becomes "Maintain the source's tone and energy but write from an
+     observer (third-person) perspective; a first-person narrator is referred to by name
+     when the content gives one".
+   - In the Speculation, Evaluation and evaluative-words examples, "the narrator" becomes
+     "the author" ("the author speculates that ...", "the author evaluates ... positively",
+     "the author describes it as ..."). "the author calls it ..." stays.
+   - The bullet beginning "Write a person's name only if it appears in the filename" is
+     replaced by:
+
+     ```
+     - Use a person's name when it appears in the content, filename, title or description (a character, a first-person narrator, an author, an interviewee). Use a role such as the narrator or the author only when the content gives no name
+     ```
+6. The LLM is called once per summary variant, as today, and the output is stored as today.
 
 ### 2. Failure cases
 
-- An unknown context type cannot reach the prompt builders: the workers already skip
-  files whose type is not in `_SUPPORTED_CONTEXT_TYPES`. A builder that receives a value
-  other than `video`, `audio` or `document` renders the `transcript` rules, the stricter
-  side.
+- A context type other than `video`, `audio` or `document` cannot reach the builders
+  through the workers (they skip unsupported types); if one does, it gets the transcript
+  prompt, the stricter side.
 - A document whose sampled excerpt never prints the protagonist's name still yields a
   role; the prompt cannot recover a name that is not in the input.
-- A scanned PDF whose text came from page OCR is a `document` and gets the `text` rules.
-  OCR on printed pages misreads characters but does not invent names the way speech
-  recognition does; see Checked, no action.
+- A scanned PDF whose text came from page OCR is a `document` and gets the text prompt.
+  See Checked, no action.
+- A Markdown note whose text came from a transcript is a `document` and gets the text
+  prompt. See Checked, no action.
 
 ### 3. States
 
@@ -75,29 +103,31 @@ unchanged.
 
 - Read: the same `IndexedFile` fields and content tables as today.
 - Written: `file_summaries` rows as today. Existing rows are not regenerated; a file
-  gets the new rule when its summary is next generated or regenerated.
+  gets the new prompt when its summary is next generated or regenerated.
 
 ### 5. External services
 
 The LLM call is unchanged in number, routing (`app.llm_routing.resolve`), token budget and
-timeout. Only the system prompt text differs, by a few lines.
+timeout. Only the system prompt text for documents differs.
 
 ### 6. Authorization
 
-Unchanged. The summary endpoints and workers keep their current checks.
+Unchanged.
 
 ### 7. Effect on existing features
 
-- Video, audio and `.loft` summaries receive the same person-name and proper-noun rules as
-  today (the rendered text for `transcript` matches today's rule sentences).
+- Video, audio and `.loft` summaries receive byte-identical system prompts.
+- `scripts/poc_hierarchical_summary.py` calls `_build_detailed_system_prompt()` with no
+  argument; it keeps working and gets the transcript prompt, as today. It is not edited.
 - Detailed-summary citations, the summary edit API, embeddings of summaries and Ask read
   the stored text; they are unaffected.
-- `prompt_loader.render` gains no new behavior; the templates take one more variable.
+- The golden test of `_common_rules.jinja2` keeps its current file for the transcript
+  rendering; a second golden is added for the text rendering, and the baseline script
+  captures both.
 
 ### 8. Error behavior
 
-None new. Rendering failures surface as today (the job fails and is logged by the
-existing worker path).
+None new. Rendering failures surface as today.
 
 ### 9. User-visible behavior
 
@@ -109,7 +139,7 @@ existing worker path).
 
 ### 10. Non-functional
 
-- No additional LLM call; the prompt grows or shrinks by a few lines per source kind.
+- No additional LLM call.
 - Privacy unchanged: the same content is sent to the same routed profile.
 
 ## Touch points
@@ -120,45 +150,56 @@ existing worker path).
 - `addons/intelligence/app/workers/summaries.py` (`_build_system_prompt`,
   `_build_detailed_system_prompt` and their callers)
 - `addons/intelligence/tests/test_summaries.py`
-- `addons/intelligence/app/prompt_loader.py` (its docstring example calls `render` on
-  `short_long_system.jinja2`; read only, edited if the example no longer renders)
+- `addons/intelligence/tests/test_prompt_loader.py`
+- `addons/intelligence/tests/golden_prompts/_baseline.py`
+- `addons/intelligence/tests/golden_prompts/summaries_common_rules.txt` (kept unchanged)
+- `addons/intelligence/tests/golden_prompts/summaries_common_rules_text.txt` (new)
+- `addons/intelligence/scripts/poc_hierarchical_summary.py` (read, not edited)
 - `.claude/rules/design-decisions.md` (LLM features; read, not edited)
 
 ## Invariants
 
-I1. A short/long or detailed system prompt built for a `document` contains no instruction
-restricting person names to the filename, title or description.
-I2. A short/long or detailed system prompt built for `video` or `audio` contains the
-instruction that a person's name is written only if it appears in the filename, title or
-description, and otherwise a role is used, even when a speaker introduces themselves.
-I3. A system prompt built for `document` states that names appearing in the content may be
-used and that a role such as "the narrator" is used only when the content gives no name.
-I4. A system prompt built for `video` or `audio` states that the content comes from a
-transcript and may contain misrecognized proper nouns; one built for `document` does not
-state that premise.
-I5. A summary job makes exactly one LLM call per summary variant, as before, for every
-context type.
-I6. A builder given a context type other than `video`, `audio` or `document` renders the
-transcript rules of I2 and I4.
+I1. For every `output_language`, the short/long and detailed system prompts built for
+`video`, for `audio`, with no argument, and with any other value are byte-identical to the
+prompts the builders produced before this change, and `_common_rules.jinja2` rendered with
+no variables equals `tests/golden_prompts/summaries_common_rules.txt`.
+I2. The short/long and detailed system prompts built for `document` contain neither
+"Names heard only in a transcript are often misrecognized" nor "even when a speaker
+introduces themselves by name in the transcript".
+I3. The short/long and detailed system prompts built for `document` contain "only when the
+content gives no name".
+I4. The short/long and detailed system prompts built for `document` contain "This content
+is text, so proper nouns are written as they appear in it." and do not contain "This
+content originates from a transcript" or "ASR tends to distort".
+I5. The detailed system prompt built for `document` does not contain "the narrator
+speculates" or "Maintain the narrator's tone".
+I6. In the worker path, a document job's LLM call receives the system prompt built for
+`document` and a video, audio or `.loft` job's receives the transcript prompt, with exactly
+one LLM call per summary variant.
 
 ## Checked, no action
 
-- **An LLM classification step or a content-type branch (narrative/explanatory/...)
-  chosen by the model.** The detailed prompt already asks the model to identify one of
-  eight content types and apply type-specific notes within the same call. The defect is
-  not in that classification; it is a source-kind rule that the code can decide exactly
-  from the context type.
+- **An LLM classification step, or switching on a content type the model chooses.** The
+  detailed prompt already asks the model to identify one of eight content types and apply
+  type-specific notes within the same call. The defect is a source-kind rule that the code
+  can decide exactly from the context type.
 - **Adding more person-name rules for transcripts.** hako `L0T3esoEHig19gM9t_Wg0`
   (2026-10-01) closed prompt work on transcript names after two rounds; the residual
-  misheard self-introduction is accepted. This change leaves the transcript rule as it is
-  and only stops applying it to text.
+  misheard self-introduction is accepted. The transcript prompts stay byte-identical.
 - **Scanned PDFs (page OCR) treated as transcripts.** OCR errors on printed pages are
   character-level and rarer than speech-recognition name errors; splitting `document` by
   text origin would need a new signal in the summary path. Revisit if OCR'd books show
   wrong names.
+- **Markdown notes whose text came from a transcript** (knowledge notes made from a video
+  or audio file). They are classified `document` and get the text prompt, so a misheard
+  name in the note is used as written. Notes are written or edited by the user, and a
+  note generated by an LLM from a transcript has already passed the transcript name rule.
+- **The short/long reviewer and host examples** ("The reviewer gives it 77 points", "the
+  reviewer, the host, a person's name") stay in both branches; they show attribution, not
+  how to refer to a narrator.
 - **Regenerating existing document summaries.** Local LLM cost over many files; a file
-  picks up the rule when its summary is regenerated, as with earlier prompt changes.
-- **Separate templates per source kind.** A conditional block keeps the shared structure
-  in one place; the two branches differ by a few lines.
+  picks up the prompt when its summary is regenerated, as with earlier prompt changes.
+- **Separate templates per source kind.** Conditional blocks keep the shared structure in
+  one place.
 - **Measuring output quality against a real model in tests.** Output quality is checked
-  in R-5 with real documents and a video; tests check the rendered prompts.
+  in R-5 with a real novel, an article and a video; tests check the rendered prompts.
