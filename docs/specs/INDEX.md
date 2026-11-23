@@ -349,3 +349,4 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-171 | implemented | docs/specs/ask-ocr-line-dedupe.md | sha256:0435fb8bd2b5aa290f8c059d8cc5b0cdfcae88fbff0336b6d4800cffde942d9d |
 | SPEC-ADDON-172 | implemented | docs/specs/ask-ocr-line-dedupe.md | sha256:0435fb8bd2b5aa290f8c059d8cc5b0cdfcae88fbff0336b6d4800cffde942d9d |
 | SPEC-ADDON-173 | implemented | docs/specs/ask-ocr-line-dedupe.md | sha256:0435fb8bd2b5aa290f8c059d8cc5b0cdfcae88fbff0336b6d4800cffde942d9d |
+| SPEC-ADDON-174 | draft | docs/specs/ask-transcript-tool.md | |
