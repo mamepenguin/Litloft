@@ -41,7 +41,7 @@ does.
 - **Folder**: for a stored relative `file_path`, its directory part as stored, whether or not
   the drive has a mount. For a stored absolute `file_path` whose normalised form is inside the
   mount by whole path segments (`os.path.commonpath([mount, path]) == mount`), the directory
-  part of `os.path.relpath(path, mount)`. When that directory part is empty (the file is at the
+  part of `os.path.relpath(path, mount)`. When the directory part is empty in either case (the file is at the
   top of its drive), the Folder is `(top of the drive)`. Undefined, and the line left out, for an
   absolute path when the drive has no mount or the path is not inside it. The spelling is the
   stored one (it may be NFD).
