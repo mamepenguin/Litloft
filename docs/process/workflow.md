@@ -37,7 +37,12 @@ other than the author's: the spec design review, the acceptance tests and R-5.
 
 - **FAIL**: the author fixes and reviews again, and does not decide items listed under
   *Needs a human*.
-- **PASS**: the author proceeds, and `decision:` in `decisions.md` stays empty.
+- **PASS**: the author proceeds, and `decision:` in `decisions.md` stays empty. When open
+  B findings or recorded unspecified-behavior entries remain, the author does not ask. It
+  resolves each as `fix` or `accept` under `author_resolutions:` in `decisions.md`, one
+  line each with its reason, and reviews again when it fixed anything. An `accept` removes
+  nothing from the record. Before merge the human reads one list, in the pull request,
+  made from `author_resolutions:` and the recorded entries, and may still ask for a fix.
 - **HUMAN_REVIEW_REQUIRED**: the human decides to continue, ship or discard.
 
 ## Steps

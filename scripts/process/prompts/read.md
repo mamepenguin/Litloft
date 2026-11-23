@@ -120,6 +120,27 @@ before it also added? If so, say so: the design is being patched. If a round rem
 say that.
 
 @end
+## Unspecified behavior
+
+List in `potential_unspecified_behavior` each behavior the change has that the spec does
+not describe, one object per behavior: `behavior` (one sentence), `frequency`, `impact` and
+`reason`. Set `unspecified_behavior_found` to true when any of them needs a person to
+decide whether it is wanted.
+
+Score each entry on two scales, as it would reach a user in ordinary use. Judge frequency
+against the threat model above: use outside it scores 0. Score the behavior as it is, not
+the worst thing that could be imagined.
+
+- `frequency` (0-10): 0 = no ordinary condition (it needs an artificial delay, a crash at a
+  precise moment, hand-edited data, or use outside the threat model); 1 = a few times a
+  year; 3 = a few times a month; 5 = a few times a week; 8 = almost every day; 10 = every
+  use. Values in between are allowed.
+- `impact` (1-10): 1 = a trivial visual difference, or harmless; 3 = inconvenient, easy to
+  work around; 5 = a feature does not work and the user notices; 8 = silently wrong, or
+  lost data that takes effort to recover; 10 = unrecoverable loss or a broken security
+  boundary.
+- `reason`: one sentence naming what triggers it and what the user sees.
+
 ## Rules for what you report
 
 - Break the implementation in your head one change at a time and ask whether a test would

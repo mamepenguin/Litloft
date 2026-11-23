@@ -137,6 +137,13 @@ def entry($label): nl as $v | if ($v | contains("\n")) then "- \($label):\n" + (
 | ([$vd.findings[] | {key: ([.reviewer, .id] | tojson), value: .state}] | from_entries) as $state
 | ([$all[] | select(.bucket_proposal.bucket == "C")] | length) as $cur_c
 | ([$in.earlier[].artifacts[].findings[] | select(.bucket_proposal.bucket == "C")] | length) as $earlier_c
+# A verdict.json from an earlier merge has no `unspecified`; its entries are then unscored,
+# and they stop when their artifact raised them.
+| ($vd.unspecified // [$cur[] | . as $a | .potential_unspecified_behavior | to_entries[]
+      | {reviewer: $a.reviewer, index: .key,
+         behavior: (.value | if type == "string" then . else .behavior end),
+         scores: (.value | if type == "string" then [] else [{by: $a.reviewer, frequency, impact, reason}] end),
+         stops: $a.unspecified_behavior_found}]) as $unspec
 
 | def st: $state[[.reviewer, .id] | tojson] // "open";
   def lookup($ref): [$all[] | select(.reviewer == $ref.reviewer and .id == $ref.finding_id)] | .[0];
@@ -150,6 +157,13 @@ def entry($label): nl as $v | if ($v | contains("\n")) then "- \($label):\n" + (
       else
         "- \($p | flat) — " + ([$e[] | select(.read != "not_read") | "\(.read): \(.reason | flat)"] | unique | join("; "))
       end;
+
+  def uline:
+    (.reviewer | flat) as $l
+    | [(.behavior | entry($l))]
+      + [.scores[] | "  - F\(.frequency) × I\(.impact) = \(.frequency * .impact), \(.by | flat): \(.reason | flat)"]
+      + (if (.scores | length) == 1 then ["  - single-scored"] else [] end)
+    | join("\n");
 
   def human_item:
     (if .ref then "\(.ref.reviewer):\(.ref.finding_id)" | flat else null end) as $refname
@@ -170,8 +184,7 @@ def entry($label): nl as $v | if ($v | contains("\n")) then "- \($label):\n" + (
         (if (.kind == "human_zone" or .kind == "protected_path" or .kind == "incomplete_read") and (.paths | length) > 0
          then "Paths:", (.paths[] | "- " + flat) else empty end),
         (if .kind == "unspecified_behavior" then
-           ($cur[] | select(.unspecified_behavior_found == true) | .reviewer as $r
-              | .potential_unspecified_behavior[] | entry($r | flat))
+           (.reviewer as $who | $unspec[] | select(.stops and ($who == null or .reviewer == $who)) | uline)
          else empty end),
         ""
       ] | join("\n");
@@ -230,6 +243,13 @@ def entry($label): nl as $v | if ($v | contains("\n")) then "- \($label):\n" + (
        "",
        ($vd.needs_human | map(human_item) | join("\n"))
      else empty end),
+    ([$unspec[] | select(.stops | not)] as $rec
+     | if ($rec | length) > 0 then
+         "## Unspecified behavior, recorded",
+         "",
+         ($rec | map(uline) | join("\n")),
+         ""
+       else empty end),
     "## Findings",
     "",
     "A: \([$all[] | select(.bucket_proposal.bucket == "A")] | length)",
