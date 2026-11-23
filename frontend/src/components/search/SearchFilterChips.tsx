@@ -73,6 +73,7 @@ export function SearchFilterChips({
     if (chip.operator === "size") return t("filterSize");
     if (chip.operator === "duration") return t("filterLength");
     if (chip.operator === "modified") return t("filterModified");
+    if (chip.operator === "has") return chip.value;
     return chip.flag === "favorite" ? tSidebar("favorites") : tSidebar("liked");
   };
   const kindLabel = (kind: string) => tFilter(`type.${kind}`);

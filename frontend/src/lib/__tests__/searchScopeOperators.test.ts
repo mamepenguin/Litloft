@@ -323,12 +323,18 @@ describe("SPEC-CORE-043 combining: the filter the meaning stage receives", () =>
     expect(filterFromParsed(parsed, null)).toEqual({
       tags: [],
       kinds: [],
-      favorite: false,
-      liked: false,
+      favorite: null,
+      liked: null,
       folders: ["My Photos", "Work"],
       collections: ["旅行", "資料"],
       sizes: [],
       durations: [],
+      exclude_tags: [],
+      exclude_kinds: [],
+      exclude_folders: [],
+      exclude_collections: [],
+      has_tag: null,
+      has_collection: null,
     });
   });
 
@@ -342,6 +348,12 @@ describe("SPEC-CORE-043 combining: the filter the meaning stage receives", () =>
       collections: ["旅行"],
       sizes: [],
       durations: [],
+      exclude_tags: [],
+      exclude_kinds: [],
+      exclude_folders: [],
+      exclude_collections: [],
+      has_tag: null,
+      has_collection: null,
     };
 
     expect(filterQueryParam(filter)).toBe(

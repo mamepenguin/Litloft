@@ -34,6 +34,16 @@ describe("parseSearchQuery", () => {
       collections: [],
       sizes: [],
       durations: [],
+      excludedTags: [],
+      excludedTypes: [],
+      excludedFolders: [],
+      excludedCollections: [],
+      notFavorite: false,
+      notLiked: false,
+      hasTag: false,
+      noTag: false,
+      hasCollection: false,
+      noCollection: false,
       hasOperators: false,
     });
   });

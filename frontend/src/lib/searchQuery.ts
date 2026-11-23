@@ -58,6 +58,17 @@ export interface ParsedQuery {
    * names no `modified:` token at all.
    */
   modified?: ModifiedToken[];
+  /** The values of `-tag:`, in order of first appearance. */
+  excludedTags: string[];
+  excludedTypes: FileKind[];
+  excludedFolders: string[];
+  excludedCollections: string[];
+  notFavorite: boolean;
+  notLiked: boolean;
+  hasTag: boolean;
+  noTag: boolean;
+  hasCollection: boolean;
+  noCollection: boolean;
   hasOperators: boolean;
 }
 
@@ -93,6 +104,8 @@ const MAX_FOLDERS = 10;
 const MAX_FOLDER_CODE_POINTS = 1024;
 const MAX_COLLECTIONS = 10;
 const MAX_COLLECTION_CODE_POINTS = 100;
+const MAX_EXCLUDED_KINDS = 8;
+const NEGATABLE_OPERATORS = new Set(["tag", "type", "path", "in", "is", "has"]);
 const MAX_RANGE_COMPARISONS = 4;
 const MAX_SIZE_BYTES = BigInt(2) ** BigInt(53) - BigInt(1);
 const MAX_DURATION_MILLIS = 10_000_000_000;
@@ -518,6 +531,50 @@ export function hasImpossibleRange(
   );
 }
 
+/**
+ * True when the query's own conditions contradict each other, so no file can
+ * pass all of them. `fixed` is the page's kind, which the exclusions narrow.
+ */
+export function hasImpossibleConditions(
+  parsed: ParsedQuery,
+  fixed: FileKind | null = null,
+): boolean {
+  const excludedTags = new Set(parsed.excludedTags.map((tag) => tag.toLowerCase()));
+  if (parsed.tags.some((tag) => excludedTags.has(tag.toLowerCase()))) return true;
+  if (parsed.noTag && (parsed.tags.length > 0 || parsed.hasTag)) return true;
+  if (parsed.favorite && parsed.notFavorite) return true;
+  if (parsed.liked && parsed.notLiked) return true;
+  if (parsed.hasCollection && parsed.noCollection) return true;
+
+  const kinds = resolveKinds(fixed, parsed.types).kinds;
+  if (
+    kinds.length > 0 &&
+    kinds.every((kind) => parsed.excludedTypes.some((excluded) => kindHolds(excluded, kind)))
+  ) {
+    return true;
+  }
+
+  if (
+    parsed.folders.length > 0 &&
+    parsed.folders.every((folder) =>
+      parsed.excludedFolders.some(
+        (excluded) => folder === excluded || folder.startsWith(`${excluded}/`),
+      ),
+    )
+  ) {
+    return true;
+  }
+
+  return (
+    parsed.collections.length > 0 &&
+    parsed.collections.every((name) =>
+      parsed.excludedCollections.some(
+        (excluded) => excluded.toLowerCase() === name.toLowerCase(),
+      ),
+    )
+  );
+}
+
 function codePoints(value: string): number {
   return [...value].length;
 }
@@ -607,15 +664,17 @@ function normaliseCollection(value: string): string | null {
   return name;
 }
 
-type AcceptedOperator =
+type AcceptedOperator = { negated: boolean } & (
   | { operator: "tag"; tag: string }
   | { operator: "type"; kind: FileKind }
   | { operator: "is"; flag: "favorite" | "liked" }
   | { operator: "path"; folder: string }
   | { operator: "collection"; collection: string }
+  | { operator: "has"; value: "tag" | "collection" }
   | { operator: "size"; comparison: Comparison; value: string }
   | { operator: "duration"; comparison: Comparison; value: string }
-  | { operator: "modified"; token: ModifiedToken };
+  | { operator: "modified"; token: ModifiedToken }
+);
 
 interface InterpretedToken {
   raw: string;
@@ -630,6 +689,9 @@ interface InterpretedToken {
 function interpret(q: string): InterpretedToken[] {
   const folders: string[] = [];
   const collections: string[] = [];
+  const excludedFolders: string[] = [];
+  const excludedCollections: string[] = [];
+  const excludedTypes: FileKind[] = [];
   const sizes: string[] = [];
   const durations: string[] = [];
   const modifieds: string[] = [];
@@ -642,20 +704,30 @@ function interpret(q: string): InterpretedToken[] {
     });
     if (token.name === null || token.value === "") return text();
 
-    const name = token.name.normalize("NFKC").toLowerCase();
+    const written = token.name.normalize("NFKC").toLowerCase();
+    const negated = written.startsWith("-") && !written.startsWith("--");
+    const name = negated ? written.slice(1) : written;
+    if (negated && !NEGATABLE_OPERATORS.has(name)) return text();
+
     if (name === "tag") {
       return {
         raw: token.raw,
-        accepted: { operator: "tag", tag: token.value },
+        accepted: { operator: "tag", tag: token.value, negated },
         openQuote: token.openQuote,
       };
     }
     if (name === "type") {
       const kind = kindOf(token.value);
       if (!kind) return text();
+      if (negated) {
+        if (!excludedTypes.includes(kind) && excludedTypes.length >= MAX_EXCLUDED_KINDS) {
+          return text();
+        }
+        if (!excludedTypes.includes(kind)) excludedTypes.push(kind);
+      }
       return {
         raw: token.raw,
-        accepted: { operator: "type", kind },
+        accepted: { operator: "type", kind, negated },
         openQuote: token.openQuote,
       };
     }
@@ -664,16 +736,26 @@ function interpret(q: string): InterpretedToken[] {
       if (word !== "favorite" && word !== "liked") return text();
       return {
         raw: token.raw,
-        accepted: { operator: "is", flag: word },
+        accepted: { operator: "is", flag: word, negated },
+        openQuote: token.openQuote,
+      };
+    }
+    if (name === "has") {
+      const value = token.value.normalize("NFKC").toLowerCase();
+      if (value !== "tag" && value !== "collection") return text();
+      return {
+        raw: token.raw,
+        accepted: { operator: "has", value, negated },
         openQuote: token.openQuote,
       };
     }
     if (name === "path") {
       const folder = normaliseFolder(token.value);
       if (folder === null) return text();
-      const accepted: AcceptedOperator = { operator: "path", folder };
-      if (folders.includes(folder) || folders.length < MAX_FOLDERS) {
-        if (!folders.includes(folder)) folders.push(folder);
+      const bucket = negated ? excludedFolders : folders;
+      const accepted: AcceptedOperator = { operator: "path", folder, negated };
+      if (bucket.includes(folder) || bucket.length < MAX_FOLDERS) {
+        if (!bucket.includes(folder)) bucket.push(folder);
         return { raw: token.raw, accepted, openQuote: token.openQuote };
       }
       return text();
@@ -681,14 +763,15 @@ function interpret(q: string): InterpretedToken[] {
     if (name === "in") {
       const collection = normaliseCollection(token.value);
       if (collection === null) return text();
+      const bucket = negated ? excludedCollections : collections;
       const key = collection.toLowerCase();
-      const accepted: AcceptedOperator = { operator: "collection", collection };
+      const accepted: AcceptedOperator = { operator: "collection", collection, negated };
       if (
-        collections.some((existing) => existing.toLowerCase() === key) ||
-        collections.length < MAX_COLLECTIONS
+        bucket.some((existing) => existing.toLowerCase() === key) ||
+        bucket.length < MAX_COLLECTIONS
       ) {
-        if (!collections.some((existing) => existing.toLowerCase() === key)) {
-          collections.push(collection);
+        if (!bucket.some((existing) => existing.toLowerCase() === key)) {
+          bucket.push(collection);
         }
         return { raw: token.raw, accepted, openQuote: token.openQuote };
       }
@@ -703,7 +786,7 @@ function interpret(q: string): InterpretedToken[] {
       if (bucket.includes(key)) {
         return {
           raw: token.raw,
-          accepted: { operator: name, comparison, value },
+          accepted: { operator: name, comparison, value, negated: false },
           openQuote: token.openQuote,
         };
       }
@@ -711,7 +794,7 @@ function interpret(q: string): InterpretedToken[] {
       bucket.push(key);
       return {
         raw: token.raw,
-        accepted: { operator: name, comparison, value },
+        accepted: { operator: name, comparison, value, negated: false },
         openQuote: token.openQuote,
       };
     }
@@ -719,7 +802,7 @@ function interpret(q: string): InterpretedToken[] {
       const value = token.value.normalize("NFKC").replace(/\s+/g, "");
       const modified = parseModified(value);
       if (modified === null) return text();
-      const accepted: AcceptedOperator = { operator: "modified", token: modified };
+      const accepted: AcceptedOperator = { operator: "modified", token: modified, negated: false };
       if (modifieds.includes(modified.identity)) {
         return { raw: token.raw, accepted, openQuote: token.openQuote };
       }
@@ -733,8 +816,9 @@ function interpret(q: string): InterpretedToken[] {
 
 /**
  * `tag:` repeats as AND, `type:` as OR, `is:` takes `favorite` / `liked`,
- * `path:` and `in:` narrow the drive. A token that is not a recognised
- * operator with a usable value is text.
+ * `path:` and `in:` narrow the drive, and each of them with a leading `-`
+ * excludes. `has:` takes `tag` or `collection`. A token that is not a
+ * recognised operator with a usable value is text.
  */
 export function parseSearchQuery(q: string): ParsedQuery {
   const parsed: ParsedQuery = {
@@ -750,6 +834,16 @@ export function parseSearchQuery(q: string): ParsedQuery {
     collections: [],
     sizes: [],
     durations: [],
+    excludedTags: [],
+    excludedTypes: [],
+    excludedFolders: [],
+    excludedCollections: [],
+    notFavorite: false,
+    notLiked: false,
+    hasTag: false,
+    noTag: false,
+    hasCollection: false,
+    noCollection: false,
     hasOperators: false,
   };
   const words: string[] = [];
@@ -766,15 +860,26 @@ export function parseSearchQuery(q: string): ParsedQuery {
     }
     parsed.hasOperators = true;
     if (accepted.operator === "tag") {
-      if (!parsed.tags.some((tag) => tag.toLowerCase() === accepted.tag.toLowerCase())) {
-        parsed.tags.push(accepted.tag);
+      const list = accepted.negated ? parsed.excludedTags : parsed.tags;
+      if (!list.some((tag) => tag.toLowerCase() === accepted.tag.toLowerCase())) {
+        list.push(accepted.tag);
       }
     } else if (accepted.operator === "type") {
-      if (!parsed.types.includes(accepted.kind)) parsed.types.push(accepted.kind);
+      const list = accepted.negated ? parsed.excludedTypes : parsed.types;
+      if (!list.includes(accepted.kind)) list.push(accepted.kind);
     } else if (accepted.operator === "is") {
-      parsed[accepted.flag] = true;
+      if (accepted.negated) {
+        if (accepted.flag === "favorite") parsed.notFavorite = true;
+        else parsed.notLiked = true;
+      } else {
+        parsed[accepted.flag] = true;
+      }
+    } else if (accepted.operator === "has") {
+      if (accepted.value === "tag") parsed[accepted.negated ? "noTag" : "hasTag"] = true;
+      else parsed[accepted.negated ? "noCollection" : "hasCollection"] = true;
     } else if (accepted.operator === "path") {
-      if (!parsed.folders.includes(accepted.folder)) parsed.folders.push(accepted.folder);
+      const list = accepted.negated ? parsed.excludedFolders : parsed.folders;
+      if (!list.includes(accepted.folder)) list.push(accepted.folder);
     } else if (accepted.operator === "size") {
       if (!parsed.sizes.some((held) => sameComparison(held, accepted.comparison))) {
         parsed.sizes.push(accepted.comparison);
@@ -788,17 +893,32 @@ export function parseSearchQuery(q: string): ParsedQuery {
       if (!tokens.some((held) => held.identity === accepted.token.identity)) {
         tokens.push(accepted.token);
       }
-    } else if (
-      !parsed.collections.some(
-        (collection) => collection.toLowerCase() === accepted.collection.toLowerCase(),
-      )
-    ) {
-      parsed.collections.push(accepted.collection);
+    } else {
+      const list = accepted.negated ? parsed.excludedCollections : parsed.collections;
+      if (!list.some((collection) => collection.toLowerCase() === accepted.collection.toLowerCase())) {
+        list.push(accepted.collection);
+      }
     }
   }
 
   parsed.text = parsed.hasOperators ? words.join(" ") : q.trim();
   return parsed;
+}
+
+/** Whether the query holds a negated operator or a `has:` token. */
+export function hasNewToken(parsed: ParsedQuery): boolean {
+  return (
+    parsed.excludedTags.length > 0 ||
+    parsed.excludedTypes.length > 0 ||
+    parsed.excludedFolders.length > 0 ||
+    parsed.excludedCollections.length > 0 ||
+    parsed.notFavorite ||
+    parsed.notLiked ||
+    parsed.hasTag ||
+    parsed.noTag ||
+    parsed.hasCollection ||
+    parsed.noCollection
+  );
 }
 
 /** `document` is the one kind that holds others. */
@@ -834,14 +954,21 @@ export function resolveKinds(
 export interface SearchFilter {
   tags: string[];
   kinds: FileKind[];
-  favorite: boolean;
-  liked: boolean;
+  /** `false` excludes favorites; `null` leaves the question open. */
+  favorite: boolean | null;
+  liked: boolean | null;
   folders: string[];
   collections: string[];
   sizes: string[];
   durations: string[];
   /** The resolved wire forms; absent when the query holds no `modified:`. */
   modified?: string[];
+  exclude_tags: string[];
+  exclude_kinds: FileKind[];
+  exclude_folders: string[];
+  exclude_collections: string[];
+  has_tag: boolean | null;
+  has_collection: boolean | null;
 }
 
 /** The operators of a query as the meaning stage's `filter`. */
@@ -853,23 +980,29 @@ export function filterFromParsed(
   return {
     tags: [...parsed.tags],
     kinds: resolveKinds(fixed, parsed.types).kinds,
-    favorite: parsed.favorite,
-    liked: parsed.liked,
+    favorite: parsed.favorite ? true : parsed.notFavorite ? false : null,
+    liked: parsed.liked ? true : parsed.notLiked ? false : null,
     folders: [...parsed.folders],
     collections: [...parsed.collections],
     sizes: parsed.sizes.map(comparisonWireForm),
     durations: parsed.durations.map(comparisonWireForm),
     ...(modified.length > 0 ? { modified: [...modified] } : {}),
+    exclude_tags: [...parsed.excludedTags],
+    exclude_kinds: [...parsed.excludedTypes],
+    exclude_folders: [...parsed.excludedFolders],
+    exclude_collections: [...parsed.excludedCollections],
+    has_tag: parsed.hasTag ? true : parsed.noTag ? false : null,
+    has_collection: parsed.hasCollection ? true : parsed.noCollection ? false : null,
   };
 }
 
-/** The `filter` query parameter, with empty lists and false flags left out. */
+/** The `filter` query parameter, with empty lists and unset flags left out. */
 export function filterQueryParam(filter: SearchFilter): string {
   return JSON.stringify({
     ...(filter.tags.length > 0 ? { tags: filter.tags } : {}),
     ...(filter.kinds.length > 0 ? { kinds: filter.kinds } : {}),
-    ...(filter.favorite ? { favorite: true } : {}),
-    ...(filter.liked ? { liked: true } : {}),
+    ...(filter.favorite === true ? { favorite: true } : filter.favorite === false ? { favorite: false } : {}),
+    ...(filter.liked === true ? { liked: true } : filter.liked === false ? { liked: false } : {}),
     ...(filter.folders.length > 0 ? { folders: filter.folders } : {}),
     ...(filter.collections.length > 0 ? { collections: filter.collections } : {}),
     ...(filter.sizes.length > 0 ? { sizes: filter.sizes } : {}),
@@ -877,61 +1010,77 @@ export function filterQueryParam(filter: SearchFilter): string {
     ...(filter.modified && filter.modified.length > 0
       ? { modified: filter.modified }
       : {}),
+    ...(filter.exclude_tags.length > 0 ? { exclude_tags: filter.exclude_tags } : {}),
+    ...(filter.exclude_kinds.length > 0 ? { exclude_kinds: filter.exclude_kinds } : {}),
+    ...(filter.exclude_folders.length > 0 ? { exclude_folders: filter.exclude_folders } : {}),
+    ...(filter.exclude_collections.length > 0
+      ? { exclude_collections: filter.exclude_collections }
+      : {}),
+    ...(filter.has_tag !== null ? { has_tag: filter.has_tag } : {}),
+    ...(filter.has_collection !== null ? { has_collection: filter.has_collection } : {}),
   });
 }
 
 export type OperatorChip =
-  | { operator: "tag"; tag: string }
-  | { operator: "type"; kind: FileKind }
-  | { operator: "is"; flag: "favorite" | "liked" }
-  | { operator: "path"; folder: string }
-  | { operator: "collection"; collection: string }
+  | { operator: "tag"; tag: string; negated?: boolean }
+  | { operator: "type"; kind: FileKind; negated?: boolean }
+  | { operator: "is"; flag: "favorite" | "liked"; negated?: boolean }
+  | { operator: "path"; folder: string; negated?: boolean }
+  | { operator: "collection"; collection: string; negated?: boolean }
+  | { operator: "has"; value: "tag" | "collection"; negated?: boolean }
   | { operator: "size"; value: string; comparison: Comparison }
   | { operator: "duration"; value: string; comparison: Comparison }
   | { operator: "modified"; value: string; token: ModifiedToken };
 
-/** One chip per distinct operator, in the order the operators first appear. */
+function polarity(negated: boolean): string {
+  return negated ? "-" : "+";
+}
+
+/** One chip per distinct operator, value and polarity, in order of first appearance. */
 export function operatorChips(q: string): OperatorChip[] {
   const chips: OperatorChip[] = [];
-  const seenTags = new Set<string>();
-  const seenKinds = new Set<FileKind>();
-  const seenFlags = new Set<string>();
-  const seenFolders = new Set<string>();
-  const seenCollections = new Set<string>();
-  const seenSizes = new Set<string>();
-  const seenDurations = new Set<string>();
-  const seenModified = new Set<string>();
+  const seen = new Set<string>();
 
   for (const { accepted } of interpret(q)) {
     if (!accepted) continue;
+    const side = polarity(accepted.negated);
     if (accepted.operator === "tag") {
-      const key = accepted.tag.toLowerCase();
-      if (seenTags.has(key)) continue;
-      seenTags.add(key);
-      chips.push({ operator: "tag", tag: accepted.tag });
+      const key = `${side}tag:${accepted.tag.toLowerCase()}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      chips.push({ operator: "tag", tag: accepted.tag, ...(accepted.negated ? { negated: true } : {}) });
       continue;
     }
     if (accepted.operator === "type") {
-      if (seenKinds.has(accepted.kind)) continue;
-      seenKinds.add(accepted.kind);
-      chips.push({ operator: "type", kind: accepted.kind });
+      const key = `${side}type:${accepted.kind}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      chips.push({ operator: "type", kind: accepted.kind, ...(accepted.negated ? { negated: true } : {}) });
       continue;
     }
     if (accepted.operator === "is") {
-      if (seenFlags.has(accepted.flag)) continue;
-      seenFlags.add(accepted.flag);
-      chips.push({ operator: "is", flag: accepted.flag });
+      const key = `${side}is:${accepted.flag}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      chips.push({ operator: "is", flag: accepted.flag, ...(accepted.negated ? { negated: true } : {}) });
+      continue;
+    }
+    if (accepted.operator === "has") {
+      const key = `${side}has:${accepted.value}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      chips.push({ operator: "has", value: accepted.value, ...(accepted.negated ? { negated: true } : {}) });
       continue;
     }
     if (accepted.operator === "path") {
-      if (seenFolders.has(accepted.folder)) continue;
-      seenFolders.add(accepted.folder);
-      chips.push({ operator: "path", folder: accepted.folder });
+      const key = `${side}path:${accepted.folder}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      chips.push({ operator: "path", folder: accepted.folder, ...(accepted.negated ? { negated: true } : {}) });
       continue;
     }
     if (accepted.operator === "size" || accepted.operator === "duration") {
-      const seen = accepted.operator === "size" ? seenSizes : seenDurations;
-      const key = comparisonWireForm(accepted.comparison);
+      const key = `${side}${accepted.operator}:${comparisonWireForm(accepted.comparison)}`;
       if (seen.has(key)) continue;
       seen.add(key);
       chips.push({
@@ -942,8 +1091,9 @@ export function operatorChips(q: string): OperatorChip[] {
       continue;
     }
     if (accepted.operator === "modified") {
-      if (seenModified.has(accepted.token.identity)) continue;
-      seenModified.add(accepted.token.identity);
+      const key = `${side}modified:${accepted.token.identity}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
       chips.push({
         operator: "modified",
         value: accepted.token.value,
@@ -951,16 +1101,24 @@ export function operatorChips(q: string): OperatorChip[] {
       });
       continue;
     }
-    const key = accepted.collection.toLowerCase();
-    if (seenCollections.has(key)) continue;
-    seenCollections.add(key);
-    chips.push({ operator: "collection", collection: accepted.collection });
+    const key = `${side}collection:${accepted.collection.toLowerCase()}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    chips.push({
+      operator: "collection",
+      collection: accepted.collection,
+      ...(accepted.negated ? { negated: true } : {}),
+    });
   }
   return chips;
 }
 
+function samePolarity(accepted: AcceptedOperator, chip: OperatorChip): boolean {
+  return accepted.negated === (("negated" in chip && chip.negated) === true);
+}
+
 function chipMatches(accepted: AcceptedOperator | null, chip: OperatorChip): boolean {
-  if (!accepted) return false;
+  if (!accepted || !samePolarity(accepted, chip)) return false;
   if (chip.operator === "tag") {
     return accepted.operator === "tag" && accepted.tag.toLowerCase() === chip.tag.toLowerCase();
   }
@@ -969,6 +1127,9 @@ function chipMatches(accepted: AcceptedOperator | null, chip: OperatorChip): boo
   }
   if (chip.operator === "is") {
     return accepted.operator === "is" && accepted.flag === chip.flag;
+  }
+  if (chip.operator === "has") {
+    return accepted.operator === "has" && accepted.value === chip.value;
   }
   if (chip.operator === "path") {
     return accepted.operator === "path" && accepted.folder === chip.folder;
@@ -1002,19 +1163,36 @@ export function removeOperatorChip(q: string, chip: OperatorChip): string {
     .join(" ");
 }
 
-export type ValueOperator = "tag" | "type" | "is";
+export type ValueOperator = "tag" | "type" | "is" | "has";
 
 export interface ActiveValue {
   operator: ValueOperator;
+  /** The token being typed carries a leading `-`. */
+  negated?: boolean;
   /** What has been typed of the value so far. */
   partial: string;
   /** Where the token being typed starts in the query. */
   replaceFrom: number;
+  /** The values the same operator already holds in either polarity. */
+  held?: string[];
 }
 
 const PARTIAL = /^([^\s:：]+)[:：](\S*)$/;
-const VALUE_OPERATORS: readonly ValueOperator[] = ["tag", "type", "is"];
+const VALUE_OPERATORS: readonly ValueOperator[] = ["tag", "type", "is", "has"];
 const SUGGESTION_LIMIT = 8;
+
+/** The values an operator already holds, in either polarity, before a token. */
+function heldValues(operator: ValueOperator, q: string): string[] {
+  const parsed = parseSearchQuery(q);
+  if (operator === "tag") return [...parsed.tags, ...parsed.excludedTags];
+  if (operator === "has") {
+    return [
+      ...(parsed.hasTag || parsed.noTag ? ["tag"] : []),
+      ...(parsed.hasCollection || parsed.noCollection ? ["collection"] : []),
+    ];
+  }
+  return [];
+}
 
 /** The operator whose value is being typed at the end of the query, if any. */
 export function activeOperatorValue(q: string): ActiveValue | null {
@@ -1023,9 +1201,20 @@ export function activeOperatorValue(q: string): ActiveValue | null {
 
   const replaceFrom = Math.max(q.lastIndexOf(" "), q.lastIndexOf("　"), q.lastIndexOf("\t")) + 1;
   const match = PARTIAL.exec(q.slice(replaceFrom));
-  const name = match?.[1].normalize("NFKC").toLowerCase();
-  if (!match || !VALUE_OPERATORS.includes(name as ValueOperator)) return null;
-  return { operator: name as ValueOperator, partial: match[2], replaceFrom };
+  if (!match) return null;
+  const written = match[1].normalize("NFKC").toLowerCase();
+  const negated = written.startsWith("-") && !written.startsWith("--");
+  const name = negated ? written.slice(1) : written;
+  if (!VALUE_OPERATORS.includes(name as ValueOperator)) return null;
+  const operator = name as ValueOperator;
+  const held = heldValues(operator, q.slice(0, replaceFrom));
+  return {
+    operator,
+    ...(negated ? { negated: true } : {}),
+    partial: match[2],
+    replaceFrom,
+    ...(held.length > 0 ? { held } : {}),
+  };
 }
 
 export function formatOperatorToken(operator: string, value: string): string {
@@ -1033,7 +1222,8 @@ export function formatOperatorToken(operator: string, value: string): string {
 }
 
 export function completeOperator(q: string, active: ActiveValue, value: string): string {
-  return `${q.slice(0, active.replaceFrom)}${formatOperatorToken(active.operator, value)} `;
+  const operator = `${active.negated ? "-" : ""}${active.operator}`;
+  return `${q.slice(0, active.replaceFrom)}${formatOperatorToken(operator, value)} `;
 }
 
 /** Appends the closing quote when the query ends inside an open quoted value. */
@@ -1066,11 +1256,21 @@ export function suggestValues(
       .map(({ item }) => item)
       .slice(0, SUGGESTION_LIMIT);
 
+  const held = new Set(
+    [...usedTags, ...(active.held ?? [])].map((value) => value.toLowerCase()),
+  );
+
+  if (active.operator === "has") {
+    return ranked(
+      ["tag", "collection"]
+        .filter((value) => !held.has(value))
+        .map((value) => ({ value })),
+    );
+  }
   if (active.operator === "tag") {
-    const used = new Set(usedTags.map((tag) => tag.toLowerCase()));
     return ranked(
       tags
-        .filter((tag) => tag.count > 0 && !used.has(tag.name.toLowerCase()))
+        .filter((tag) => tag.count > 0 && !held.has(tag.name.toLowerCase()))
         .map((tag) => ({ value: tag.name, count: tag.count })),
     );
   }
