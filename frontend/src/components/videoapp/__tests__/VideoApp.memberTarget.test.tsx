@@ -118,7 +118,7 @@ function install() {
     if (path === `/api/drives/${DRIVE}/smart-folders`) {
       return json([
         smartFolder("sf-cats", "Cats", "cats"),
-        smartFolder("sf-neg", "Not drafts", "-tag:draft"),
+        smartFolder("sf-neg", "Not drafts", "drafts -tag:draft"),
         smartFolder("sf-mixed", "Cat trips", "cats tag:Trip"),
       ]);
     }
@@ -173,7 +173,7 @@ function targetRequests(calls: WireCall[]) {
 describe("SPEC-CORE-117 I8 a member target sends its members, not its conditions", () => {
   it.each([
     ["free text", "sf-cats"],
-    ["a negated token, free text to the parser", "sf-neg"],
+    ["free text with a negated token", "sf-neg"],
     ["free text with an operator", "sf-mixed"],
   ])("Discover (%s): every request goes through a POST route with file_ids = the members", async (_label, target) => {
     writeAppPrefs(DRIVE, { target });

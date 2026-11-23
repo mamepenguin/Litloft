@@ -169,7 +169,8 @@ export function useVideoApp(
       const folder = smartFolders.data.find((candidate) => candidate.id === pendingId) ?? null;
       if (
         folder !== null &&
-        resolveVideoTarget(folder).usable
+        (resolveVideoTarget(folder).usable ||
+          resolveVideoMemberTarget(folder) !== null)
       ) {
         pendingState = "apply";
         applyId = pendingId;

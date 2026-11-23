@@ -5,14 +5,14 @@ import { Film } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 
 import { AppHeader } from "@/components/appshell/AppHeader";
-import { resolveVideoTarget } from "@/lib/videoAppTarget";
+import { resolveVideoMemberTarget, resolveVideoTarget } from "@/lib/videoAppTarget";
 import type { SmartFolder } from "@/types/smartFolder";
 import type { VideoAppState } from "./useVideoApp";
 
 const VIDEO_KINDS = ["video"] as const;
 
 function isUsableTarget(folder: SmartFolder): boolean {
-  return resolveVideoTarget(folder).usable;
+  return resolveVideoTarget(folder).usable || resolveVideoMemberTarget(folder) !== null;
 }
 
 export function VideoAppHeader({

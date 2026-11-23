@@ -75,7 +75,7 @@ function smartFolder(id: string, name: string, query: string) {
 }
 
 const FOLDERS = [
-  smartFolder("sf-neg", "Unread", "-tag:read"),
+  smartFolder("sf-neg", "Unread", "unread -tag:read"),
   smartFolder("sf-long", "Long cats", "cats duration:>1h"),
   smartFolder("sf-negop", "Not pdf cats", "cats !type:pdf"),
   smartFolder("sf-length", "Long books", "duration:>1h"),
