@@ -4,6 +4,7 @@ import { mergeResults, sortMerged, type SemanticHit } from "./searchMerge";
 import {
   comparisonWireForm,
   filterFromParsed,
+  hasImpossibleConditions,
   hasImpossibleRange,
   parseSearchQuery,
   resolveKinds,
@@ -30,6 +31,11 @@ export interface SmartCollectionEvalInput {
    * One evaluation takes it once, so every page sends the same wire forms.
    */
   now?: number;
+  /**
+   * Stop after the first page whose `meta.total` exceeds this, when the query
+   * has no free text: the caller only needs to know the set is too large.
+   */
+  memberLimit?: number;
 }
 
 export interface SmartCollectionEvalIo {
@@ -41,6 +47,8 @@ export interface SmartCollectionEvalIo {
 export interface SmartCollectionEvalResult {
   files: FileItem[];
   complete: boolean;
+  /** The listing's total passed `memberLimit`; the pages read so far are not the whole set. */
+  overLimit?: boolean;
 }
 
 function shuffle<T>(items: readonly T[]): T[] {
@@ -76,7 +84,11 @@ export async function evaluateSmartCollection(
     input.timeZone ?? null,
   );
   const kinds = resolveKinds(input.type, parsed.types);
-  if (kinds.impossible || hasImpossibleRange(parsed, modified.comparisons)) {
+  if (
+    kinds.impossible ||
+    hasImpossibleRange(parsed, modified.comparisons) ||
+    hasImpossibleConditions(parsed, input.type)
+  ) {
     return { files: [], complete: true };
   }
 
@@ -99,10 +111,20 @@ export async function evaluateSmartCollection(
             ? kinds.kinds[0]
             : kinds.kinds,
       tag: parsed.tags.length > 0 ? parsed.tags : undefined,
-      favorite: parsed.favorite ? true : undefined,
-      liked: parsed.liked ? true : undefined,
+      favorite: parsed.favorite ? true : parsed.notFavorite ? false : undefined,
+      liked: parsed.liked ? true : parsed.notLiked ? false : undefined,
       folder: parsed.folders.length > 0 ? parsed.folders : undefined,
       collection: parsed.collections.length > 0 ? parsed.collections : undefined,
+      ...(parsed.excludedTags.length > 0 ? { exclude_tag: parsed.excludedTags } : {}),
+      ...(parsed.excludedTypes.length > 0 ? { exclude_type: parsed.excludedTypes } : {}),
+      ...(parsed.excludedFolders.length > 0 ? { exclude_folder: parsed.excludedFolders } : {}),
+      ...(parsed.excludedCollections.length > 0
+        ? { exclude_collection: parsed.excludedCollections }
+        : {}),
+      ...(parsed.hasTag || parsed.noTag ? { has_tag: parsed.hasTag } : {}),
+      ...(parsed.hasCollection || parsed.noCollection
+        ? { has_collection: parsed.hasCollection }
+        : {}),
       ...(parsed.sizes.length > 0
         ? { size: parsed.sizes.map(comparisonWireForm) }
         : {}),
@@ -117,6 +139,13 @@ export async function evaluateSmartCollection(
     });
     listed.push(...res.data);
     listedTotal = res.meta.total;
+    if (
+      input.memberLimit !== undefined &&
+      parsed.text === "" &&
+      listedTotal > input.memberLimit
+    ) {
+      return { files: listed, complete: true, overLimit: true };
+    }
     if (res.data.length < PAGE_LIMIT) break;
   }
 
