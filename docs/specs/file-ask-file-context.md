@@ -4,7 +4,7 @@ SPEC-ID: SPEC-ADDON-179
 SPEC-ID: SPEC-ADDON-180
 SPEC-ID: SPEC-ADDON-181
 
-Approval: sha256:6ad719b7c3512154e2a6da8935647643dec5f8a401417962f5962909a51869ae Yuichi Senga 2026-11-24
+Approval:
 
 ## Summary
 
@@ -66,7 +66,7 @@ does.
   language; speak of the file, what it says and what it shows.`
 - **S181b**: `- If the answer is not in what you were given, say so, but do not list other things
   you could not find out unless the question asks about them.`
-- **S181c**: `- Put nothing in square brackets except a number you may cite. Speak of a moment of a
+- **S181c**: `- Use square brackets only around a number you were given. Speak of a moment of a
   video as the video at its time.`
 - **Passages-only sentence** (today's): `- If the passages do not contain the answer, say so
   plainly instead of guessing.`

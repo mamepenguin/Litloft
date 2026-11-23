@@ -350,6 +350,6 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-172 | implemented | docs/specs/ask-ocr-line-dedupe.md | sha256:0435fb8bd2b5aa290f8c059d8cc5b0cdfcae88fbff0336b6d4800cffde942d9d |
 | SPEC-ADDON-173 | implemented | docs/specs/ask-ocr-line-dedupe.md | sha256:0435fb8bd2b5aa290f8c059d8cc5b0cdfcae88fbff0336b6d4800cffde942d9d |
 | SPEC-ADDON-174 | implemented | docs/specs/ask-transcript-tool.md | sha256:5ef88ddb764d78707aa5c4e01940002e0bdcabab53913dffac4f06f0afe33782 |
-| SPEC-ADDON-179 | approved | docs/specs/file-ask-file-context.md | sha256:6ad719b7c3512154e2a6da8935647643dec5f8a401417962f5962909a51869ae |
-| SPEC-ADDON-180 | approved | docs/specs/file-ask-file-context.md | sha256:6ad719b7c3512154e2a6da8935647643dec5f8a401417962f5962909a51869ae |
-| SPEC-ADDON-181 | approved | docs/specs/file-ask-file-context.md | sha256:6ad719b7c3512154e2a6da8935647643dec5f8a401417962f5962909a51869ae |
+| SPEC-ADDON-179 | draft | docs/specs/file-ask-file-context.md | |
+| SPEC-ADDON-180 | draft | docs/specs/file-ask-file-context.md | |
+| SPEC-ADDON-181 | draft | docs/specs/file-ask-file-context.md | |
