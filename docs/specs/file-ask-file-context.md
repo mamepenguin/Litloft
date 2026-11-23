@@ -4,7 +4,7 @@ SPEC-ID: SPEC-ADDON-179
 SPEC-ID: SPEC-ADDON-180
 SPEC-ID: SPEC-ADDON-181
 
-Approval: sha256:c2a0c31e203b771be1c98aa42327f8893da2efd581e0fa5dbad2759012717e72 Yuichi Senga 2026-11-23
+Approval:
 
 ## Summary
 
@@ -66,6 +66,8 @@ does.
   language; speak of the file, what it says and what it shows.`
 - **S181b**: `- If the answer is not in what you were given, say so, but do not list other things
   you could not find out unless the question asks about them.`
+- **S181c**: `- Put nothing in square brackets except a number you may cite. Speak of a moment of a
+  video as the video at its time.`
 - **Passages-only sentence** (today's): `- If the passages do not contain the answer, say so
   plainly instead of guessing.`
 - **Passages-only opener** (today's): `You answer a question about a single file, using only the
@@ -103,7 +105,7 @@ does.
    the file is attached. Where the image and the passages differ, take exact characters from
    the passages.") stays. The passages-only branch keeps the passages-only sentence
    (SPEC-ADDON-180).
-6. S181a then S181b are written on every path immediately before the "Answer in short
+6. S181a, S181b then S181c are written on every path immediately before the "Answer in short
    Markdown" line (SPEC-ADDON-181). The existing "say so" rules and the rules that a tool must
    be called before saying something is not shown or not said stay as they are; S181b governs
    only what is added beyond the answer to the question.
@@ -150,7 +152,7 @@ same file, and rides only on requests the route already sends under the `llm_clo
 - The golden prompt files `tests/golden_prompts/frame_request_today_*.json` (recorded from
   the addon at 895d334) are not re-recorded. `frame_request_doubles.todays_request` returns the
   golden with the file block of its fixture (`File: vid000000216.bin`, `Type: video/mp4`, no
-  `Folder:` line, since the test's `drive_mounts` is empty) and the S179/S181a/S181b lines
+  `Folder:` line, since the test's `drive_mounts` is empty) and the S179/S181a/S181b/S181c lines
   inserted at the positions this spec states, so the fallback tests of SPEC-ADDON-116 and
   SPEC-ADDON-174 still compare the new code with the old request plus exactly these lines.
 - `tests/test_spec_addon_071_image_stream.py` asserts `"image" not in` the text-only retry
@@ -176,8 +178,8 @@ Only the answer text, and only as the model follows the prompt:
 - With a picture that has a little indexed text, the answer draws on what the picture shows
   and does not say the answer is missing because the text lacks it.
 - The answer does not speak of passages, frames or numbered items, in English or in the
-  answer's language, and does not end with a list of what it could not find when that was not
-  asked.
+  answer's language, puts no bracketed label such as `[画像]` in its text, and does not end
+  with a list of what it could not find when that was not asked.
 
 Citation numbers, the order of the answer, the 質問 tab and its controls are unchanged.
 
@@ -188,12 +190,14 @@ R-5 runs on the local stack with the profile it routes `rag` to, each question t
 3. a question about a PDF whose answer is not in it (passages only);
 4. a question about a video whose answer is not in it (frames).
 
-Every run must pass: answers 1 and 2 name the file and its format, and answer 1 names at least
-one thing visible in the picture that its indexed text does not contain; answers 3 and 4 say
-the answer is not there, without listing other unknowns and without answering from general
-knowledge; no answer speaks of passages, frames or numbered items in any language. A miss is
-reported to the human with the answer, and is not fixed by changing the spec's wording
-without a new approval.
+Every run must pass: answer 1 says the file is a picture and what it shows; answer 2 says what
+kind of document it is, by its name or its kind (for example a manual); answers 3 and 4 say the
+answer is not there, without listing other unknowns and without answering from general
+knowledge; no answer speaks of passages, frames or numbered items in any language, and no
+answer has a square-bracketed label other than a citation number. A list of what the file does
+say, added after "it is not there", is not a list of unknowns. A miss is reported to the human
+with the answer and recorded in the PR as a limit of the model; it does not lead to another
+change of the prompt's wording.
 
 ### 10. Non-functional
 
@@ -231,8 +235,8 @@ I2. (SPEC-ADDON-179) The `Folder:` line carries the Folder of Terms, `(top of th
 I3. (SPEC-ADDON-179) No text this change adds to a prompt contains the drive's mount path.
 I4. (SPEC-ADDON-179) Every file-question system prompt has S179 as the first line after `Rules:`, once, and the passages-only branch's opener is the new passages-only opener of Terms.
 I5. (SPEC-ADDON-180) With an image and passages and no frames, the system prompt contains S180 in the place the passages-only sentence holds on the passages-only branch, does not contain the passages-only sentence, and still contains the image rule.
-I6. (SPEC-ADDON-181) Every file-question system prompt contains S181a then S181b, once each, immediately before the "Answer in short Markdown" line, and every "say so" rule and every rule to call `get_frames` or `get_transcript` before saying something is not shown or not said that it carried before is still there.
-I7. (SPEC-ADDON-179) With no history, every file-question request on every path, the text-only retry included, is today's apart from the file block, S179, the new passages-only opener, S181a, S181b and, on the passages-and-image branch, S180 in place of the passages-only sentence; no request is added, and the numbers offered for citation and the rule that only they may be cited are unchanged.
+I6. (SPEC-ADDON-181) Every file-question system prompt contains S181a, S181b then S181c, once each, immediately before the "Answer in short Markdown" line, and every "say so" rule and every rule to call `get_frames` or `get_transcript` before saying something is not shown or not said that it carried before is still there.
+I7. (SPEC-ADDON-179) With no history, every file-question request on every path, the text-only retry included, is today's apart from the file block, S179, the new passages-only opener, S181a, S181b, S181c and, on the passages-and-image branch, S180 in place of the passages-only sentence; no request is added, and the numbers offered for citation and the rule that only they may be cited are unchanged.
 
 ## Revises
 
