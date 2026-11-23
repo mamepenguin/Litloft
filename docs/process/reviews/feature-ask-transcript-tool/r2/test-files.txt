@@ -1,0 +1,5 @@
+addons/intelligence/tests/frame_request_doubles.py
+addons/intelligence/tests/test_spec_addon_174_transcript_edge_cases.py
+addons/intelligence/tests/test_spec_addon_174_transcript_limits.py
+addons/intelligence/tests/test_spec_addon_174_transcript_offer.py
+addons/intelligence/tests/test_spec_addon_174_transcript_results.py

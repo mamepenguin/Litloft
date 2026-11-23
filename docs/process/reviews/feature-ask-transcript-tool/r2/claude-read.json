@@ -1,0 +1,109 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [],
+  "specification_compliance": [
+    "R3 (I3) is fixed. rag.py:1910 now reserves `1 + _TRANSCRIPT_STOP_CHARS`. An accepted candidate L satisfies L + 1 + 70 <= 3000. On a stop the result is join(lines) + '\\n' + note, which is L + 1 + len(note) <= 3000 for any clock of 8 characters or fewer. When the first row does not fit, the result is the note alone.",
+    "The new test test_a_row_at_the_boundary_leaves_room_for_the_note_newline kills the pre-fix code. _fit (file_question.py:1087-1103) skips HOUR-A (2,924 characters is over the 1,500 budget) and sends HOUR-B as [1]. P=1 and F=8, so HOUR-A would be [10], a 2,930-character group. Before the fix it was accepted (2930 + 70 = 3000), and the already-sent HOUR-B line then stopped the walk with a 10:00:10 note, giving 3,001 characters. After the fix the walk stops at HOUR-A and the result is the 70-character note.",
+    "R4 is fixed. rag.py:1410-1439 wraps the _serve_transcript loop in try/except, passes CancelledError through and sends any other exception to fallback(), as the cut_task branch does at 1389-1397. The served/frame_calls/transcript_calls counters are only bumped after this block (1442-1449), so no call of the failed round is counted in the log line. sent_rows and sent_parts may be partly mutated, but the generator returns, so nothing reads them again. test_it_sends_todays_request_once_and_answers_from_it would fail if the try were removed.",
+    "R2 is fixed. Only one _call_times remains (rag.py:1616-1624), built on _call_arguments.",
+    "R5 is closed by a test. In test_a_later_call_names_it_and_sends_no_removed_part, row 1 (20-30 s) is unsent at budget 1: _fit cuts the first-ranked row 0 to one character. The first call sends row 1 with its stored text as [10] and records it as 'stored'. With the mutant `if first:`, the second call would build a supplement from removed=('R-UNIQUE-REMOVED',), which is not in sent_parts, and emit [11]. The test asserts `later == 'already sent as [10]'`, so the mutant dies.",
+    "I1/I8: the template is unchanged since r1. The cut branches render the opening, the citable sentence, the passages rule, the get_transcript rule and the 'More frames and text:' section. The uncut branches render the earlier text.",
+    "I4: passages and initial frames seed `positions` (rag.py:1146-1153). Transcript numbers are assigned before the reply's frames (1409-1466). citations_from keeps only numbers in positions. meta comes from _file_meta(material), so partial is the material's."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    {
+      "behavior": "The stop-note reserve assumes a clock of at most 8 characters. A stop row starting at 100 h or later gets a 9-character format_position clock, so the result can be one character over 3,000 even with the new newline reserve.",
+      "frequency": 0,
+      "impact": 1,
+      "reason": "Only a video of more than 100 hours triggers it, and personal use does not produce one; the model would receive a result one character over the cap."
+    },
+    {
+      "behavior": "A first-segment row written with its stored text does not add its repeated lines to sent_parts, so a later supplement for another sent row can repeat a line the model already received.",
+      "frequency": 2,
+      "impact": 1,
+      "reason": "A slide heading repeated across overlapping transcript calls appears twice in a tool result, costing a few characters of the 3,000."
+    },
+    {
+      "behavior": "A single row whose numbered group exceeds about 2,929 characters is never sent: every range that reaches it returns only the stop note at that row, and the walk does not continue to later rows.",
+      "frequency": 1,
+      "impact": 3,
+      "reason": "Only an unusually long transcript window or frame-text chunk triggers it; the model sees 'Text from X on was not sent' and must request a range that starts after that row."
+    },
+    {
+      "behavior": "When an exception aborts a round's transcript building after an earlier round served calls, the cut log line is still written with the earlier rounds' counts and the fallback answer follows.",
+      "frequency": 0,
+      "impact": 1,
+      "reason": "_serve_transcript has no ordinary failure (it is pure over in-memory rows); the operator would see a warning plus a count line for the earlier rounds."
+    }
+  ],
+  "regression_risks": [
+    "The new try/except at rag.py:1410-1439 catches any exception, including programming errors in _serve_transcript, and turns it into a fallback answer with a warning. A future bug there would show up as a quieter 'answered without the tool' rather than a crash.",
+    "citations() still delegates to citations_from for every file question; behaviour is unchanged for keys 1..len(chunks)."
+  ],
+  "test_coverage": [
+    "The 3,001-character case of R3 is now pinned by an hour-10 boundary test that fails on the pre-fix arithmetic.",
+    "Dropping `sent_as == \"filtered\"` (R5) is now killed by the new stored-row test.",
+    "Removing the fallback try around _serve_transcript is killed by the new error test, which monkeypatches _serve_transcript to raise.",
+    "Still untested: a stop clock of 9 characters (100 h or more).",
+    "Still untested: the uncut path's system prompt compared byte for byte with SPEC-ADDON-116's; the uncut test checks tool names, results and the log line."
+  ],
+  "not_verified": [
+    "Tests were not run; mutant kills are reasoned from the code and the test data.",
+    "The new tests' assumption that _rank with equal vectors keeps file order (a stable sort) was not read in _rank's body.",
+    "The llm client's serialization of two tools and of the ollama final request with no tools.",
+    "The full contents of frame_request_doubles.py beyond the diff hunks (answer_text, offers_tool, is_final helpers)."
+  ],
+  "coverage": [
+    {
+      "path": "addons/intelligence/app/prompts/rag/file_question_system.jinja2",
+      "read": "full",
+      "reason": "Read the whole file."
+    },
+    {
+      "path": "addons/intelligence/app/rag/file_question.py",
+      "read": "full",
+      "reason": "Read every changed hunk with its enclosing code: load_material (420-565), _material_rows, _fit and _selected (1044-1103); the dataclasses and citations_from as diff hunks."
+    },
+    {
+      "path": "addons/intelligence/app/rag/prompt.py",
+      "read": "partial",
+      "reason": "Read only the diff hunks (the cut flag, GET_TRANSCRIPT_TOOL); the fix commits did not touch the file, and the file was not reopened."
+    },
+    {
+      "path": "addons/intelligence/app/routers/rag.py",
+      "read": "full",
+      "reason": "Read _frame_tool_answer whole (1103-1534) and the call site (1020-1101), plus _call_arguments through _serve_transcript (1600-1928)."
+    },
+    {
+      "path": "addons/intelligence/tests/frame_request_doubles.py",
+      "read": "partial",
+      "reason": "Only the changed hunks, as diff text."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_174_transcript_edge_cases.py",
+      "read": "full",
+      "reason": "New file, read whole as diff text and traced against _fit and _serve_transcript."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_174_transcript_limits.py",
+      "read": "full",
+      "reason": "New file, read whole as diff text."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_174_transcript_offer.py",
+      "read": "full",
+      "reason": "New file, read whole as diff text."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_174_transcript_results.py",
+      "read": "full",
+      "reason": "New file, read whole as diff text."
+    }
+  ],
+  "trajectory": "There was one fix round, 0ad7f63 (929ab2a only records the review). It added one branch: an exception while a transcript result is built now goes to the fallback, the same path a cut_task failure already takes, so no new state was introduced. It corrected one arithmetic prediction: the stop-note reserve now includes the joining newline. It removed one element, the dead duplicate _call_times. No branch, state or prediction added in this round repeats one added in an earlier round, so there is no sign of the design being patched. Each fix is a single local change, and each comes with a test that kills the pre-fix code.",
+  "confidence": 82
+}

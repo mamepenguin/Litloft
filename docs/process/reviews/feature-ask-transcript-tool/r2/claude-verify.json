@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [],
+  "unspecified_scores": [
+    {
+      "source_reviewer": "claude-read",
+      "index": 0,
+      "frequency": 0,
+      "impact": 1,
+      "reason": "Only a stop row starting at 100 h or later (a 9-character clock against the 8-character reserve at rag.py:733) can push a result one character over 3,000; a personal video library has no such videos, and one extra character is harmless."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "index": 1,
+      "frequency": 2,
+      "impact": 1,
+      "reason": "When a first-segment row is written with its stored text, its removed parts are not added to sent_parts (rag.py:1913-1918); a later supplement for another already-sent row can repeat a line such as a recurring caption, and the user sees nothing beyond a slightly redundant prompt."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "index": 2,
+      "frequency": 1,
+      "impact": 4,
+      "reason": "A single transcript or OCR row whose group exceeds about 2,929 characters always hits the stop check at rag.py:1910 before anything is written, so any range that reaches it returns only the stop note; the model gets no text from that point and may answer that it cannot find the content."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "index": 3,
+      "frequency": 0,
+      "impact": 1,
+      "reason": "Only a programming error inside the pure in-memory _serve_transcript (rag.py:1410-1439) can trigger this; the user still gets the fallback answer, and the only side effect is a log line counting earlier rounds."
+    }
+  ],
+  "specification_compliance": [
+    "No findings were submitted for verification. The four unspecified behaviors were checked against _serve_transcript (rag.py:1856-1927) and the transcript-building loop (rag.py:1410-1439), and each matches its description."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "The stop-note reserve at rag.py:733 depends on format_position producing at most 8 characters."
+  ],
+  "test_coverage": [
+    "Not inspected: whether the acceptance tests cover a single row too large to fit or the stored-text versus sent_parts interaction."
+  ],
+  "not_verified": [
+    "Did not read the tests or run any code.",
+    "Did not check the I1–I10 invariants in full beyond the code paths tied to the four unspecified behaviors.",
+    "Did not check file_question.load_material, the prompt template, or the docs."
+  ],
+  "confidence": 80
+}
