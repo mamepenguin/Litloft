@@ -34,10 +34,15 @@ request, contents, readable time, total deadline). In addition:
   (SPEC-ADDON-053 step 3, frame-text rows filtered by SPEC-ADDON-171) were read, and only
   some were sent as passages. The material also keeps each frame-text row's stored text,
   before SPEC-ADDON-171's filter, including rows the filter removed whole.
-- **First segment of a range**: of the frame-text rows whose span overlaps the range, those
-  of the segment with the smallest `start_time`. Their text is the stored text, so the
-  result shows everything on screen at the range's first segment; every later frame-text
-  row of the range keeps its SPEC-ADDON-171 text.
+- **First segment of a range**: of the frame-text rows whose span overlaps the range, rows
+  the filter removed whole included, those of every segment with the smallest
+  `start_time`. The result gives them with their stored text, so it shows everything on
+  screen at the range's first segment. Every later frame-text row of the range keeps its
+  SPEC-ADDON-171 text, and one the filter removed whole is skipped: it takes no number and
+  no room.
+- **Removed parts** of a frame-text row: the `\n`-parts of its stored text that the
+  SPEC-ADDON-171 filter removed, in their order. A part cut off by fitting is not a removed
+  part.
 - **Row span**: a transcript chunk's is `[timestamp_start, timestamp_end)`. A frame-text
   row's is its segment's `[start_time, end_time)`. A row with no end has its start alone.
   A row of any other kind has no span and is never returned by the tool.
@@ -110,7 +115,11 @@ request, contents, readable time, total deadline). In addition:
       counts as served.
    2. Otherwise the rows whose span overlaps `[start, end)` are walked in time order,
       the first segment's rows with their stored text:
-      - A sent row is written as the line "already sent as [n]".
+      - A sent row is written as the line "already sent as [n]". When it is a row of the
+        first segment that has removed parts which have not been sent for the question,
+        the line is followed by `[m]`, those removed parts, and an empty line, with `m` the
+        next number; this supplement is a requested passage at the row's position, and its
+        parts count as sent from then on.
       - Any other row is written as the line `[n]`, then its text, then an empty line,
         with `n` the next number (step 5).
       - Before a row is written, the result so far, that row's lines and the longest
@@ -270,7 +279,7 @@ I6. A refusal or failure of a tool request, or of a final request before its fir
 I7. Nothing is written by a transcript request, and no question, answer, tool argument or requested text is logged.
 I8. With cut material, the system prompt of every tool request names the passages get_transcript returns as citable in its opening and, with history, in its sentence on what may be cited; carries the rule that get_transcript must be called before saying something is not said; and states the limit as 3 calls of the two tools together.
 I9. With cut material, the log line is written once per question that served a tool call, `a` and `c` count served calls named `get_frames` and `get_transcript` (bad arguments included), no call of another name or over the limit is counted, and `b` and `d` count frames and requested passages sent.
-I10. A transcript result gives the first segment of its range with its stored text, and every later frame-text row of the range with its SPEC-ADDON-171 text.
+I10. Every first-segment row a transcript result writes is either written with its stored text, or, when it was sent with its SPEC-ADDON-171 text, named as already sent and followed by a passage of its removed parts not yet sent; a later frame-text row is written with its SPEC-ADDON-171 text, and one the filter removed whole is not written.
 
 ## Revises
 
@@ -284,7 +293,7 @@ SPEC-ADDON-081 I2. For one question, the kept turns' sizes (question plus answer
 SPEC-ADDON-114 I2. The passages sent for a text video are the same, by budget and ranking, whether frames are attached, none could be prepared, or the request is retried after a refusal; SPEC-ADDON-174 requested passages are sent only on the tool path and never in a retry.
 SPEC-ADDON-114 I10. The system prompt sent with passages and frames tells the model that both numbered passages and numbered frames may be cited and nothing else, SPEC-ADDON-174 requested passages counting as passages, to take exact characters from a passage where it and a frame differ and from a frame when no passage has them, and to say so instead of guessing when neither contains the answer.
 SPEC-ADDON-081 I1. A file question with no `history` or an empty one sends the model the same system prompt, user prompt and chunks, ranked by the new question alone, as before SPEC-ADDON-081, with a video's repeated frame-text lines removed as SPEC-ADDON-171 states, and, for cut material on the tool path, the system prompt and tools of SPEC-ADDON-174; with history and a file over budget, ranking embeds the last `history` entry's question as sent, a newline, and the new question.
-SPEC-ADDON-171 I2. Ask sends no `\n`-part of a frame-text row whose stripped form is a repeated line, except in the first segment of a SPEC-ADDON-174 transcript request's range, which is sent with its stored text, and sends every other part of every frame-text row it sends, as stored and in its order within its row; a frame-text row in which nothing was removed is sent with its stored text unchanged, and a row whose remaining parts are all blank takes no `[n]`.
+SPEC-ADDON-171 I2. Ask sends no `\n`-part of a frame-text row whose stripped form is a repeated line, and sends every other part of every frame-text row it sends, as stored and in its order within its row; a frame-text row in which nothing was removed is sent with its stored text unchanged, and a row whose remaining parts are all blank takes no `[n]`. The rows of the first segment of a SPEC-ADDON-174 transcript request's range are the exception: they are sent with their stored text, or with their removed parts when the row was already sent, and take a number although the filter removed them whole.
 SPEC-ADDON-071 I4. The passages sent for a question are the same, by the budget and ranking of SPEC-ADDON-053, whether or not an image is attached, and the text-only retry sends those same passages and no SPEC-ADDON-174 requested passage.
 SPEC-ADDON-071 I1. A question's passages, picture and frames come only from the requested file, an active file of the `X-Lit-Drive` drive that the viewer can access and whose `rag` feature is on, and the only other text sent is the history the request carried and, for a video on the path of SPEC-ADDON-116, its duration, contents, the definitions of its tools (`get_frames`, and `get_transcript` under SPEC-ADDON-174) and the tool results, whose requested passages are rows of the same file; a picture gets at most one image of at most 1024 px on its long edge, and a video gets at most 8 initial frames and 12 requested frames of at most 1280 px when its profile can see.
 
