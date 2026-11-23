@@ -1,0 +1,156 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "TP-1",
+      "origin": "reviewer",
+      "claim": "The change adds a new test helper module addons/intelligence/tests/summary_text_variant.py that is not named in the spec's touch-point list.",
+      "impact": "No user impact; a reader auditing scope against the touch-point list would not expect a new shared test module that test_prompt_loader.py and test_summaries.py both import and that encodes the step-5 substitutions the I7 and I6 assertions depend on.",
+      "evidence": "diff adds addons/intelligence/tests/summary_text_variant.py (117 lines; golden(), text_variant(), LANGS); imported at tests/test_prompt_loader.py:23 and inside tests/test_summaries.py _expected_system_prompt. The touch-point list names test_summaries.py, test_prompt_loader.py, _baseline.py and the goldens only.",
+      "repro": "not_reproduced (scope comparison between the diff file list and the declared touch points)",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Unplanned touch point, test-only; breaks no invariant and the helper implements the spec's statement that the document expectation is derived from the transcript golden.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Add tests/summary_text_variant.py to the spec's touch-point list."
+    },
+    {
+      "id": "TP-2",
+      "origin": "reviewer",
+      "claim": "The commit under review moves the parent repository's addons/intelligence submodule gitlink (d9b7daf -> 02cf55c), a path not named in the touch-point list.",
+      "impact": "No user impact; the gitlink bump is how the in-submodule edits reach the parent repo, but it is not listed as a touch point.",
+      "evidence": "diff --git a/addons/intelligence b/addons/intelligence: Subproject commit d9b7dafd... -> 02cf55ce...",
+      "repro": "not_reproduced (scope comparison)",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Mechanical vehicle for the listed in-submodule changes; breaks no invariant.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Optionally note the submodule pointer bump in the touch points; no code change."
+    }
+  ],
+  "specification_compliance": [
+    "Step 2: _source_kind (summaries.py:177-183) returns 'text' only for 'document' and 'transcript' for every other value including None; both builders take context_type=None and pass source_kind (summaries.py:186-224).",
+    "Step 3: all three templates compute is_text from source_kind | default(\"transcript\"); _common_rules rendered with no variables yields the transcript branch, and the Environment uses StrictUndefined, but default() handles undefined, so test_common_rules_matches_golden remains valid.",
+    "Step 4/I1: the transcript branches reproduce the old text verbatim; the {% if %}/{% endif %} tags are placed inline with no whitespace control and trim_blocks is off (prompt_loader.py:18-23), so no newline is added or removed in the transcript branch.",
+    "Step 5: the text branch replaces '## Handling proper nouns' through the last 'Handle with care' bullet (_common_rules.jinja2:9-27), drops the culinary/ASR bullet as a whole line (lines 46-47), and replaces the short/long and detailed name bullets and the narrator->author spans in detailed_system.jinja2:40,45-47,51, keeping 'the author calls it'.",
+    "I6: both worker call sites pass context_type: generate_detailed_summary (summaries.py:1088) and _generate_short_long (summaries.py:1163); the on-index path (1411-1426) routes through both, so every production path gets the context-type-specific prompt; one LLM call per variant is unchanged.",
+    "poc_hierarchical_summary.py:544 passes 'document' as specified."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "If a future caller of _build_system_prompt/_build_detailed_system_prompt forgets to pass context_type, documents silently fall back to the transcript prompt (the safe side by design); only the two worker call sites and the PoC script exist today.",
+    "The goldens were added in the same submodule commit as the template edits; their 'captured before editing' provenance cannot be verified from the tree alone, though their content matches the transcript branch text exactly."
+  ],
+  "test_coverage": [
+    "I1: test_prompt_loader.py:146-159 compares no-arg, None, video, audio, text and image against the goldens for ja/en/auto/fr for both builders; test_common_rules_matches_golden covers the bare include.",
+    "I7: test_prompt_loader.py:162-171 compares the document prompt to text_variant(golden), which asserts that each substituted span is unique and that the proper-noun span ends on a blank line.",
+    "I2-I5: substring tests at test_prompt_loader.py:174-240, each also asserting the transcript-side presence, so a mutant that always renders one branch is killed.",
+    "I6: test_summaries.py TestSystemPromptBySourceKind covers the on-index job and generate_detailed_summary for mp4, m4a, .loft (file_type 'other' + LOFT MIME), epub, pdf and markdown ('text'), and asserts assert_called_once plus the full system prompt. A mutant that drops context_type at either call site fails the document cases.",
+    "Mutant _source_kind returning 'text' for 'text' raw type: killed by the I1 'text' parameter, because the builders receive context types, not raw types.",
+    "The generate_summary manual short/long path (summaries.py:1205) is not exercised by a new test, but it shares _generate_short_long with the on-index path, which is tested."
+  ],
+  "not_verified": [
+    "Did not run the test suite; the I6 worker tests reaching the LLM for the .loft and pdf stubs (via _build_context) are not confirmed by execution.",
+    "Did not byte-compare the new golden files against a render of the base-revision templates (trailing-newline handling for the 'auto' variant in particular).",
+    "Did not read .claude/rules/design-decisions.md or the other repository process documents.",
+    "Did not inspect the user-prompt templates (short_long_user/detailed_user) for transcript-specific wording that documents would still receive."
+  ],
+  "coverage": [
+    {
+      "path": "addons/intelligence/app/prompts/summaries/_common_rules.jinja2",
+      "read": "full",
+      "reason": "Read whole file."
+    },
+    {
+      "path": "addons/intelligence/app/prompts/summaries/detailed_system.jinja2",
+      "read": "full",
+      "reason": "Read whole file."
+    },
+    {
+      "path": "addons/intelligence/app/prompts/summaries/short_long_system.jinja2",
+      "read": "full",
+      "reason": "Read whole file."
+    },
+    {
+      "path": "addons/intelligence/app/workers/summaries.py",
+      "read": "partial",
+      "reason": "Read lines 170-399 (_source_kind, both builders, _classify_file_type), 1000-1239 (generate_detailed_summary, _generate_short_long, generate_summary) and 1370-1427 (_process_file); these cover every changed hunk with its enclosing function and all callers."
+    },
+    {
+      "path": "addons/intelligence/scripts/poc_hierarchical_summary.py",
+      "read": "partial",
+      "reason": "Read lines 500-569, the enclosing _run_window3 function of the only changed hunk."
+    },
+    {
+      "path": "addons/intelligence/tests/golden_prompts/_baseline.py",
+      "read": "full",
+      "reason": "Read whole file."
+    },
+    {
+      "path": "addons/intelligence/tests/golden_prompts/summaries_detailed_system_auto.txt",
+      "read": "full",
+      "reason": "New file; read its full content in the diff."
+    },
+    {
+      "path": "addons/intelligence/tests/golden_prompts/summaries_detailed_system_en.txt",
+      "read": "full",
+      "reason": "New file; read its full content in the diff."
+    },
+    {
+      "path": "addons/intelligence/tests/golden_prompts/summaries_detailed_system_fr.txt",
+      "read": "full",
+      "reason": "New file; read its full content in the diff."
+    },
+    {
+      "path": "addons/intelligence/tests/golden_prompts/summaries_detailed_system_ja.txt",
+      "read": "full",
+      "reason": "New file; read its full content in the diff."
+    },
+    {
+      "path": "addons/intelligence/tests/golden_prompts/summaries_short_long_system_auto.txt",
+      "read": "full",
+      "reason": "New file; read its full content in the diff."
+    },
+    {
+      "path": "addons/intelligence/tests/golden_prompts/summaries_short_long_system_en.txt",
+      "read": "full",
+      "reason": "New file; read its full content in the diff."
+    },
+    {
+      "path": "addons/intelligence/tests/golden_prompts/summaries_short_long_system_fr.txt",
+      "read": "full",
+      "reason": "New file; read its full content in the diff."
+    },
+    {
+      "path": "addons/intelligence/tests/golden_prompts/summaries_short_long_system_ja.txt",
+      "read": "full",
+      "reason": "New file; read its full content in the diff."
+    },
+    {
+      "path": "addons/intelligence/tests/summary_text_variant.py",
+      "read": "full",
+      "reason": "New file; read its full content in the diff."
+    },
+    {
+      "path": "addons/intelligence/tests/test_prompt_loader.py",
+      "read": "partial",
+      "reason": "Read lines 1-245, which cover the import change and the whole new SPEC-ADDON-175/176 block plus the existing golden tests."
+    },
+    {
+      "path": "addons/intelligence/tests/test_summaries.py",
+      "read": "partial",
+      "reason": "Read the new block at the end of the file (TestSystemPromptBySourceKind and its helpers) in the diff, and grepped its imports and fixtures; the rest of the file was not read."
+    }
+  ],
+  "confidence": 82
+}

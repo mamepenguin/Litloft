@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-1",
+      "status": "confirmed",
+      "note": "addons/intelligence/tests/summary_text_variant.py exists (117 lines: LANGS, GOLDEN_STEM, golden(), text_variant() that applies the step-5 substitutions to the transcript golden). It is imported at tests/test_prompt_loader.py:23 and tests/test_summaries.py:2377. The spec touch-point list (docs/specs/summary-name-rule-by-source.md:158-172) does not name it. It is a test-only helper that carries out spec section 7's 'the test derives it from the transcript golden by applying step 5's substitutions', so it is a scope-list omission, not a behavioral change."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-2",
+      "status": "confirmed",
+      "note": ".gitmodules:1-2 declares addons/intelligence as a submodule. The submodule reflog (modules/addons/intelligence/logs/HEAD lines 1-7) shows d9b7daf at clone, then 9e04aee 'test: acceptance tests…' and 02cf55c 'feat(summaries): pick the person-name rule by source kind' on feature/summary-name-rule-by-source, which matches the parent commit message 'chore: bump intelligence to the summary name rule'. The gitlink path is not literally in the touch-point list. Still, every listed touch point lives inside this submodule, so the bump is the only way the listed changes reach the parent repository. It is expected and does not widen scope."
+    }
+  ],
+  "unspecified_scores": [],
+  "specification_compliance": [
+    "Both touch-point findings are true as literal statements. Neither marks a deviation in behavior: the helper module is how spec section 7's derived document expectation is implemented, and the gitlink bump is how the in-submodule touch points are delivered."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "text_variant() rebuilds the document expectation by applying substitutions keyed on line prefixes. If the helper and the template both had the same mistake, the I7 test would still pass, because the expectation is not an independent golden."
+  ],
+  "test_coverage": [
+    "summary_text_variant.py is used by test_prompt_loader.py and test_summaries.py to check I7 across LANGS ja, en, auto and fr."
+  ],
+  "not_verified": [
+    "Did not run the tests or git commands; the submodule commit hashes were checked through the reflog file, not git diff.",
+    "Did not independently review the template or worker changes against I1-I7 beyond the two touch-point findings.",
+    "Did not confirm that the step-5 substitution text in the spec matches the helper's literal strings."
+  ],
+  "confidence": 90
+}
