@@ -1715,8 +1715,8 @@ default target) into the conditions to request:
 - `{ usable: true, empty: true, params: null }` — no file of `baseKinds` can
   match, so nothing is requested.
 - `{ usable: false, reason: "unsupported_part" }` — the query holds a negated
-  operator, a duration part, or another part the listing has no parameter for.
-  List the folder's row disabled and do not request it.
+  operator, a `has:` token, a duration part, or another part the listing has no
+  parameter for. List the folder's row disabled and do not request it.
 
 `baseKinds` is the kinds the page lists: non-empty, and every one a leaf kind
 (`document` is the one kind that holds others). Either would silently widen or
