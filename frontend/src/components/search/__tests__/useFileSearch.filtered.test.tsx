@@ -2,13 +2,19 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { invalidateAddonsCache } from "@/lib/addons";
-import type { FileKind } from "@/types";
+import type { FileItem, FileKind } from "@/types";
 
 import { useFileSearch } from "../useFileSearch";
 
 const getDriveFiles = vi.hoisted(() => vi.fn());
+const getDriveFilesWithFileIds = vi.hoisted(() => vi.fn());
+const getCollections = vi.hoisted(() => vi.fn());
+const getSmartFolders = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/api", () => ({
   getDriveFiles: (...args: unknown[]) => getDriveFiles(...args),
+  getDriveFilesWithFileIds: (...args: unknown[]) => getDriveFilesWithFileIds(...args),
+  getCollections: (...args: unknown[]) => getCollections(...args),
+  getSmartFolders: (...args: unknown[]) => getSmartFolders(...args),
 }));
 
 const writeSearchCache = vi.hoisted(() => vi.fn());
@@ -85,6 +91,15 @@ beforeEach(() => {
     data: [],
     meta: { total: 0, page: 1, limit: 8 },
   });
+  getDriveFilesWithFileIds.mockReset();
+  getDriveFilesWithFileIds.mockResolvedValue({
+    data: [],
+    meta: { total: 0, page: 1, limit: 8 },
+  });
+  getCollections.mockReset();
+  getCollections.mockResolvedValue([]);
+  getSmartFolders.mockReset();
+  getSmartFolders.mockResolvedValue([]);
   writeSearchCache.mockClear();
   readSearchCache.mockReset();
   readSearchCache.mockReturnValue(null);
@@ -261,6 +276,94 @@ describe("SPEC-CORE-039 I17 a failed or aborted meaning stage", () => {
     });
 
     expect(view.result.current.merged.map((file) => file.id)).not.toContain("stale");
+    view.unmount();
+  });
+});
+
+const file = (id: string) => ({ id }) as FileItem;
+
+function deferred<T>() {
+  let resolve: (value: T) => void = () => {};
+  const promise = new Promise<T>((r) => {
+    resolve = r;
+  });
+  return { promise, resolve };
+}
+
+describe("SPEC-CORE-172 the in: resolution's loading states", () => {
+  it("sends nothing while the Smart Collection list loads", async () => {
+    getCollections.mockResolvedValue([]);
+    const smart = deferred<unknown[]>();
+    getSmartFolders.mockReturnValue(smart.promise);
+
+    const view = await open({ query: 'in:"Dogs"' });
+    await waitFor(() => expect(getSmartFolders).toHaveBeenCalled());
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 400));
+    });
+
+    expect(getDriveFiles).not.toHaveBeenCalled();
+    expect(getDriveFilesWithFileIds).not.toHaveBeenCalled();
+    expect(searchCalls()).toHaveLength(0);
+    expect(view.result.current.merged).toEqual([]);
+    expect(view.result.current.inNameError).toBeNull();
+    view.unmount();
+  });
+
+  it("sends nothing while the Smart Collection is evaluated", async () => {
+    getCollections.mockResolvedValue([]);
+    getSmartFolders.mockResolvedValue([
+      {
+        id: "sf-dogs",
+        drive: "main",
+        name: "Dogs",
+        query: "dogs",
+        file_type: null,
+        sort_by: null,
+        sort_order: null,
+        created_at: "2026-01-01T00:00:00Z",
+        updated_at: null,
+      },
+    ]);
+    const members = deferred<{ data: FileItem[]; meta: { total: number; page: number; limit: number } }>();
+    getDriveFiles.mockReturnValue(members.promise);
+
+    const view = await open({ query: 'in:"Dogs"' });
+    await waitFor(() => expect(getDriveFiles).toHaveBeenCalled());
+    expect(getDriveFiles.mock.calls[0][1]).toMatchObject({ search: "dogs" });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    });
+
+    expect(getDriveFiles).toHaveBeenCalledTimes(1);
+    expect(getDriveFilesWithFileIds).not.toHaveBeenCalled();
+    expect(searchCalls()).toHaveLength(0);
+    expect(view.result.current.merged).toEqual([]);
+    view.unmount();
+  });
+
+  it("drops a listing response for a query no longer in force", async () => {
+    const first = deferred<{ data: FileItem[]; meta: { total: number; page: number; limit: number } }>();
+    getDriveFiles.mockImplementation((_drive: string, params: { search?: string }) =>
+      params.search === "cats"
+        ? first.promise
+        : Promise.resolve({ data: [file("dogs1")], meta: { total: 1, page: 1, limit: 8 } }),
+    );
+
+    const view = await open({ query: "cats" });
+    await waitFor(() => expect(getDriveFiles).toHaveBeenCalled());
+
+    view.rerender({ ...base, query: "dogs" });
+    await waitFor(() =>
+      expect(view.result.current.merged.map((entry) => entry.id)).toEqual(["dogs1"]),
+    );
+
+    await act(async () => {
+      first.resolve({ data: [file("cats1")], meta: { total: 1, page: 1, limit: 8 } });
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    });
+
+    expect(view.result.current.merged.map((entry) => entry.id)).toEqual(["dogs1"]);
     view.unmount();
   });
 });

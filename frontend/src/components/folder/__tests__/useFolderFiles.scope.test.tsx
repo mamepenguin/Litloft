@@ -6,7 +6,7 @@
  * before either stage runs, so these cases load that list first.
  */
 
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
 import type { FileItem } from "@/types";
@@ -221,5 +221,104 @@ describe("SPEC-CORE-043 I6 useFolderFiles loading and refetching", () => {
 
     next.resolve(page);
     await waitFor(() => expect(result.current.loading).toBe(false));
+  });
+});
+
+describe("SPEC-CORE-172 the in: resolution's loading states", () => {
+  it("sends no listing and no meaning stage while the Smart Collection list loads", async () => {
+    api.getCollections.mockResolvedValue([]);
+    const smart = deferred<unknown[]>();
+    api.getSmartFolders.mockReturnValue(smart.promise);
+
+    const { result, unmount } = renderSearch('in:"Dogs"');
+
+    await waitFor(() => expect(api.getSmartFolders).toHaveBeenCalled());
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    });
+
+    expect(api.getDriveFiles).not.toHaveBeenCalled();
+    expect(semantic.fetchHits).not.toHaveBeenCalled();
+    expect(result.current.files).toEqual([]);
+    expect(result.current.inNamePending).toBe(true);
+    unmount();
+  });
+
+  it("sends no listing for the page while the Smart Collection is evaluated", async () => {
+    api.getCollections.mockResolvedValue([]);
+    api.getSmartFolders.mockResolvedValue([
+      {
+        id: "sf-dogs",
+        drive: "main",
+        name: "Dogs",
+        query: "dogs",
+        file_type: null,
+        sort_by: null,
+        sort_order: null,
+        created_at: "2026-01-01T00:00:00Z",
+        updated_at: null,
+      },
+    ]);
+    const members = deferred<typeof page>();
+    api.getDriveFiles.mockReturnValue(members.promise);
+
+    const { result, unmount } = renderSearch('in:"Dogs"');
+
+    await waitFor(() => expect(api.getDriveFiles).toHaveBeenCalled());
+    expect(api.getDriveFiles.mock.calls[0][1]).toMatchObject({ search: "dogs" });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    });
+
+    expect(api.getDriveFiles).toHaveBeenCalledTimes(1);
+    expect(semantic.fetchHits).not.toHaveBeenCalled();
+    expect(result.current.files).toEqual([]);
+    unmount();
+  });
+
+  it("does not draw a listing response for a query no longer in force", async () => {
+    const first = deferred<typeof page>();
+    api.getDriveFiles.mockImplementation((_drive: string, params: { search?: string }) =>
+      params.search === "cats"
+        ? first.promise
+        : Promise.resolve({ data: [mockFile("dogs1")], meta: { total: 1, page: 1, limit: 30 } }),
+    );
+
+    const { result, rerender } = renderSearch("cats");
+    await waitFor(() => expect(api.getDriveFiles).toHaveBeenCalled());
+
+    rerender({ q: "dogs" });
+    await waitFor(() => expect(result.current.files.map((file) => file.id)).toEqual(["dogs1"]));
+
+    await act(async () => {
+      first.resolve({ data: [mockFile("cats1")], meta: { total: 1, page: 1, limit: 30 } });
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    });
+
+    expect(result.current.files.map((file) => file.id)).toEqual(["dogs1"]);
+  });
+
+  it("does not send a name classified for a query no longer in force", async () => {
+    const firstList = deferred<{ name: string }[]>();
+    api.getCollections
+      .mockReturnValueOnce(firstList.promise)
+      .mockResolvedValue([{ name: "Trip" }]);
+
+    const { result, rerender } = renderSearch('in:"Old"');
+    await waitFor(() => expect(api.getCollections).toHaveBeenCalledTimes(1));
+
+    rerender({ q: 'in:"Trip"' });
+    await waitFor(() => expect(result.current.files.map((file) => file.id)).toEqual(["f1"]));
+
+    await act(async () => {
+      firstList.resolve([{ name: "Old" }]);
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    });
+
+    const collections = api.getDriveFiles.mock.calls
+      .map(([, params]) => params.collection as string[] | undefined)
+      .filter((names): names is string[] => !!names);
+    expect(collections).toContainEqual(["Trip"]);
+    expect(collections.some((names) => names.includes("Old"))).toBe(false);
   });
 });
