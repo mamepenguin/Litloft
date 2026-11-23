@@ -4,7 +4,7 @@ SPEC-ID: SPEC-ADDON-179
 SPEC-ID: SPEC-ADDON-180
 SPEC-ID: SPEC-ADDON-181
 
-Approval: sha256:8a5f438cbc0bc2a772e889c25299e2945f4a3eec0e1bf881af1faff1d5cd5371 Yuichi Senga 2026-11-23
+Approval:
 
 ## Summary
 
@@ -155,8 +155,9 @@ same file, and rides only on requests the route already sends under the `llm_clo
   SPEC-ADDON-174 still compare the new code with the old request plus exactly these lines.
 - `tests/test_spec_addon_071_image_stream.py` asserts `"image" not in` the text-only retry
   prompt and the prompts of profiles that cannot see. A picture's `Type:` line now carries its
-  MIME (`image/png`), so those assertions become: "image" does not appear outside the file
-  block.
+  MIME (`image/png`) and every system prompt carries S179 and S181a, so those assertions
+  become: "image" does not appear in the prompts outside the file block, the S179 line and the
+  S181a line.
 - `tests/file_question_doubles.py` and `tests/frame_request_doubles.py` seed `IndexedFile`
   rows, which already carry `filename`.
 - Drive-wide Ask (`answer_system.jinja2`, `answer_user.jinja2`, the agentic prompts) and the
@@ -238,7 +239,7 @@ I7. (SPEC-ADDON-179) With no history, every file-question request on every path,
 SPEC-ADDON-081 I1. A file question with no `history` or an empty one sends the model the same system prompt, user prompt and chunks, ranked by the new question alone, as before SPEC-ADDON-081, with a video's repeated frame-text lines removed as SPEC-ADDON-171 states, for cut material on the tool path the system prompt and tools of SPEC-ADDON-174, and on every path the file block and rules of SPEC-ADDON-179, SPEC-ADDON-180 and SPEC-ADDON-181; with history and a file over budget, ranking embeds the last `history` entry's question as sent, a newline, and the new question.
 SPEC-ADDON-174 I1. With cut material, every tool request offers exactly `get_frames` then `get_transcript`, and the final request lists the same two with `tool_choice` `"none"` (OpenAI-compatible) or no tools (ollama); with material that is not cut, every request, tool result and log line on the path is byte for byte SPEC-ADDON-116's apart from the file block and rules of SPEC-ADDON-179 and SPEC-ADDON-181 in its prompts.
 SPEC-ADDON-071 I1. A question's passages, picture and frames come only from the requested file, an active file of the `X-Lit-Drive` drive that the viewer can access and whose `rag` feature is on, and the only other text sent is the history the request carried, the file block of SPEC-ADDON-179 and, for a video on the path of SPEC-ADDON-116, its duration, contents, the definitions of its tools (`get_frames`, and `get_transcript` under SPEC-ADDON-174) and the tool results, whose requested passages are rows of the same file; a picture gets at most one image of at most 1024 px on its long edge, and a video gets at most 8 initial frames and 12 requested frames of at most 1280 px when its profile can see.
-SPEC-ADDON-071 I5. The prompt mentions an image or frames, and tells the model to take exact characters from the passages when they and the image or frames differ, only when an image or frames are attached, apart from S181a of SPEC-ADDON-181, which names frames on every path, and the `Type:` line of SPEC-ADDON-179's file block, which carries a picture's MIME type; it states a position only when `position_seconds` was sent for a video or audio file.
+SPEC-ADDON-071 I5. The prompt mentions an image or frames, and tells the model to take exact characters from the passages when they and the image or frames differ, only when an image or frames are attached, apart from S179 of SPEC-ADDON-179 and S181a of SPEC-ADDON-181, which name the image and frames on every path, and the `Type:` line of SPEC-ADDON-179's file block, which carries a picture's MIME type; it states a position only when `position_seconds` was sent for a video or audio file.
 SPEC-ADDON-114 I8. Pictures, audio, documents, a `.loft` that is not a text video, every request whose profile cannot see, the availability route, the normal Ask with its agentic loop and the MCP tools answer as they did before this change, except that a video's passages have their repeated frame-text lines removed as SPEC-ADDON-171 states, `search_exact` leaves out the frame-text hits SPEC-ADDON-173 leaves out, and every file question carries the file block and rules of SPEC-ADDON-179, SPEC-ADDON-180 and SPEC-ADDON-181; text-less videos differ only by the request layout of I11 and by SPEC-ADDON-116.
 SPEC-ADDON-076 I6. Ask on a YouTube `.loft` that has a text chunk, with a profile that can see, sends the frame set of SPEC-ADDON-114 read through the `large` frame route, under every invariant of SPEC-ADDON-071 (profile, `llm_cloud`, one slot, nothing stored or logged but the `large` cache entries); any frame failure leaves that frame out, and when none is sent the answer is from the text with `"unavailable"`; a YouTube `.loft` with no text chunk is answered from frames by SPEC-ADDON-108; Ask on a `.loft` of another provider is unchanged apart from the file block and rules of SPEC-ADDON-179, SPEC-ADDON-180 and SPEC-ADDON-181.
 
