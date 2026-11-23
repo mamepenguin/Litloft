@@ -18,9 +18,9 @@ offers a second tool beside it, `get_transcript`, but only when the passages wer
 budget. The model names a time range, typically a section from the contents, and gets the
 file's text in that range that was not already sent, numbered and citable like the other
 passages. Calls of both tools share the 3-call limit, the 120 s window and the 300 s
-deadline of SPEC-ADDON-116. Transcript results are capped at 3,000 characters per call and
-6,000 per question. The cap is sized so that the largest question still fits the 32,768-token
-context of the production ollama model (section 10).
+deadline of SPEC-ADDON-116. A transcript result is at most 3,000 characters. The 3-call
+limit keeps the largest question within the 32,768-token context of the production ollama
+model (section 10).
 
 It is for the viewer asking about a long video, whose question today is answered from the
 chunks that ranked highest and cannot reach the rest.
@@ -41,7 +41,8 @@ request, contents, readable time, total deadline). In addition:
 - **Time order**: by span start; at an equal start, a transcript chunk before a frame-text
   row; then file order.
 - **Sent row**: a row sent as a passage, or as a requested passage, for the question. A row
-  that fitting sent cut short is a sent row; its remainder is not available.
+  that fitting (SPEC-ADDON-053 step 4) sent cut short is a sent row; its remainder is not
+  available. The tool never cuts a row.
 - **Transcript request**: one tool call named `get_transcript`.
 - **Tool call**: a frame request (SPEC-ADDON-116) or a transcript request.
 - **Requested passage**: a row sent in reply to a transcript request. Requested passages
@@ -49,6 +50,8 @@ request, contents, readable time, total deadline). In addition:
   ranking, and the `Revises` lines below say where they are counted.
 - **Transcript result**: the tool result text of a transcript request, all of it: rows,
   number lines, notes and line breaks.
+- **Clock time**: a time written as the contents write it (`format_position`: `m:ss` under
+  an hour, `h:mm:ss` from an hour on).
 
 ## Required items
 
@@ -66,6 +69,10 @@ request, contents, readable time, total deadline). In addition:
      ("1:23")"; description "Return what is said and shown in this video between two
      times, apart from what you already have."
    - The system prompt changes as follows, only for cut material:
+     - The opening sentence names "the numbered passages below, the numbered passages
+       get_transcript returns, and the numbered frames that follow the question" as what
+       the answer uses; with history, the sentence on what may be cited names the same
+       three.
      - The passages rule reads "The passages below are part of the file's text, the parts
        closest to the question; the frames that follow the question are moments of the
        video, in time order after the passages."
@@ -77,9 +84,9 @@ request, contents, readable time, total deadline). In addition:
      - The tool section is titled "More frames and text". It states the frame lines of
        SPEC-ADDON-116 I8, with the call limit read as "at most 3 calls of get_frames and
        get_transcript together for this question". It adds that get_transcript returns
-       what is said and shown between two times, up to 3,000 characters per call and
-       6,000 for the question, that a part already sent is named by its number, and that
-       the passages it returns are numbered and cited exactly as the other passages.
+       what is said and shown between two times, up to 3,000 characters per call, that a
+       part already sent is named by its number, and that the passages it returns are
+       numbered and cited exactly as the other passages.
    - When the material is not cut, every request is exactly SPEC-ADDON-116's.
 3. Tool calls of a reply are handled in the order given. The first 3 tool calls of the
    question, of either name, are served. Each call after them gets the limit result: "No
@@ -89,20 +96,18 @@ request, contents, readable time, total deadline). In addition:
       `start` below `end`. Otherwise the result is "No text follows: get_transcript takes
       a JSON object with start and end, two times with start before end.", and the call
       counts as served.
-   2. When the question's transcript results already total 6,000 characters, the result is
-      "No text follows: the 6,000 characters of text for this question are used."
-   3. Otherwise the rows whose span overlaps `[start, end)` are walked in time order:
+   2. Otherwise the rows whose span overlaps `[start, end)` are walked in time order:
       - A sent row is written as the line "already sent as [n]".
       - Any other row is written as the line `[n]`, then its text, then an empty line,
         with `n` the next number (step 5).
-      - The walk stops before the first row whose writing would take the call's result
-        past 3,000 characters, or the question's results past 6,000. The result then ends
-        with "Text from <the row's start as m:ss> on was not sent: the limit was reached."
-        Rows after that point are not looked at.
-      - If that first row is the first new row of the call, it is written cut to the room
-        left, and the note follows it.
-   4. When no row overlaps, the result is "Nothing is said or shown between <start> and
-      <end>.", with both times as m:ss.
+      - Before a row is written, the result so far, that row's lines and the longest
+        possible stop note (the note below with a clock time of 8 characters) must fit in
+        3,000 characters. When they do not, the walk stops: the row is not written, the
+        result ends with "Text from <the row's start as a clock time> on was not sent: the
+        limit of one call was reached.", and rows after it are not looked at. A row is
+        never cut.
+   3. When no row overlaps, the result is "Nothing is said or shown between <start> and
+      <end>.", with both times as clock times.
 5. Numbers of a reply are given as its calls are served: the requested passages of its
    transcript requests take the next numbers, in call order and time order. The frames of
    its frame requests take the numbers after those, once they are cut, in call order and
@@ -124,9 +129,10 @@ request, contents, readable time, total deadline). In addition:
   4) and get_transcript (start and end) are available.", and it counts as served.
 - **A `get_frames` call with bad arguments when the material is cut**: the same text as the
   previous case.
-- **A range past the end of the video**: no row overlaps (normal flow 4.4).
+- **A range past the end of the video**: no row overlaps (normal flow 4.3).
 - **A tool request, or a final request before its first `answer_chunk`, is refused or
-  fails**: the SPEC-ADDON-116 fallback sends today's request once, with the passages only.
+  fails**: the SPEC-ADDON-116 fallback sends today's request once: its passages and its
+  initial frames, with no requested passage.
 - **A final request fails after its first `answer_chunk`, or the total deadline passes**:
   as SPEC-ADDON-116, `meta` then `done` with "Answer generation failed".
 - **The viewer closes the tab**: as SPEC-ADDON-116.
@@ -170,9 +176,9 @@ As SPEC-ADDON-116 for the viewer. Logging:
 - Material not cut: the SPEC-ADDON-116 line, unchanged.
 - Material cut: once per question that served a tool call, `tool requests: <a> frame
   calls, <b> frames, <c> transcript calls, <d> passages (file <id>)`. Here `a` and `c`
-  count served calls by name, an unknown name or bad arguments included under the name
-  given (`get_frames` or `get_transcript`). A call of any other name, and a call over the
-  limit, is counted in neither. `b` and `d` count the frames and requested passages sent.
+  count the served calls named `get_frames` and `get_transcript`, those with bad arguments
+  included. A served call of any other name, and a call over the limit, is counted in
+  neither. `b` and `d` count the frames and requested passages sent.
 
 No question, answer, tool argument or text is logged.
 
@@ -182,25 +188,26 @@ No question, answer, tool argument or text is logged.
   to the row's start, as passage pills do.
 - The "read part of the file" notice stays as today: `partial` is the material's, not
   what the model later read.
-- The docs say that on a long video the model may read up to 6,000 more characters of its
-  text in ranges it chooses, within the same 3 calls as frames.
+- The docs say that on a long video the model may read more of its text, up to 3,000
+  characters per call, in ranges it chooses, within the same 3 calls as frames.
 
 ### 10. Non-functional
 
-- At most 3 tool calls per question, of either kind. Transcript results at most 3,000
-  characters per call and 6,000 per question. Nothing after 300 s from the slot.
+- At most 3 tool calls per question, of either kind. A transcript result is at most 3,000
+  characters. Nothing after 300 s from the slot.
 - Context, measured on the production gemma4:e4b (2026-11-23): Japanese transcript 1.74
   characters per token, frame text 2.15, English 4.34; a 1280 px frame about 450 tokens
   (SPEC-ADDON-116).
-  - Today's largest question: 20 frames (9,000), 16,000 characters of Japanese passages
-    (9,200), contents (about 3,000), system prompt and tool definition (about 1,000), plus
-    `num_predict` 8,192 for output: about 30,400 of 32,768.
-  - With this change, 6,000 characters need at least 2 transcript calls, leaving at most 1
-    frame call. Frames are then at most 12 (5,400), transcript results add 6,000
-    characters (3,500), and the second tool definition and rules about 300: about 30,600.
-    The cap of 6,000 is the largest round figure that keeps 2,000 tokens of margin over
-    every mix of calls.
-  - The docs keep the 32,768 requirement and say that the extra text counts toward it.
+  - A frame call adds at most 4 frames (1,800 tokens); a transcript call at most 3,000
+    characters (1,724 tokens of Japanese). So the 3-call limit bounds the context, and the
+    worst mix is today's: 3 frame calls.
+  - That question: 20 frames (9,000), 16,000 characters of Japanese passages and history
+    (9,200), contents (about 3,000), system prompt and tool definitions (about 1,300, of
+    which about 300 is this change), the question, `[n]` and frame labels, and the earlier
+    replies (about 1,300), plus `num_predict` 8,192 for output: about 32,000 of 32,768.
+    Three transcript calls instead come to about 28,700.
+  - This change adds about 300 tokens to today's worst case and no new worst case. The docs
+    keep the 32,768 requirement.
 - Privacy and cost: the requested text is the file's own indexed text, sent to the same
   resolved profile under `llm_cloud`, as the passages are.
 
@@ -215,9 +222,11 @@ No question, answer, tool argument or text is logged.
   for cut material.
 - `addons/intelligence/app/prompts/rag/file_question_system.jinja2`
 - `addons/intelligence/tests/` (acceptance tests for this spec);
-  `tests/file_question_vision_doubles.py` if a double must return a `get_transcript` call.
-  `tests/test_spec_addon_116_frame_requests.py` is not edited: its videos fit the budget,
-  so its log line and requests are unchanged.
+  `tests/frame_request_doubles.py` for a scripted `get_transcript` call and a check of
+  both tool names. `tests/test_spec_addon_116_frame_requests.py` is not edited: its videos
+  fit the budget. `tests/test_spec_addon_114_text_video_frames.py` sends cut material down
+  the frames path; an assertion there that pins the tool list or the system prompt of a
+  cut-material request changes only to the two tools and rules of this spec.
 - The addon files above are committed in the intelligence addon repository. In the core
   repository, the `addons/intelligence` gitlink moves to the merged addon commit.
 - `docs/addons/intelligence.md`, `docs/reference/api.md`, `docs/user-guide/search.md` (the
@@ -232,12 +241,13 @@ No question, answer, tool argument or text is logged.
 
 I1. With cut material, every tool request offers exactly `get_frames` and `get_transcript` and its system prompt carries the cut-material rules of normal flow step 2; with material that is not cut, every request, tool result and log line on the path is byte for byte SPEC-ADDON-116's.
 I2. At most 3 tool calls per question are served, counting `get_frames` and `get_transcript` together; a request is a final request once 3 have been served or 120 s have passed since the slot was taken, and no request after a final request offers a tool.
-I3. A transcript request sends only rows of the requested file's material whose span overlaps its range, in time order, never a sent row (which it names as "already sent as [n]"); its result is at most 3,000 characters and the question's transcript results at most 6,000, and it sends no row after the first one that does not fit.
+I3. A transcript request sends only whole rows of the requested file's material whose span overlaps its range, in time order, never a sent row (which it names as "already sent as [n]"); its result, stop note included, is at most 3,000 characters, and it sends no row after the first one that does not fit.
 I4. Numbers run without a gap: passages `[1]`–`[P]`, initial frames `[P+1]`–`[P+F]`, then for each reply its requested passages followed by its cut frames; every `citations` entry names a number that was sent, with a passage's or requested passage's row position, or a frame's time as `position.seconds`, and no other number appears.
-I5. A transcript result pairs no number with a time.
+I5. In a transcript result a clock time appears only in the stop note and in the nothing-in-range text, and no line that holds a clock time holds a bracketed number.
 I6. `meta.partial` is the material's `partial`, whatever the model requested afterwards.
-I7. A refusal or failure of a tool request, or of a final request before its first `answer_chunk`, is followed by exactly one request identical to today's request, with the passages only; a failure after the first `answer_chunk`, or the total deadline, ends the question as failed, and no request is started after the total deadline.
+I7. A refusal or failure of a tool request, or of a final request before its first `answer_chunk`, is followed by exactly one request identical to today's request (its passages and initial frames), which carries no requested passage.
 I8. Nothing is written by a transcript request, and no question, answer, tool argument or requested text is logged.
+I9. With cut material, the system prompt allows citing the passages get_transcript returns, both in its opening and, with history, in its sentence on what may be cited.
 
 ## Revises
 
@@ -249,6 +259,7 @@ SPEC-ADDON-053 I3. Every entry of the `citations` event names a number that was 
 SPEC-ADDON-053 I2. When the file's chunk text, after a video's repeated frame-text lines are removed as SPEC-ADDON-171 states, totals at most the passage budget (`rag.file_question_max_chars` minus the characters of the history turns sent), all chunks are sent in file order and `partial` is false; otherwise the passages total at most the passage budget, chosen by the ranking and fitting rule of 053 step 4 with the ranking text of SPEC-ADDON-081 step 5, sent in file order, and `partial` is true; SPEC-ADDON-174 requested passages are not counted in that budget and are bounded by their own caps.
 SPEC-ADDON-081 I2. For one question, the kept turns' sizes (question plus answer after marker removal and cutting) total at most half of `rag.file_question_max_chars` rounded down, turns and passages together at most `rag.file_question_max_chars` (SPEC-ADDON-174 requested passages are bounded by their own caps), a kept turn is never older than a dropped one, and no `\[\d{1,3}\]` marker from an earlier answer reaches the model.
 SPEC-ADDON-114 I2. The passages sent for a text video are the same, by budget and ranking, whether frames are attached, none could be prepared, or the request is retried after a refusal; SPEC-ADDON-174 requested passages are sent only on the tool path and never in a retry.
+SPEC-ADDON-114 I10. The system prompt sent with passages and frames tells the model that both numbered passages and numbered frames may be cited and nothing else, SPEC-ADDON-174 requested passages counting as passages, to take exact characters from a passage where it and a frame differ and from a frame when no passage has them, and to say so instead of guessing when neither contains the answer.
 SPEC-ADDON-071 I4. The passages sent for a question are the same, by the budget and ranking of SPEC-ADDON-053, whether or not an image is attached, and the text-only retry sends those same passages and no SPEC-ADDON-174 requested passage.
 SPEC-ADDON-071 I1. A question's passages, picture and frames come only from the requested file, an active file of the `X-Lit-Drive` drive that the viewer can access and whose `rag` feature is on, and the only other text sent is the history the request carried and, for a video on the path of SPEC-ADDON-116, its duration, contents, the definitions of its tools (`get_frames`, and `get_transcript` under SPEC-ADDON-174) and the tool results, whose requested passages are rows of the same file; a picture gets at most one image of at most 1024 px on its long edge, and a video gets at most 8 initial frames and 12 requested frames of at most 1280 px when its profile can see.
 
@@ -264,6 +275,12 @@ SPEC-ADDON-071 I1. A question's passages, picture and frames come only from the 
 - **A separate 3-call limit for transcript requests.** Each round is a model call, 5–50 s
   with the production model; a shared limit keeps the question within its 120 s window,
   and it is what keeps the context within section 10's figures.
+- **A per-question cap on transcript text.** The 3-call limit already bounds the context,
+  and three transcript calls weigh less than three frame calls. The human chose the
+  per-call cap alone.
+- **Cutting a row that does not fit.** Rows are whole chunks (a frame-text chunk is at most
+  1,000 characters, a transcript chunk one transcript window), and a cut row would leave
+  part of a row unreachable while marking it sent.
 - **Writing each passage's time in the prompt**, so the model sees which ranges it has.
   SPEC-ADDON-114 I11 keeps number–time pairs out of the prompt because gemma confuses them;
   "already sent as [n]" tells the model what it has instead.
