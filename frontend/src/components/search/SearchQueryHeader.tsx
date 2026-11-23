@@ -278,6 +278,8 @@ export function SearchQueryHeader({
               "duration",
               "modified",
               "favorite",
+              "untagged",
+              "noCollection",
             ]}
             label={t("addFilterWord")}
             ariaLabel={t("addFilter")}

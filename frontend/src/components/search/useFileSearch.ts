@@ -20,6 +20,7 @@ import { readSearchCache, writeSearchCache, type SearchCacheKey } from "@/lib/se
 import {
   comparisonWireForm,
   filterFromParsed,
+  hasImpossibleConditions,
   hasImpossibleRange,
   parseSearchQuery,
   resolveKinds,
@@ -43,10 +44,20 @@ function listingParams(
     limit: POPUP_LIMIT,
     ...(kinds.length > 0 ? { type: kinds.length === 1 ? kinds[0] : kinds } : {}),
     ...(parsed.tags.length > 0 ? { tag: parsed.tags } : {}),
-    ...(parsed.favorite ? { favorite: true } : {}),
-    ...(parsed.liked ? { liked: true } : {}),
+    ...(parsed.favorite ? { favorite: true } : parsed.notFavorite ? { favorite: false } : {}),
+    ...(parsed.liked ? { liked: true } : parsed.notLiked ? { liked: false } : {}),
     ...(parsed.folders.length > 0 ? { folder: parsed.folders } : {}),
     ...(collections.length > 0 ? { collection: collections } : {}),
+    ...(parsed.excludedTags.length > 0 ? { exclude_tag: parsed.excludedTags } : {}),
+    ...(parsed.excludedTypes.length > 0 ? { exclude_type: parsed.excludedTypes } : {}),
+    ...(parsed.excludedFolders.length > 0 ? { exclude_folder: parsed.excludedFolders } : {}),
+    ...(parsed.excludedCollections.length > 0
+      ? { exclude_collection: parsed.excludedCollections }
+      : {}),
+    ...(parsed.hasTag || parsed.noTag ? { has_tag: parsed.hasTag } : {}),
+    ...(parsed.hasCollection || parsed.noCollection
+      ? { has_collection: parsed.hasCollection }
+      : {}),
     ...(parsed.sizes.length > 0
       ? { size: parsed.sizes.map(comparisonWireForm) }
       : {}),
@@ -70,8 +81,8 @@ export interface FileSearch {
   total: number;
   loading: boolean;
   semanticPending: boolean;
-  /** An `in:` resolution that failed or was too large; nothing is listed. */
-  inNameError: "failed" | "tooLarge" | null;
+  /** An `in:` resolution that failed, was too large or was refused; nothing is listed. */
+  inNameError: "failed" | "tooLarge" | "refused" | null;
   reset: () => void;
 }
 
@@ -87,7 +98,7 @@ export function useFileSearch({ open, drive, query, scopeType, browsing }: FileS
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [semanticPending, setSemanticPending] = useState(false);
-  const [inNameError, setInNameError] = useState<"failed" | "tooLarge" | null>(null);
+  const [inNameError, setInNameError] = useState<"failed" | "tooLarge" | "refused" | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const previousSearchRef = useRef<{ key: string; filtered: boolean } | null>(null);
   const resolutionRef = useRef<HeldResolution | null>(null);
@@ -109,7 +120,11 @@ export function useFileSearch({ open, drive, query, scopeType, browsing }: FileS
     const now = Date.now();
     const modified = resolveModified(parsed, now);
     const kinds = resolveKinds(scopeType, parsed.types);
-    if (kinds.impossible || hasImpossibleRange(parsed, modified.comparisons)) {
+    if (
+      kinds.impossible ||
+      hasImpossibleConditions(parsed, scopeType) ||
+      hasImpossibleRange(parsed, modified.comparisons)
+    ) {
       setMerged([]);
       setTotal(0);
       setLoading(false);
@@ -118,7 +133,8 @@ export function useFileSearch({ open, drive, query, scopeType, browsing }: FileS
       return;
     }
     const nameMatched = parsed.text !== "";
-    const hasInNames = parsed.collections.length > 0;
+    const hasInNames =
+      parsed.collections.length > 0 || parsed.excludedCollections.length > 0;
     const listKey = hasInNames ? inNamesKey(drive, parsed) : "";
     setInNameError(null);
     if (!hasInNames) resolutionRef.current = null;
@@ -209,7 +225,7 @@ export function useFileSearch({ open, drive, query, scopeType, browsing }: FileS
             }
             if (ctrl.signal.aborted) return;
             if (outcome.status !== "resolved") {
-              if (outcome.status !== "refused") setInNameError(outcome.status);
+              setInNameError(outcome.status);
               setMerged([]);
               setTotal(0);
               setLoading(false);

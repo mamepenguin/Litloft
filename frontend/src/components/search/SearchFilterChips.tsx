@@ -73,7 +73,10 @@ export function SearchFilterChips({
     if (chip.operator === "size") return t("filterSize");
     if (chip.operator === "duration") return t("filterLength");
     if (chip.operator === "modified") return t("filterModified");
-    if (chip.operator === "has") return chip.value;
+    if (chip.operator === "has") {
+      if (chip.value === "tag") return chip.negated ? t("hasNoTag") : t("hasTag");
+      return chip.negated ? t("hasNoCollection") : t("hasCollection");
+    }
     return chip.flag === "favorite" ? tSidebar("favorites") : tSidebar("liked");
   };
   const kindLabel = (kind: string) => tFilter(`type.${kind}`);
@@ -87,14 +90,19 @@ export function SearchFilterChips({
     >
       {chips.map((chip, index) => {
         const label = labelFor(chip);
-        const value = chip.operator === "is" ? null : chipValue(chip, kindLabel);
+        const value = chip.operator === "is" || chip.operator === "has" ? null : chipValue(chip, kindLabel);
+        const side = "negated" in chip && chip.negated ? "-" : "+";
+        const negated = chip.operator !== "has" && side === "-";
         return (
           <span
-            key={`${chip.operator}:${value ?? (chip.operator === "is" ? chip.flag : "")}`}
+            key={`${chip.operator}:${side}:${value ?? (chip.operator === "is" ? chip.flag : chip.operator === "has" ? chip.value : "")}`}
             title={value ?? undefined}
-            className="inline-flex min-w-0 max-w-full items-center gap-1 rounded-full bg-sand py-0.5 pl-2 pr-1 text-xs text-text-primary"
+            className={`inline-flex min-w-0 max-w-full items-center gap-1 rounded-full py-0.5 pl-2 pr-1 text-xs text-text-primary ${
+              negated ? "ring-1 ring-inset ring-warm-silver/50" : "bg-sand"
+            }`}
           >
             <span className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
+              {negated && <span className="text-text-muted">{t("exclude")} </span>}
               <span className="font-semibold">{label}</span>
               {value && <> {value}</>}
             </span>
@@ -104,9 +112,13 @@ export function SearchFilterChips({
               }}
               type="button"
               aria-label={
-                value
-                  ? t("removeFilter", { label, value })
-                  : t("removeFilterOnly", { label })
+                negated
+                  ? value
+                    ? t("removeExcludedFilter", { label, value })
+                    : t("removeExcludedFilterOnly", { label })
+                  : value
+                    ? t("removeFilter", { label, value })
+                    : t("removeFilterOnly", { label })
               }
               onClick={() => {
                 const next = removeOperatorChip(query, chip);
