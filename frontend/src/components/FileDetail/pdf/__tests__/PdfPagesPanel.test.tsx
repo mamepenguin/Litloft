@@ -231,6 +231,33 @@ function intersectPage(page: number, isIntersecting: boolean) {
   }
 }
 
+/**
+ * Many pages' cells enter the margin in one observer callback, as a browser
+ * reports a scroll that brings several cells in at once.
+ */
+function intersectPages(pages: number[]) {
+  const targets = pages.map(cell);
+  act(() => {
+    for (const observer of [...observers]) {
+      const entries = [...observer.els]
+        .filter((el) => targets.some((target) => target === el || target.contains(el)))
+        .map(
+          (target) =>
+            ({
+              target,
+              isIntersecting: true,
+              intersectionRatio: 1,
+              boundingClientRect: target.getBoundingClientRect(),
+              intersectionRect: target.getBoundingClientRect(),
+              rootBounds: null,
+              time: 0,
+            }) as IntersectionObserverEntry,
+        );
+      if (entries.length > 0) observer.cb(entries, observer.self);
+    }
+  });
+}
+
 /* ------------------------------------------------------------------ *
  * Scroll writes: every scrollTop assignment and scroll call, by element.
  * ------------------------------------------------------------------ */
@@ -497,7 +524,7 @@ describe("SPEC-CORE-174 I3: a cell leaves placeholder only on entering the margi
     render(<PdfPagesPanel controller={storeWith({ numPages: 225, page: 1 })} />);
     await ready(225);
 
-    for (const page of range(1, 125)) intersectPage(page, true);
+    intersectPages(range(1, 125));
     expect(drawnCount()).toBe(120);
   });
 
@@ -512,7 +539,7 @@ describe("SPEC-CORE-174 I3: a cell leaves placeholder only on entering the margi
     const drawnBox = picture().style.aspectRatio;
     expect(drawnBox).toBe(`1 / ${850 / 612}`);
 
-    for (const page of range(1, 125)) intersectPage(page, true);
+    intersectPages(range(1, 125));
     expect(stateOf(2)).toBe("placeholder");
     expect(picture().style.aspectRatio).toBe(drawnBox);
   });
