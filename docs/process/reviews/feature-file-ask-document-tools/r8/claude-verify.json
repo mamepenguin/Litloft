@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "CR8-1",
+      "status": "confirmed",
+      "note": "file_question.py:14 imports contextlib, :20 imports time and :21 imports Iterator. Greps for `contextlib.`, `time.` and `Iterator` find only the import lines. Every other `time` in the file is a local variable or attribute: `frame.time`, the loop variable at :1167/:1189/:1201, and `loop.time()`. PageImages (:1020-1065) uses neither contextlib nor time."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "CR8-2",
+      "status": "confirmed",
+      "note": "tests/test_spec_addon_182_183_document_hygiene.py:66-79 puts weakref.finalize only on the Page and the Pixmap. The Document gets a `close` wrapper that records the lock state when close() is called; nothing watches when the object is freed. If `self._document = None` (file_question.py:1062) were removed, the Document would stay referenced by `source` (rag.py:2277) until _serve_page_request returns at rag.py:2353. That is after PYMUPDF_LOCK.release() in close() (file_question.py:1065, called from the finally at rag.py:2352). close() would still run under the lock, so the assertions at :92-95 would still pass."
+    }
+  ],
+  "unspecified_scores": [
+    {
+      "source_reviewer": "claude-read",
+      "index": 0,
+      "frequency": 3,
+      "impact": 1,
+      "reason": "When a vision-capable profile asks for PDF page images while an extraction is running, the extraction or the page request waits a few seconds longer for the shared lock (the page request gives up after 30 s and the page is named not available); the user sees nothing beyond a slight delay."
+    }
+  ],
+  "specification_compliance": [
+    "I8: PageImages.open takes PYMUPDF_LOCK before pymupdf.open, and image() runs inside the same hold. close() closes the document, drops it and releases the lock in a finally (file_question.py:1039-1065), and rag.py:2351-2352 always calls close().",
+    "I7: a lock wait that passes PAGE_IMAGE_LOCK_SECONDS raises PageImageUnavailable, and each taken page is then named `not available` (rag.py:2294-2295, 2342-2344)."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "Removing the `self._document = None` line would not fail any test, so the Document wrapper could later be freed outside the lock without anyone noticing."
+  ],
+  "test_coverage": [
+    "The hygiene test checks that Page and Pixmap objects are freed under the lock and that Document.close is called under it. It does not check when the Document object itself is freed."
+  ],
+  "not_verified": [
+    "I did not run the tests or a linter; the unused imports were confirmed by grep only.",
+    "I did not check whether freeing a closed pymupdf Document outside the lock actually calls into MuPDF."
+  ],
+  "confidence": 88
+}

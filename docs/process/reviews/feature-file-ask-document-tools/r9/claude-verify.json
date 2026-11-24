@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [],
+  "unspecified_scores": [
+    {
+      "source_reviewer": "claude-read",
+      "index": 0,
+      "frequency": 2,
+      "impact": 1,
+      "reason": "Confirmed at addons/intelligence/app/rag/file_question.py:1037-1063 (PageImages.open takes PYMUPDF_LOCK, and close releases it only after the document is closed). It shows up only when a PDF extraction or page OCR job starts while a page request renders its pages (at most 4 pages of up to 1280 px each, typically a second or two). The background indexing job is then delayed by that long, which the user does not notice."
+    }
+  ],
+  "specification_compliance": [
+    "I8: every PyMuPDF call for page rendering (pymupdf.open, page access, get_pixmap, tobytes, close) runs inside the PYMUPDF_LOCK hold taken in PageImages.open and released in PageImages.close (file_question.py:1037-1063).",
+    "I7: lock acquisition is bounded by lock_seconds (PAGE_IMAGE_LOCK_SECONDS), and a timeout raises PageImageUnavailable; rendering scales the long edge to PAGE_IMAGE_LONG_EDGE (file_question.py:1003-1015)."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "Holding PYMUPDF_LOCK for a whole page request serializes the request with extraction and page OCR workers; a slow render briefly delays background indexing."
+  ],
+  "test_coverage": [
+    "Did not inspect tests for the lock hold; checked only the code path in file_question.py."
+  ],
+  "not_verified": [
+    "Did not check whether the caller always calls PageImages.close in a finally block on every path, including exceptions and deadlines.",
+    "Did not check the value of PAGE_IMAGE_LOCK_SECONDS or of PAGE_IMAGE_LONG_EDGE.",
+    "Did not review the rest of the diff (rag.py tool loop, prompts, numbering, citations), because there were no findings to verify."
+  ],
+  "confidence": 85
+}

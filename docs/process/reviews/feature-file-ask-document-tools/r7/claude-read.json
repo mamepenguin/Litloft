@@ -1,0 +1,172 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "CR7-1",
+      "origin": "reviewer",
+      "claim": "When rendering a page raises, PageImages.image() leaves the Page (and any Pixmap) alive in the traceback frame. They are freed when the caller's except block ends, after the lock was released, so their MuPDF finalizers run without PYMUPDF_LOCK.",
+      "impact": "A page that fails to render while an extraction or page OCR is running on another thread can make MuPDF run on two threads at once. pdf.py:60-62 says the other conversion can then fail over or return wrong text. This only happens on a render failure, which is rare.",
+      "evidence": "file_question.py:1045-1057: the `del pixmap, page` added in r7 runs only on the success path. If `page.get_pixmap(...)` or `pixmap.tobytes(...)` raises, the exception leaves `with self._locked()` (the lock is released at 1083) while `page` is still a local of the frame the traceback references. rag.py `_serve_page_request` handles it in `except Exception as exc: unavailable(page, type(exc).__name__)`; the frame, and with it `page`, is freed when `exc` is unbound at the end of that block, outside the lock. test_a_page_that_fails_to_render_takes_no_number_and_the_others_close_up exercises this path (get_pixmap raises RuntimeError) but never checks the lock.",
+      "repro": "not_reproduced. A mutation view: removing the r7 `del pixmap, page` line also survives every test, because no test records whether the lock is held when a Page or Pixmap is deallocated.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "A",
+        "reason": "I8 requires every PyMuPDF call made to render page images to run under PYMUPDF_LOCK. r6 accepted the finalizer drops of Page/Pixmap/Document as such calls (CR-1), and this failure path still drops them unlocked.",
+        "invariant_ref": "I8"
+      },
+      "severity": "LOW",
+      "proposed_fix": "Wrap the body in try/finally inside the locked block (`page = pixmap = None` up front, `finally: del pixmap, page`) so both are dropped under the lock on every path."
+    },
+    {
+      "id": "CR7-2",
+      "origin": "reviewer",
+      "claim": "_close_locked's `del document` does not drop the last reference to the Document. In the acquired branch, close()'s own local `document` keeps it alive until close() returns, after the lock was released. In the thread branch, Thread._args keeps it alive until run() finishes, also after the release. The Document's deallocation therefore always runs outside the lock, despite the docstring 'then drop it'.",
+      "impact": "After document.close() this is probably harmless, if a closed Document's dealloc no longer calls MuPDF. Still, the code and its comment claim a property ('dropped under the lock') that does not hold, and a later change could rely on it.",
+      "evidence": "file_question.py:1005-1013 (`document.close(); del document` deletes only the parameter binding); 1060-1067 (the caller's local `document` stays bound across `_close_locked(document, acquired=True)`); 1070-1072 (`threading.Thread(target=_close_locked, args=(document,))`, and CPython's Thread.run deletes `_target`/`_args` in its own finally, after the target returns). The hygiene test checks only that `Document.close` ran with the lock held, not the deallocation.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariant breaks as long as close() releases MuPDF state; this is a fix whose stated mechanism does not do what it says.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Delete the ineffective `del document` and the 'then drop it' wording, or hand the only reference over (for example, pop it from a one-element list inside the locked block)."
+    }
+  ],
+  "specification_compliance": [
+    "I5 (r6 CR-5): fixed. _contents_title (file_question.py:956-960) removes [1-3 digit] markers repeatedly via _without_markers, collapses whitespace including line breaks, then cuts to 60. The new hygiene test checks a title with '[1]', a newline and '[22]'.",
+    "I8 (r6 CR-1): mostly fixed. close() now waits for the lock within the remaining budget, and otherwise hands the document to a daemon thread that waits for the lock without a limit before calling close(). image() drops page and pixmap under the lock on success. Residuals: a failed render still frees Page/Pixmap outside the lock (CR7-1), and the final Document dealloc occurs after the release (CR7-2, probably harmless).",
+    "I1-I4, I6, I7, I9: no product change to rag.py in this round; my r6 reading of these stands. load_material numbers sent rows by order over the file-ordered `_fit` result, matching `_selected` numbering, so given numbers and passage numbers agree.",
+    "r6 B findings CR-2 (empty golden), CR-3 (absolute path not normalised) and CR-4 (keep-alive gap after a whitespace-only first delta on the final request) were not changed in this round and remain as reported."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    {
+      "behavior": "When a page request's lock budget has run out, its PDF is closed by a daemon thread that waits for PYMUPDF_LOCK with no time limit, keeping the file open until the extraction holding the lock finishes.",
+      "frequency": 1,
+      "impact": 2,
+      "reason": "Asking about PDF pages during a long extraction leaves one waiting thread and one open file per such request until the extraction ends; the user sees nothing."
+    },
+    {
+      "behavior": "A section title cut to 60 characters after whitespace collapse may end in a space, which gives the contents line a double space before ' — '.",
+      "frequency": 1,
+      "impact": 1,
+      "reason": "An EPUB title whose 60th character is a space adds one stray space to a prompt line; it is invisible to the user."
+    },
+    {
+      "behavior": "A title that is only markers or whitespace becomes None, and its contents line is written without a title, like a section with no stored title.",
+      "frequency": 0,
+      "impact": 1,
+      "reason": "Needs a stored title made only of bracketed numbers; the model sees no title for that section."
+    }
+  ],
+  "regression_risks": [
+    "The new daemon close thread adds a lock waiter at question time. A thread that never gets the lock, for example one stuck behind a hung extraction, keeps its PDF open for the life of the process.",
+    "Tests now depend on the lock being a non-reentrant threading.Lock (the hygiene test acquires it on the main thread and expects close() to fail to take it); a switch to RLock would silently change both the test and close()."
+  ],
+  "test_coverage": [
+    "test_a_document_still_open_when_the_budget_runs_out_is_closed_under_the_lock covers the deferred-close branch, checking that Document.close runs once and under the lock. It does not cover the acquired branch's locking, or deallocation.",
+    "No test kills removal of `del pixmap, page` in image(), and no test checks the lock state while a Page or Pixmap is freed on the render-failure path (CR7-1).",
+    "test_a_section_title_carries_no_bracketed_number_or_line_break kills dropping either the marker removal or the whitespace collapse of titles.",
+    "r6 gaps that remain: no test of the final-request keep-alive after a whitespace-only first delta, and no test of absolute NFD paths."
+  ],
+  "not_verified": [
+    "No tests run; I cannot execute commands.",
+    "Whether PyMuPDF's Page, Pixmap and closed-Document finalizers in the installed version call into MuPDF, which decides whether CR7-1 and CR7-2 matter in practice.",
+    "rag.py beyond the diff hunks was not re-read this round; it was unchanged by the r7 fix commit.",
+    "Untouched touch-point test files (test_file_question.py, test_spec_addon_072_position.py, file_question_doubles.py, file_question_vision_doubles.py) were not opened."
+  ],
+  "coverage": [
+    {
+      "path": "addons/intelligence/app/prompts/rag/file_question_system.jinja2",
+      "read": "full",
+      "reason": "Every changed hunk read in the diff."
+    },
+    {
+      "path": "addons/intelligence/app/prompts/rag/file_question_user.jinja2",
+      "read": "full",
+      "reason": "Every changed hunk read in the diff."
+    },
+    {
+      "path": "addons/intelligence/app/rag/file_question.py",
+      "read": "partial",
+      "reason": "All diff hunks, plus worktree lines 430-730 (_without_markers, load_material, _document_material, _unit), 920-1090 (document_contents, _contents_title, page_image_path, _close_locked, PageImages) and 1380-1537 (citations_from, _fit, _document_position)."
+    },
+    {
+      "path": "addons/intelligence/app/rag/prompt.py",
+      "read": "full",
+      "reason": "Every changed hunk read in the diff."
+    },
+    {
+      "path": "addons/intelligence/app/routers/rag.py",
+      "read": "partial",
+      "reason": "Every diff hunk, including all new functions (_document_tool_answer through _document_fallback_answer); the enclosing _file_question_stream and the shared helpers (_answer_with_keepalive, _until_done, _call_arguments) were not re-read this round."
+    },
+    {
+      "path": "addons/intelligence/tests/document_tool_doubles.py",
+      "read": "full",
+      "reason": "Read in the diff."
+    },
+    {
+      "path": "addons/intelligence/tests/file_context_doubles.py",
+      "read": "partial",
+      "reason": "Diff hunks only."
+    },
+    {
+      "path": "addons/intelligence/tests/golden_prompts/file_question_today_document-tool.json",
+      "read": "full",
+      "reason": "Read in the diff; the content is []."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_071_image_stream.py",
+      "read": "partial",
+      "reason": "Changed hunk only."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_116_frame_request_fallback.py",
+      "read": "partial",
+      "reason": "Changed hunk only."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_179_181_every_path.py",
+      "read": "partial",
+      "reason": "Changed hunks only."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_179_file_block.py",
+      "read": "partial",
+      "reason": "Changed hunk only."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_182_183_document_hygiene.py",
+      "read": "full",
+      "reason": "New file, read whole in the diff."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_182_document_tool_loop.py",
+      "read": "full",
+      "reason": "Read in the diff."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_182_document_tool_offer.py",
+      "read": "full",
+      "reason": "Read in the diff."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_182_get_text_results.py",
+      "read": "full",
+      "reason": "Read in the diff."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_183_page_images.py",
+      "read": "full",
+      "reason": "Read in the diff."
+    }
+  ],
+  "confidence": 78,
+  "trajectory": "There is one fix round since r6 (dd75388 moves the submodule to the fix commit; 99881c9 records r6). It adds the helper _contents_title, which reuses the existing marker removal; that adds no new state. It adds one branch to PageImages.close(): the early `return` that left the document to the collector becomes a deferred close on a daemon thread, which waits for the lock with no limit. It also adds the shared helper _close_locked. The record holds no earlier fix round, so no round repeats a branch an earlier one added. The close-path fix, however, has the same shape as the defect it fixes: it covers one exit (the success path and the timed-out close) and leaves a sibling exit (the render-failure traceback, CR7-1). The design is being patched path by path rather than by one structure that always drops MuPDF objects under the lock. Nothing was removed apart from the early return."
+}
