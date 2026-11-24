@@ -1,0 +1,3 @@
+addons/intelligence/frontend/IndexStatusWidgetLoftMedia.test.tsx
+addons/intelligence/frontend/messages/en.json
+addons/intelligence/frontend/messages/ja.json

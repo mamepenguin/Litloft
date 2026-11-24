@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "MEDIUM",
+  "findings": [],
+  "verification": [],
+  "unspecified_scores": [],
+  "specification_compliance": [
+    "Spec items 1 and 9: messages/ja.json:154 holds 'YouTube の映像解析' and messages/en.json:154 holds 'YouTube video analysis' under semanticSearch.tasks.loft_media.label.",
+    "I1: IndexStatusWidget.tsx:55-56 places loft_media right after frame_scan in TASK_ORDER, :75 maps it to the Download icon, and :143 renders the label through t(`tasks.${kind}.label`), so the label comes from the message key.",
+    "Touch point (test): in IndexStatusWidgetLoftMedia.test.tsx:42, the test title cites SPEC-ADDON-117 and SPEC-ADDON-178. At :58 the row is found through en.semanticSearch.tasks.loft_media.label instead of a literal. The file no longer has a label-value test or a header sentence stating the old label.",
+    "Touch point (docs): docs/addons/intelligence.md:223 names the row **YouTube の映像解析** (YouTube video analysis).",
+    "Spec item 7: the internal names (loft_media task type, the 'loft_media backing off' log line) are unchanged."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "The row test now reads its label from en.json, so it no longer detects a wrong or empty label value. The spec accepts this on purpose under 'Checked, no action'."
+  ],
+  "test_coverage": [
+    "IndexStatusWidgetLoftMedia.test.tsx:42-68 covers I1: the row's position right after frame_scan, the lucide-download icon, the processing filename, and the label found through the message key (en locale only)."
+  ],
+  "not_verified": [
+    "I did not run the vitest suite, so I have not confirmed that the test passes at this commit.",
+    "I did not check whether the addons/intelligence submodule pointer in the core repository references the commit that contains these message changes.",
+    "I did not check how the ja locale renders at runtime, or how the generated merged messages file is built from the addon messages."
+  ],
+  "confidence": 88
+}

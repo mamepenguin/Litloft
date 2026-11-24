@@ -1,0 +1,5 @@
+addons/intelligence/app/prompts/rag/file_question_system.jinja2
+addons/intelligence/app/prompts/rag/file_question_user.jinja2
+addons/intelligence/app/rag/file_question.py
+addons/intelligence/app/rag/prompt.py
+addons/intelligence/app/routers/rag.py
