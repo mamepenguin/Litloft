@@ -358,5 +358,5 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-179 | implemented | docs/specs/file-ask-file-context.md | sha256:e720b8f938d0835e60066d3a353bf0fe5f5a14cb5b1b42423be7309790c7dcc1 |
 | SPEC-ADDON-180 | implemented | docs/specs/file-ask-file-context.md | sha256:e720b8f938d0835e60066d3a353bf0fe5f5a14cb5b1b42423be7309790c7dcc1 |
 | SPEC-ADDON-181 | implemented | docs/specs/file-ask-file-context.md | sha256:e720b8f938d0835e60066d3a353bf0fe5f5a14cb5b1b42423be7309790c7dcc1 |
-| SPEC-ADDON-182 | draft | docs/specs/file-ask-document-tools.md | |
-| SPEC-ADDON-183 | draft | docs/specs/file-ask-document-tools.md | |
+| SPEC-ADDON-182 | approved | docs/specs/file-ask-document-tools.md | sha256:8f6e7278df77a63cfe832bea67d0458f8a27c7504bd58c27589b48e272c51dfe |
+| SPEC-ADDON-183 | approved | docs/specs/file-ask-document-tools.md | sha256:8f6e7278df77a63cfe832bea67d0458f8a27c7504bd58c27589b48e272c51dfe |
