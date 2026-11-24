@@ -350,6 +350,9 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-172 | implemented | docs/specs/ask-ocr-line-dedupe.md | sha256:0435fb8bd2b5aa290f8c059d8cc5b0cdfcae88fbff0336b6d4800cffde942d9d |
 | SPEC-ADDON-173 | implemented | docs/specs/ask-ocr-line-dedupe.md | sha256:0435fb8bd2b5aa290f8c059d8cc5b0cdfcae88fbff0336b6d4800cffde942d9d |
 | SPEC-ADDON-174 | implemented | docs/specs/ask-transcript-tool.md | sha256:5ef88ddb764d78707aa5c4e01940002e0bdcabab53913dffac4f06f0afe33782 |
+| SPEC-ADDON-175 | implemented | docs/specs/summary-name-rule-by-source.md | sha256:78a193dfe4fdee293815ef741f029bba64d25e0bafe8cfe6be30c684a3d1b5fe |
+| SPEC-ADDON-176 | implemented | docs/specs/summary-name-rule-by-source.md | sha256:78a193dfe4fdee293815ef741f029bba64d25e0bafe8cfe6be30c684a3d1b5fe |
+| SPEC-ADDON-178 | implemented | docs/specs/loft-media-label.md | sha256:32d07250f7fb77edea5380b6f10f25a57992f9c45464f9eba09e9a9491ec6136 |
 | SPEC-ADDON-179 | implemented | docs/specs/file-ask-file-context.md | sha256:e720b8f938d0835e60066d3a353bf0fe5f5a14cb5b1b42423be7309790c7dcc1 |
 | SPEC-ADDON-180 | implemented | docs/specs/file-ask-file-context.md | sha256:e720b8f938d0835e60066d3a353bf0fe5f5a14cb5b1b42423be7309790c7dcc1 |
 | SPEC-ADDON-181 | implemented | docs/specs/file-ask-file-context.md | sha256:e720b8f938d0835e60066d3a353bf0fe5f5a14cb5b1b42423be7309790c7dcc1 |
