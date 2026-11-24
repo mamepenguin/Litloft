@@ -14,3 +14,4 @@ author_resolutions:
 - claude-read:1 accept: the drawing margin is sized when the observer is created; after a resize or a sheet raise pages inside the visible box still draw, only the pre-draw distance is off (F3 × I1 at most).
 - claude-read:2 accept: cells still rendering do not count toward the 120 cap, so a fling can briefly hold more renders; the set is trimmed back to 120 once they finish and nothing visible changes.
 - claude-verify:3 accept: pages passed over in a fling are still rendered; the R-5 timing (first row 0.4 s, PageDown under 170 ms while drawing) leaves this without a visible delay.
+- r3: the three recorded entries repeat r2's (margin sized once, drawing cells outside the cap, renders not cancelled); same resolution, accept.
