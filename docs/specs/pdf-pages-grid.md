@@ -3,7 +3,7 @@
 SPEC-ID: SPEC-CORE-173
 SPEC-ID: SPEC-CORE-174
 
-Approval:
+Approval: sha256:aa3a2c67e8b14b095d874a9acf23ccfae0cff883eaa245e07cb3d5b6907dd0fa Yuichi Senga 2026-11-24
 
 ## Summary
 
