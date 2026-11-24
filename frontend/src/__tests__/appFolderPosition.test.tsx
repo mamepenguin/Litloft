@@ -291,8 +291,11 @@ function libraryShelvesAnswer(call: WireCall): Response {
     return json({
       by,
       base: "",
-      total_shelves: 1,
-      shelves: [{ key: "Trip", label: "Trip", count: total, items: [item("t-1", "Tagged one", app.id)] }],
+      total_shelves: 2,
+      shelves: [
+        { key: "Trip", label: "Trip", count: total, items: [item("t-1", "Tagged one", app.id)] },
+        { key: "Kyoto", label: "Kyoto", count: 1, items: [item("t-2", "Tagged two", app.id)] },
+      ],
     });
   }
   return json({

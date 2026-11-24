@@ -197,7 +197,15 @@ function answerShelves(_d: string, p: Params) {
   }
   if (p.by === "folder") {
     const items = server.all.slice(0, Number(p.per_shelf ?? 5)).map((id) => asItem(id));
-    return { by: "folder", total_shelves: 1, base: "", shelves: [{ key: "Movies", label: "Movies", count: server.all.length, items }] };
+    return {
+      by: "folder",
+      total_shelves: 2,
+      base: "",
+      shelves: [
+        { key: "Movies", label: "Movies", count: server.all.length, items },
+        { key: "Shorts", label: "Shorts", count: 1, items: [asItem("shorts-1")] },
+      ],
+    };
   }
   return { by: p.by, total_shelves: 0, base: "", shelves: [] };
 }

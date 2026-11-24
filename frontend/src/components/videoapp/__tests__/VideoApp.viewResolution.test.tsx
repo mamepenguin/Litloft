@@ -99,10 +99,20 @@ function shelves(_drive: string, params: Params) {
   const by = String(params.by);
   const key = by === "watch" ? "unwatched" : "one";
   const title = by === "watch" ? "Unwatched" : `${by} shelf`;
+  if (by === "all" || by === "watch") {
+    return {
+      by,
+      total_shelves: 1,
+      shelves: [{ key, label: title, count: 1, items: [item(`i-${by}`, `${by} card`)] }],
+    };
+  }
   return {
     by,
-    total_shelves: 1,
-    shelves: [{ key, label: title, count: 1, items: [item(`i-${by}`, `${by} card`)] }],
+    total_shelves: 2,
+    shelves: [
+      { key, label: title, count: 1, items: [item(`i-${by}`, `${by} card`)] },
+      { key: `${key}-2`, label: `${by} other`, count: 1, items: [item(`i-${by}-2`, `${by} other card`)] },
+    ],
   };
 }
 

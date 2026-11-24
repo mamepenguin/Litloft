@@ -136,14 +136,20 @@ function shelves(_drive: string, params: Params) {
     case "month":
       return {
         by: "month",
-        total_shelves: 1,
-        shelves: [{ key: "2026-03", label: "2026-03", count: 1, items: [book("m1", "Month book")] }],
+        total_shelves: 2,
+        shelves: [
+          { key: "2026-03", label: "2026-03", count: 1, items: [book("m1", "Month book")] },
+          { key: "2026-02", label: "2026-02", count: 1, items: [book("m2", "February book")] },
+        ],
       };
     case "tag":
       return {
         by: "tag",
-        total_shelves: 1,
-        shelves: [{ key: "Trip", label: "Trip", count: 1, items: [book("t1", "Tag book")] }],
+        total_shelves: 2,
+        shelves: [
+          { key: "Trip", label: "Trip", count: 1, items: [book("t1", "Tag book")] },
+          { key: "Kyoto", label: "Kyoto", count: 1, items: [book("t2", "Tag two")] },
+        ],
       };
     case "all":
       return {
@@ -347,7 +353,7 @@ describe("SPEC-CORE-145 I18 Reading's Folder and Date Added", () => {
     expect(options).toEqual(["Tag", "Folder", "Date Added", "None"]);
   });
 
-  it("SPEC-CORE-145 I18 Folder pages folder shelves like By tag, titles them by last segment or the drive name, and See all carries the conditions", async () => {
+  it("SPEC-CORE-145 I18 Folder pages folder shelves like By tag, titles them by last segment or This folder, and See all carries the conditions", async () => {
     localStorage.setItem(VIEW_KEY, JSON.stringify({ default: { group: "folder", sort: "size" } }));
     openLibrary();
 
@@ -361,7 +367,7 @@ describe("SPEC-CORE-145 I18 Reading's Folder and Date Added", () => {
       type: ["pdf", "epub", "archive"],
     });
     expect(screen.getByRole("heading", { level: 2, name: "Season 1" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { level: 2, name: DRIVE })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 2, name: "This folder" })).toBeInTheDocument();
 
     const link = screen.getByRole("link", { name: "See all: Season 1" });
     const url = new URL(link.getAttribute("href") ?? "", "http://localhost");
