@@ -1,0 +1,92 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "CRITICAL",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R1",
+      "status": "confirmed",
+      "note": "addons/intelligence/app/schemas.py:8 imports apply_filter_normalisation and schemas.py:826 calls it in AskScope._normalise. That function (file_matching.py:201-213) runs _normalise_kinds against KINDS, which now includes 'epub' (file_matching.py:107-109), and uses the label-prefixed messages (file_matching.py:130,138,148,154,167,170,175,188,197). AskScope therefore accepts kind 'epub', and its error texts now start with 'tags:', 'kinds:', 'folders:' or 'collections:'. schemas.py is not in the touch-point list and not in r7/product-files.txt, so the effect on Ask comes indirectly through the shared function."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R2",
+      "status": "confirmed",
+      "note": "searchQuery.ts:954-972 changes SearchFilter so favorite and liked are boolean | null and adds six keys. filterFromParsed (searchQuery.ts:983-984) now returns null where it used to return false. semanticSearch.ts:10,62 and semanticSearchRequest.ts:4,12,21 take the type; neither file is in the touch points or r7/product-files.txt. The wire form does not change for a query with no new token: semanticSearchRequest.ts:55,68 serialise the filter through filterQueryParam, which leaves out a null favorite or liked (searchQuery.ts:1004-1005), so it still omits them as before. No other non-test code reads filter.favorite or filter.liked. The test expectations at searchScopeOperators.test.ts:326-327 and semanticSearch.passages.test.ts:50-51 now read null."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R3",
+      "status": "confirmed",
+      "note": "r7/test-files.txt lists the tests that belong to other specs: ReadingApp.memberTarget.test.tsx, VideoApp.memberTarget.test.tsx, searchScopeOperators.test.ts, semanticSearch.passages.test.ts, searchQuery.test.ts, and SearchQueryHeader.modified, scope and sizeDuration tests. These three header tests are the likely menu-order tests for SPEC-CORE-138, 043 and 047. At the commit the fixtures use new tokens: ReadingApp.memberTarget.test.tsx:78 has 'unread -tag:read', VideoApp.memberTarget.test.tsx:121 has 'drafts -tag:draft' with the case label at :176, and searchScopeOperators.test.ts:326-337 expects null and the new keys. The touch points list only backend/tests/, frontend/e2e-components/ and core-search-vocabulary.test.ts. I did not read the before/after diff of each file, so 'edited' rests on the r7 list plus the current contents. I did not open the three SearchQueryHeader tests to see their menu-order assertions."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R4",
+      "status": "confirmed",
+      "note": "route.ts:80-91 calls evaluateSmartCollection without memberLimit. smartCollectionEval.ts:142-148 stops early only when memberLimit is set; otherwise the loop at :104-150 reads every 500-row page. route.ts is missing from r7/product-files.txt, which agrees with 'not changed'. On scope: spec step 9 (search-operator-negation.md:213-216) names only 'the member evaluation and the in: resolution' for the early stop. The only callers of the route are in mcp-server (mcp-server/src/tools/collections.ts:7). The route needs the whole set because it slices files and reports total: files.length (route.ts:98-112). So the behavior is as claimed, but it is outside I17's app-target scope; inNameResolution.ts:172 and memberTarget.ts:111 do pass the limit."
+    }
+  ],
+  "unspecified_scores": [
+    {
+      "source_reviewer": "claude-read",
+      "index": 0,
+      "frequency": 1,
+      "impact": 1,
+      "reason": "An in: query that is already impossible by kind or range now skips the collection-list loads, and the user sees the same empty result as before; I18 already says an impossible query loads no list (useFolderFiles.ts:292)."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "index": 1,
+      "frequency": 1,
+      "impact": 1,
+      "reason": "An in: naming a Smart Collection with no free text and more than 10,000 members now stops after the first page over the limit and still shows the same too-large state (inNameResolution.ts:172,181); spec step 9 names this early stop explicitly."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "index": 2,
+      "frequency": 1,
+      "impact": 2,
+      "reason": "While the search window's typed query is impossible (e.g. two conflicting type: tokens), its jump rows, folder jumps and tag completions disappear until the conflict is removed (useLauncherRows.ts:47-59), which can look like suggestions broke mid-edit."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "index": 3,
+      "frequency": 2,
+      "impact": 3,
+      "reason": "A -in: with a misspelt or other-drive collection name resolves no collection ids in drives.py:549-557 and silently excludes nothing, so the user sees the full unfiltered list with no notice that the name matched nothing."
+    }
+  ],
+  "specification_compliance": [
+    "Spec step 9 (lines 213-216) scopes the 10,000 early stop to the member evaluation and the in: resolution; memberTarget.ts:111 and inNameResolution.ts:172 pass memberLimit, and smartCollectionEval.ts:142-148 implements the stop only when there is no free text.",
+    "For a query with no new token, filterQueryParam's output is unchanged (searchQuery.ts:1000-1021 leaves out null flags and empty new lists), which is consistent with I1's wire-level reading."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    {
+      "behavior": "AskScope (Ask page scope) now accepts kind 'epub', and its validation error messages gain a 'kinds:' / 'tags:' / 'folders:' / 'collections:' prefix through the shared apply_filter_normalisation.",
+      "frequency": 1,
+      "impact": 1,
+      "reason": "A user scoping Ask to EPUBs, or seeing a scope validation error, gets 'epub' accepted and a slightly different error wording; neither changes which files Ask reads in normal use."
+    }
+  ],
+  "regression_risks": [
+    "Changing SearchFilter favorite/liked from false to null affects any future consumer that tests filter.favorite for truthiness rather than through filterQueryParam.",
+    "The shared apply_filter_normalisation couples Ask scope validation to search filter KINDS changes."
+  ],
+  "test_coverage": [
+    "r7/test-files.txt includes smartCollectionEval.negation.test.ts and inNameResolution.negation.test.ts for the early-stop paths; no test under frontend/src/app/app-api references new tokens (grep for exclude_, -path:, -tag:, has: found none)."
+  ],
+  "not_verified": [
+    "No tests or commands were executed; all checks are static reads of the tree at the commit.",
+    "Did not diff the commit against origin/develop; 'changed/unchanged' relies on r7/product-files.txt and r7/test-files.txt plus the current file contents.",
+    "Did not open the SearchQueryHeader.modified/scope/sizeDuration tests to confirm their menu-order assertions (part of R3).",
+    "Did not read backend/app/routers/internal.py or the rest of drives.py beyond the exclude_collection handling.",
+    "Did not confirm that the addons/intelligence checkout matches the submodule pointer in c11cd7219.",
+    "Did not check the Ask path end-to-end to confirm that the core accepts an 'epub' kind in an Ask scope."
+  ],
+  "confidence": 82
+}
