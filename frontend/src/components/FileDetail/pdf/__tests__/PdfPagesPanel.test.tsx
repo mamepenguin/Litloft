@@ -31,12 +31,13 @@ const pdfMock = {
   failing: new Set<number>(),
   pageMounts: new Map<number, number>(),
   pageWidths: new Map<number, unknown>(),
+  pageSizes: new Map<number, [number, number]>(),
   documentMounts: 0,
   documentUnmounts: 0,
 };
 
 function pageProxy(pageNumber: number) {
-  const [width, height] = [612, 792];
+  const [width, height] = pdfMock.pageSizes.get(pageNumber) ?? [612, 792];
   return {
     pageNumber,
     width,
@@ -312,6 +313,7 @@ beforeEach(() => {
     failing: new Set<number>(),
     pageMounts: new Map<number, number>(),
     pageWidths: new Map<number, unknown>(),
+    pageSizes: new Map<number, [number, number]>(),
     documentMounts: 0,
     documentUnmounts: 0,
   });
@@ -497,6 +499,22 @@ describe("SPEC-CORE-174 I3: a cell leaves placeholder only on entering the margi
 
     for (const page of range(1, 125)) intersectPage(page, true);
     expect(drawnCount()).toBe(120);
+  });
+
+  it("keeps an off-proportion page's own box when the cap returns it to placeholder", async () => {
+    pdfMock.pageSizes.set(2, [612, 850]);
+    render(<PdfPagesPanel controller={storeWith({ numPages: 225, page: 1 })} />);
+    await ready(225);
+    const picture = () =>
+      cellButton(cell(2)).firstElementChild as HTMLElement;
+
+    intersectPage(2, true);
+    const drawnBox = picture().style.aspectRatio;
+    expect(drawnBox).toBe(`1 / ${850 / 612}`);
+
+    for (const page of range(1, 125)) intersectPage(page, true);
+    expect(stateOf(2)).toBe("placeholder");
+    expect(picture().style.aspectRatio).toBe(drawnBox);
   });
 });
 

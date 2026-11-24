@@ -216,11 +216,6 @@ function PdfPagesContent({
     const evicted = new Set(farthest);
     setDrawn((prev) => without(prev, evicted));
     setEntered((prev) => without(prev, evicted));
-    setPageRatios((prev) => {
-      const next = new Map(prev);
-      for (const page of evicted) next.delete(page);
-      return next;
-    });
   }, [drawn]);
 
   const outline = state.outline ?? [];
