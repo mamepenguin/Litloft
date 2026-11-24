@@ -112,8 +112,8 @@ a PDF page shows. A PDF or EPUB with no indexed text stays outside file Ask, as 
      - S179 (SPEC-ADDON-179).
      - "- The passages below are part of the file's text, the parts closest to the
        question." when cut; "- The passages below are the file's text." otherwise.
-     - "- Each passage{ and each page image} is introduced by its number in square brackets,
-       e.g. [1]."
+     - "- Each passage{ and each page image (when get_page_images is offered)} is introduced by
+       its number in square brackets, e.g. [1]."
      - "- Cite the <cited> your answer uses inline as [n], right after the sentence they
        support."
      - "- Cite only numbers that appear among the <cited>; never invent one."
@@ -155,10 +155,10 @@ a PDF page shows. A PDF or EPUB with no indexed text stays outside file Ask, as 
      the pages you name and the pages the passages you name are on, up to 4 pages."
 6. The loop is SPEC-ADDON-116's, with no initial image and no frame preparation:
    - Each request goes to the profile's `vision_model` through `reply_with_frames` (tool
-     request) or `stream_with_frames` (final request), with thinking on and the tool
-     `num_predict` for ollama and the tool max-tokens for OpenAI-compatible, as SPEC-ADDON-116
-     I5 states. This holds for every question on the path, including one where the model
-     calls no tool.
+     request) or `stream_with_frames` (final request), exactly as the video path sends them
+     today: ollama with `think: true` and `num_predict` 8192 (`OLLAMA_FRAME_TOOL_NUM_PREDICT`),
+     OpenAI-compatible with the max-tokens field of 16384 (`FRAME_TOOL_MAX_TOKENS`). This holds
+     for every question on the path, including one where the model calls no tool.
    - A tool request is read to its end before anything is written. A reply with no call
      whose text is not blank is written as the answer, in one `answer_chunk`, then
      `citations`, `meta` and `done`. A reply with no call and blank text goes to the
@@ -167,7 +167,8 @@ a PDF page shows. A PDF or EPUB with no indexed text stays outside file Ask, as 
      next request is the final request, listing the same tools with `tool_choice` `"none"`
      (OpenAI-compatible) or no tools (ollama); its answer streams. A final answer that is
      blank goes to the fallback.
-   - Until the first `answer_chunk` the stream writes `: keepalive` at least every 5 s.
+   - Until the first `answer_chunk` the stream writes `: keepalive` at least every 5 s,
+     through the fallback request too.
 7. Tool calls of a reply are handled in the order given. The first 3 tool calls of the
    question, whatever their names, are served and spend one of the 3; each call after them
    gets "Nothing follows: this question has already been served its 3 tool calls." and
@@ -197,8 +198,10 @@ a PDF page shows. A PDF or EPUB with no indexed text stays outside file Ask, as 
       "The text continues: call get_text with after 999 for more." When they do not fit, the
       walk stops, the row and its marker are not written, and the result ends with "The text
       continues: call get_text with after <m> for more.", `m` being the number on the last
-      `[n]` or "already sent as [n]" line written. A row is never cut. At least one row is
-      always written, since a row's lines are under 500 characters.
+      `[n]` or "already sent as [n]" line written. A row is never cut. The walk's first row is
+      always written, with its marker, even when its lines and the reserve alone exceed 3,000
+      characters (a chunk size far above the default 400); the limit then applies from the
+      next row.
    5. When the walk writes the file's last row, the result ends with "The file ends here."
    6. A trailing empty line is dropped before a closing note is joined with a newline of its
       own, and before the result is counted.
@@ -219,7 +222,8 @@ a PDF page shows. A PDF or EPUB with no indexed text stays outside file Ask, as 
          `page <p>: past the end of the document`;
       5. a page whose image was sent earlier in the question: `page <p>: already sent as
          [<k>]`;
-      6. a page already taken by this call: `page <p>: named twice in this call`;
+      6. a page already taken by this call or by an earlier call of the same reply: `page
+         <p>: named twice in this reply`;
       7. a fifth or later page taken by this call: `page <p>: over the limit of 4 pages for
          one call`;
       8. otherwise the page is taken.
@@ -249,7 +253,9 @@ a PDF page shows. A PDF or EPUB with no indexed text stays outside file Ask, as 
     p}`. `meta` is `{"partial": <the material's partial>, "image": <image>}`, where `<image>`
     is `"attached"` when at least one page image was sent, `"unavailable"` when at least one
     page was taken and none was sent, and `"none"` otherwise. The deadline and failure ends
-    (section 2) send the same `meta`.
+    (section 2) send the same `meta`. Every end reached through the fallback (answered,
+    failed or deadline) sends `image` `"unavailable"` when a page was taken earlier in the
+    question, since its answer is from the text alone, and `"none"` otherwise.
 
 ### 2. Failure cases
 
@@ -259,9 +265,9 @@ a PDF page shows. A PDF or EPUB with no indexed text stays outside file Ask, as 
   Ask is not offered for it.
 - **A tool request is refused or fails, returns a reply with no call and blank text, a final
   request fails or is blank before its first `answer_chunk`, or building a tool result
-  raises**: the fallback. It sends today's text request once and streams its events exactly
-  as today's text path writes them (its own `citations` over `[1]`–`[P]` and its own `meta`,
-  with `image` `"none"`), unless the total deadline has passed. It carries no requested
+  raises**: the fallback. It sends today's text request once and streams its events as
+  today's text path writes them (its own `citations` over `[1]`–`[P]`), with the keep-alive of
+  step 6 and the `meta` of step 11, unless the total deadline has passed. It carries no requested
   passage and no page image. A refusal never writes the vision-unsupported verdict.
 - **A final request fails after its first `answer_chunk`, or the total deadline (300 s from
   the slot) passes**: `meta` (step 11), then `done` with `error: "Answer generation
@@ -408,7 +414,14 @@ once where stated:
   today's text path with a profile that cannot see, or the new path, without weakening what
   they check: `tests/test_file_question.py`, `tests/test_spec_addon_072_position.py`,
   `tests/test_spec_addon_179_file_block.py`, `tests/file_question_doubles.py`,
-  `tests/file_question_vision_doubles.py` (`seed_document`), `tests/file_context_doubles.py`.
+  `tests/file_question_vision_doubles.py` (`seed_document`), `tests/file_context_doubles.py`
+  (`passages_only`, with `tests/test_spec_addon_180_image_and_passages.py` and
+  `tests/golden_prompts/file_question_today_passages-only.json`, which keep today's text path
+  through a profile that cannot see so the golden is unchanged),
+  `tests/test_spec_addon_071_image_stream.py` (`test_a_pdf_gets_no_image` pins today's path
+  with a profile that cannot see), and
+  `tests/test_spec_addon_116_frame_request_fallback.py` (its `document` subject moves to a
+  Word or text file, which keeps "never offered the tool" true).
 - Tables read: `indexed_files`, `fts_text_content`, `document_sections`, `pdf_markdown`.
 - The addon files above are committed in the intelligence addon repository; in the core
   repository the `addons/intelligence` gitlink moves to the merged addon commit.
@@ -423,11 +436,11 @@ once where stated:
 
 I1. (SPEC-ADDON-182) The document tool path is taken exactly when the profile can see and the file is a PDF, or an EPUB with cut material; it offers `get_text` exactly when the material is cut and `get_page_images` exactly when the file is a PDF, `get_text` first; every other question, and every video question, sends today's requests unchanged.
 I2. (SPEC-ADDON-182) At most 3 tool calls per question are served, of any names together; a request is the final request once 3 have been served or 120 s have passed since the slot, it offers no callable tool, nothing is sent after 300 s from the slot, and no text of a tool request's reply is written before that reply is complete and known to hold no call.
-I3. (SPEC-ADDON-182) A text result sends only whole rows of the requested file, walking forward in file order from its start; it never sends a sent row's text again (it names it "already sent as [n]"); with its markers and closing note it is at most 3,000 characters; and when it stops for the limit its note names the number of its last numbered line, so a text request with `after` that number continues with the next row.
-I4. (SPEC-ADDON-182) Numbers run without a gap: passages `[1]`–`[P]`, then for each reply its requested passages, then its page images; every `citations` entry of an answer of the path names a number that was sent, with the row's position for a passage or requested passage and `{"page": p}` for a page image, and no other number appears; `meta.image` is `attached` when a page image was sent, `unavailable` when a page was taken and none was sent, and `none` otherwise.
+I3. (SPEC-ADDON-182) A text result sends only whole rows of the requested file, walking forward in file order from its start; it never sends a sent row's text again (it names it "already sent as [n]"); with its markers and closing note it is at most 3,000 characters unless its first row alone exceeds that; and when it stops for the limit its note names the number of its last numbered line, so a text request with `after` that number continues with the next row.
+I4. (SPEC-ADDON-182) Numbers run without a gap: passages `[1]`–`[P]`, then for each reply its requested passages, then its page images; every `citations` entry of an answer of the path names a number that was sent, with the row's position for a passage or requested passage and `{"page": p}` for a page image, and no other number appears; `meta.image` is `attached` when a page image was sent and the answer is not the fallback's, `unavailable` when a page was taken and either none was sent or the answer is the fallback's, and `none` otherwise.
 I5. (SPEC-ADDON-182) Every line the prompt or a tool result writes itself that names a page or section carries no bracketed number, except the page-image label `[n] page p` and the note `page <p>: already sent as [<k>]`; every row a text result writes after a unit change is preceded by that unit's marker; contents have at most 40 lines, each excerpt at most 120 characters.
-I6. (SPEC-ADDON-182) A refusal, failure or blank reply of a tool request, or a failure or blank answer of a final request before its first `answer_chunk`, is followed by exactly one request identical to today's text request for the same question, carrying no requested passage and no image, unless the total deadline has passed; a refusal never writes the vision-unsupported verdict.
-I7. (SPEC-ADDON-183) A page request sends at most 4 page images, each a page of the requested PDF within its own page count, at most 1280 px on the long edge, none already sent for the question; a `passages` value sends the page of the row that number was sent for; a page that cannot be rendered, or whose lock wait passes 30 s, takes no number and is named `not available`.
+I6. (SPEC-ADDON-182) A refusal, failure or blank reply of a tool request, an exception while building a tool result, or a failure or blank answer of a final request before its first `answer_chunk`, is followed by exactly one request identical to today's text request for the same question, carrying no requested passage and no image, unless the total deadline has passed; a refusal never writes the vision-unsupported verdict.
+I7. (SPEC-ADDON-183) A page request sends at most 4 page images, each a page of the requested PDF within its own page count, at most 1280 px on the long edge, no page twice in one question; a `passages` value sends the page of the row that number was sent for; a page that cannot be rendered, or whose lock wait passes 30 s, takes no number and is named `not available`.
 I8. (SPEC-ADDON-183) Every PyMuPDF call made to render page images runs while holding `PYMUPDF_LOCK`.
 I9. (SPEC-ADDON-182) Nothing is written to any store by the document tool path, and no question, answer, tool argument, requested text or image is logged; the summary log line counts served calls by name and the passages and page images sent.
 
@@ -488,11 +501,14 @@ SPEC-ADDON-181 I6. Every file-question system prompt contains S181a, S181b then 
   production gemma, over its 32,768.
 - **Reading backwards from a passage.** The page or section start before it can be named
   directly; a "before" argument doubles the tool surface.
-- **SPEC-ADDON-174 I1.** It speaks of the video frames path (its tool requests offer
-  `get_frames`); a cut PDF never reaches that path.
+- **SPEC-ADDON-174 I1, I8 and I9.** They speak of the video frames path, whose tool requests
+  offer `get_frames` and `get_transcript` (SPEC-ADDON-174 normal flow 2); a cut PDF or EPUB
+  never reaches that path, and the document tool path states its own prompt rules and log
+  line here.
 - **SPEC-ADDON-179 I1.** The document tool path starts its user prompt with the file block.
-- **SPEC-ADDON-071 I3 (`meta.image`).** Held: `attached` when a page image was sent,
-  `unavailable` when pages were taken and none could be sent.
+- **SPEC-ADDON-071 I3 (`meta.image`).** Held: `attached` when a page image was sent and
+  answered with, `unavailable` when pages were taken and none could be sent or the provider's
+  refusal sent the question to the text-only fallback, so the viewer sees the existing notice.
 - **A dedicated invariant for the keep-alive interval and the exact prompt lines.** They are
   required items above and are checked by the acceptance tests; the invariants keep the
   properties a mutation would break silently.
