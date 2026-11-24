@@ -1,0 +1,124 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [],
+  "specification_compliance": [
+    "r8 CR8-1 is fixed. Commit fcb2c95 moves the submodule to 7b233ee, which removes `import contextlib`, `import time` and `Iterator` from file_question.py. A grep of the worktree finds no remaining use of `contextlib`, `time.` or `Iterator`. The imports still present (`asyncio`, `threading`, `Mapping`, `Sequence`, `replace`, `PYMUPDF_LOCK`) are all used: threading.Event at :769, Mapping at :712 and :1367, replace at :1442, PYMUPDF_LOCK at :1040 and :1063.",
+    "I8 is unchanged from r8. PageImages.open() (file_question.py:1037-1045) acquires PYMUPDF_LOCK once, waiting at most 30 s, and then opens the document. image() renders through _render_page, whose Page and Pixmap locals are freed under the hold. close() (:1054-1063) closes the document and drops it before releasing the lock in its finally block.",
+    "I1-I7 and I9: this round changes no product logic. The diff of the full change matches my reading in earlier rounds: uses_document_tools and the branch order, the 3-call cap and the final request with tool_choice none, whole-row text walks with the reserve counted, numbering of passages before pages, the meta image states, a fallback through today's text request with no requested material, the page rules in spec order, and logs that carry only class names, counts and the file id.",
+    "r8 CR8-2 (no test that the Document is deallocated under the lock) is not addressed in this round. It stays a test gap, and the code still holds the property."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    {
+      "behavior": "A page request holds PYMUPDF_LOCK from opening the PDF until up to 4 pages are rendered and the document is closed, so an extraction that starts during that time waits for the whole request.",
+      "frequency": 1,
+      "impact": 1,
+      "reason": "If someone asks about PDF pages while another PDF is being indexed, the indexing waits a few extra seconds, and the user notices nothing."
+    }
+  ],
+  "regression_risks": [
+    "The import removal has no runtime effect. If some code outside file_question.py imported `time`, `contextlib` or `Iterator` through this module, it would now fail. I found no such re-export use in the files I read, but I did not search the whole addon."
+  ],
+  "test_coverage": [
+    "This round changes no tests. The tests' coverage is as in r8: strong acceptance tests for the walk, the limits, numbering, the fallbacks, the deadline, keep-alive, the log line, no writes, and lock-held freeing of Page and Pixmap.",
+    "There is still no test of Document deallocation under the lock (r8 CR8-2), of the final-request keep-alive after a whitespace-only first delta (r6 CR-4), or of absolute NFD paths (r6 CR-3)."
+  ],
+  "not_verified": [
+    "I ran no tests and no linter; I cannot execute commands.",
+    "I did not confirm that the worktree's addon checkout is exactly submodule commit 7b233ee. I read the worktree file and assumed it matches.",
+    "I did not search the whole addon for modules that import `time`, `contextlib` or `Iterator` from app.rag.file_question.",
+    "I did not re-open the touch-point test files that are untouched by this diff."
+  ],
+  "coverage": [
+    {
+      "path": "addons/intelligence/app/prompts/rag/file_question_system.jinja2",
+      "read": "full",
+      "reason": "Read every changed hunk in the diff."
+    },
+    {
+      "path": "addons/intelligence/app/prompts/rag/file_question_user.jinja2",
+      "read": "full",
+      "reason": "Read every changed hunk in the diff."
+    },
+    {
+      "path": "addons/intelligence/app/rag/file_question.py",
+      "read": "partial",
+      "reason": "All diff hunks, including the r9 import hunk. From the worktree: lines 1-40 (imports) and 1000-1067 (_render_page and PageImages), plus a grep for every use of the remaining imports. The rest of load_material, outside its hunks, was not re-read."
+    },
+    {
+      "path": "addons/intelligence/app/rag/prompt.py",
+      "read": "full",
+      "reason": "Read every changed hunk in the diff."
+    },
+    {
+      "path": "addons/intelligence/app/routers/rag.py",
+      "read": "partial",
+      "reason": "Read every diff hunk, which includes every new function from _document_tool_answer to _document_fallback_answer and the changed branch of _file_question_stream. The shared helpers (_until_done, _answer_with_keepalive, _call_arguments) were not re-read this round, and rag.py has no change in r9."
+    },
+    {
+      "path": "addons/intelligence/tests/document_tool_doubles.py",
+      "read": "full",
+      "reason": "Read in the diff."
+    },
+    {
+      "path": "addons/intelligence/tests/file_context_doubles.py",
+      "read": "partial",
+      "reason": "Diff hunks only."
+    },
+    {
+      "path": "addons/intelligence/tests/golden_prompts/file_question_today_document-tool.json",
+      "read": "full",
+      "reason": "Read in the diff; its content is []."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_071_image_stream.py",
+      "read": "partial",
+      "reason": "The changed hunk only."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_116_frame_request_fallback.py",
+      "read": "partial",
+      "reason": "The changed hunk only."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_179_181_every_path.py",
+      "read": "partial",
+      "reason": "Changed hunks only."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_179_file_block.py",
+      "read": "partial",
+      "reason": "The changed hunk only."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_182_183_document_hygiene.py",
+      "read": "full",
+      "reason": "New file, read whole in the diff."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_182_document_tool_loop.py",
+      "read": "full",
+      "reason": "New file, read whole in the diff."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_182_document_tool_offer.py",
+      "read": "full",
+      "reason": "New file, read whole in the diff."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_182_get_text_results.py",
+      "read": "full",
+      "reason": "New file, read whole in the diff."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_183_page_images.py",
+      "read": "full",
+      "reason": "New file, read whole in the diff."
+    }
+  ],
+  "confidence": 85,
+  "trajectory": "There are four rounds. r6→r7 added state and branches to PageImages: a monotonic budget, a per-call `_locked` context manager, an explicit `del`, and a daemon-thread close through `_close_locked`. r7→r8 removed all of them and put one structure in their place: one acquire in open(), held until close(). r8→r9 (fcb2c95, submodule b367ea1→7b233ee) only removes the three imports that the r8 simplification left unused (`contextlib`, `time`, `Iterator`). It adds no branch, state or prediction, and it repeats nothing an earlier round added. The last two rounds removed code; the design is not being patched."
+}

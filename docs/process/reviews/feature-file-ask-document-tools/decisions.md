@@ -24,3 +24,4 @@ author_resolutions:
 - r6 unspecified 5 fix: section titles lose bracketed numbers and line breaks (CR-5, r7).
 - r6 unspecified 6 accept: needs a cut PDF with neither a pdf_markdown row nor any page unit; after still works.
 - r6 unspecified 7 accept: a group whose rows are only markers has nothing to excerpt, and the range alone says so.
+- r9 unspecified 1 accept: as r8 unspecified 1.
