@@ -1,0 +1,239 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "CR-1",
+      "origin": "reviewer",
+      "claim": "PageImages.close() gives up when PYMUPDF_LOCK cannot be acquired within the remaining budget and drops the open pymupdf Document, so its finalizer (fz_drop_document) runs outside the lock while another thread (the extraction holding the lock) is using MuPDF.",
+      "impact": "When a page request coincides with a long PDF extraction or page OCR (uploading or reindexing PDFs while asking), MuPDF runs from two threads at once. pdf.py:60-62 says this makes a conversion fail over to plain text or return wrong text, so the indexed text of the other PDF can be silently wrong.",
+      "evidence": "addons/intelligence/app/rag/file_question.py:1038-1051: `if not PYMUPDF_LOCK.acquire(timeout=max(0.0, self._end - time.monotonic())): return` and the comment says 'the garbage collector closes the document'. `document` is a local, so CPython drops it when close() returns, in the worker thread and without the lock. The case is reached whenever open() succeeded and an extraction took the lock afterwards: for example image() raises lock_timeout, the budget is then spent, and acquire(timeout=0) fails at once. Also file_question.py:1026-1032: `return pixmap.tobytes(\"jpeg\")` inside `with self._locked()` releases the lock before the Page and Pixmap locals are freed, so their MuPDF drops also run unlocked on every render. page_ocr.py:158-162 already leaves `page` outside its lock, so that half of the pattern is pre-existing in the addon.",
+      "repro": "not_reproduced. Mutation view: test_every_pymupdf_call_for_a_page_image_holds_the_lock patches only Document.__init__ and Page.get_pixmap, and test_a_lock_held_past_thirty_seconds holds the lock before open(), so no Document exists and close() returns early. No test opens the document, takes the lock away and then checks close or deallocation, so a close() with no lock at all would also pass.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "A",
+        "reason": "I8 requires every PyMuPDF call made to render page images to run while holding PYMUPDF_LOCK. Closing or dropping the document and the page or pixmap is such a call, and here it runs unlocked.",
+        "invariant_ref": "I8"
+      },
+      "severity": "MEDIUM",
+      "proposed_fix": "Wait for the lock without a timeout in close(), or hand the Document to a holder that drops it under the lock. Free page and pixmap (`del page, pixmap` after computing the bytes) before leaving the locked block."
+    },
+    {
+      "id": "CR-2",
+      "origin": "reviewer",
+      "claim": "The diff adds a new golden file, tests/golden_prompts/file_question_today_document-tool.json (content `[]`), that the touch-point list does not name. The only golden it names is file_question_today_passages-only.json.",
+      "impact": "No user impact. The golden is an empty placeholder because the scenario is excluded from the byte-for-byte I7 test (TODAYS_PATHS), so a reader might think a golden pins the document-tool requests when nothing does.",
+      "evidence": "diff: new file addons/intelligence/tests/golden_prompts/file_question_today_document-tool.json = `[]`; tests/file_context_doubles.py:174 `today(name)` reads `file_question_today_{name}.json`; test_spec_addon_179_181_every_path.py now parametrizes I7 over TODAYS_PATHS, which leaves out document-tool.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is a test artifact outside the named touch points and breaks no invariant.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Delete the empty golden if no test reads it for document-tool, or name it in the touch points."
+    },
+    {
+      "id": "CR-3",
+      "origin": "reviewer",
+      "claim": "page_image_path calls config.resolve_stored_path (NFC/NFD on-disk spelling) as well as joining settings.drive_mounts. config.py is listed only for `settings.drive_mounts`, and a stored absolute path is returned without that normalisation.",
+      "impact": "A PDF stored with an absolute path whose on-disk name is NFD-decomposed cannot be opened, so every page is 'not available', while the same file stored relative is found.",
+      "evidence": "addons/intelligence/app/rag/file_question.py:987-996: `if os.path.isabs(material.file_path): return material.file_path` and `return config.resolve_stored_path(config.resolve_file_path(...))`. config.py:1294 resolve_stored_path explains why the join alone is not enough.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "It reaches a config helper beyond the declared read-only use and treats the two path forms unevenly. No invariant is broken; the pages are named 'not available' as I7 allows.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Pass the absolute path through config.resolve_stored_path too."
+    },
+    {
+      "id": "CR-4",
+      "origin": "reviewer",
+      "claim": "On the final request, once a whitespace-only first delta arrives, _answer_with_keepalive stops writing keep-alives (first=False), and the document loop holds that delta without writing an answer_chunk. The stream can then stay silent past 5 s before the first answer_chunk.",
+      "impact": "A reasoning model that emits a leading newline and then pauses can leave the SSE line silent long enough for a proxy idle timeout to close it. The viewer then sees the answer fail.",
+      "evidence": "addons/intelligence/app/routers/rag.py:2864-2875 (`first = False` after any delta; then `timeout=None`); the final branch of _document_tool_answer holds whitespace deltas (`held = [*held, delta]; if not \"\".join(held).strip(): continue`), so no answer_chunk and no keep-alive is written.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Spec §1.6 requires a keep-alive at least every 5 s until the first answer_chunk. That is a required item, not a declared invariant.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "In the held state, read with a keep-alive timeout as well, for example by tracking 'first visible chunk written' in place of 'first delta'."
+    },
+    {
+      "id": "CR-5",
+      "origin": "reviewer",
+      "claim": "An EPUB contents line writes the stored section title cut to 60 characters with no removal of `[n]` markers or line breaks, so a title such as '[1] Introduction' puts a bracketed number on a line that names a section.",
+      "impact": "The prompt pairs a section with a passage-like number, which is the confusion I5 and SPEC-ADDON-114 I11 keep out, so the model may cite [1] for the wrong place. A title with a newline also splits a contents line.",
+      "evidence": "addons/intelligence/app/rag/file_question.py document_contents: `f\"{label}: {title[:DOCUMENT_TITLE_CHARS]} — {excerpt}\"`. Only the excerpt goes through _without_markers (in _document_excerpt).",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "A",
+        "reason": "I5: every line the prompt writes itself that names a section carries no bracketed number. The title is part of a line the prompt composes.",
+        "invariant_ref": "I5"
+      },
+      "severity": "LOW",
+      "proposed_fix": "Remove `[1-3 digits]` markers and collapse whitespace in the title before cutting it, as the excerpt does."
+    }
+  ],
+  "specification_compliance": [
+    "I1: uses_document_tools (file_question.py:356) and the branch in _file_question_stream match: can_see and (PDF, or EPUB with partial). _document_tools orders get_text before get_page_images.",
+    "I2: served is capped at _FRAME_REQUESTS_PER_QUESTION. The final request uses tool_choice none. Tool replies are awaited whole before anything is written. Deadline checks are at the loop top, in _until_done and in asyncio.timeout.",
+    "I3: _serve_text_request writes whole rows and names sent rows by number. The length check counts the reserve; the first row is always written. The note names the last number written.",
+    "I4: numbers run on from len(passages)+1, text calls first, then pages. citations_from is over positions. meta is attached/unavailable/none; the fallback uses unavailable when pages were taken.",
+    "I6: the fallback sends generate_stream with today's prompts and max_tokens and no requested material. It writes no vision verdict.",
+    "I7: the per-call limit is 4. Pages are judged against the PDF's own page_count, and sent_pages stops repeats. The zoom makes the long edge 1280 px. Failures take no number.",
+    "I8: open, page_count and render run under the lock. Close on timeout and object deallocation do not (CR-1).",
+    "I9: no writes found. Logs carry the exception class and file id only."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    {
+      "behavior": "When the lock cannot be retaken within the budget, the opened PDF is left to the garbage collector to close, outside PYMUPDF_LOCK.",
+      "frequency": 1,
+      "impact": 6,
+      "reason": "A page request during a long PDF extraction can make the other PDF's extraction silently return wrong text."
+    },
+    {
+      "behavior": "A relative stored path is resolved to its on-disk NFC/NFD spelling; an absolute one is not.",
+      "frequency": 1,
+      "impact": 3,
+      "reason": "An absolute-path PDF with a decomposed name gets every page 'not available'."
+    },
+    {
+      "behavior": "Keep-alives stop on the final request after a whitespace-only first delta, until visible text arrives.",
+      "frequency": 1,
+      "impact": 4,
+      "reason": "A model that pauses after a leading newline can leave the line silent past a proxy timeout, and the answer fails."
+    },
+    {
+      "behavior": "A PDF whose rows store no readable page gets contents lines that are ranges only, and get_text by page answers 'Nothing is written from page N on.' although text exists.",
+      "frequency": 1,
+      "impact": 3,
+      "reason": "For such a PDF, the model can read more only through `after`."
+    },
+    {
+      "behavior": "EPUB section titles enter the contents with their bracketed numbers and line breaks kept.",
+      "frequency": 1,
+      "impact": 3,
+      "reason": "A title like '[1] Intro' places a citation-like number beside a section."
+    },
+    {
+      "behavior": "A cut PDF with neither a pdf_markdown row nor any page unit tells the model 'a page number from 1 to 0' and states no page count.",
+      "frequency": 0,
+      "impact": 2,
+      "reason": "It needs rows with no page and no markdown row; the model can still use `after`."
+    }
+  ],
+  "regression_risks": [
+    "Every PDF question on a seeing profile now goes to vision_model with buffered, non-streamed replies, and a provider that refuses tools pays one refused request per question.",
+    "PYMUPDF_LOCK is now taken at question time, so an extraction can wait behind a page render, and a render can wait up to 30 s.",
+    "Changes to the shared _FRAME_TOOL_* constants and _answer_with_keepalive now affect both the video and the document paths."
+  ],
+  "test_coverage": [
+    "Strong acceptance tests cover the walk, markers, the limit boundary (1909 vs 1922), bad arguments, the rule order for page values, numbering across a reply, fallbacks per failure, the deadline, keep-alive, the log line and no writes.",
+    "The I8 test patches only Document.__init__ and Page.get_pixmap. It does not cover close, page_count or object release, so CR-1 passes the tests.",
+    "No test opens a PDF and then has the lock taken by another holder; the 30 s test holds the lock before open.",
+    "No test covers EPUB titles that contain bracketed numbers, or absolute paths with NFD names.",
+    "Touch-point test files test_file_question.py, test_spec_addon_072_position.py, file_question_doubles.py and file_question_vision_doubles.py are not in this diff. I did not check whether they still pass on the new path."
+  ],
+  "not_verified": [
+    "Tests were not run; I cannot execute commands.",
+    "Whether pymupdf Document/Page/Pixmap finalizers call MuPDF in the installed version.",
+    "llm.reply_with_frames/stream_with_frames request shapes with an empty initial frame list.",
+    "Whether the untouched test files listed in the touch points still pass with seeing profiles on PDFs.",
+    "The intelligence submodule commit hash matches the reviewed worktree contents."
+  ],
+  "coverage": [
+    {
+      "path": "addons/intelligence/app/prompts/rag/file_question_system.jinja2",
+      "read": "full",
+      "reason": "Every changed hunk read in the diff."
+    },
+    {
+      "path": "addons/intelligence/app/prompts/rag/file_question_user.jinja2",
+      "read": "full",
+      "reason": "Every changed hunk read in the diff."
+    },
+    {
+      "path": "addons/intelligence/app/rag/file_question.py",
+      "read": "partial",
+      "reason": "Diff hunks, plus lines 380-800 (load_material, _document_material, _unit), 1352-1515 (citations, _fit, _document_position) and the PageImages class from the worktree."
+    },
+    {
+      "path": "addons/intelligence/app/rag/prompt.py",
+      "read": "full",
+      "reason": "Every changed hunk read in the diff."
+    },
+    {
+      "path": "addons/intelligence/app/routers/rag.py",
+      "read": "partial",
+      "reason": "Every diff hunk, plus _text_question_stream (549-725), constants (728-760), _keepalive_answer, _until_done, _call_arguments and _answer_with_keepalive from the worktree."
+    },
+    {
+      "path": "addons/intelligence/tests/document_tool_doubles.py",
+      "read": "full",
+      "reason": "Read in the diff."
+    },
+    {
+      "path": "addons/intelligence/tests/file_context_doubles.py",
+      "read": "partial",
+      "reason": "Diff hunks and the golden loader (lines 60-176)."
+    },
+    {
+      "path": "addons/intelligence/tests/golden_prompts/file_question_today_document-tool.json",
+      "read": "full",
+      "reason": "Read in the diff; the content is []."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_071_image_stream.py",
+      "read": "partial",
+      "reason": "Changed hunk only."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_116_frame_request_fallback.py",
+      "read": "partial",
+      "reason": "Changed hunk only."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_179_181_every_path.py",
+      "read": "partial",
+      "reason": "Changed hunks only."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_179_file_block.py",
+      "read": "partial",
+      "reason": "Changed hunk only."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_182_document_tool_loop.py",
+      "read": "full",
+      "reason": "Read in the diff."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_182_document_tool_offer.py",
+      "read": "full",
+      "reason": "Read in the diff."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_182_get_text_results.py",
+      "read": "full",
+      "reason": "Read in the diff."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_183_page_images.py",
+      "read": "full",
+      "reason": "Read in the diff."
+    }
+  ],
+  "confidence": 75
+}
