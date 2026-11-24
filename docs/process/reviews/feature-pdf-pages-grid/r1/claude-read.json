@@ -1,0 +1,127 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "CR-1",
+      "origin": "reviewer",
+      "claim": "When the 120-page cap evicts a drawn page, the eviction also deletes that page's kept proportion, so a page whose height ÷ width is more than 2% taller than page 1 shrinks its row back to the first page's proportion. When the page is redrawn, the row grows again. Both are height changes at a fixed rail width that do not happen on the page's first drawing.",
+      "impact": "Take a long document with an off-proportion page taller than page 1, for example a scan with a slightly taller page. Once the reader has scrolled far enough that more than 120 pages are drawn, the row holding that page changes height while it is off screen. Because the grid uses `items-start`, a row is as tall as its tallest cell. On engines without CSS scroll anchoring (iOS Safari, which the spec names), the visible thumbnails jump by that height difference during scrolling. The jump happens on eviction and again on the redraw.",
+      "evidence": "frontend/src/components/FileDetail/pdf/PdfPagesPanel.tsx:219-223: the eviction effect deletes evicted pages from `pageRatios`. `boxRatio` (lines 241-251) then falls back to `firstRatio` for those pages, so their `aspectRatio` style (line 342) changes. Spec §4 says the component keeps 'the proportions of drawn pages' for the mount. I8 permits a row height change only 'when such a page is first drawn'. The e2e cap test (pdf-pages-grid-desktop.spec.ts, the 120-page test) uses the fixture whose only off-proportion page, page 9, is landscape and therefore shorter. A shorter cell never sets its row's height under `items-start`, so the test cannot observe this.",
+      "repro": "not_reproduced. To reproduce by reasoning: build the long fixture with page 11 at 1.021× height (`pdf=long-near`), scroll from the first page to the last until page 11 is evicted, and compare the height of page 11's row before and after eviction. It shrinks by about 2% of a cell height. Scrolling back up regrows it.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "A",
+        "invariant_ref": "I8",
+        "reason": "I8 states that at a fixed rail width no row changes height except when a page beyond the 2% tolerance is first drawn. Eviction, and the redraw after it, change row height at other times."
+      },
+      "severity": "LOW",
+      "proposed_fix": "Keep the `pageRatios` entry when a page is evicted, and remove only its `drawn` and `entered` entries, so the box keeps the page's own proportion through eviction and redraw."
+    }
+  ],
+  "specification_compliance": [
+    "Touch-point question: every path the diff changes falls under a listed touch point. That covers PdfPagesPanel.tsx and its test, DESIGN.md, and the frontend/e2e-components/ directory entry, which covers fixtures/pdfPagesGrid.ts, fixtures/inspectorResponsive.tsx, the two new specs, pdf-pages-grid.measure.ts, projects.ts and spec-viewport.spec.ts. docs/specs and INDEX.md are implicit touch points. The answer is empty. The fixture is selected by a `pdf=long*` query in inspectorResponsive.tsx rather than registered in fixtures/app.tsx as the touch-point prose says. That is a disagreement between the prose and the code, not a defect.",
+    "I1: the grid is `repeat(auto-fill,minmax(96px,1fr))` with an 8px column gap (`gap-x-2`) and no padding of its own (PdfPagesPanel.tsx:313). It is checked in e2e with a 0px and a 15px scrollbar and in the phone sheet.",
+    "I2: every page from 1 to numPages gets a `<li>` regardless of the current page (line 315).",
+    "I3: an IntersectionObserver uses the closest `data-inspector-scroller` ancestor as its root, else the panel root, with a margin of half the root's height above and below (lines 134-157). It is created in a passive effect, so it starts after the follow layout effect has scrolled. The fallback without IntersectionObserver adds pages within 3 of each followed page (lines 167-179). The cap evicts the drawn page farthest from the visible centre (lines 197-224).",
+    "I4: `aria-current` and the accent outline sit on the picture div and depend only on `n === state.page` (lines 323-341).",
+    "I5: `goToPage` is called only from the onClick handlers.",
+    "I6: the follow is a layout effect that writes only `root.scrollTop`, clamped to the scroll range. It skips a cell that is already wholly visible, measured against a visible box that is offset by `--inspector-sticky-top` (lines 161-195 and 408-420). That variable is only set in the column (sheet) form (InspectorShell.tsx:139-159), so on desktop the offset is 0.",
+    "I7 and I12: the picture div always carries `border border-warm-silver/40 bg-white`. A failed page unmounts its `<Page>` (failed takes precedence over the other states), and `loading` and `error` are null, so the cell shows no text.",
+    "I8: firstRatio is gated, A4 is used when page 1 cannot be read, and the 2% tolerance is computed from `originalWidth`/`originalHeight`. In the installed react-pdf these come from `getViewport({scale:1})` (react-pdf/dist/shared/utils.js:96-105), so rotation is applied consistently with the first page's ratio. Exception: deleting the ratio on eviction breaks 'no row changes height except when first drawn' (CR-1).",
+    "I9: the outline markup and classes are unchanged.",
+    "I10: the `shown` guard and the `lastFollowed` ref implement step 10.",
+    "I11: `key={state.src}` remounts the content, and `useHasBeenVisible` is unchanged."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    {
+      "behavior": "The IntersectionObserver's half-height drawing margin is computed once, when the observer is created (dependencies `[firstRatio, numPages]`). It is not recomputed when the window is resized or the phone sheet changes height. If the first page's proportion resolves while the Pages tab is hidden, the margin is 0 for the whole mount.",
+      "frequency": 2,
+      "impact": 2,
+      "reason": "After the reader resizes the window, raises the sheet from half to full height, or switches tabs while the document is still loading, pages are drawn only on entering the visible box, or with a margin sized for the old height, so more white faces flash while scrolling."
+    },
+    {
+      "behavior": "On desktop the outline and the grid share one scroller, so following a distant page (step 9) scrolls the outline out of view when the reader presses an outline row or turns the page in the viewer.",
+      "frequency": 3,
+      "impact": 2,
+      "reason": "A reader with a long outline who presses an outline entry sees the rail scroll to centre the target page's cell, and the outline they were using scrolls away."
+    },
+    {
+      "behavior": "Pages that enter the margin but have not finished rendering ('drawing') do not count toward the 120-page cap, and `drawn` can hold 121 pages for one painted frame before the eviction effect runs.",
+      "frequency": 1,
+      "impact": 1,
+      "reason": "Fast scrolling through a long document can briefly hold more than 120 rasters in memory. Nothing visible changes."
+    }
+  ],
+  "regression_risks": [
+    "Every page of a document is now a button in the tab order: 225 tab stops for a 225-page PDF. The spec accepts this.",
+    "The Document now lives inside PdfPagesPanel rather than PdfPagesTab, so any other caller of PdfPagesPanel would open a second document. Grep shows no other caller.",
+    "Desktop scroll preservation on returning to the tab (I10) relies on the browser keeping `scrollTop` across `display:none`. It is checked only in Chromium, not in Safari or Firefox."
+  ],
+  "test_coverage": [
+    "The unit tests for I6/I10 ('scrolls no cell into view when the viewer's page changes' and 'writes no scroll while the Pages tab is not shown') pass vacuously in jsdom. Every bounding rect is zero, so the follow effect always takes the 'wholly visible' early return (PdfPagesPanel.tsx:188) and never writes `scrollTop`. Removing the `!shown` guard, or removing the scroll entirely, does not fail them. The first test also filters to elements inside the rail, which the scroller never is. Only the desktop e2e tests (I6 centring, and the I10 return follow to page 150) protect this behaviour.",
+    "There is no phone-side I10 check: no test switches the sheet away from Pages and asserts that the shared sheet scroller is not written.",
+    "The phone cases (390×844) run inside a DESKTOP_ONLY spec with a fine pointer, so the tab strip's `pointer-coarse:min-h-11` height, and therefore the real phone value of `--inspector-sticky-top`, is never exercised. The code reads the variable at run time, so this is a gap in coverage only.",
+    "The `long-outline` fixture variant is never requested by any spec, so I9 (outline rows, their indentation and the 24px inset next to the new grid) has no browser check. Only the jsdom outline tests cover it.",
+    "The cap e2e test uses only the landscape (shorter) off-proportion page, so a ratio change that eviction makes on a taller page (CR-1) is not observable.",
+    "The unit cap test ('never holds more than 120 drawn pages') checks the count only. In jsdom all distances are equal, so the eviction choice (farthest from the visible centre) is protected only by the e2e scroll-to-the-end test."
+  ],
+  "not_verified": [
+    "Nothing was executed. No unit test or Playwright spec was run, and the mutations described were reasoned through, not applied.",
+    "react-pdf's Document handling of `onLoadSuccess` and of rendering children when `src` changes (whether the old proxy can leak into the new keyed content) was not checked in its source.",
+    "frontend/src/lib/pdfController.ts was not read, including the order in which `src`, `numPages` and `page` update on a document change.",
+    "The behaviour of `scrollTop` after `display:none` in Safari and Firefox was not verified.",
+    "The design artboards under docs/process/reviews/feature-pdf-pages-grid/design/ were not opened."
+  ],
+  "coverage": [
+    {
+      "path": "frontend/e2e-components/fixtures/inspectorResponsive.tsx",
+      "read": "full",
+      "reason": "Read the changed hunks (the import and the PDF_BYTES selection) together with their context, lines 60-169."
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/pdfPagesGrid.ts",
+      "read": "full",
+      "reason": "A new file, read in full from the diff."
+    },
+    {
+      "path": "frontend/e2e-components/pdf-pages-grid-desktop.spec.ts",
+      "read": "full",
+      "reason": "A new file, read in full from the diff."
+    },
+    {
+      "path": "frontend/e2e-components/pdf-pages-grid-scrollbar-desktop.spec.ts",
+      "read": "full",
+      "reason": "A new file, read in full from the diff."
+    },
+    {
+      "path": "frontend/e2e-components/pdf-pages-grid.measure.ts",
+      "read": "full",
+      "reason": "A new file, read in full from the diff."
+    },
+    {
+      "path": "frontend/e2e-components/projects.ts",
+      "read": "full",
+      "reason": "Read the whole file."
+    },
+    {
+      "path": "frontend/e2e-components/spec-viewport.spec.ts",
+      "read": "partial",
+      "reason": "Read the changed hunk (the AT_THE_DESKTOP_WIDTH list additions) and lines 101-190, where the list is checked against DESKTOP_ONLY."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/pdf/PdfPagesPanel.tsx",
+      "read": "full",
+      "reason": "Read the whole file, lines 1-462."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/pdf/__tests__/PdfPagesPanel.test.tsx",
+      "read": "full",
+      "reason": "Every changed hunk read from the diff, plus the unchanged middle section at lines 329-438."
+    }
+  ],
+  "confidence": 78
+}

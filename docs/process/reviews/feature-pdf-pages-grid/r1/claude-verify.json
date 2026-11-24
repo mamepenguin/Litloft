@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "CR-1",
+      "status": "confirmed",
+      "note": "Traced statically at PdfPagesPanel.tsx. The eviction effect (lines 197-224) removes evicted pages from `drawn` and `entered` (217-218) and also deletes them from `pageRatios` (219-223). `boxRatio` (241-251) returns the page's own ratio only while `pageRatios` has it, and otherwise falls back to `firstRatio`. Line 342 then sets `aspectRatio: 1 / firstRatio` on the evicted cell. When the IntersectionObserver re-adds the page to `entered` (148), the `<Page>` mounts at the first page's ratio until `onRenderSuccess` -> `markDrawn` (253-260) sets the ratio again, so the box changes height a second time. For a page more than 2% taller than page 1, each change resizes the row under `items-start` (313). The spec allows only a change 'when first drawn' (I8; §3 'Never ... a cell's box changes height except ... when it is first drawn'), and §4 keeps 'the proportions of drawn pages' for the mount. The problem is wider than the reader stated: an evicted landscape page (fixture page 9) also changes its own cell box height, which breaks §3's per-cell 'Never' even when the row height stays the same. The 120-cap e2e test (pdf-pages-grid-desktop.spec.ts:202-230) counts only drawn cells and measures no box heights, so it cannot catch this. Bucket A against I8 is appropriate."
+    }
+  ],
+  "unspecified_scores": [
+    {
+      "source_reviewer": "claude-read",
+      "index": 0,
+      "frequency": 3,
+      "impact": 2,
+      "reason": "The margin is not recomputed when the phone sheet changes height, the window is resized, or the reader leaves the tab before the first page's ratio resolves (the hidden scroller measures 0). The only effect is that fewer pages are pre-drawn, so white faces show briefly while scrolling."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "index": 1,
+      "frequency": 2,
+      "impact": 3,
+      "reason": "Only PDFs with an outline are affected (none exist in the test drives). On those, pressing an outline row whose page is far down scrolls the shared desktop scroller to centre that cell, and the outline leaves view until the reader scrolls back up."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "index": 2,
+      "frequency": 2,
+      "impact": 1,
+      "reason": "This only happens after scrolling past 120 pages in a long document. One frame may hold 121 drawn canvases, or more while pages are still in 'drawing', before eviction runs (useEffect runs after paint). The user sees nothing."
+    }
+  ],
+  "specification_compliance": [
+    "I8 / §3 'Never' / §4: violated by the cap eviction, which deletes kept proportions (CR-1 confirmed, PdfPagesPanel.tsx:219-223).",
+    "I11: the reset is done by `key={state.src}` on PdfPagesContent (line 79), which drops drawn pages and ratios on a src change, consistent with the spec.",
+    "I5: goToPage is called only from the onClick handlers (lines 287, 331); no effect calls it.",
+    "I6/I10: the follow useLayoutEffect is gated on `shown` and `lastFollowed` and writes only `root.scrollTop` (lines 161-195)."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "Cap eviction changes the height of off-proportion cells twice for each evict/redraw cycle. Rows below it shift, and iOS Safari has no scroll anchoring to compensate."
+  ],
+  "test_coverage": [
+    "The 120-cap e2e test (pdf-pages-grid-desktop.spec.ts:202-230) checks only the number of drawn cells. It does not check box heights after eviction, and the fixture has no off-proportion page that is taller than page 1."
+  ],
+  "not_verified": [
+    "Nothing was run in a browser. CR-1 was traced statically through the code, with no e2e or unit test run.",
+    "Did not read PdfPagesPanel.test.tsx, the e2e fixture builder, or the mobile spec in detail.",
+    "Did not check how react-pdf's onRenderSuccess timing interacts with the eviction effect when many pages render at once."
+  ],
+  "confidence": 88
+}
