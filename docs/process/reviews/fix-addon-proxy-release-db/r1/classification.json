@@ -1,0 +1,24 @@
+{
+  "risk": "HIGH",
+  "score": 9,
+  "base": 1,
+  "zone_max": "HIGH",
+  "modifiers": [],
+  "promotions": [],
+  "zones_touched": [
+    {
+      "path": "backend/app/routers/addon_proxy.py",
+      "level": "HIGH"
+    },
+    {
+      "path": "backend/tests/test_addon_proxy_releases_db.py",
+      "level": "LOW"
+    }
+  ],
+  "human_zones_touched": [],
+  "protected_paths_touched": [],
+  "docs_only": false,
+  "reasons": [
+    "highest zone HIGH (8 points)"
+  ]
+}

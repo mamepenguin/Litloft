@@ -540,7 +540,7 @@ async def addon_proxy(
 
     # Pre-check hooks
     pre_check = route_config.get("pre_check")
-    checked_file: File | None = None
+    checked_drive: str | None = None
     if pre_check:
         # A manifest is JSON from another repository, so ``pre_check`` can be
         # any shape. Anything that is not an object has no ``type`` to read and
@@ -565,9 +565,9 @@ async def addon_proxy(
                     addon_name, route_config.get("path"), param_name,
                 )
                 raise HTTPException(status_code=404, detail="Route not found")
-            checked_file = _check_file_access(
+            checked_drive = _check_file_access(
                 file_id, unlocked_groups, db
-            )
+            ).drive
         elif check_type == "addon_feature":
             # Per-drive policy gate. Requires X-Lit-Drive (already enforced
             # for scope=drive; for scope=both we treat absence as 404 to
@@ -601,11 +601,16 @@ async def addon_proxy(
     # ``addon_feature`` on the route itself.
     addon_feature = route_config.get("addon_feature")
     if addon_feature:
-        if checked_file is not None and checked_file.drive != requested_drive:
+        if checked_drive is not None and checked_drive != requested_drive:
             raise HTTPException(status_code=404, detail="Route not found")
         _require_addon_feature(
             requested_drive, addon_name, addon_feature
         )
+
+    # Closing here rather than leaving it to ``get_db``'s teardown keeps a
+    # slow upstream from pinning one pooled connection per request; on a
+    # stream route the wait for response headers can last minutes.
+    db.close()
 
     # Proxy the request
     is_stream = route_config.get("stream", False)

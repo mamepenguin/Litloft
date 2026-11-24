@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [],
+  "specification_compliance": [
+    "Touch-point question: no invariants file and no touch-point list are declared for this change, so there is no list to compare against. The empty findings list does not mean a list was checked and found complete. The diff reaches: (1) the shared `addon_proxy` handler (backend/app/routers/addon_proxy.py:472-648), so the new `db.close()` at :613 runs for every addon route, buffered and stream, with or without a pre_check; (2) the `file_access` pre-check call site at :568-570, which now keeps only `.drive` instead of the File instance; (3) the cross-drive guard for route-level `addon_feature` at :604; (4) a new test file, backend/tests/test_addon_proxy_releases_db.py. The diff reaches nothing outside these.",
+    "behavior.md item 1 (no pooled connection held while forwarding): met by reading. `db.close()` at addon_proxy.py:613 runs after every pre-check and before `_proxy_request` / `_proxy_stream_request` at :622. The only DB use in the handler is `_check_file_access` (:127-131). `_accessible_drives`, `_require_addon_feature`/`config.is_addon_feature_enabled`, `is_admin` and `get_unlocked_groups` (auth.py:144) read config or headers, not the DB. `SlowRequestMiddleware` (main.py:303-315) opens no session. `_check_file_access` has no other callers.",
+    "behavior.md item 2 (pre-check decisions unchanged): met by reading. `checked_drive` is taken from the same File row that `checked_file` held. `_check_file_access` already returns 404 when `file.drive` is not in the accessible set (:135-137), so a None drive cannot reach the guard at :604, and the guard compares the same values as before. Because `checked_drive` is a plain str, no detached-instance access happens after the close.",
+    "`get_db` teardown (database.py:703-708) calls `close()` a second time on the same session. `Session.close()` is idempotent, so this is harmless."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    {
+      "behavior": "The handler now calls `db.close()` on every addon route, including routes with no pre_check or with only an admin or addon_feature pre_check, where the session never checked out a connection.",
+      "frequency": 10,
+      "impact": 1,
+      "reason": "Every addon proxy request runs this close. With no connection checked out it is a no-op, and the user sees no difference."
+    }
+  ],
+  "regression_risks": [
+    "`Session.close()` leaves the session reusable. Code added later that touches `db` after addon_proxy.py:613 (for example a DB-backed response_filter or a post-response audit write) would silently check a connection out again and hold it until `get_db` teardown. No test guards against that, and the new tests only sample the pool at the moment the upstream is called.",
+    "The stream test samples `pool.checkedout()` only at `send()`, not while the response body is iterated. Today nothing re-acquires a connection during iteration, but a regression there would not be caught."
+  ],
+  "test_coverage": [
+    "test_a_buffered_route_holds_no_connection_while_the_upstream_works and test_a_stream_route_holds_no_connection_while_the_upstream_works (backend/tests/test_addon_proxy_releases_db.py:148-179) read `database.engine.pool.checkedout()` inside the fake upstream. The conftest `client` fixture swaps `database.engine` for the test engine (conftest.py:129), and the override_get_db session is bound to that engine, so the count is what the request holds. Mutation, by reading: deleting `db.close()` or moving it after `_proxy_request` leaves the request session holding the connection from the `_check_file_access` query, so the lists become [1] and both tests fail (killed). Closing only on the stream branch is killed by the buffered test.",
+    "Line 604, rewritten by this change, is covered by existing tests in backend/tests/test_addon_proxy_drive_scope.py. test_file_feature_policy_cannot_use_a_different_drive_header (:399-435) uses a file on other-drive with X-Lit-Drive test-drive and expects 404, so deleting the guard or changing `!=` to `==` gives 200 and is killed. test_route_addon_feature_composes_with_file_access (:354-396) expects 200 on the same drive, so `!=` → `==` gives 404 there and is killed.",
+    "The fixture's own session commits before the request and reads no attribute afterwards, so it holds no connection. The assertion `== [0]` therefore does not depend on fixture leakage."
+  ],
+  "not_verified": [
+    "I did not run either new test, nor observe it RED at the parent commit. The [1] result when `db.close()` is removed is inferred from reading SQLAlchemy session semantics.",
+    "I did not check whether any lifespan background task other than the stubbed scan_all_drives and purge_expired_trash holds a connection from the test engine while the request runs. If one did, it would make `== [0]` flaky.",
+    "I did not check the installed FastAPI version's ordering of yield-dependency teardown relative to the response. The fix does not depend on it, but I did not confirm the production pool behavior.",
+    "I read only docs/process/review.md, testing-and-comments.md and the change's behavior.md. I did not read principles.md, prohibited.md, workflow.md, spec-and-design.md or the other process documents.",
+    "I did not read the rest of the existing addon proxy test files (test_addon_proxy_file_access.py, test_addon_proxy_gate_declarations.py) beyond the grep hits."
+  ],
+  "coverage": [
+    {
+      "path": "backend/app/routers/addon_proxy.py",
+      "read": "full",
+      "reason": "Read the whole file, lines 1-649, including both changed hunks in their enclosing `addon_proxy` function and the helpers they call."
+    },
+    {
+      "path": "backend/tests/test_addon_proxy_releases_db.py",
+      "read": "full",
+      "reason": "Read the whole file from disk, lines 1-180."
+    }
+  ],
+  "confidence": 85
+}
