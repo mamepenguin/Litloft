@@ -1,0 +1,64 @@
+{
+  "risk": "HIGH",
+  "score": 7,
+  "base": 3,
+  "zone_max": "MEDIUM",
+  "modifiers": [],
+  "promotions": [],
+  "zones_touched": [
+    {
+      "path": "DESIGN.md",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "docs/specs/INDEX.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/pdf-pages-grid.md",
+      "level": "LOW"
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/inspectorResponsive.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/pdfPagesGrid.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/pdf-pages-grid-desktop.spec.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/pdf-pages-grid-scrollbar-desktop.spec.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/pdf-pages-grid.measure.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/projects.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/spec-viewport.spec.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/pdf/PdfPagesPanel.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/pdf/__tests__/PdfPagesPanel.test.tsx",
+      "level": "MEDIUM"
+    }
+  ],
+  "human_zones_touched": [],
+  "protected_paths_touched": [],
+  "docs_only": false,
+  "reasons": [
+    "highest zone MEDIUM (4 points)"
+  ]
+}

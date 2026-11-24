@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [],
+  "unspecified_scores": [
+    {
+      "source_reviewer": "claude-read",
+      "index": 0,
+      "frequency": 3,
+      "impact": 1,
+      "reason": "Confirmed at PdfPagesPanel.tsx:139-151: `half` is taken from the scroller rect once per observer creation (deps `[firstRatio, state.numPages]`), so resizing the browser window or changing the phone sheet's height leaves the pre-draw margin sized for the old height, and the user only sees thumbnails start drawing slightly earlier or later than intended; the cells inside the visible box are still drawn."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "index": 1,
+      "frequency": 3,
+      "impact": 2,
+      "reason": "Confirmed at PdfPagesPanel.tsx:198 and :319: the cap counts only `drawn`, and every `entered` (drawing) cell mounts a `<Page>`, so quickly flinging through a 200+ page PDF can start a render of nearly every page before eviction trims `drawn` back to 120; the user sees at most a brief CPU and memory spike from small 128px canvases, and nothing is displayed wrongly."
+    }
+  ],
+  "specification_compliance": [
+    "There were no findings to verify. I read PdfPagesPanel.tsx at the reviewed state to score the two unspecified behaviors.",
+    "I3 cap: the eviction runs in a useEffect (PdfPagesPanel.tsx:197-219) after `drawn` grows, so for one committed render `drawn.size` can be 121 before the trim. The trim brings it back to 120, and nothing a user can see depends on that one frame.",
+    "I5: a cell's onClick (PdfPagesPanel.tsx:326) is the only goToPage call in the rail. The following effect (161-195) writes only `root.scrollTop`, which is consistent."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    {
+      "behavior": "A cell in `drawing` that is scrolled far away before its render finishes is not cancelled. It stays in `entered` and keeps its `<Page>` mounted until the render finishes, and only then becomes eligible for eviction (PdfPagesPanel.tsx:216-218 evicts only members of `drawn`).",
+      "frequency": 3,
+      "impact": 1,
+      "reason": "Fast scrolling through a long PDF finishes renders for pages that are already off screen, which costs some background work and nothing visible."
+    }
+  ],
+  "regression_risks": [
+    "The IntersectionObserver margin is fixed when the observer is created. Layout changes after that (window resize, sheet height) change how much is pre-drawn but do not stop visible cells from drawing."
+  ],
+  "test_coverage": [
+    "I did not read the unit or e2e tests, because there were no findings to reproduce. The scores rest only on reading the component."
+  ],
+  "not_verified": [
+    "I did not run the code. Every behavior was judged by reading PdfPagesPanel.tsx alone.",
+    "I did not check whether the phone sheet can change height while mounted (MobileInspectorSheet.tsx not read), which affects how often entry 0 triggers.",
+    "I did not measure the peak number of concurrent `<Page>` renders during a fast scroll."
+  ],
+  "confidence": 80,
+  "coverage": [
+    {
+      "path": "frontend/src/components/FileDetail/pdf/PdfPagesPanel.tsx",
+      "read": "full",
+      "reason": "This file holds both unspecified behaviors I scored."
+    }
+  ]
+}

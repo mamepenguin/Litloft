@@ -1,7 +1,10 @@
 "use client";
 
 import {
+  useCallback,
+  useContext,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   useSyncExternalStore,
@@ -9,20 +12,25 @@ import {
 } from "react";
 import { useTranslations } from "next-intl";
 import { Document, Page } from "react-pdf";
+import type { PDFDocumentProxy } from "pdfjs-dist";
 
-import type { PdfController } from "@/lib/pdfController";
+import { InspectorActiveTabContext } from "@/components/FileDetail/inspector/activeTab";
+import type { PdfController, PdfDocumentState } from "@/lib/pdfController";
 
-/**
- * A 225-page PDF drawn all at once locks pdf.js for tens of seconds, so the
- * rail mounts a window and grows it as the reader scrolls. The number is a
- * page and a bit of an inspector column at 72px plus the row's label, chosen
- * so the first screenful is already there and nothing below it is paid for.
- */
-export const INITIAL_THUMBNAIL_WINDOW = 8;
+/** Every page is rasterised at this width and scaled down by CSS. */
+const RASTER_WIDTH = 128;
 
-const THUMBNAIL_PAGE_SIZE = 8;
+const MAX_DRAWN_PAGES = 120;
 
-const THUMBNAIL_WIDTH = 72;
+const A4_RATIO = 1.414;
+
+const RATIO_TOLERANCE = 0.02;
+
+const PAGES_AROUND_WITHOUT_OBSERVER = 3;
+
+const STICKY_TOP_VAR = "--inspector-sticky-top";
+
+type CellState = "placeholder" | "drawing" | "drawn" | "failed";
 
 /**
  * Both halves are optional and neither creates the tab on its own — the shell
@@ -36,72 +44,182 @@ export function PdfPagesPanel({
   controller: PdfController;
   className?: string;
 }) {
-  const t = useTranslations("file");
   const state = useSyncExternalStore(
     (listener) => controller.subscribe(listener),
     () => controller.getState(),
     () => controller.getState(),
   );
-  const [window_, setWindow] = useState(INITIAL_THUMBNAIL_WINDOW);
-  /**
-   * The sentinel is only mounted once the window it follows has painted.
-   * Without that gate the rail grows a second time before the first eight
-   * thumbnails have any height: an unpainted `<Page>` is a zero-height box,
-   * so eight of them do not fill the column, the sentinel is in view at t=0,
-   * and a 225-page document opens having mounted sixteen.
-   */
-  const [paintedTo, setPaintedTo] = useState(0);
-  const [first, setFirst] = useState(1);
-  const sentinelRef = useRef<HTMLLIElement>(null);
-  const currentRef = useRef<HTMLButtonElement>(null);
+  const t = useTranslations("file");
+  const [loaded, setLoaded] = useState<{
+    src: string;
+    pdf: PDFDocumentProxy;
+  } | null>(null);
+  const pdf = loaded?.src === state.src ? loaded.pdf : null;
+  const onLoadSuccess = useCallback(
+    (next: PDFDocumentProxy) => setLoaded({ src: state.src, pdf: next }),
+    [state.src],
+  );
+
+  // The canvas's `PDFDocumentProxy` is not reachable from here — react-pdf's
+  // `<Page>` reads it from a `<Document>` context — so the rail opens the same
+  // URL again, taken from the controller. The bytes come from the browser's
+  // cache; what is paid twice is pdf.js's parse, and the alternative is
+  // threading a proxy through the shell as a prop, which makes the shell depend
+  // on pdf.js in a tree the server renders.
+  return (
+    <Document
+      file={state.src}
+      onLoadSuccess={onLoadSuccess}
+      loading={<p className="p-4 text-sm text-text-muted">{t("pdfLoading")}</p>}
+      error={<p className="p-4 text-sm text-danger">{t("pdfLoadFailed")}</p>}
+      className="flex h-full min-h-0 flex-col"
+    >
+      {/* The key is the reset: an effect cannot clear the state of the child it renders. */}
+      <PdfPagesContent
+        key={state.src}
+        pdf={pdf}
+        controller={controller}
+        state={state}
+        className={className}
+      />
+    </Document>
+  );
+}
+
+function PdfPagesContent({
+  pdf,
+  controller,
+  state,
+  className,
+}: {
+  pdf: PDFDocumentProxy | null;
+  controller: PdfController;
+  state: PdfDocumentState;
+  className: string;
+}) {
+  const t = useTranslations("file");
+  const activeTab = useContext(InspectorActiveTabContext);
+  const shown = activeTab === null || activeTab === "pages";
+
+  const rootRef = useRef<HTMLDivElement>(null);
+  const railRef = useRef<HTMLOListElement>(null);
+  const lastFollowed = useRef<number | null>(null);
+
+  const [firstRatio, setFirstRatio] = useState<number | null>(null);
+  const [entered, setEntered] = useState<ReadonlySet<number>>(() => new Set());
+  const [drawn, setDrawn] = useState<ReadonlySet<number>>(() => new Set());
+  const [failed, setFailed] = useState<ReadonlySet<number>>(() => new Set());
+  const [pageRatios, setPageRatios] = useState<ReadonlyMap<number, number>>(
+    () => new Map(),
+  );
 
   useEffect(() => {
-    const el = sentinelRef.current;
-    if (!el || typeof IntersectionObserver === "undefined") return;
-    // Re-observed whenever the sentinel is remounted, which is what the
-    // `paintedTo` gate does after each window.
-    const observer = new IntersectionObserver(([entry]) => {
-      if (entry.isIntersecting) {
-        setWindow((n) => Math.min(n + THUMBNAIL_PAGE_SIZE, state.numPages));
-      }
-    });
-    observer.observe(el);
+    if (!pdf) return;
+    let cancelled = false;
+    pdf
+      .getPage(1)
+      .then((page) => {
+        if (cancelled) return;
+        const viewport = page.getViewport({ scale: 1 });
+        setFirstRatio(viewport.height / viewport.width);
+      })
+      .catch(() => {
+        if (!cancelled) setFirstRatio(A4_RATIO);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [pdf]);
+
+  useEffect(() => {
+    if (firstRatio === null || typeof IntersectionObserver === "undefined") return;
+    const rail = railRef.current;
+    const root = scrollerOf(rail, rootRef.current);
+    if (!rail || !root) return;
+    const rect = root.getBoundingClientRect();
+    const height = Math.min(rect.bottom, window.innerHeight) - Math.max(rect.top, 0);
+    const half = Math.max(0, height / 2);
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
+          const page = Number((entry.target as HTMLElement).dataset.page);
+          if (!Number.isFinite(page) || page < 1) continue;
+          setEntered((prev) => (prev.has(page) ? prev : new Set(prev).add(page)));
+        }
+      },
+      { root, rootMargin: `${half}px 0px ${half}px 0px` },
+    );
+    for (const cell of rail.querySelectorAll<HTMLElement>("[data-page-state]")) {
+      observer.observe(cell);
+    }
     return () => observer.disconnect();
-  }, [state.numPages, paintedTo, window_, first]);
+  }, [firstRatio, state.numPages]);
 
-  // Following the canvas, not driving it: pressing a row moves the page, and
+  // Following the canvas, not driving it: pressing a cell moves the page, and
   // so does `PageDown`, and the rail has to keep up with both.
-  useEffect(() => {
-    currentRef.current?.scrollIntoView({ block: "nearest" });
-  }, [state.page]);
+  useLayoutEffect(() => {
+    if (!shown || firstRatio === null) return;
+    const page = state.page;
+    if (page === lastFollowed.current) return;
+    lastFollowed.current = page;
 
-  // A new document starts its rail over. Without this, a reader who grew
-  // document A's rail to 40 opens document B with 40 thumbnails mounted at
-  // once.
-  const [seenSrc, setSeenSrc] = useState(state.src);
-  if (seenSrc !== state.src) {
-    setSeenSrc(state.src);
-    setWindow(INITIAL_THUMBNAIL_WINDOW);
-    setPaintedTo(0);
-    setFirst(1);
-  }
+    if (typeof IntersectionObserver === "undefined") {
+      const from = Math.max(1, page - PAGES_AROUND_WITHOUT_OBSERVER);
+      const to = Math.min(state.numPages, page + PAGES_AROUND_WITHOUT_OBSERVER);
+      setEntered((prev) => {
+        let next: Set<number> | null = null;
+        for (let n = from; n <= to; n += 1) {
+          if (prev.has(n)) continue;
+          next ??= new Set(prev);
+          next.add(n);
+        }
+        return next ?? prev;
+      });
+      return;
+    }
 
-  /**
-   * The window moves to hold the page the canvas is on.
-   *
-   * The rail marks the current page and scrolls it into view, and neither is
-   * possible while that page is outside the window. *Extending* the window would
-   * mount every raster up to it at once, which is the freeze the
-   * bound exists to prevent — so the window is re-seated instead. The
-   * current page sits second in it, so the one before is still there.
-   */
-  const last = Math.min(first + window_ - 1, state.numPages);
-  if (state.numPages > 0 && (state.page < first || state.page > last)) {
-    setFirst(Math.max(1, state.page - 1));
-    setPaintedTo(0);
-  }
-  const start = first;
-  const shown = Math.min(first + window_ - 1, state.numPages);
+    const rail = railRef.current;
+    const root = scrollerOf(rail, rootRef.current);
+    const cell = rail ? findCell(rail, page) : null;
+    if (!rail || !root || !cell) return;
+    const box = visibleBox(root, rail);
+    const rect = cell.getBoundingClientRect();
+    if (rect.top >= box.top && rect.bottom <= box.bottom) return;
+    const target =
+      root.scrollTop +
+      (rect.top + rect.bottom) / 2 -
+      (box.top + box.bottom) / 2;
+    const max = Math.max(0, root.scrollHeight - root.clientHeight);
+    root.scrollTop = Math.min(Math.max(target, 0), max);
+  }, [shown, firstRatio, state.page, state.numPages]);
+
+  // Not `useEffect`: renders that finish together commit several pages past
+  // the cap, and a passive effect leaves them on screen until after paint.
+  useLayoutEffect(() => {
+    if (drawn.size <= MAX_DRAWN_PAGES) return;
+    const rail = railRef.current;
+    const root = scrollerOf(rail, rootRef.current);
+    if (!rail || !root) return;
+    const box = visibleBox(root, rail);
+    const centre = (box.top + box.bottom) / 2;
+    const farthest = [...drawn]
+      .map((page) => {
+        const cell = findCell(rail, page);
+        const rect = cell?.getBoundingClientRect();
+        return {
+          page,
+          distance: rect ? Math.abs((rect.top + rect.bottom) / 2 - centre) : 0,
+        };
+      })
+      .sort((a, b) => b.distance - a.distance)
+      .slice(0, drawn.size - MAX_DRAWN_PAGES)
+      .map(({ page }) => page);
+    const evicted = new Set(farthest);
+    setDrawn((prev) => without(prev, evicted));
+    setEntered((prev) => without(prev, evicted));
+  }, [drawn]);
+
   const outline = state.outline ?? [];
 
   /**
@@ -117,8 +235,38 @@ export function PdfPagesPanel({
     -1,
   );
 
+  const boxRatio = (page: number) => {
+    const own = pageRatios.get(page);
+    if (
+      firstRatio !== null &&
+      own !== undefined &&
+      Math.abs(own / firstRatio - 1) > RATIO_TOLERANCE
+    ) {
+      return own;
+    }
+    return firstRatio ?? A4_RATIO;
+  };
+
+  function markDrawn(page: number, ratio: number) {
+    setDrawn((prev) => (prev.has(page) ? prev : new Set(prev).add(page)));
+    setPageRatios((prev) => {
+      if (prev.get(page) === ratio) return prev;
+      const next = new Map(prev);
+      next.set(page, ratio);
+      return next;
+    });
+  }
+
+  function markFailed(page: number) {
+    setFailed((prev) => (prev.has(page) ? prev : new Set(prev).add(page)));
+    setEntered((prev) => without(prev, new Set([page])));
+  }
+
   return (
-    <div className={`flex min-h-0 flex-col gap-4 overflow-y-auto ${className}`}>
+    <div
+      ref={rootRef}
+      className={`flex min-h-0 flex-col gap-4 overflow-y-auto ${className}`}
+    >
       {outline.length > 0 && (
         <nav aria-label={t("pdfOutline")}>
           <ul>
@@ -152,59 +300,128 @@ export function PdfPagesPanel({
         </nav>
       )}
 
-      <ol
-        aria-label={t("pdfThumbnails")}
-        className="flex flex-col items-center gap-2"
-        data-testid="pdf-thumbnails"
-      >
-        {Array.from({ length: Math.max(0, shown - start + 1) }, (_, i) => start + i).map((n) => (
-          <li key={n}>
-            <button
-              type="button"
-              ref={n === state.page ? currentRef : undefined}
-              onClick={() => controller.goToPage(n)}
-              aria-current={n === state.page ? "true" : undefined}
-              aria-label={t("pdfGoToPage", { page: n })}
-              className={`flex flex-col items-center gap-1 rounded-lg border p-1 transition-colors ${
-                n === state.page
-                  ? "border-accent text-text-primary"
-                  : "border-transparent text-text-muted hover:bg-bg-elevated"
-              }`}
-            >
-              <Page
-                pageNumber={n}
-                width={THUMBNAIL_WIDTH}
-                renderTextLayer={false}
-                renderAnnotationLayer={false}
-                onRenderSuccess={() => setPaintedTo((done) => Math.max(done, n))}
-              />
-              <span className="font-mono text-xs">{n}</span>
-            </button>
-          </li>
-        ))}
-        {shown < state.numPages && paintedTo >= shown && (
-          <li ref={sentinelRef} className="h-8 w-full" aria-hidden="true" />
-        )}
-      </ol>
+      {firstRatio === null ? (
+        <p className="text-sm text-text-muted">{t("pdfLoading")}</p>
+      ) : (
+        <ol
+          ref={railRef}
+          aria-label={t("pdfThumbnails")}
+          data-testid="pdf-thumbnails"
+          className="grid grid-cols-[repeat(auto-fill,minmax(96px,1fr))] items-start gap-x-2 gap-y-3"
+        >
+          {Array.from({ length: state.numPages }, (_, i) => i + 1).map((n) => {
+            const cellState: CellState = failed.has(n)
+              ? "failed"
+              : drawn.has(n)
+                ? "drawn"
+                : entered.has(n)
+                  ? "drawing"
+                  : "placeholder";
+            const current = n === state.page;
+            const mounted = cellState === "drawing" || cellState === "drawn";
+            return (
+              <li key={n} className="min-w-0">
+                <button
+                  type="button"
+                  data-page={n}
+                  data-page-state={cellState}
+                  onClick={() => controller.goToPage(n)}
+                  aria-current={current ? "true" : undefined}
+                  aria-label={t("pdfGoToPage", { page: n })}
+                  className="flex w-full min-w-0 flex-col items-center gap-1.5 rounded-lg p-1 transition-colors hover:bg-bg-elevated focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus-ring"
+                >
+                  <div
+                    className={`relative flex w-full items-center justify-center overflow-hidden rounded-[3px] border border-warm-silver/40 bg-white ${
+                      current
+                        ? "outline outline-2 outline-offset-2 outline-accent"
+                        : ""
+                    }`}
+                    style={{ aspectRatio: `1 / ${boxRatio(n)}` }}
+                  >
+                    {mounted && (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <Page
+                          pageNumber={n}
+                          width={RASTER_WIDTH}
+                          renderTextLayer={false}
+                          renderAnnotationLayer={false}
+                          loading={null}
+                          error={null}
+                          onLoadError={() => markFailed(n)}
+                          onRenderError={() => markFailed(n)}
+                          onRenderSuccess={(rendered) =>
+                            markDrawn(n, rendered.originalHeight / rendered.originalWidth)
+                          }
+                          className="h-full w-full min-h-0! min-w-0! [&>canvas]:h-full! [&>canvas]:w-full! [&>canvas]:object-contain"
+                        />
+                      </div>
+                    )}
+                  </div>
+                  <span
+                    className={`font-mono text-xs leading-4 ${
+                      current
+                        ? "font-semibold text-accent"
+                        : "text-text-muted"
+                    }`}
+                  >
+                    {n}
+                  </span>
+                </button>
+              </li>
+            );
+          })}
+        </ol>
+      )}
     </div>
   );
 }
 
+function without(set: ReadonlySet<number>, remove: ReadonlySet<number>): ReadonlySet<number> {
+  let next: Set<number> | null = null;
+  for (const value of remove) {
+    if (!set.has(value)) continue;
+    next ??= new Set(set);
+    next.delete(value);
+  }
+  return next ?? set;
+}
+
+function scrollerOf(
+  rail: HTMLElement | null,
+  fallback: HTMLElement | null,
+): HTMLElement | null {
+  return rail?.closest<HTMLElement>("[data-inspector-scroller]") ?? fallback;
+}
+
+function findCell(rail: HTMLElement, page: number): HTMLElement | null {
+  return rail.querySelector<HTMLElement>(`[data-page="${page}"]`);
+}
+
 /**
- * The canvas's `PDFDocumentProxy` is not reachable from here — react-pdf's
- * `<Page>` reads it from a `<Document>` context — so the rail opens the same
- * URL again, taken from the controller. The bytes come from the browser's
- * cache; what is paid twice is pdf.js's parse, and the alternative is
- * threading a proxy through the shell as a prop, which makes the shell depend
- * on pdf.js in a tree the server renders.
+ * The box a followed cell is centred in. In the sheet the tab strip is
+ * sticky over the scroller, and the offset is published as an inherited
+ * custom property on the shell rather than on the scroller above it.
  */
+function visibleBox(
+  scroller: HTMLElement,
+  rail: HTMLElement,
+): { top: number; bottom: number } {
+  const rect = scroller.getBoundingClientRect();
+  const sticky = parseFloat(
+    getComputedStyle(rail).getPropertyValue(STICKY_TOP_VAR),
+  );
+  return {
+    top: Math.max(rect.top, 0) + (Number.isFinite(sticky) ? sticky : 0),
+    bottom: Math.min(rect.bottom, window.innerHeight),
+  };
+}
+
 /**
  * `InspectorShell` mounts every panel and hides the ones that are not
- * selected, and mounting this eagerly is not free: pdf.js
- * opens the document a second time and rasterises eight pages behind a
- * `display: none`, for every multi-page PDF, whether or not anyone opens the
- * tab. A hidden element has no layout, so this is exactly what
- * `IntersectionObserver` answers.
+ * selected, and mounting this eagerly is not free: pdf.js opens the document
+ * a second time behind a `display: none`, for every multi-page PDF, whether
+ * or not anyone opens the tab. A hidden element has no layout, so this is
+ * exactly what `IntersectionObserver` answers.
  *
  * Once true it stays true: coming back to the tab must not re-parse.
  */
@@ -230,7 +447,6 @@ function useHasBeenVisible(ref: RefObject<HTMLElement | null>): boolean {
 }
 
 export function PdfPagesTab({ controller }: { controller: PdfController }) {
-  const t = useTranslations("file");
   const hostRef = useRef<HTMLDivElement>(null);
   const visible = useHasBeenVisible(hostRef);
 
@@ -238,14 +454,5 @@ export function PdfPagesTab({ controller }: { controller: PdfController }) {
     return <div ref={hostRef} className="h-full w-full" />;
   }
 
-  return (
-    <Document
-      file={controller.getState().src}
-      loading={<p className="p-4 text-sm text-text-muted">{t("pdfLoading")}</p>}
-      error={<p className="p-4 text-sm text-danger">{t("pdfLoadFailed")}</p>}
-      className="flex h-full min-h-0 flex-col"
-    >
-      <PdfPagesPanel controller={controller} className="h-full p-2" />
-    </Document>
-  );
+  return <PdfPagesPanel controller={controller} className="h-full p-2" />;
 }

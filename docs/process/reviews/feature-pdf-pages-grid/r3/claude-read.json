@@ -1,0 +1,94 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [],
+  "trajectory": "There have been two fix rounds since r1. The first (6c2df3e38, with docs 5053f4bbb, reviewed in r2) removed a branch: the eviction effect stopped deleting `pageRatios`. The round since r2 is 8e358b827, which only changes the status in docs/specs/INDEX.md, and 85e72d6cc, which only changes a test. 85e72d6cc adds the `intersectPages` helper (PdfPagesPanel.test.tsx:238-259) and uses it in the two cap tests (527, 542) in place of 125 single-entry callbacks. Neither round adds a branch, state or prediction to the product code. PdfPagesPanel.tsx is unchanged since r2. The design is not being patched. The latest round only changes how the test delivers intersections.",
+  "specification_compliance": [
+    "Product code is unchanged since r2. The r2 reading of PdfPagesPanel.tsx stands. The eviction effect (197-219) touches only `drawn` and `entered`, so `boxRatio` (236-246) keeps an evicted page's own ratio, as I8 and §3 'Never' require.",
+    "I3 cap under batched delivery. When `intersectPages(range(1,125))` is called, the observer callback (143-149) adds all 125 pages to `entered` in one act. All 125 `<Page>` mocks mount and call `markDrawn` from their effects, so `drawn` reaches 125. The eviction effect then removes `drawn.size - 120 = 5` pages. In jsdom every distance is 0, so the stable sort evicts the five earliest-inserted pages. `drawnCount()` is then 120, which matches the assertion at 528.",
+    "The off-proportion eviction test (531-545) still pins the r1 fix. Page 2 is drawn first through `intersectPage`, so it is first in `drawn`'s insertion order and among the five evicted pages. Its `aspectRatio` stays `1 / (850/612)` because `pageRatios` is not cleared. The test still fails if the ratio deletion is reintroduced.",
+    "I1, I2, I4-I12: these code paths are not touched by this commit. The r1 and r2 readings stand."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    {
+      "behavior": "The drawing margin (half the scroller's visible height) is computed once, when the IntersectionObserver is created (dependencies `[firstRatio, state.numPages]`, PdfPagesPanel.tsx:134-157), and is never recomputed when the window is resized or the phone sheet changes height.",
+      "frequency": 2,
+      "impact": 2,
+      "reason": "After a resize or a sheet height change, thumbnails start drawing earlier or later than the half-height rule says, so white faces show briefly while scrolling."
+    },
+    {
+      "behavior": "Cells in `drawing` do not count toward the 120-page cap (PdfPagesPanel.tsx:198 reads only `drawn.size`), so a fast scroll can mount more than 120 `<Page>` renders before eviction trims `drawn`.",
+      "frequency": 2,
+      "impact": 1,
+      "reason": "Flinging through a long PDF briefly holds more rasters in memory than the cap. Nothing visible changes."
+    }
+  ],
+  "regression_risks": [
+    "None from this commit: it changes only the test file and the spec INDEX status.",
+    "Still open from earlier rounds: desktop scroll preservation across `display:none` (I10) is checked only in Chromium."
+  ],
+  "test_coverage": [
+    "The batched helper strengthens the cap tests. A mutation of the observer callback to handle only `entries[0]` (PdfPagesPanel.tsx:144) would have survived the old one-entry-per-callback loop, because every entry was delivered alone. With `intersectPages` it is killed: only one page would enter, so `drawnCount()` would be 1, not 120.",
+    "Unlike `intersectPage` (227-231), `intersectPages` has no guard that throws when nothing observes a placeholder. The tests are still not vacuous: if no observer received the entries, `drawnCount()` would be 0 (assertion at 528) and page 2 would stay `drawn` (assertion at 543), so both tests fail.",
+    "Still open: in jsdom every rect is zero, so eviction order (farthest from the centre) is decided by insertion order. Only the e2e scroll-to-the-end test protects the farthest-first choice.",
+    "Still open: the jsdom I6/I10 scroll tests (610-641) pass vacuously because every rect is zero and the 'wholly visible' early return (188) always fires. Only the desktop e2e specs protect centring and the rule that no scroll is written while the tab is hidden.",
+    "Still open: no e2e case evicts a page taller than page 1."
+  ],
+  "not_verified": [
+    "Nothing was executed: the vitest suite and the Playwright specs were not run. The claim that the batched cap tests finish within the CI timeout is not verified.",
+    "I did not check how React batches 125 setState calls from one observer callback inside act() beyond reading the code. My trace of eviction order relies on effect order following mount order.",
+    "The e2e files were read from the diff rather than reopened at HEAD. spec-viewport.spec.ts was read only at its changed hunk.",
+    "I did not open the design artboards or pdfController.ts."
+  ],
+  "coverage": [
+    {
+      "path": "frontend/e2e-components/fixtures/inspectorResponsive.tsx",
+      "read": "full",
+      "reason": "Read lines 1-170 at HEAD, which hold both changed hunks (the import at 26 and the PDF_BYTES selection at 140-146), with their context."
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/pdfPagesGrid.ts",
+      "read": "full",
+      "reason": "A new file, read in full from the diff."
+    },
+    {
+      "path": "frontend/e2e-components/pdf-pages-grid-desktop.spec.ts",
+      "read": "full",
+      "reason": "A new file, read in full from the diff."
+    },
+    {
+      "path": "frontend/e2e-components/pdf-pages-grid-scrollbar-desktop.spec.ts",
+      "read": "full",
+      "reason": "A new file, read in full from the diff."
+    },
+    {
+      "path": "frontend/e2e-components/pdf-pages-grid.measure.ts",
+      "read": "full",
+      "reason": "A new file, read in full from the diff."
+    },
+    {
+      "path": "frontend/e2e-components/projects.ts",
+      "read": "full",
+      "reason": "Read the whole file at HEAD."
+    },
+    {
+      "path": "frontend/e2e-components/spec-viewport.spec.ts",
+      "read": "partial",
+      "reason": "Read only the changed hunk (the AT_THE_DESKTOP_WIDTH additions near line 157) from the diff; the rest of the file was not opened this round."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/pdf/PdfPagesPanel.tsx",
+      "read": "full",
+      "reason": "Read the whole file, lines 1-457, at HEAD."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/pdf/__tests__/PdfPagesPanel.test.tsx",
+      "read": "full",
+      "reason": "Read the whole file, lines 1-740, at HEAD, including the new intersectPages helper and the two cap tests that use it."
+    }
+  ],
+  "confidence": 85
+}

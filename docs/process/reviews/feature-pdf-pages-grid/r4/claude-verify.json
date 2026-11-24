@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [],
+  "unspecified_scores": [
+    {
+      "source_reviewer": "claude-read",
+      "index": 0,
+      "frequency": 3,
+      "impact": 1,
+      "reason": "Confirmed at PdfPagesPanel.tsx:139-151: the rootMargin is computed once when the observer is created (deps [firstRatio, state.numPages]), so after the window is resized or the phone sheet changes height, pages start drawing a little earlier or later than half a visible height away; at worst the user sees a brief white placeholder before a thumbnail appears, because cells still draw once they intersect the visible box."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "index": 1,
+      "frequency": 3,
+      "impact": 2,
+      "reason": "Confirmed at PdfPagesPanel.tsx:200 and 313-321: eviction checks only drawn.size, and cells in `entered` mount a <Page> without counting against the cap, so a fast fling through a long PDF's rail starts renders for every page passed; pdf.js then does wasted work and the rail may lag briefly before eviction brings drawn back to 120, but nothing visible is wrong and I3's cap on `drawn` still holds."
+    }
+  ],
+  "specification_compliance": [
+    "No findings were submitted for verification.",
+    "I3's '120 drawn' cap is enforced in a layout effect (PdfPagesPanel.tsx:199-221), which evicts the cells farthest from the visible box's centre before paint; cells in 'drawing' are outside the cap.",
+    "I5: the only goToPage calls are cell and outline onClick handlers (PdfPagesPanel.tsx:284, 328); the follow effect only writes root.scrollTop (line 194).",
+    "I6: the follow effect centres the cell relative to visibleBox, which subtracts --inspector-sticky-top (lines 186-194, 405-417), and skips cells that are already wholly visible (line 188)."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    {
+      "behavior": "If firstRatio resolves while the Pages tab has already been switched away (hidden, zero-size scroller rect), the drawing margin computed at PdfPagesPanel.tsx:139-141 is 0 for the rest of the mount, so pages draw only when they actually enter the visible box.",
+      "frequency": 1,
+      "impact": 1,
+      "reason": "Switching tabs within the moment between opening Pages and the first page's proportion loading leaves pages popping in on scroll instead of being pre-drawn half a screen ahead; nothing is lost."
+    }
+  ],
+  "regression_risks": [
+    "Moving eviction from useEffect to useLayoutEffect makes it run getBoundingClientRect on up to ~120+ cells synchronously before paint whenever drawn exceeds the cap, which may cause a small layout-thrash cost during fast scrolls.",
+    "Evicted pages are also removed from `entered`; a page evicted while it is still near the visible box draws again only when its intersection changes."
+  ],
+  "test_coverage": [
+    "PdfPagesPanel.test.tsx:532-538 checks that intersecting 125 pages leaves exactly 120 drawn; no test checks that the cap is applied before paint, or how many 'drawing' cells there are during a burst.",
+    "PdfPagesPanel.test.tsx:540-554 checks that an off-proportion page keeps its own box after it is evicted.",
+    "No unit test covers the rootMargin value or recomputing it on resize."
+  ],
+  "not_verified": [
+    "The e2e-components fixture and spec (column counts, centring, scrollTop preservation) were not read or run.",
+    "Real browser timing of layout-effect eviction compared with paint was not observed; I cannot run commands.",
+    "DESIGN.md, InspectorShell.tsx and MobileInspectorSheet.tsx were not re-read."
+  ],
+  "confidence": 82,
+  "coverage": [
+    {
+      "path": "frontend/src/components/FileDetail/pdf/PdfPagesPanel.tsx",
+      "read": "full",
+      "reason": "Primary code for both unspecified behaviors."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/pdf/__tests__/PdfPagesPanel.test.tsx",
+      "read": "partial",
+      "reason": "Checked the cap and drawing tests only."
+    }
+  ]
+}
