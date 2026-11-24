@@ -37,13 +37,19 @@ a 中国語 folder inside 中国語. This change does two things for the viewer:
    when that folder is the breadcrumb's last folder (the chips answer's `base`, the
    folder the page shows as current). Otherwise it keeps the folder's name, as today: a
    tag, state or name filter can narrow the shelves' common folder below the breadcrumb's,
-   and This folder would then name a folder the page does not show. Before the chips
-   answer arrives, the shelf keeps the folder's name.
+   and This folder would then name a folder the page does not show. Until the chips
+   request for the current position has answered its first page (while it loads, and
+   when it fails), the shelf keeps the folder's name, or the drive's name at the root; a
+   chips retry that succeeds then retitles it.
 5. If `total_shelves` is 0, the empty states are unchanged.
 
 The **分類** / **Group By** menu keeps showing the chosen grouping in step 3; nothing is
-saved or changed. Moving to a position, target or filter that yields two shelves draws
-shelves again.
+saved or changed.
+
+The conditions are the target, the position, the tag, state and name filters, the grouping
+and the sort. A change to any of them asks for the shelves again first, drawing the shelf
+skeleton as today, and the grid is asked for only when that new answer reports one shelf.
+So a sort change while the grid is drawn shows the skeleton, then the re-sorted grid.
 
 ### 2. Failure cases
 
@@ -52,6 +58,8 @@ shelves again.
   own retry, as for None.
 - A shelves answer for conditions the viewer has already left arrives late: ignored, as the
   paging hook already does for any stale answer.
+- The chips request fails: the shelves stay drawn (SPEC-CORE-165 I11), and the
+  common-folder shelf keeps the folder's or drive's name (item 1, step 4).
 
 ### 3. States
 
@@ -114,8 +122,8 @@ As in item 2. Nothing new is logged.
 
 ### 10. Non-functional
 
-One extra request when the grouping yields one shelf (the shelves request, then the grid
-request). No new limits.
+One extra request per change of conditions when the grouping yields one shelf (the shelves
+request, then the grid request, one after the other). No new limits.
 
 ## Touch points
 
@@ -146,13 +154,16 @@ I4. Drawing the grid for a single shelf does not change the grouping shown in th
 **分類** menu, the grouping remembered for the target, or the URL.
 I5. In the Library under the Folder grouping, a shelf whose key is `<f>/` (or the empty key,
 with `<f>` the root) is titled **このフォルダ** / **This folder** exactly when `<f>` is the
-chips answer's `base` for the current conditions; every other folder shelf, and that
-shelf before the chips answer, keeps the title it had before this change.
+first page of the chips answer for the current position has arrived and its `base` is
+`<f>`; every other folder shelf, and that shelf while the chips request is loading or has
+failed, keeps the title it had before this change.
 I6. A shelves answer for conditions the viewer has left never switches the Library between
 the grid and shelves for the current conditions.
-I7. The grid request (`by=all`) for a grouping other than None is sent only after a shelves
-answer for the current conditions reports `total_shelves` = 1; a failed or 0- or 2+-shelf
-answer sends none.
+I7. Under a grouping other than None, the grid page request (`by=all&key=all` with
+`per_shelf=60` and `page`, without `ids`) is sent only after a shelves answer for the
+current conditions reports `total_shelves` = 1; a failed, 0-shelf or 2+-shelf answer sends
+none. The card menu's `by=all&ids=…` re-read (SPEC-CORE-157 I5) is not this request and is
+unchanged.
 I8. The retry shown for a failed shelves request re-sends the shelves request; the retry
 shown for a failed grid request re-sends only the grid request.
 I9. The See all page titles in both apps, for every key including `<f>/` and `""`, and the
@@ -160,7 +171,9 @@ Reading card's folder line are the same as before this change.
 
 ## Revises
 
-SPEC-CORE-145 I8. On first load and after a drive or Target change, no Library body request (the grouped shelves or the flat grid in Video, Reading and Clips; the rail and list requests in Notes) is sent with a grouping or sort other than the one finally shown for that Target, except the flat grid (`by=all`) that Video and Reading request under the shown grouping once its shelves answer reports a single shelf.
+SPEC-CORE-145 I8. On first load and after a drive or Target change, no Library body request (the grouped shelves or the flat grid in Video, Reading and Clips; the rail and list requests in Notes) is sent with a grouping or sort other than the one finally shown for that Target, except the flat grid page (`by=all&key=all`) that Video and Reading request under the shown grouping once its shelves answer reports a single shelf.
+
+SPEC-CORE-057 I9. Library orders shelves by video count descending then name for folder and tag (with `no_tag` last), newest first for month, and in the fixed order for length and watch state; it shows 5 videos per shelf, loads 12 shelves at a time, and pages **See all** 60 at a time; under なし, and under any other grouping whose shelves answer reports a single shelf, it shows one grid paged 60 at a time instead of shelves.
 
 SPEC-CORE-063 I19. Group None lists books by `all`, Tag by `tag` with `no_tag` last, Folder by `folder` and Date Added by `month` in the server's order, except that a Tag, Folder or Date Added answer reporting a single shelf lists the books by `all` as None does; and Sort orders the books inside every shelf and the flat grid.
 
