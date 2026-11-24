@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-1",
+      "status": "confirmed",
+      "note": "docs/process/reviews/feature-file-ask-file-context/r1/test-files.txt:1-2 lists tests/file_context_doubles.py and tests/file_context_rules.py among the changed test files, and both exist. tests/frame_request_doubles.py:17 imports from tests.file_context_rules. Neither module appears in the Touch points of docs/specs/file-ask-file-context.md:212-229, and tests/file_question_doubles.py is not in test-files.txt. This is a gap in the touch-point list, not a product defect."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-2",
+      "status": "confirmed",
+      "note": "test-files.txt:4-21 lists 18 file_question_today_*.json golden files, and Glob finds the same set. I count 18, not 21, but the substance holds. tests/file_context_doubles.py:172 reads GOLDEN_DIR / f\"file_question_today_{name}.json\". Touch points (spec:222) name only frame_request_today_*.json, and none of those is in test-files.txt."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-3",
+      "status": "confirmed",
+      "note": "test-files.txt:23-25 lists test_spec_addon_179_181_every_path.py, test_spec_addon_179_file_block.py and test_spec_addon_180_image_and_passages.py, and all three exist. The only test module the Touch points name is test_spec_addon_071_image_stream.py (spec:225)."
+    }
+  ],
+  "unspecified_scores": [
+    {
+      "source_reviewer": "claude-read",
+      "index": 0,
+      "frequency": 4,
+      "impact": 1,
+      "reason": "Every Ask on a .loft reads the small local .loft file once more for the Type line (file_question.py:419 -> _type_label:252) while the read session is open; the user sees nothing beyond a negligible extra read, and the label is correct."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "index": 1,
+      "frequency": 0,
+      "impact": 1,
+      "reason": "An indexed row with an empty or NULL file_path only arises from hand-edited or corrupt data; the user would just see no Folder line (file_question.py:228-229), which is harmless."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "index": 2,
+      "frequency": 0,
+      "impact": 2,
+      "reason": "A drive configured with mount '/' is not an ordinary Litloft setup; if it were, the Folder line would carry the full directory without its leading slash (commonpath gives '/', relpath at file_question.py:244), which is still the folder inside that drive, so the effect is minor."
+    }
+  ],
+  "specification_compliance": [
+    "The three touch-point findings were confirmed from r1/test-files.txt and the files on disk: new test helpers, golden files and test modules lie outside the spec's Touch points list. They are documentation gaps, not invariant breaks.",
+    "_folder_in_drive (file_question.py:221-245) checks inclusion by whole segments with os.path.commonpath after normpath, so a sibling prefix mount is excluded and a trailing slash on the mount changes nothing, which matches I2 as read."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "The golden 'today' files are new in this diff, so they encode the expected pre-change requests as the author reconstructed them rather than as recorded from the pre-change code; I7's equality check is only as good as that reconstruction."
+  ],
+  "test_coverage": [
+    "The new tests test_spec_addon_179_file_block.py, test_spec_addon_179_181_every_path.py and test_spec_addon_180_image_and_passages.py exist; I did not read their contents or run them."
+  ],
+  "not_verified": [
+    "I could not run git, so I did not diff against origin/develop; that the files are new was taken from r1/test-files.txt.",
+    "I did not read or run the new test modules or the golden JSON contents.",
+    "I did not check the prompt templates or prompt.py against I4, I5 and I6."
+  ],
+  "confidence": 85
+}
