@@ -46,7 +46,7 @@ vi.mock("@/components/TreeRefreshContext", () => ({ useTreeRefresh: () => vi.fn(
 vi.mock("@/hooks/useShortcuts", () => ({ useShortcuts: vi.fn() }));
 vi.mock("@/hooks/useSelectedFile", () => ({ useSelectedFile: () => ({ fileId: null }) }));
 vi.mock("@/hooks/useTreeVisible", () => ({
-  useTreeVisible: () => ({ visible: false, beside: false, toggle: vi.fn() }),
+  useTreeVisible: () => ({ visible: false, beside: false, toggle: vi.fn(), yielded: false }),
 }));
 vi.mock("@/hooks/useFolderViewMode", () => ({
   useFolderSort: () => ({ sort: "title", order: "asc", setSort: vi.fn() }),
@@ -64,7 +64,7 @@ vi.mock("@/lib/listSnapshot", () => ({
   saveListSnapshot: vi.fn(),
 }));
 vi.mock("@/components/folder/usePinnedFolders", () => ({
-  usePinnedFolders: () => ({ pinnedPaths: new Set<string>(), handleTogglePin: vi.fn() }),
+  usePinnedFolders: () => ({ pinnedPaths: new Set<string>(), homePaths: new Set<string>(), handleTogglePin: vi.fn(), handleToggleHome: vi.fn() }),
 }));
 vi.mock("@/components/folder/useDriveScan", () => ({
   useDriveScan: () => ({ scanning: false, handleScan: vi.fn() }),
@@ -83,6 +83,7 @@ vi.mock("@/components/folder/useCreateFolder", () => ({
 vi.mock("@/components/SmartFolderSaveButton", () => ({
   SmartFolderController: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
   SmartFolderMenuItems: () => null,
+  SmartFolderOverwriteButton: () => null,
 }));
 
 const searchCache = vi.hoisted(() => ({ hit: null as unknown }));
@@ -121,6 +122,7 @@ const file = (id: string): FileItem => ({
   trust_reviewed_at: null,
   created_at: "2026-01-01T00:00:00Z",
   updated_at: "2026-01-01T00:00:00Z",
+  modified_at: null,
 });
 
 const clipHit = (id: string): SemanticHit => ({

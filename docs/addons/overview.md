@@ -49,7 +49,7 @@ What happens to data the addon already stored depends on the addon. The intellig
 
 ## Where addons appear
 
-Addons add entries to fixed places in the interface: search modes, sections in a file's **Info** tab, tabs beside the player, the **Related** tab, the file's action row and `...` menu, the **Add** menu, the header, the sidebar, and the admin dashboard. When no addon uses a place, nothing is shown there. The full list of places is in [Addon development](../ADDON-DEVELOPMENT.md#available-slots).
+Addons add entries to fixed places in the interface: search modes, sections in a file's **Info** tab, panels and tabs under a player, the **Related** tab, the file's action row and `...` menu, the **Add** menu, the header, the sidebar, and the admin dashboard. When no addon uses a place, nothing is shown there. The full list of places is in [Addon development](../ADDON-DEVELOPMENT.md#available-slots).
 
 ## File events
 

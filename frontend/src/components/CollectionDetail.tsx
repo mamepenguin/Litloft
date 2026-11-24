@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ListPlus, Play, Trash2 } from "lucide-react";
+import { ArrowLeft, House, HousePlus, ListPlus, Play, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import {
@@ -10,6 +10,7 @@ import {
   getCollection,
   removeCollectionItem,
   reorderCollectionItems,
+  setHomeShortcut,
   updateCollection,
 } from "@/lib/api";
 import { Breadcrumb } from "@/components/Breadcrumb";
@@ -31,6 +32,8 @@ import { useCollectionViewMode } from "@/hooks/useCollectionViewMode";
 import { useSelectedFile } from "@/hooks/useSelectedFile";
 import { FileNavigationOverrideProvider } from "@/lib/fileNavigationOverride";
 import { useImeKeyGuard } from "@/lib/ime";
+import { focusEnd, isNameInUse } from "@/lib/nameInUse";
+import { useNameSubmission } from "@/hooks/useNameSubmission";
 import type { CollectionDetail as CollectionDetailType } from "@/types";
 
 interface CollectionDetailProps {
@@ -41,6 +44,8 @@ interface CollectionDetailProps {
 export function CollectionDetail({ drive, collectionId }: CollectionDetailProps) {
   const router = useRouter();
   const t = useTranslations("collection");
+  const tDrive = useTranslations("drive");
+  const tShell = useTranslations("appShell");
   const tCommon = useTranslations("common");
   const ime = useImeKeyGuard();
   const toast = useToast();
@@ -61,6 +66,22 @@ export function CollectionDetail({ drive, collectionId }: CollectionDetailProps)
   const [editingDescription, setEditingDescription] = useState(false);
   const [descriptionDraft, setDescriptionDraft] = useState("");
   const [deletingCollection, setDeletingCollection] = useState(false);
+  const homeInFlight = useRef(false);
+  const nameSubmission = useNameSubmission();
+  const { inUse: nameInUse, busy: nameBusy } = nameSubmission;
+  const clearNameInUse = nameSubmission.clear;
+  const beginName = nameSubmission.begin;
+  const settleName = nameSubmission.settle;
+  const rejectName = nameSubmission.reject;
+  const resetName = nameSubmission.reset;
+  const isNameBusy = nameSubmission.isBusy;
+  const isNameRejected = nameSubmission.isRejected;
+  const nameInputRef = useRef<HTMLInputElement>(null);
+  const nameLineId = useId();
+
+  useEffect(() => {
+    if (nameInUse) focusEnd(nameInputRef.current);
+  }, [nameInUse]);
 
   useEffect(() => {
     setOverrideDrive(drive);
@@ -87,16 +108,35 @@ export function CollectionDetail({ drive, collectionId }: CollectionDetailProps)
   const handleSaveName = useCallback(async () => {
     if (!detail) return;
     const next = nameDraft.trim();
-    setEditingName(false);
-    if (!next || next === detail.name) return;
+    if (isNameBusy()) return;
+    if (!next || next === detail.name) {
+      setEditingName(false);
+      return;
+    }
+    if (isNameRejected(next)) return;
+    beginName();
     try {
       await updateCollection(drive, collectionId, { name: next });
       setDetail({ ...detail, name: next });
-    } catch {
+      setEditingName(false);
+    } catch (e) {
+      if (isNameInUse(e)) {
+        rejectName(next);
+        return;
+      }
+      setEditingName(false);
       toast.error(t("errorRename"));
       load();
+    } finally {
+      settleName();
     }
-  }, [detail, drive, collectionId, nameDraft, load, toast, t]);
+  }, [detail, drive, collectionId, nameDraft, load, toast, t, isNameBusy, isNameRejected, beginName, rejectName, settleName]);
+
+  const cancelNameEdit = useCallback(() => {
+    setNameDraft(detail?.name ?? "");
+    setEditingName(false);
+    resetName();
+  }, [detail, resetName]);
 
   const handleSaveDescription = useCallback(async () => {
     if (!detail) return;
@@ -122,6 +162,26 @@ export function CollectionDetail({ drive, collectionId }: CollectionDetailProps)
       setDeletingCollection(false);
     }
   }, [detail, drive, collectionId, router, toast, t]);
+
+  const handleToggleHome = useCallback(async () => {
+    if (!detail || homeInFlight.current) return;
+    homeInFlight.current = true;
+    const next = !detail.on_home;
+    try {
+      await setHomeShortcut(drive, {
+        kind: "collection",
+        id: collectionId,
+        on_home: next,
+      });
+      setDetail((previous) =>
+        previous ? { ...previous, on_home: next } : previous,
+      );
+    } catch {
+      toast.error(tDrive("homeShortcutFailed"));
+    } finally {
+      homeInFlight.current = false;
+    }
+  }, [detail, drive, collectionId, toast, tDrive]);
 
   const handlePlay = useCallback(() => {
     if (!detail) return;
@@ -249,24 +309,44 @@ export function CollectionDetail({ drive, collectionId }: CollectionDetailProps)
             breadcrumb={<Breadcrumb driveName={drive} driveIsAncestor />}
             title={
               editingName ? (
-                <input
-                  autoFocus
-                  value={nameDraft}
-                  onChange={(e) => setNameDraft(e.target.value)}
-                  onBlur={handleSaveName}
-                  onCompositionEnd={ime.onCompositionEnd}
-                  onKeyDown={(e) => {
-                    if (ime.isImeKeystroke(e)) return;
-                    if (e.key === "Enter") handleSaveName();
-                    if (e.key === "Escape") {
-                      setNameDraft(detail.name);
-                      setEditingName(false);
-                    }
-                  }}
-                  // Inside the <h1>, but an <input> does not inherit type, so
-                  // the heading size is repeated here and only here.
-                  className="w-full rounded-2xl bg-bg-card px-3 py-1 text-2xl font-bold text-text-primary outline-none focus:ring-2 focus:ring-focus-ring"
-                />
+                <span className="block w-full whitespace-normal">
+                  <input
+                    ref={nameInputRef}
+                    autoFocus
+                    value={nameDraft}
+                    readOnly={nameBusy}
+                    aria-invalid={nameInUse ? true : undefined}
+                    aria-describedby={nameInUse ? nameLineId : undefined}
+                    onChange={(e) => {
+                      setNameDraft(e.target.value);
+                      clearNameInUse();
+                    }}
+                    onBlur={() => {
+                      if (nameBusy) return;
+                      if (nameInUse) {
+                        focusEnd(nameInputRef.current);
+                        return;
+                      }
+                      handleSaveName();
+                    }}
+                    onCompositionEnd={ime.onCompositionEnd}
+                    onKeyDown={(e) => {
+                      if (ime.isImeKeystroke(e)) return;
+                      if (e.key === "Enter") handleSaveName();
+                      if (e.key === "Escape" && !nameBusy) cancelNameEdit();
+                    }}
+                    // Inside the <h1>, but an <input> does not inherit type, so
+                    // the heading size is repeated here and only here.
+                    className={`w-full rounded-2xl bg-bg-card px-3 py-1 text-2xl font-bold text-text-primary outline-none focus:ring-2 ${
+                      nameInUse ? "ring-2 ring-danger focus:ring-danger" : "focus:ring-focus-ring"
+                    }`}
+                  />
+                  {nameInUse && (
+                    <span id={nameLineId} className="mt-1 block text-xs text-danger">
+                      {tCommon("nameInUse")}
+                    </span>
+                  )}
+                </span>
               ) : (
                 // A <button>, not an <h1>: PageHeader supplies the heading, and
                 // nesting one inside it would be invalid.
@@ -302,7 +382,7 @@ export function CollectionDetail({ drive, collectionId }: CollectionDetailProps)
                     }}
                     placeholder={t("descriptionPlaceholder")}
                     rows={3}
-                    className="w-full rounded-2xl bg-bg-card px-3 py-2 text-sm text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-focus-ring"
+                    className="w-full rounded-2xl bg-bg-card px-3 py-2 text-base text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-focus-ring"
                   />
                 ) : (
                   <button
@@ -311,7 +391,7 @@ export function CollectionDetail({ drive, collectionId }: CollectionDetailProps)
                       setDescriptionDraft(detail.description ?? "");
                       setEditingDescription(true);
                     }}
-                    className="-ml-2 block w-full cursor-text rounded-2xl px-2 py-0.5 text-left hover:bg-bg-elevated"
+                    className="-ml-2 block w-full cursor-text rounded-2xl px-2 py-0.5 text-left text-base leading-relaxed text-text-primary hover:bg-bg-elevated"
                   >
                     {detail.description ?? (
                       <span className="text-text-muted/50">
@@ -347,15 +427,29 @@ export function CollectionDetail({ drive, collectionId }: CollectionDetailProps)
                     Play. */}
                 <OverflowMenu label={t("moreActions", { name: detail.name })}>
                   {(close) => (
-                    <ActionMenuItem
-                      icon={Trash2}
-                      danger
-                      label={t("deleteCollection")}
-                      onClick={() => {
-                        close();
-                        setDeletingCollection(true);
-                      }}
-                    />
+                    <>
+                      <ActionMenuItem
+                        icon={detail.on_home ? House : HousePlus}
+                        label={
+                          detail.on_home
+                            ? tShell("removeFromHome")
+                            : tShell("putOnHome")
+                        }
+                        onClick={() => {
+                          close();
+                          void handleToggleHome();
+                        }}
+                      />
+                      <ActionMenuItem
+                        icon={Trash2}
+                        danger
+                        label={t("deleteCollection")}
+                        onClick={() => {
+                          close();
+                          setDeletingCollection(true);
+                        }}
+                      />
+                    </>
                   )}
                 </OverflowMenu>
               </>

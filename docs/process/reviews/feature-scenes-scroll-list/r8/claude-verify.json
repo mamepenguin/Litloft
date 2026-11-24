@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R8-1",
+      "status": "confirmed",
+      "note": "Traced through the code at HEAD. ScenesSectionContainer.tsx:559-567: handlePointerCancel sets dragStart.current = null, then puts back browse, following and scrollTop. dragStart is the same ref passed to useSceneList as rulerDrag (Container :445). In useSceneList.ts:412-421, onTouchMove skips takeOver only while rulerDrag.current is a non-mouse drag. Once that ref is null, every touchmove on the scroller calls takeOver (:405-410). takeOver sets following to false and calls onReaderTakeOver, which runs setBrowsePoint(null) (Container :433-436). In flow form, scrollerOf (sceneList.ts:20-21) returns the shared scroller that contains the ruler, so touchmoves from a gesture on the ruler bubble up to the listener at :459. The scroller's own pointercancel listener (:422-427) bails on drag.dragged and does nothing to block later touchmoves. Browsers keep sending (non-cancelable) touchmove events after they cancel the pointer to take a gesture for scrolling, so the restored state gets wiped on the next move. The spec rules this out explicitly: docs/specs/scenes-scroll-list.md:173-175 says '…puts back the scroll position, following and ruler point the drag started from, and the touchmove of that gesture does not clear them.' This is reasoned from the code, not run: I could not execute a browser test. Bounded form is not affected, because there the scroller is the list and the ruler sits outside it."
+    }
+  ],
+  "specification_compliance": [
+    "scenes-scroll-list.md §1.12 (the touchmove after a post-8px pointercancel must not clear the restored state) is not met in flow form: once handlePointerCancel nulls dragStart, nothing remembers that the gesture belonged to a cancelled ruler drag."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "A fix that keeps a 'cancelled ruler gesture' flag has to clear it on touchend/touchcancel or on the next pointerdown. Otherwise later, genuine reader swipes would stop clearing following."
+  ],
+  "test_coverage": [
+    "Neither the ScenesSectionRulerMap.test.tsx cancel case nor the ScenesSectionSeek.test.tsx pointercancel case was opened. Per the finding, they dispatch no touchmove after the cancel, so they cannot catch this."
+  ],
+  "not_verified": [
+    "I ran no browser or jsdom test. The confirmation rests on reading the code and on how browsers dispatch touchmove after pointercancel, which I did not observe.",
+    "I did not read the existing test files to confirm they dispatch no touchmove after touchCancel.",
+    "Whether real browsers (iOS Safari, Android Chrome) fire pointercancel after an 8 px horizontal drag on the ruler at all depends on the ruler's touch-action, which I did not determine."
+  ],
+  "confidence": 85
+}

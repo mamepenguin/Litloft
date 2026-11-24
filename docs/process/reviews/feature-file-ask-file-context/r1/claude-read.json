@@ -1,0 +1,255 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "TP-1",
+      "origin": "reviewer",
+      "claim": "The diff adds two new test helper modules, addons/intelligence/tests/file_context_doubles.py and addons/intelligence/tests/file_context_rules.py, and neither is in the spec's touch-point list.",
+      "impact": "No user impact. The touch-point list understates where the change reaches. frame_request_doubles.py now imports S179/S181a/S181b/S181c and block() from file_context_rules.py, so the existing SPEC-ADDON-116/174 fallback tests depend on a module the spec never names.",
+      "evidence": "tests/frame_request_doubles.py:17 imports from tests.file_context_rules. Both modules are new files in the diff. The spec's Touch points list tests/file_question_doubles.py and tests/frame_request_doubles.py only, and file_question_doubles.py is not changed by this diff.",
+      "repro": "Compare the paths in the diff with the spec's '## Touch points' section.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariant is broken; this is a gap in the planned-reach list.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add tests/file_context_doubles.py and tests/file_context_rules.py to the touch points, or replace the file_question_doubles.py entry, which this change does not touch."
+    },
+    {
+      "id": "TP-2",
+      "origin": "reviewer",
+      "claim": "The diff adds 21 new golden files, tests/golden_prompts/file_question_today_*.json, that are not in the touch-point list. The list names only frame_request_today_*.json, and this diff does not change those.",
+      "impact": "No user impact. These goldens are the baseline the I7 test (test_spec_addon_179_i7_every_request_is_todays_apart_from_the_additions) compares against. They are said to be recorded from d9b7daf, but the spec neither plans nor names them, so a reviewer of the touch points never sees that the I7 baseline is new data written by this same change.",
+      "evidence": "New files tests/golden_prompts/file_question_today_{passages-only,passages-and-image,image-only,text-only-retry,frames-tool-*,frames-fallback-*,frames-refused-*,no-frame-prepared-*,cut-material-*}.json. file_context_doubles.today() reads them (tests/file_context_doubles.py, function today). The spec's Touch points list tests/golden_prompts/frame_request_today_*.json.",
+      "repro": "Compare the paths in the diff with the spec's '## Touch points' section.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No declared invariant is broken. The planned reach is incomplete, and it covers the baseline I7 is verified against.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add tests/golden_prompts/file_question_today_*.json to the touch points as the recorded pre-change baseline."
+    },
+    {
+      "id": "TP-3",
+      "origin": "reviewer",
+      "claim": "The diff adds three new test modules, test_spec_addon_179_181_every_path.py, test_spec_addon_179_file_block.py and test_spec_addon_180_image_and_passages.py, which are not in the touch-point list.",
+      "impact": "No user impact. Spec tests for new SPEC-IDs are expected. The repository's implicit touch points (spec, INDEX, review records) do not include tests, so these count as reach the list does not name.",
+      "evidence": "All three are new files in the diff. The spec's Touch points name only test_spec_addon_071_image_stream.py among test modules.",
+      "repro": "Compare the paths in the diff with the spec's '## Touch points' section.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariant is broken; this is an incomplete planned-reach list.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    }
+  ],
+  "specification_compliance": [
+    "Answer to the first-review question: the diff reaches these places outside the touch-point list: tests/file_context_doubles.py (new), tests/file_context_rules.py (new), tests/golden_prompts/file_question_today_*.json (21 new files), tests/test_spec_addon_179_181_every_path.py, tests/test_spec_addon_179_file_block.py and tests/test_spec_addon_180_image_and_passages.py (new). Every product file in the diff is in the list.",
+    "Listed touch points the diff does not change: tests/file_question_doubles.py, tests/golden_prompts/frame_request_today_*.json (consistent with spec item 7, which says they are not re-recorded), app/config.py and .claude/rules/design-decisions.md (read only).",
+    "Every caller of build_file_question_user_prompt in app/routers/rag.py (lines 576, 620, 824, 917, 1184) passes filename, folder and type_label from Material. The only other caller of a builder outside the router, tests/test_spec_addon_073_markdown_answer.py:49, uses the system builder, whose signature is unchanged.",
+    "_folder_in_drive (file_question.py:221-245) follows Terms: a relative path gives its dirname; an absolute path is resolved against the normpath'd mount via commonpath, with relpath and dirname; an empty directory gives TOP_OF_DRIVE.",
+    "_type_label (file_question.py:248-257) matches the three .loft labels in Terms, and the Type is computed inside load_material, as item 1.2 requires.",
+    "Template: S179 is the first line after Rules:; S181a/b/c come immediately before the Answer line on every branch; S180 replaces the passages-only sentence only when image and not frames, on the passages branch; the passages-only opener carries the new wording."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    {
+      "behavior": "_type_label reads the .loft file (through _loft_source) for every .loft whatever its file_type, while the indexed_files read session is still open and before load_material may return None for a file with no rows.",
+      "frequency": 3,
+      "impact": 1,
+      "reason": "Any question on a .loft triggers one extra bounded read of up to 64 KB; the user sees no difference except a negligible delay."
+    },
+    {
+      "behavior": "A stored file_path that is empty or None gives no Folder line; Terms defines Folder only for relative and absolute paths.",
+      "frequency": 0,
+      "impact": 1,
+      "reason": "Only hand-edited or malformed index rows have no file_path; the prompt then just lacks the Folder line."
+    },
+    {
+      "behavior": "A drive whose mount is '/' places every absolute path inside it, so the Folder line carries the full host directory without its leading slash.",
+      "frequency": 0,
+      "impact": 2,
+      "reason": "It needs a mount configured at the filesystem root, which an ordinary setup does not use."
+    }
+  ],
+  "regression_risks": [
+    "Material gains three required fields with no default; any future or out-of-tree construction of Material without them will raise TypeError. In this tree it is constructed only in load_material (file_question.py:439, 593, 596).",
+    "The I7 baseline goldens (file_question_today_*.json) were created in this same change; if any was recorded from code other than d9b7daf, I7 would compare against the wrong baseline and still pass."
+  ],
+  "test_coverage": [
+    "Every path in RUN is covered for: the block at the start of the user prompt (I1), the S179/S181 positions (I4/I6), the new opener (I4), and a byte-for-byte comparison with today's requests after the additions are taken out (I7).",
+    "Folder rows cover relative and absolute paths, a mount with and without a trailing slash, a sibling prefix, outside the mount, no mount, and NFD names (I2), plus mount absence on every path (I3).",
+    ".loft Type labels are covered for youtube, vimeo, generic, a missing url or provider, an unreadable body and a missing file, including no log output.",
+    "S180 placement is checked on passages-and-image and on the first request of the text-only retry; its absence is checked on six other branches.",
+    "The history ordering test covers only the passages-only path."
+  ],
+  "not_verified": [
+    "Whether the 21 file_question_today_*.json goldens actually match what d9b7daf sends; I could not run the code.",
+    "Whether the test suite passes; no commands could be run.",
+    "The full bodies of build_file_question_user_prompt and the router functions outside the changed hunks.",
+    "The rest of file_question_user.jinja2 beyond the changed first lines.",
+    "Whether the R-5 manual check was run."
+  ],
+  "coverage": [
+    {
+      "path": "addons/intelligence/app/prompts/rag/file_question_system.jinja2",
+      "read": "full",
+      "reason": "Read the whole file."
+    },
+    {
+      "path": "addons/intelligence/app/prompts/rag/file_question_user.jinja2",
+      "read": "partial",
+      "reason": "Only the changed hunk (lines 1-5) in the diff."
+    },
+    {
+      "path": "addons/intelligence/app/rag/file_question.py",
+      "read": "partial",
+      "reason": "Lines 11-39 (imports via grep), 120-280 and 385-610; covers every changed hunk and its enclosing function."
+    },
+    {
+      "path": "addons/intelligence/app/rag/prompt.py",
+      "read": "partial",
+      "reason": "The changed hunk of build_file_question_user_prompt in the diff (around lines 168-210)."
+    },
+    {
+      "path": "addons/intelligence/app/routers/rag.py",
+      "read": "partial",
+      "reason": "The five changed call-site hunks in the diff; caller lines located by grep."
+    },
+    {
+      "path": "addons/intelligence/tests/file_context_doubles.py",
+      "read": "full",
+      "reason": "New file, read whole in the diff."
+    },
+    {
+      "path": "addons/intelligence/tests/file_context_rules.py",
+      "read": "full",
+      "reason": "New file, read whole in the diff."
+    },
+    {
+      "path": "addons/intelligence/tests/frame_request_doubles.py",
+      "read": "partial",
+      "reason": "The changed hunks in the diff (import and todays_request/with_file_context)."
+    },
+    {
+      "path": "addons/intelligence/tests/golden_prompts/file_question_today_cut-material-ollama.json",
+      "read": "full",
+      "reason": "New file in the diff; skimmed."
+    },
+    {
+      "path": "addons/intelligence/tests/golden_prompts/file_question_today_cut-material-openai_compatible.json",
+      "read": "full",
+      "reason": "New file in the diff; skimmed."
+    },
+    {
+      "path": "addons/intelligence/tests/golden_prompts/file_question_today_frames-fallback-ollama-text-less-video.json",
+      "read": "full",
+      "reason": "New file in the diff; skimmed."
+    },
+    {
+      "path": "addons/intelligence/tests/golden_prompts/file_question_today_frames-fallback-ollama-text-video.json",
+      "read": "full",
+      "reason": "New file in the diff; skimmed."
+    },
+    {
+      "path": "addons/intelligence/tests/golden_prompts/file_question_today_frames-fallback-openai_compatible-text-less-video.json",
+      "read": "full",
+      "reason": "New file in the diff; skimmed."
+    },
+    {
+      "path": "addons/intelligence/tests/golden_prompts/file_question_today_frames-fallback-openai_compatible-text-video.json",
+      "read": "full",
+      "reason": "New file in the diff; skimmed."
+    },
+    {
+      "path": "addons/intelligence/tests/golden_prompts/file_question_today_frames-refused-ollama.json",
+      "read": "full",
+      "reason": "New file in the diff; skimmed."
+    },
+    {
+      "path": "addons/intelligence/tests/golden_prompts/file_question_today_frames-refused-openai_compatible.json",
+      "read": "full",
+      "reason": "New file in the diff; skimmed."
+    },
+    {
+      "path": "addons/intelligence/tests/golden_prompts/file_question_today_frames-tool-ollama-text-less-video.json",
+      "read": "full",
+      "reason": "New file in the diff; skimmed."
+    },
+    {
+      "path": "addons/intelligence/tests/golden_prompts/file_question_today_frames-tool-ollama-text-video.json",
+      "read": "full",
+      "reason": "New file in the diff; skimmed."
+    },
+    {
+      "path": "addons/intelligence/tests/golden_prompts/file_question_today_frames-tool-openai_compatible-text-less-video.json",
+      "read": "full",
+      "reason": "New file in the diff; skimmed."
+    },
+    {
+      "path": "addons/intelligence/tests/golden_prompts/file_question_today_frames-tool-openai_compatible-text-video.json",
+      "read": "full",
+      "reason": "New file in the diff; skimmed."
+    },
+    {
+      "path": "addons/intelligence/tests/golden_prompts/file_question_today_image-only.json",
+      "read": "full",
+      "reason": "New file in the diff."
+    },
+    {
+      "path": "addons/intelligence/tests/golden_prompts/file_question_today_no-frame-prepared-ollama.json",
+      "read": "full",
+      "reason": "New file in the diff."
+    },
+    {
+      "path": "addons/intelligence/tests/golden_prompts/file_question_today_no-frame-prepared-openai_compatible.json",
+      "read": "full",
+      "reason": "New file in the diff."
+    },
+    {
+      "path": "addons/intelligence/tests/golden_prompts/file_question_today_passages-and-image.json",
+      "read": "full",
+      "reason": "New file in the diff."
+    },
+    {
+      "path": "addons/intelligence/tests/golden_prompts/file_question_today_passages-only.json",
+      "read": "full",
+      "reason": "New file in the diff."
+    },
+    {
+      "path": "addons/intelligence/tests/golden_prompts/file_question_today_text-only-retry.json",
+      "read": "full",
+      "reason": "New file in the diff."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_071_image_stream.py",
+      "read": "partial",
+      "reason": "The changed hunks in the diff only."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_179_181_every_path.py",
+      "read": "full",
+      "reason": "New file, read whole in the diff."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_179_file_block.py",
+      "read": "full",
+      "reason": "New file, read whole in the diff."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_180_image_and_passages.py",
+      "read": "full",
+      "reason": "New file, read whole in the diff."
+    }
+  ],
+  "confidence": 80
+}

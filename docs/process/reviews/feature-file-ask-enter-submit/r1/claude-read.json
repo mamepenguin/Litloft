@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [],
+  "specification_compliance": [
+    "Every path the diff reaches is on the touch-point list or is an implicit touch point. addons/intelligence/frontend/AskTab.tsx, addons/intelligence/frontend/Page.tsx and the new tests AskTabKeys.test.tsx and PageKeys.test.tsx are under addons/intelligence/frontend/. The addons/intelligence submodule pointer, frontend/src/__tests__/ime-enter-guard.test.ts (AskTab.tsx added to ADDON_TEXT_FIELD_ENTER, count raised from 8 to 9) and docs/user-guide/keyboard-shortcuts.md (new Ask section) are listed. docs/specs/INDEX.md, docs/specs/file-ask-enter-submit.md and docs/process/reviews/feature-file-ask-enter-submit/ are implicit.",
+    "r1/classification.json lists exactly these zones and no protected path: addons/intelligence, docs/specs/INDEX.md, docs/specs/file-ask-enter-submit.md, docs/user-guide/keyboard-shortcuts.md and frontend/src/__tests__/ime-enter-guard.test.ts. This matches 'No protected path is edited'.",
+    "The touch points say only AskTab.tsx and Page.tsx mention \"Enter\". The two new test files also contain \"Enter\", but the scanner in ime-enter-guard.test.ts:82 skips *.test.tsx and __tests__. So the files counted as mentioning \"Enter\" are still those two, and no addon module was added.",
+    "frontend/src/lib/ime.ts and frontend/src/__tests__/helpers/imeEnter.ts are imported only (useImeKeyGuard, COMPOSITION_GRACE_MS, confirmConversionThenEnter). Neither appears in the diff."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "Page.tsx restores the caret in useEffect, but AskTab.tsx uses useIsomorphicLayoutEffect. On the Ask page the caret may sit at the end of the text for one frame after Alt+Enter before it moves to the newline. This is not a touch-point issue."
+  ],
+  "regression_risks": [
+    "Page.tsx now sends through formRef.requestSubmit() instead of runAsk directly. Any later guard in handleSubmit therefore applies to key sends as well. This is intended (I1), but it changes the Enter path on the Ask page."
+  ],
+  "test_coverage": [
+    "PageKeys.test.tsx has no Shift+Enter newline case and no IME conversion-confirm case that uses confirmConversionThenEnter. It covers I3 only with keys pressed inside the grace window. AskTabKeys.test.tsx covers both."
+  ],
+  "not_verified": [
+    "I did not run git, so I could not list the files changed by commit 2948a6aea on its own. I judged the scope from the branch diff provided and from r1/classification.json.",
+    "I did not run the test suites. I did not confirm that the addon count of 9 matches what the scanner finds at HEAD.",
+    "I did not open the submodule commit 9ab6232 beyond the diff shown, so I cannot rule out other files in the submodule bump."
+  ],
+  "confidence": 85
+}

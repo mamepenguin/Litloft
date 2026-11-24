@@ -61,7 +61,8 @@ directory. Both trees are gitignored.
 
 The Docker builds do not use the symlinks. The backend image copies each
 addon's `backend/` to `/app/addons/{name}/`, copies its `manifest.json` next
-to it, installs `requirements.txt` and runs `install.sh`. The frontend image
+to it, installs `requirements.txt` and runs `install.sh`; a failure in either
+step fails the backend image build. The frontend image
 copies each addon's `frontend/` to `src/addons/{name}/` and merges the addon
 translation files into the core catalogue.
 
@@ -127,7 +128,7 @@ ADDON_META = {
     "description": "One sentence shown in the setup wizard.",
     "scope": "drive",               # required: "drive" | "global" | "both"
     "href": "/addons/my-addon",     # presence enables the addon page; omit if none
-    "navigation": {                 # optional sidebar row, see `navigation`
+    "navigation": {                 # optional sidebar row(s), see `navigation`
         "label": "My Addon",
         "placement": "utility",
         "priority": 50,
@@ -252,7 +253,7 @@ calls back into the core through the [Internal API](#internal-api).
 | `description` | No | Shown in the setup wizard's addon step |
 | `href` | No | Its presence tells the core the addon has a page. The value is not used as a link; the route is built from the scope and name |
 | `icon` | No | Not drawn by the core. The sidebar uses `navigation.icon` |
-| `navigation` | No | The addon's sidebar row (see [`navigation`](#navigation)) |
+| `navigation` | No | The addon's sidebar row(s) (see [`navigation`](#navigation)) |
 | `slots` | No | UI slot entries (see [UI Slot System](#ui-slot-system)) |
 | `policy_features` | No | Per-drive feature toggles in the admin GUI |
 | `event_hooks` | No | Lifecycle webhooks (see [Event Hooks](#event-hooks)) |
@@ -281,10 +282,27 @@ settings screen can say "Knowledge" while the sidebar says "Notes".
 | `priority` | Yes | Integer (not a boolean); order within the placement |
 | `i18n_key` | No | String key in the addon's own message catalogue |
 | `icon` | No | String icon token |
+| `path` | No | A subpage slug, `^[a-z][a-z0-9-]{0,39}$`. The row points at `/addons/{name}/{path}` (`/drive/{drive}/addons/{name}/{path}` for a drive-scoped addon) instead of the addon's page |
 
-If a check fails, the core logs a warning and drops the whole `navigation`
-block; the addon, its slots and its proxy routes still load. Other keys in
-the block are passed through.
+`navigation` may instead be a list of 1 to 4 such objects, so one addon can
+show several entrances:
+
+```json
+"navigation": [
+    {"label": "Notes", "placement": "primary", "priority": 20},
+    {"label": "Clips", "placement": "primary", "priority": 21, "icon": "newspaper", "path": "clips"}
+]
+```
+
+An entry that fails a check, or whose `path` repeats an earlier entry's
+(absence counts as a value, so two entries without `path` repeat), is dropped
+with a warning naming the addon and its 0-based index; the other entries stay.
+The whole `navigation` block is dropped, with a warning, when it is neither an
+object nor a list, when the list is empty or holds more than 4 objects, or when
+no entry survives. The addon, its slots and its proxy routes still load. Other
+keys in an accepted object are passed through, and the catalogue keeps the
+shape the manifest used: an object stays an object, a list stays a list of the
+surviving objects.
 
 The sidebar draws the row when the addon has a valid `navigation`, an `href`,
 and a route it can build (a `drive`-scoped addon needs a current drive).
@@ -295,14 +313,17 @@ and a route it can build (a `drive`-scoped addon needs a current drive).
 | `sources` | Under a **Sources** heading after the views. The heading appears only when some addon declares `sources` |
 | `utility` | Unheaded, after the user's own sections and before **Trash** |
 
-Rows sort by `priority`, then by addon name. The label is the translation of
-`i18n_key` when it resolves, otherwise `label`. The row is highlighted on the
-addon's route and every page under it.
+Rows sort by `priority`, then by addon name, then by the entry's place in the
+list. The label is the translation of `i18n_key` when it resolves, otherwise
+`label`. Among addon rows of every placement, only the row whose `href` is the
+longest that equals the current page or lies above it is highlighted, so a
+page under `/addons/notes/clips` lights Clips and not Notes.
 
 Icon tokens that are drawn: `download`, `images`, `message-circle-question`,
-`notebook-pen`, `package`, `rss`. A missing or unknown token draws `package`.
-To add one, extend `ADDON_NAV_ICONS` in `frontend/src/lib/addonNavIcons.ts`.
-The sidebar, page jump and the drive's Home entry row all read that one table.
+`newspaper`, `notebook-pen`, `package`, `rss`. A missing or unknown token draws
+`package`. To add one, extend `ADDON_NAV_ICONS` in
+`frontend/src/lib/addonNavIcons.ts`. The sidebar, page jump and the drive's
+Home entry row all read that one table.
 
 A `primary` entry is also drawn on every drive's Home, in the row of app
 destinations above the rows, in the same order.
@@ -574,7 +595,7 @@ Secrets are compared in constant time.
 | `POST /filter-file-ids` | Caller credential | Body `{file_ids: [], trust_tier?}` → `{accessible: [], trust_filtered: bool}`. Keeps the active files in drives the caller can open. With `trust_tier` (`verified` \| `unverified`) it also keeps only that tier; any other value is 422. `trust_filtered` is `true` exactly when `trust_tier` was sent. A core too old to know `trust_tier` ignores it and omits `trust_filtered`, so a caller that asked for a tier and does not get `trust_filtered: true` must treat the list as unfiltered. |
 | `POST /files/bulk-state` | None | Body `{file_ids: []}` → `{statuses: [{id, drive, state}], not_found: []}`. `state` is `active`, `missing` or `trash`. Unknown ids are in `not_found`. |
 | `POST /files/bulk` | None | Body `{file_ids: []}` → `{files: [FileResponse], not_found: []}`, in request order. Missing, trashed and unknown files are in `not_found`. `subtitles` is always `[]`; use `GET /files/{file_id}` or the public API when you need them. |
-| `POST /files/matching` | None | Body `{drive, tags: [], kinds: [], favorite?, liked?, folders: [], collections: [], sizes: [], durations: []}` → `{file_ids: []}`, sorted ascending. The ids of the drive's active files matching the same `tag` / `type` / `favorite` / `liked` / `folder` / `collection` / `size` / `duration` predicates as `GET /api/drives/{drive}/files`: tags are ANDed, kinds are ORed with `markdown` read as `text` and `epub` accepted as `application/epub+zip` or a name ending `.epub`, and a non-null flag compares `is_favorite` / `liked_at`. Several folders keep the union of their subtrees, compared case-sensitively by whole path segment; several collections keep the union of their items, and only collections of `drive` are considered. `sizes` and `durations` are comparisons in the wire form `<operator>:<number>` with `gt`, `gte`, `lt` or `lte`; every comparison must hold. A size is bytes; a duration compares the whole seconds the UI shows, and a NULL duration never passes. Unknown keys are `422`, so a caller and the core cannot silently disagree about a filter field. 404 for an unknown drive; password-protected drives answer like any other and no viewer credential is checked. Caps: at most 20 tags after empty-name dropping and case-insensitive dedup, each at most 200 characters; at most 8 kinds after dedup; at most 10 folders of up to 1024 characters, NFC-normalised and trimmed of `/`, deduplicated after normalisation; at most 10 collections of up to 100 characters, trimmed with blanks dropped and deduplicated case-insensitively; at most 4 distinct size comparisons and 4 distinct duration comparisons, counted after dedup. A size is a whole number from 0 to 2⁵³ − 1; a duration is a number from 0 to 10,000,000 with at most three decimals, written plainly (no exponent, no trailing `.0`). An impossible range is not an error and answers no ids. 422 outside these rules. |
+| `POST /files/matching` | None | Body `{drive, tags: [], kinds: [], favorite?, liked?, folders: [], collections: [], sizes: [], durations: [], modified: [], exclude_tags: [], exclude_kinds: [], exclude_folders: [], exclude_collections: [], has_tag?, has_collection?}` → `{file_ids: []}`, sorted ascending. The ids of the drive's active files matching the same `tag` / `type` / `favorite` / `liked` / `folder` / `collection` / `size` / `duration` / `modified` predicates as `GET /api/drives/{drive}/files`: tags are ANDed, kinds are ORed with `markdown` read as `text` and `epub` accepted as `application/epub+zip` or a name ending `.epub`, and a non-null flag compares `is_favorite` / `liked_at`. Several folders keep the union of their subtrees, compared case-sensitively by whole path segment; several collections keep the union of their items, and only collections of `drive` are considered. `exclude_tags` and `exclude_kinds` are ANDed with everything else and drop the files `tags` and `kinds` would keep (`exclude_kinds: ["document"]` drops text, PDF and EPUB files); `exclude_folders` drops each named folder and its subtree, and `exclude_collections` drops the items of each named collection of `drive`, a name matching no collection dropping nothing. `has_tag` and `has_collection` are strict booleans: `true` keeps the files with at least one tag, or in at least one collection of `drive`, and `false` the files with none; a Smart Collection is not a collection. `sizes`, `durations` and `modified` are comparisons in the wire form `<operator>:<number>` with `gt`, `gte`, `lt` or `lte`; every comparison must hold. A size is bytes; a duration compares the whole seconds the UI shows, and a NULL duration never passes; a modified value is epoch seconds and a NULL `modified_at` never passes. Unknown keys are `422`, so a caller and the core cannot silently disagree about a filter field. 404 for an unknown drive; password-protected drives answer like any other and no viewer credential is checked. Caps: at most 20 tags after empty-name dropping and case-insensitive dedup, each at most 200 characters; at most 8 kinds after dedup; at most 10 folders of up to 1024 characters, NFC-normalised and trimmed of `/`, deduplicated after normalisation; at most 10 collections of up to 100 characters, trimmed with blanks dropped and deduplicated case-insensitively; at most 4 distinct size comparisons, 4 distinct duration comparisons and 4 distinct modified comparisons, counted after dedup. `exclude_tags` follows `tags` counted apart from it; `exclude_kinds` follows `kinds`; `exclude_folders` and `exclude_collections` follow `folders` and `collections`. A size is a whole number from 0 to 2⁵³ − 1; a duration is a number from 0 to 10,000,000 with at most three decimals, written plainly (no exponent, no trailing `.0`); a modified value is a whole number from 0 to 253402300799. An impossible range is not an error and answers no ids. 422 outside these rules. |
 | `GET /file_relations?file_id=&drive=&kind=&limit=` | None | List of `{id, file_id_a, file_id_b, kind, created_at, created_by}`. At least one of `file_id` (relations on either side) or `drive` is required, else 400; both together are ANDed. `kind` filters. `limit` defaults to 5000, max 20000. |
 
 #### Secret-gated endpoints (optional secret)
@@ -789,22 +810,24 @@ entries renders nothing.
 
 Every file-page slot (`file-detail-sections`, `file-detail-actions`,
 `file-actions-menu`, `file-relations`, `player-side`, `inspector-tabs`,
-`file-preview-actions`) receives `{ fileId, drive, filename, fileType, mimeType,
-videoRef, mediaController, subtitles, documentCaptureController,
-documentController, lowerInspector, trustTier, trustReviewedAt, onFileChange }`
-plus what its row lists.
+`document-side`, `file-preview-actions`) receives `{ fileId, drive, filename,
+fileType, mimeType, videoRef, mediaController, subtitles,
+documentCaptureController, documentController, lowerInspector, trustTier,
+trustReviewedAt, onFileChange }` plus what its row lists.
 
 | Slot ID | Location | Props / contract |
 |---------|----------|------------------|
 | `search-modes` | Search results page (`/drive/{drive}/search`), inside the results bar's `…` menu. Not the header search modal, and not drawn for a query with operators | `{ query, drive, filter, onSelect, closeMenu }`. Draw each entry as an `ActionMenuItem` row and call `closeMenu` before `onSelect`, so the menu closes before the page changes. The slot mounts on every open of the menu |
+| `smart-collection-actions` | Search results page (`/drive/{drive}/search`), inside the results bar's `…` menu, after the saved block, while the page is a saved Smart Collection's and its query and type equal the saved ones; in both Files and Passages | `{ drive, smartCollectionId, smartCollectionName, closeMenu }`. Draw each entry as an `ActionMenuItem` row and call `closeMenu` before navigating, so the menu closes before the page changes. With no entry nothing is drawn |
 | `search-results-top` | Search results page (`/drive/{drive}/search`), under the results bar and above the results. Not drawn for a query with operators, nor in Passages with a non-blank query | `{ query, drive, includeSceneClip, typeFilter, smartFolderId }`. `typeFilter` and `smartFolderId` are `null` when unset. Draw nothing when you have nothing to show: the host adds no wrapper |
 | `search-result-actions` | Next to a match excerpt in search results | `{ capture }` |
-| `file-detail-sections` | File detail inspector, **Info** tab | File props. The entries with id `detailed-summary` and `knowledge-edit` are placed outside the tab by the core (the canvas or the sheet). Not for a transcript (`player-side`) or derived relations (`file-relations`); an entry in two slots renders twice |
+| `file-detail-sections` | File detail inspector, **Info** tab | File props. On a file without a player, an entry whose id is also a `document-side` entry is drawn only as that slot's inspector tab. On a player file, an entry whose id is also a `player-side` entry is drawn only as that panel. On a Markdown document layout (a note with the editor, a plain-text document, HTML) the core still places `detailed-summary` and `knowledge-edit` itself. Not for derived relations (`file-relations`) |
 | `file-relations` | Inspector **Related** tab, after the core's own relation lists | File props. See [below](#contributing-to-the-related-tab) |
-| `player-side` | Beside a media player as an inspector tab, or in a box under the description, as the viewer chooses | File props plus `fillHeight`, `labelledByHost`, `onAvailability`. See [Occupying the player-side slot](#occupying-the-player-side-slot) |
-| `inspector-tabs` | File detail inspector, as a tab after the core tabs and after any `player-side` tabs, on every file page with an inspector (including the HTML preview; not the collection surface) | File props plus `fillHeight`, `labelledByHost`, `onAvailability`, and a required `i18n_key`. See [Occupying the inspector-tabs slot](#occupying-the-inspector-tabs-slot) |
-| `file-preview-actions` | Under the media player, right-aligned | File props. Inline buttons |
-| `loft-metadata` | Beside the player, `.loft` (external URL) files only | `{ fileId, drive }` |
+| `player-side` | Under a media player, as a panel: a row of toggles on the wide forms, one above the other below `41rem`; a tab in the stacked inspector and on the phone. Placement belongs to the core | File props plus `fillHeight`, `labelledByHost`, `onAvailability`, `active`. See [Occupying the player-side slot](#occupying-the-player-side-slot) |
+| `inspector-tabs` | File detail inspector, as a tab after the core tabs and after any panel tabs, on every file page with an inspector (including the HTML preview; not the collection surface) | File props plus `fillHeight`, `labelledByHost`, `onAvailability`, and a required `i18n_key`. See [Occupying the inspector-tabs slot](#occupying-the-inspector-tabs-slot) |
+| `document-side` | File detail inspector, as a tab after the core tabs and before **Related**, on the file page of a file without a player (a PDF, an EPUB, an archive, an image, a text preview, an Office excerpt, a Markdown file shown without the editor, the no-preview card). Not on a player file, a Markdown document layout or the collection surface | File props plus `fillHeight`, `labelledByHost`, `onAvailability`, `active`, `select`, `openInViewer`, a required `i18n_key`, and an optional `wide` on the entry. See [Occupying the document-side slot](#occupying-the-document-side-slot) |
+| `file-preview-actions` | Under the media player, right-aligned. On the wide forms of a player file it moves to the trailing end of the panel-toggle row, which spans the canvas width; in the stacked inspector and on the phone it stays in the player box | File props. Inline buttons |
+| `loft-metadata` | File detail inspector, **Info** tab, under the title, `.loft` (external URL) files only. On the collection playback surface, which has no inspector, under the player | `{ fileId, drive }` |
 | `file-detail-actions` | The file page's action row, before the `[...]` menu | File props. See [Contributing to the file action row](#contributing-to-the-file-action-row) |
 | `file-actions-menu` | The file page's `[...]` menu | File props plus `onRequestClose`, `onDialogOpenChange`. See [Contributing to the file actions menu](#contributing-to-the-file-actions-menu) |
 | `folder-actions-menu` | The folder toolbar's **Add** menu, below the core rows | See [Contributing to the add menu](#contributing-to-the-add-menu) |
@@ -814,7 +837,7 @@ plus what its row lists.
 | `header-actions` | App header | `{ drive }` |
 | `active-summary-view` | File detail, with the summaries | `{ fileId, drive, summaryNote }`. Drawn only when `GET /api/addons/knowledge/file_active_summary/{id}/note` reports an active summary; without an entry the core draws the note itself |
 | `drive-home-sections` | Drive home, between **Continue** and **Recently Viewed** | `{ drive }` |
-| `video-discover-recommended` | Video app, **Discover** face, the **Recommended** shelf | A provider slot; see [Frontend slot providers](#frontend-slot-providers). The first entry by `priority` whose `slotProviders` has a function under its `id` supplies Recommended. Called only with a profile; its `restrict` adds `watch=unwatched` |
+| `video-discover-recommended` | Video app, **Discover** face, the **Recommended** shelf | A provider slot; see [Frontend slot providers](#frontend-slot-providers). The first entry by `priority` whose `slotProviders` has a function under its `id` supplies Recommended. Called only with a profile; its `restrict` narrows to the target only and adds no watch condition, so the provider decides which videos the viewer has watched. **See all** opens the core page `/drive/{drive}/apps/video/shelf?entry={id}&slot=recommended` when that entry also has a page provider (below), and is absent otherwise |
 | `video-discover-shelves` | Video app, **Discover** face, one shelf per entry between Recommended and New | A provider slot, with or without a profile. Each entry's provider supplies one shelf, in `priority` order. `i18n_key` (or `label`) titles it. **See all** opens the core page `/drive/{drive}/apps/video/shelf?entry={id}` when the entry has a page provider (below), otherwise the entry's `href` relative to `/drive/{drive}/`, and is absent when it has neither |
 | `sidebar-sections` | Sidebar, end of the library section | No props |
 | `dashboard-widgets` | Admin dashboard (`/admin`) | No props. Cards |
@@ -844,22 +867,31 @@ failure the field exists to prevent.
 
 ### Occupying the `player-side` slot
 
-One entry is one tab. Besides the file props it receives:
+One entry is one panel. Where it is drawn belongs to the core:
+
+- On the canonical page in a wide form, and on the collection surface: a panel
+  under the player, with a toggle in the row above it. Up to two panels are
+  shown, in the panel list's order.
+- In the stacked inspector and on the phone sheet: a tab, in the panel list's
+  order.
+
+Besides the file props it receives:
 
 | Prop | Meaning |
 |---|---|
-| `fillHeight: boolean` | Fill the height you are given as a flex item and scroll inside yourself. Do not use `h-full`: the budget is a `max-height`, and a percentage height against it resolves to `auto`, so the list lays out at full length and is clipped. In the one-column inspector (phone) there is no budget; the sheet scrolls (see below). |
-| `labelledByHost: boolean` | The tab button already shows your name; drop your own title when `true`. |
+| `fillHeight: boolean` | Fill the height you are given as a flex item and scroll inside yourself. Do not use `h-full`: the budget is a `max-height`, and a percentage height against it resolves to `auto`, so the list lays out at full length and is clipped. |
+| `labelledByHost: boolean` | The panel card or the tab already shows your name; drop your own title when `true`. |
 | `onAvailability: (available: boolean) => void` | Report whether you have anything for this file. |
+| `active: boolean` | `true` while your panel is shown under the player, or while your tab is the selected tab of an open inspector or a raised phone sheet. `false` otherwise. |
 
-Treat `labelledByHost` and `onAvailability` as optional: some placements do
-not pass them.
+Treat every one of these as optional: a placement, or a reader who has turned
+nothing on, may not pass them. An entry that reads none of them keeps working:
+it is mounted, listed when silent, and shown when on.
 
-In the one-column inspector your list grows to
-full length and the host scrolls it; a `scrollTo` on your list does nothing.
-The host marks that scroller with `data-inspector-scroller` and sets
-`--inspector-sticky-top` on the inspector root to the height of its pinned
-tab strip.
+In a narrow form your list grows to full length and the host scrolls it; a
+`scrollTo` on your list does nothing. The host marks that scroller with
+`data-inspector-scroller` and sets `--inspector-sticky-top` on the inspector
+root to the height of its pinned tab strip.
 
 - Find the scroller with `element.closest("[data-inspector-scroller]")`.
   When there is one, scroll it, treat its top `--inspector-sticky-top`
@@ -871,17 +903,23 @@ tab strip.
 - Pin your own headers with `position: sticky; top: var(--inspector-sticky-top, 0px)`
   and a `z-index` below `10`, so they sit under the tab strip.
 
-`onAvailability` keeps a tab off files it has nothing for.
+`onAvailability` keeps a panel off files it has nothing for.
 
 - Call it with `false` when you mount, before your fetch settles, and with
   `true` when you find something. Never calling it means available.
-- Answering `false` does not unmount you: the tab loses its button and the
-  panel is hidden, so you can answer `true` later.
+- Answering `false` does not unmount you: your toggle and panel are hidden, so
+  you can answer `true` later.
 - The answer is per file. The core forgets it when the file changes but
   cannot tell which file an in-flight request was for; drop stale responses
   yourself.
-- If every entry answers `false` and the file has no chapters, the core also
-  hides the beside/below toggle.
+- If every entry answers `false`, the row has no toggle. The core still draws
+  it for `file-preview-actions` entries, and not at all when there are none.
+
+**Ids.** An entry whose id equals a core panel id (`active-summary`,
+`chapters`) or a core tab id (`info`, `find`, `pages`, `chapters`, `related`) is
+not mounted; the core's own item is kept. An entry whose id is also a
+`file-detail-sections` entry is drawn only as the panel on a player file, and
+only in that slot on a file without a player.
 
 ### Occupying the `inspector-tabs` slot
 
@@ -891,8 +929,8 @@ inspector and draws no `inspector-tabs` entry.
 
 The entry receives the same `fillHeight`, `labelledByHost` and `onAvailability`
 as a [player-side](#occupying-the-player-side-slot) entry, and must declare an
-`i18n_key` for its tab label. The tab is drawn after the core tabs and after
-any `player-side` tabs.
+`i18n_key` for its tab label. The tab is drawn after the core tabs and, in a
+narrow form, after the panels' tabs.
 
 - **Silence means unavailable.** Unlike `player-side`, an entry that has not
   called `onAvailability` gets no tab button. Report `false` when you mount,
@@ -902,6 +940,38 @@ any `player-side` tabs.
 - Availability, tab ids and DOM ids are keyed by slot and entry id. An entry
   may share an id with a `player-side` entry or a core tab without taking its
   button or panel.
+
+### Occupying the `document-side` slot
+
+One entry is one inspector tab on the **file page of a file without a
+player**: a PDF, an EPUB, an archive, an image, a text preview, an Office
+excerpt, a Markdown file shown without the editor, and the no-preview card.
+Player files, the Markdown document layout and the collection surface draw no
+`document-side` entry. The tab is drawn after the core tabs (Find, Pages) and
+before **Related**; several entries sort by `priority`.
+
+The manifest entry is `{ "id", "component", "i18n_key", "priority"?, "wide"? }`.
+`i18n_key` is required, for the same reason as `inspector-tabs`.
+
+Besides the file props it receives:
+
+| Prop | Meaning |
+|---|---|
+| `fillHeight: boolean` | Fill the bounded height you are given as a flex column and scroll inside yourself, as for [`player-side`](#occupying-the-player-side-slot). |
+| `labelledByHost: boolean` | The tab already shows your name; drop your own title when `true`. |
+| `onAvailability: (available: boolean) => void` | Report whether you have anything for this file. Silence means unavailable, as for `inspector-tabs`: only `true` gives you a button. |
+| `active: boolean` | `true` only while your tab is the selected one. Turn window-level keys off when it is `false`. |
+| `select(): void` | Selects your tab. An unlisted entry's call does nothing, so report `true` first — reporting and selecting in the same handler works. On a phone it also raises the sheet to its half snap. |
+| `openInViewer({ fileId, page?, section? }): boolean` | Ask the open viewer to move before you navigate. It answers `true` and moves the viewer in place when `fileId` is the open file and that viewer has a controller (a PDF lands on the page, an EPUB at the section); on a phone it also lowers the sheet. It answers `false` for another file, on a kind with no controller, and on the collection surface, which does not pass it — then navigate as before. |
+
+- **`wide: true` on the entry** widens the inspector while your tab is
+  selected in the `beside` form: `max(40% of the row, 512px)`. It is read on
+  this slot only and ignored on every other.
+- Availability, tab and DOM ids are keyed by slot: `document-side:<id>`. An
+  id may equal a core tab id or another slot's entry without taking its
+  button.
+- An id registered here is not drawn from `file-detail-sections` on such a
+  file; keep it out of that slot rather than letting it appear twice.
 
 ### Moving the open viewer and lowering the sheet
 
@@ -1130,8 +1200,9 @@ through it is dropped.
 
 ### Page providers
 
-A `video-discover-shelves` entry may page instead of returning one list.
-Export `slotPageProviders` beside `slotProviders`:
+A `video-discover-shelves` entry may page instead of returning one list. A
+`video-discover-recommended` entry may supply a page for its **See all** in the
+same way. Export `slotPageProviders` beside `slotProviders`:
 
 ```typescript
 // addons/{name}/frontend/slots.ts
@@ -1158,7 +1229,7 @@ A page provider is
 |---|---|
 | `drive` | The drive, as for a list provider |
 | `locale` | The viewer's UI locale, e.g. `"ja"`. Format the byline with it |
-| `limit` | Items wanted: 12 on Discover, 60 on the core page |
+| `limit` | Items wanted: 12 on Discover, 60 on the core page. An answer may hold more: the core page draws every accepted item, while Discover cuts the first page to 12 |
 | `cursor` | `null` for the first page; afterwards exactly the string the previous answer returned |
 | `restrict` | The same filter a list provider receives |
 
@@ -1170,8 +1241,10 @@ on Discover and on the core page.
 
 Two requirements:
 
-- **Fill the page.** Keep reading your source until you hold `limit` restricted
-  items or the source ends, so that a page is short only at the end.
+- **Fill the page.** Keep reading your source until you hold at least `limit`
+  restricted items or the source ends, so that a page is short only at the end.
+  You may answer with more than that; the core page never cuts an answer, while
+  Discover draws only its first 12 items.
 - **Never repeat an earlier item.** Use a keyset cursor (the last item's sort
   key and id, say), not an offset over a list that grows. The core stops at a
   page that adds nothing new, whatever cursor it returns, so a cursor that
@@ -1183,12 +1256,120 @@ is not an object or whose `id` is not a non-empty string, and draws the rest of
 the page; an answer whose `items` is not an array counts as rejected.
 
 The page provider is found like the list provider: the entry's `addonName` →
-that addon's `slots.ts` → `slotPageProviders[entry.id]`. It is consulted only
-for `video-discover-shelves`, so **Recommended** keeps `slotProviders`. A list
-provider receives no `locale`. On Discover a page provider is called with
-`cursor: null` and `limit: 12`, and its cursor is not followed. The entry's
-**See all** opens the core page; a module that fails to import counts as having
-no page provider, and the list provider is tried next.
+that addon's `slots.ts` → `slotPageProviders[entry.id]`. For
+`video-discover-shelves` it is consulted on Discover and by the core page. For
+`video-discover-recommended` it is consulted only by the core page that **See
+all** opens, `/drive/{drive}/apps/video/shelf?entry={id}&slot=recommended`,
+which asks with the same target-only restrict as Discover, without a watch
+condition; Discover itself never calls it. A list provider receives no `locale`. On
+Discover a page provider is called with `cursor: null` and `limit: 12`, and its
+cursor is not followed. The entry's **See all** opens the core page; a module
+that fails to import counts as having no page provider, and for
+`video-discover-shelves` the list provider is tried next.
+
+### Item actions on Recommended cards
+
+A `video-discover-recommended` entry may attach actions to the cards the video
+app draws for it, on Discover's **Recommended** shelf and on its **See all** page.
+Export `slotItemActions` beside `slotProviders`, keyed by the entry id:
+
+```typescript
+// addons/{name}/frontend/slots.ts
+import { Ban } from "lucide-react";
+import { markNotInterested, clearNotInterested } from "./api";
+
+export const slotItemActions = {
+  pickup: ({ drive, locale, t }) => [
+    {
+      id: "not-interested",
+      label: t("myAddon.notInterested"),
+      icon: Ban,
+      run: async (fileId) => {
+        await markNotInterested(drive, fileId, locale);
+        return {
+          message: t("myAddon.removed"),
+          undo: () => clearNotInterested(drive, fileId),
+        };
+      },
+    },
+  ],
+};
+```
+
+A factory is `({ drive, locale, t }) => ShelfItemAction[]`:
+
+| Argument | Meaning |
+|---|---|
+| `drive` | The drive the cards belong to |
+| `locale` | The viewer's UI locale, e.g. `"ja"` |
+| `t` | The core's translator over the merged catalogue, so the addon's own keys resolve |
+
+An action is `{ id, label, icon?, run }`. `label` is drawn as given. `icon` is a
+component drawn at 14px; omit it and the row keeps an empty 14px slot.
+`run(fileId)` must resolve with `{ message, undo? }`:
+
+- A string `message` is shown in the core's success toast, with an Undo action
+  when `undo` is a function. On that resolution the card leaves the shelf at
+  once.
+- `undo()` is called when the viewer chooses Undo. The card returns only when it
+  resolves, at the position it left; a rejection shows the core's save-failed
+  toast and leaves the card removed.
+- A rejection, or a resolution without a string `message`, leaves the card where
+  it is and shows the core's save-failed toast.
+
+The core reads item actions only for `video-discover-recommended` entries, and
+only with a profile set. The card's right-click / 500 ms long-press menu draws
+the valid actions first, then one divider, then the shared file menu. A factory
+that is missing, throws or returns anything but an array gives the card the file
+menu without action rows or divider. Within the array, an element without a
+string `id` and `label` or a function `run`, and a repeated `id`, is dropped on
+its own.
+
+### Leading rows in the shared file menu
+
+An addon that draws `CarouselSection` or `FileGrid` (either layout) passes
+`extraMenuItems(file)` to put its own rows above the shared file menu's rows:
+
+```tsx
+<CarouselSection
+  title={t("pickup")}
+  files={files}
+  loading={loading}
+  extraMenuItems={(file) => [
+    {
+      id: "not-interested",
+      label: t("notInterested"),
+      icon: Ban,
+      onSelect: () => markNotInterested(file.id),
+      disabled: pending.has(file.id),
+    },
+  ]}
+/>
+```
+
+A row is `{ id, label, icon, onSelect, disabled? }`. The rows come first, then one
+divider, then the menu's own rows. The core only invokes `onSelect`; it does not
+await it, catch it, or show a toast for it, so the addon owns the pending state,
+the toast and the failure. Without `extraMenuItems` the menu draws exactly its
+own rows and no divider.
+
+### The app card menu on a `FileGrid`
+
+An addon that draws `FileGrid` for an app (as Photo Diary does) passes
+`appCardMenu` to give its cards the menu the Video and Reading cards have. The menu
+gains **Open in new tab**, which opens the card's own link
+(`fileLinkHref(file, sortQuery)`). Every row acts in the click that chooses it. The
+card's text cannot be selected, so a long press on a touch device opens the menu
+without starting a selection. The prop is off by default, and the core grids (folder,
+collection, right pane) do not pass it. With `selectable` the cards still open no
+menu.
+
+### `FileContextMenu` action callbacks
+
+`FileContextMenu` also takes three optional callbacks: `onTrashed(file)`,
+`onRenamed(file)` and `onMoved(file)`. Each is called once after its request
+succeeds, before `onUpdate`, and not at all when the request fails. A caller that
+passes none behaves as before.
 
 ### Registering a `.loft` player
 
@@ -1204,6 +1385,17 @@ provider's URLs:
   name `generic` is reserved; it renders a link card.
 
 `addons/media_import` registers YouTube and Vimeo this way.
+
+`LoftEmbedProps` carries one optional capability for drawing over the picture.
+`pictureOverlay` is a node the core passes to every embed, without knowing the
+provider. An embed that supports it renders the node inside its own full-screen
+frame, filling the box its picture is drawn in (for YouTube, the iframe's box,
+which becomes the full-screen box), above the iframe. In the Litloft-UI mode the
+node sits under the embed's own controls, gesture overlay and poster; when the
+provider draws its controls inside the picture (the YouTube-UI mode) the node
+sits over the iframe and so over those controls. The embed adds no wrapper that
+takes pointer events, and it does not re-create the iframe when the node
+changes. An embed that ignores the prop renders exactly as before.
 
 ### Opening Quick Note
 
@@ -1271,6 +1463,320 @@ useGlobalSearch().open();                    // open it now, in that scope
 
 ---
 
+## Drawing the app header and Target on an addon page
+
+The built-in apps share one header: the app's icon and title, a scope line
+naming the drive and the item count, a **Target** menu that narrows the app to
+one of the drive's collections or Smart Collections, and a tabs row. An addon
+page draws the same header, with its own app key.
+
+```tsx
+// addons/{name}/frontend/Page.tsx — the parts that touch the target
+import { useCallback } from "react";
+import type { TargetMenuProps } from "@/components/appshell/TargetMenu";
+import { useLoad } from "@/components/appshell/useLoad";
+import { useMemberTarget } from "@/components/appshell/useMemberTarget";
+import { getCollections, getSmartFolders } from "@/lib/api";
+import {
+  parseAppTargetId,
+  resolveAppTarget,
+  resolveCollectionTarget,
+} from "@/lib/appTarget";
+import { readAppTarget, writeAppTarget, type AppKey } from "@/lib/appPrefs";
+import { resolveMemberTarget } from "@/lib/memberTarget";
+import type { FileKind } from "@/types";
+
+const APP: AppKey = { addon: "<name>" }; // the addon's own name
+const BASE_KINDS: readonly FileKind[] = ["image"]; // the kinds the page lists
+
+// `useLoad` requests again whenever its loader changes, so keep each one stable.
+const loadFolders = useCallback(() => getSmartFolders(drive), [drive]);
+const { state: folders, retry: retryFolders } = useLoad(loadFolders);
+const loadCollections = useCallback(() => getCollections(drive), [drive]);
+const { state: collections, retry: retryCollections } = useLoad(loadCollections);
+// "default", a Smart Collection id, or "collection:<id>".
+const savedId = readAppTarget(drive, APP);
+const saved = parseAppTargetId(savedId);
+
+const folder =
+  saved.kind === "smart" && folders.status === "loaded"
+    ? (folders.data.find((candidate) => candidate.id === saved.id) ?? null)
+    : null;
+const collection =
+  saved.kind === "collection" && collections.status === "loaded"
+    ? (collections.data.find((candidate) => candidate.id === saved.id) ?? null)
+    : null;
+
+// The conditions a listing target adds: a collection's, or a Smart Collection's.
+const target =
+  collection !== null
+    ? resolveCollectionTarget(collection, BASE_KINDS)
+    : resolveAppTarget(folder, BASE_KINDS);
+
+// A Smart Collection whose query has free text is a member target instead:
+// send `evaluation.fileIds` rather than `target.params`.
+const member = resolveMemberTarget(folder, BASE_KINDS);
+const { evaluation } = useMemberTarget(drive, folder, member);
+
+// `AppHeader` takes this as its `target`; keep the chosen id in state.
+const targetProps: TargetMenuProps = {
+  drive,
+  app: APP,
+  name: targetName, // the chosen target's name, null while looked up
+  folders,
+  collections: { list: collections, retry: retryCollections },
+  selectedId: savedId,
+  currentCount: count,
+  label: t("target"), // "Target"
+  defaultLabel: t("allPhotos"),
+  unavailableLabel: t("unavailableAsTarget"),
+  defaultTargetTypes: BASE_KINDS,
+  // A member target can be chosen whatever else its query holds.
+  isUsable: (candidate) =>
+    resolveAppTarget(candidate, BASE_KINDS).usable ||
+    resolveMemberTarget(candidate, BASE_KINDS) !== null,
+  onChoose: (id) => {
+    setSelectedId(id);
+    writeAppTarget(drive, APP, id);
+  },
+  onRetryFolders: retryFolders,
+};
+```
+
+| Name | Import from |
+|---|---|
+| `AppHeader`, `AppHeaderProps` | `@/components/appshell/AppHeader` |
+| `TargetMenuProps` | `@/components/appshell/TargetMenu` |
+| `AppKey`, `readAppTarget`, `writeAppTarget` | `@/lib/appPrefs` |
+| `readTargetView`, `writeTargetView`, `readLegacyGroup`, `TargetView` | `@/lib/appPrefs` |
+| `GroupMenu`, `SortMenu`, `LibraryControlRow`, `ViewMenuOption` | `@/components/appshell/ViewMenus` |
+| `FilterMenus`, `FilterMenuOption`, `FilterMenuState`, `FilterMenusProps` | `@/components/appshell/FilterMenus` |
+| `NameFilter`, `NameFilterProps` | `@/components/appshell/NameFilter` |
+| `getTagCounts`, `getTagCountsWithFileIds` | `@/lib/api` |
+| `formatMonth`, `isMonthKey` | `@/lib/formatMonth` |
+| `resolveAppTarget`, `resolveCollectionTarget`, `parseAppTargetId`, `collectionTargetId`, `AppTarget`, `AppTargetParams` | `@/lib/appTarget` |
+| `useLoad`, `LoadState` | `@/components/appshell/useLoad` |
+| `getSmartFolders`, `getCollections` | `@/lib/api` |
+| `PageTabs` | `@/components/PageTabs` |
+| `SmartFolder` | `@/types/smartFolder` |
+| `FileKind` | `@/types` |
+
+`AppHeader` takes two optional slots beside the Target:
+
+- `actions`: view controls. From `sm` they sit before the Target; below `sm`
+  they are a row after the tabs.
+- `primaryAction`: the page's one main action (a "New" button, for example).
+  From `sm` it follows the Target on the title row; below `sm` it is a
+  full-width row after the tabs and after `actions`. It is drawn only when the
+  header has a Target.
+
+`TargetMenuProps.defaultTargetExcludeOrigin` is optional. When set, the default
+target's count in the menu leaves out files of that `origin`; when absent, every
+origin is counted. Pass the same origin the page's own listing excludes, so the
+menu and the page agree.
+`TargetMenuProps.defaultTargetOrigin` is its counterpart: when set, the count
+covers only files of that `origin`; it may be combined with the exclude prop.
+
+`TargetMenuProps.homeEntry` is optional and names the key of this app's own
+entry in the drive's Home row: the addon name, or `<addon name>/<path>` for a
+manifest entry that has a `path`. With it, and a Target other than the default
+in force, the menu shows **Put on Home** / **Remove from Home** after the
+separator and before **Manage…**. Put on Home stores
+`{kind: "app_target", app: <homeEntry>, id: <Target id>, on_home: true}`; the
+tile then links to this entry's href followed by `?target=<id>`.
+
+Read `target` on the app's root route only and remove it with
+`router.replace`: hold every listing, shelf, count and tag-counts request until
+the id resolves to a usable Target, then save it as the app's Target exactly as
+a menu choice does. An id the page cannot use (`default`, an empty value, a
+Target missing from the list, a failed list) leaves the saved Target in force,
+writes nothing, and is removed from the URL too. The shelf and other routes
+leave `target` alone.
+
+### The app key and its storage keys
+
+`TargetMenuProps.app` and the target helpers take an `AppKey`: a built-in app
+id (`"video"`, `"reading"`), or `{ addon: "<name>" }` where `<name>` is the
+addon's own name, `^[a-z][a-z0-9_-]*$` — the rule the loader already applied
+before a page can call this. The name is used as written: nothing checks or
+encodes it.
+
+`readAppTarget(drive, app)` reads `"default"`, a Smart Collection id, or —
+once the page passes `collections` to the menu — `collection:<id>`. A bare id
+always means a Smart Collection. `writeAppTarget(drive, app, id)` saves a
+choice. Both use the keys below, with `<d>` = `encodeURIComponent(drive)`:
+
+| App key | Target | Shown set |
+|---|---|---|
+| `"video"` | `litloft.videoApp.target.<d>` | `litloft.videoApp.targets.<d>` |
+| `"reading"` | `litloft.readingApp.target.<d>` | `litloft.readingApp.targets.<d>` |
+| `{ addon: "<name>" }` | `litloft.addon.<name>.target.<d>` | `litloft.addon.<name>.targets.<d>` |
+
+- An addon's keys sit under `litloft.addon.<name>.`, apart from every built-in
+  key: a name never reaches Video's or Reading's target or shown set.
+- An empty stored value, and a read that storage refuses, give `"default"`. A
+  write that storage refuses is dropped, and the open page keeps its choice.
+- The saved id is not checked against the drive's folders. Fall back to the
+  default target when the folder is gone or unusable and keep the saved id, as
+  the built-in apps do.
+
+### Remembering the view per Target
+
+An app that has a grouping and a sort keeps them per Target with the same store the
+built-in apps use. `readTargetView(app, drive, targetId)` answers `{ group?, sort? }`,
+and `writeTargetView(app, drive, targetId, change)` merges one field into that Target's
+entry and leaves every other entry alone. Both use one JSON object from target id to
+view, under `litloft.<app>.view.<encodeURIComponent(drive)>` — or
+`litloft.addon.<name>.view.<d>` for an addon. The target id is the one in force, not the
+saved one: a saved Target that is gone or unusable reads and writes `default` while the
+saved id stays stored. A key that cannot be parsed reads as `{}`, and the next write
+replaces it with an object holding only the new entry.
+
+Resolve the view in this order: a URL parameter where the page has one; the Target's
+stored value if the app offers it in the current state; only for the default Target, the
+app's old per-drive grouping from `readLegacyGroup(drive, app)` (read only, never
+written); then the app's default. Keep the value chosen in this mount beside the stored
+one so a failed write still shows the choice, and clear it on a drive or Target change.
+Resolve it synchronously, before the page's first listing request.
+
+`GroupMenu`, `SortMenu` and `LibraryControlRow` describe the shared controls: the menu
+labels come from the `appView.groupBy` / `appView.sortBy` keys in the merged messages,
+and each app passes its own options as `{ value, label }`. `SortMenu` takes `showLabel`,
+default true. `formatMonth(key, locale)` formats a `YYYY-MM` month shelf title, and
+`isMonthKey(key)` validates one.
+
+`LibraryControlRow` takes the Library's filters as `filters` and its view menus as
+children. Below `sm` the two groups stack, each a two-column grid, so one filter keeps the
+left half and two share a row; from `sm` the filter group, a 20px gap and the view group
+follow one another, and the view group wraps as a unit when the line is too narrow.
+
+### The Library's tag and state filters
+
+`FilterMenus` draws an outlined **Tag** menu and, when the caller passes one, an outlined
+**State** menu. The caller owns the values and the requests:
+
+```tsx
+<FilterMenus
+  tags={tags}                       // the chosen names, in choice order
+  onToggle={(name) => toggle(name)}
+  onClear={() => setTags([])}
+  loadCandidates={(signal) => getTagCounts(drive, conditions, { signal })}
+  conditionsKey={JSON.stringify(conditions)} // changes whenever the conditions do
+  excludeTags={targetTagConditions} // the Target's own `tag` conditions
+  state={{ options, value, onChange }} // or null for no state menu
+  onViewerRejected={onViewerRejected}  // tag-counts answered `viewer_required`
+/>
+```
+
+`loadCandidates` is the caller's own `tag-counts` request under every condition in force.
+The menu asks once when it opens and again after each toggle, keeps its rows until a
+reload answers, and drops any answer whose `conditionsKey` is no longer current. Its list
+is the chosen tags first, each once and even at count 0, then the answer's other tags in
+the answer's order, minus `excludeTags`; names are compared with `toLowerCase()`. The
+search narrows the list on the client. A first load shows a skeleton, a failure shows
+**Try again**, and a failed reload keeps the rows already drawn.
+
+`getTagCounts(drive, params, options)` and `getTagCountsWithFileIds(drive, params, ids,
+options)` call `GET /api/drives/{drive}/tag-counts` and its `POST .../query` form. `params`
+carries the listing's filters plus `watch`, and the answer is `[{ name, count }]` in the
+endpoint's order. Under a member Target, pass the members through
+`AppRequests.tagCounts`, which is the POST form.
+
+### The tab row's trailing slot and the name filter
+
+`PageTabs` takes an optional `trailing` node. Without it the row renders exactly as before;
+with it, the tabs keep their size in a non-wrapping row, and `trailing` fills what is left
+of the row, outside the `nav` and its tablist. `AppTabs` passes it through.
+
+```tsx
+<AppTabs
+  current="library"
+  onSelect={setFace}
+  // …
+  trailing={<NameFilter value={name} onApply={setName} />}
+/>
+```
+
+`NameFilter` is the name field. Its labels come from core `appFilters`, so a caller passes
+no copy. `value` is the applied name; `onApply(name)` is called 300 ms after the last input
+and at once on Enter, with the draft trimmed, cut to 200 UTF-16 code units and trimmed
+again. `alwaysOpen` draws the field without the icon. `onLeavePending` receives a pending
+name once when the part unmounts, and a change of `scopeKey` drops a pending apply instead.
+On the Library it goes in `trailing`; on a page header, put it in `actions` before the sort.
+
+### Resolving the chosen folder
+
+`resolveAppTarget(folder, baseKinds)` turns the saved folder (`null` for the
+default target) into the conditions to request:
+
+- `{ usable: true, params }` — `params` holds the listing's `type` (always
+  within `baseKinds`), plus `search`, `tag`, `folder`, `collection`,
+  `favorite`, `liked` and `size` as the folder's query names them.
+- `{ usable: true, empty: true, params: null }` — no file of `baseKinds` can
+  match, so nothing is requested.
+- `{ usable: false, reason: "unsupported_part" }` — the query holds a negated
+  operator, a `has:` token, a duration part, or another part the listing has no
+  parameter for. List the folder's row disabled and do not request it.
+
+`baseKinds` is the kinds the page lists: non-empty, and every one a leaf kind
+(`document` is the one kind that holds others). Either would silently widen or
+empty every target, so the resolver throws instead of answering, and nothing
+catches it: a page that passes such a list fails on its first render.
+
+### Reading a saved target id
+
+`parseAppTargetId(id)` says which kind of target a saved id names:
+`{ kind: "default" }` for `"default"`, `{ kind: "collection", id }` for
+`collection:<id>`, and `{ kind: "smart", id }` for anything else.
+`collectionTargetId(collectionId)` builds the `collection:<id>` form, so the
+two round-trip. Collection and Smart Collection ids are 12-character nanoids
+with no `:`, so an id saved before a collection could be a target keeps its
+meaning.
+
+`resolveCollectionTarget(collection, baseKinds)` answers what a collection
+target adds: `{ usable: true, params: { type: [...baseKinds], collection:
+[collection.name] } }`, and nothing else — no `search`, `tag`, `folder`,
+`size`, `duration`, `favorite` or `liked`. It takes the same `baseKinds` check
+as `resolveAppTarget` and throws for the same lists. A collection is always
+usable.
+
+### Applying the target
+
+Pass `params` to your own requests, keeping the target's own filters. On the
+backend, `filtered_drive_files` (see [Core API surface for in-process
+addons](#core-api-surface-for-in-process-addons)) answers as
+`GET /api/drives/{drive}/files` does for the same parameters; narrow your own
+query to the ids it selects.
+
+For per-folder counts under the same filters, call
+`GET /api/drives/{drive}/folder-counts` or
+`POST /api/drives/{drive}/folder-counts/query` with the member ids, passing the
+target's `params`; each `count` is the `total` the listing answers for the same
+parameters plus `path=<that path>`.
+
+### Members, the collection list and their states
+
+A Smart Collection whose query has free text is a member target: evaluate it
+and send the resulting ids instead of its query's conditions.
+
+| Name | Import from | Meaning |
+|---|---|---|
+| `resolveMemberTarget(folder, baseKinds)` | `@/lib/memberTarget` | The `MemberTarget` (`{ id, kinds }`) of a Smart Collection with free text, or `null` for one that resolves to listing parameters. `kinds` stays within `baseKinds`, and is empty when none of them meet it. |
+| `evaluateMemberTarget(drive, folder)` | `@/lib/memberTarget` | Evaluates the collection: `{ status: "ready", fileIds }`, `{ status: "failed" }`, or `{ status: "tooLarge" }`. |
+| `MemberTarget`, `MemberEvaluation` | `@/lib/memberTarget` | The two types above. |
+| `useMemberTarget(drive, folder, target)` | `@/components/appshell/useMemberTarget` | One evaluation for the life of the page, re-run on a target change and on `retry`; answers `{ evaluation, retry }`. |
+| `MEMBER_ID_LIMIT` | `@/lib/inNameResolution` | The most ids one evaluation may send (10,000); more answers `tooLarge`. |
+| `getCollections(drive)` | `@/lib/api` | The drive's collections, which the menu lists beside the Smart Collections. |
+| `CollectionSummary` | `@/types` | A collection's id, name and counts, as `getCollections` returns them. |
+| `RetryButton` | `@/components/appshell/RetryButton` | The retry control shown in place of a list or a body that failed. |
+| `EmptyState` | `@/components/EmptyState` | The empty body; `variant="no-files"` is the plain one. |
+
+A page that sends members to its own routes builds those requests itself: the
+core's `appRequests` and `…WithFileIds` request functions are not part of this
+surface.
+
+---
+
 ## Core API surface for in-process addons
 
 In-process addons share the Python process and import core modules.
@@ -1288,10 +1794,81 @@ In-process addons share the Python process and import core modules.
 | `app.services.provider_registry` | `register_provider()` | `.loft` providers |
 | `app.services.ws` | `manager.broadcast()`, `broadcast_from_thread()` | Browser notifications |
 | `app.services.event_hooks` | `emit()`, `emit_from_thread()` | Lifecycle events |
+| `app.routers.drives` | `filtered_drive_files()` | The file listing's filters, to apply a target to your own query |
 | `app.nanoid` | `generate_nanoid()` | IDs |
 
 Always `import app.config as config`, never `from app.config import X`
 (`.claude/rules/backend-conventions.md`).
+
+### `filtered_drive_files`
+
+The predicate `GET /api/drives/{drive}/files` and the shelves endpoint share,
+so an addon applying a Smart Collection selects the same files the listing does.
+
+```python
+from app.models import File
+from app.routers.drives import filtered_drive_files
+
+query, normalized_search = filtered_drive_files(
+    db,
+    drive_name,
+    path="",
+    recursive=True,
+    search=None,
+    favorite=None,
+    liked=None,
+    tag=[],
+    type=[],
+    folder=[],
+    collection=[],
+    size=[],
+    duration=[],
+    exclude_tag=[],
+    exclude_type=[],
+    exclude_folder=[],
+    exclude_collection=[],
+    has_tag=None,
+    has_collection=None,
+    file_ids=None,
+)
+ids = {row[0] for row in query.with_entities(File.id)}
+```
+
+`filtered_drive_files(db, drive_name, *, path, recursive, search, favorite,
+liked, tag, type, folder, collection, size, duration, modified, exclude_tag,
+exclude_type, exclude_folder, exclude_collection, has_tag, has_collection,
+file_ids)` answers with a
+pair: `query` selects the drive's active files under those filters, with the
+listing's meaning for each, and `normalized_search` is the NFC-normalised
+search text, or `None` without a search. Narrow your own query to
+`query.with_entities(File.id)`.
+
+- `exclude_tag`, `exclude_type`, `exclude_folder` and `exclude_collection`
+  are the listing's four exclusions with its meaning, and `has_tag` /
+  `has_collection` its two presence booleans: a file carrying an excluded tag
+  or kind, inside an excluded folder's subtree or in an excluded collection is
+  dropped, and the booleans keep the files with or without a tag and in or out
+  of a collection of this drive. Every condition is ANDed with the rest.
+- `has_collection` and a non-empty `collections` or `exclude_collection`
+  resolve only `drive_name`'s collections, so pass the drive they belong to.
+
+- `file_ids` is the `in:` condition the listing takes in a POST body: a file
+  passes when it is in one of the named `collection`s or its id is in
+  `file_ids`; with no collection, only when its id is listed; `file_ids=[]`
+  passes nothing through `in:`; every other condition still applies. `None`
+  (the default) is the query without `in:`. The caller owns the cap: the core's
+  routes pass at most 10,000 ids.
+- The listing validates two inputs in FastAPI before calling it, so the caller
+  owns them: `search` is at most 200 characters, and every `type` and
+  `exclude_type` is a `FileKind` or `"markdown"`.
+- Given those, it answers as the listing does, including `HTTPException(400)`
+  for a `path` holding `..` or starting with `/`, and for a `folder`,
+  `collection`, `exclude_folder`, `exclude_collection`, `size`, `duration` or
+  `modified` that does not normalise. Pass it on from your route.
+- Its `trust`, `origin` and `exclude_origin` parameters are not part of this
+  surface.
+- It filters by the drive it is given and does not check access itself: run
+  your own drive check first (see [Drive context header](#drive-context-header-x-lit-drive)).
 
 ### Rules
 
@@ -1430,6 +2007,9 @@ an existing addon stops working or silently behaves differently:
   given a different type or meaning;
 - a manifest or `ADDON_META` field removed or reinterpreted;
 - an Internal API endpoint removed, or its request or response shape changed;
+- a name, prop or storage key shape in [Drawing the app header and Target on an
+  addon page](#drawing-the-app-header-and-target-on-an-addon-page) removed,
+  renamed or given another meaning;
 - a name in [Core API surface for in-process addons](#core-api-surface-for-in-process-addons)
   removed or changed.
 
@@ -1437,6 +2017,12 @@ Adding a slot, a prop, a field or an endpoint is not breaking and gets no row.
 
 | Date | What changed | What an addon does instead |
 |---|---|---|
+| 2026-11-19 | Recommended's `restrict` no longer carries `watch=unwatched`; it narrows only to the app's target | A `video-discover-recommended` provider must leave out the videos the viewer has watched itself |
+| 2026-11-18 | A new `document-side` slot; on the file page of a file without a player, an id that is a `document-side` entry is drawn only as that slot's tab and no longer from `file-detail-sections`, and the canvas no longer draws `detailed-summary` or the summary note for such a file | Register a document tab in `document-side` with an `i18n_key` and report its availability; do not expect `file-detail-sections` to draw it on those files |
+| 2026-11-12 | `player-side` entries are panels under the player on the wide forms, not tabs beside it; the core chooses the placement, passes `active`, and no longer mounts an entry whose id collides with a core panel or tab id | Treat one entry as one panel, read `active` where it changes what you do, and rename any id that collides with `active-summary`, `chapters`, `info`, `find`, `pages` or `related` |
+| 2026-11-12 | On the wide forms of a player file, `file-preview-actions` entries move from the player box to the trailing end of the panel-toggle row under the player | Draw inline buttons as before; do not position them relative to the player box |
+| 2026-11-12 | `loft-metadata` entries move from beside the player into the inspector's **Info** tab, under the title, on the canonical file page; they stay under the player on the collection playback surface, which has no inspector | Draw the same panel as before; the host decides where it sits |
+| 2026-11-12 | `navigation` may be a list of 1 to 4 objects, each with an optional `path` slug; a list entry can be dropped on its own, and the `newspaper` icon token was added | Existing single-object manifests are unchanged. To show more than one entrance, make `navigation` a list. |
 
 ## Existing addons
 
@@ -1456,15 +2042,16 @@ Slot entries each addon declares, for reference when designing your own.
 
 | Addon | Slot | Entry IDs |
 |-------|------|-----------|
-| `intelligence` | `search-modes` | `find-mode` |
+| `intelligence` | `smart-collection-actions` | `smart-collection-ask` |
 | `intelligence` | `search-results-top` | `scene-segments` |
-| `intelligence` | `file-detail-sections` | `unverified-source`, `suggested-tags`, `suggested-chapters`, `summary`, `detailed-summary`, `visual-description`, `scenes` |
+| `intelligence` | `file-detail-sections` | `unverified-source`, `suggested-tags`, `suggested-chapters`, `summary`, `detailed-summary`, `visual-description` |
 | `intelligence` | `file-relations` | `similar-files` |
-| `intelligence` | `player-side` | `transcript` |
+| `intelligence` | `player-side` | `transcript`, `scenes`, `detailed-summary` |
+| `intelligence` | `document-side` | `detailed-summary` |
+| `intelligence` | `inspector-tabs` | `ask` |
 | `intelligence` | `file-detail-actions` | `file-ai-actions` |
 | `intelligence` | `file-actions-menu` | `index-details` |
 | `intelligence` | `folder-bulk-actions-menu` | `folder-ai-actions` |
-| `intelligence` | `drive-home-sections` | `pickup` |
 | `intelligence` | `video-discover-recommended` | `pickup` |
 | `intelligence` | `dashboard-widgets` | `index-status` |
 | `intelligence` | `dashboard-alerts` | `failed-jobs` |

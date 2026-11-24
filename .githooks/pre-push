@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # pre-push: precheck, risk classification, and (for a protected branch) traceability.
-# Reads git's ref lines on stdin. Every step runs; any failure blocks the push.
+# Reads git's ref lines on stdin. Every step runs; any failure blocks the push. A push that
+# only deletes refs runs no step.
 # Commands can be replaced with PROCESS_PRECHECK_CMD, PROCESS_CLASSIFY_CMD and
 # PROCESS_TRACE_CMD; the defaults are the installed scripts under scripts/process/.
 
@@ -20,11 +21,22 @@ if [ -f process/process.conf ]; then
 fi
 
 PROTECTED_PUSH=0
-while read -r _ _ remote_ref _; do
+REFS=0
+UPDATES=0
+while read -r _ local_sha remote_ref _; do
+  [ -n "$remote_ref" ] || continue
+  REFS=$((REFS + 1))
+  # A deletion sends no commits, so there is nothing to check
+  case "$local_sha" in *[!0]*) UPDATES=$((UPDATES + 1)) ;; *) continue ;; esac
   branch="${remote_ref#refs/heads/}"
   [ "$branch" != "$remote_ref" ] || continue
   case " $PROTECTED " in *" $branch "*) PROTECTED_PUSH=1 ;; esac
 done
+
+if [ "$REFS" -gt 0 ] && [ "$UPDATES" -eq 0 ]; then
+  echo "pre-push: deletion only, checks skipped" >&2
+  exit 0
+fi
 
 FAILED=""
 $PRECHECK --profile local || FAILED="$FAILED precheck"

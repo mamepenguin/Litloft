@@ -1,0 +1,523 @@
+{
+ "api": {
+  "n": 61,
+  "m": 180,
+  "c": [
+   0,
+   10,
+   20,
+   30,
+   40,
+   50,
+   60,
+   70,
+   80,
+   90,
+   100,
+   110,
+   125,
+   135,
+   145,
+   155,
+   165,
+   175
+  ],
+  "t": [
+   0,
+   30,
+   60,
+   90,
+   120,
+   150,
+   180,
+   210,
+   240,
+   270,
+   300,
+   330,
+   360,
+   390,
+   420,
+   450,
+   480,
+   510
+  ]
+ },
+ "all": {
+  "slider": true,
+  "ruler": {
+   "x": 270,
+   "y": 621,
+   "w": 756,
+   "h": 44,
+   "bottom": 665,
+   "right": 1026
+  },
+  "group": {
+   "x": 270,
+   "y": 699,
+   "w": 160,
+   "h": 26,
+   "bottom": 725,
+   "right": 430
+  },
+  "grid": {
+   "x": 270,
+   "y": 739,
+   "w": 756,
+   "h": 285,
+   "bottom": 1024,
+   "right": 1026
+  },
+  "chips": [
+   {
+    "text": "すべて 61",
+    "pressed": "true",
+    "cls": "rounded-full border px-2.5 py-1 text-xs border-accent font-semibold text-text-primary",
+    "box": {
+     "w": 74,
+     "h": 26,
+     "x": 270,
+     "y": 699
+    }
+   },
+   {
+    "text": "カット 180",
+    "pressed": "false",
+    "cls": "rounded-full border px-2.5 py-1 text-xs border-transparent text-text-muted hover:text-text-primary",
+    "box": {
+     "w": 82,
+     "h": 26,
+     "x": 348,
+     "y": 699
+    }
+   }
+  ],
+  "cols": 6,
+  "tiles": [
+   18,
+   [
+    "0:00 から再生",
+    "0:30 から再生",
+    "1:00 から再生",
+    "1:30 から再生"
+   ],
+   [
+    "8:00 から再生",
+    "8:30 から再生"
+   ]
+  ],
+  "imgs": {
+   "count": 18,
+   "loaded": 18
+  },
+  "emptyTiles": 0,
+  "ticks": 61,
+  "playhead": "0%",
+  "marks": [],
+  "valuemax": "1806",
+  "valuenow": "0",
+  "card": null,
+  "docW": 1440,
+  "winW": 1440,
+  "video": {
+   "t": 0,
+   "d": 1806.137333
+  }
+ },
+ "cuts": {
+  "slider": true,
+  "ruler": {
+   "x": 270,
+   "y": 621,
+   "w": 756,
+   "h": 44,
+   "bottom": 665,
+   "right": 1026
+  },
+  "group": {
+   "x": 270,
+   "y": 699,
+   "w": 161,
+   "h": 26,
+   "bottom": 725,
+   "right": 431
+  },
+  "grid": {
+   "x": 270,
+   "y": 739,
+   "w": 756,
+   "h": 285,
+   "bottom": 1024,
+   "right": 1026
+  },
+  "chips": [
+   {
+    "text": "すべて 61",
+    "pressed": "false",
+    "cls": "rounded-full border px-2.5 py-1 text-xs border-transparent text-text-muted hover:text-text-primary",
+    "box": {
+     "w": 74,
+     "h": 26,
+     "x": 270,
+     "y": 699
+    }
+   },
+   {
+    "text": "カット 180",
+    "pressed": "true",
+    "cls": "rounded-full border px-2.5 py-1 text-xs border-accent font-semibold text-text-primary",
+    "box": {
+     "w": 83,
+     "h": 26,
+     "x": 348,
+     "y": 699
+    }
+   }
+  ],
+  "cols": 6,
+  "tiles": [
+   18,
+   [
+    "0:00 から再生",
+    "0:10 から再生",
+    "0:20 から再生",
+    "0:30 から再生"
+   ],
+   [
+    "2:45 から再生",
+    "2:55 から再生"
+   ]
+  ],
+  "imgs": {
+   "count": 18,
+   "loaded": 18
+  },
+  "emptyTiles": 0,
+  "ticks": 180,
+  "playhead": "0%",
+  "marks": [],
+  "valuemax": "1806",
+  "valuenow": "0",
+  "card": null,
+  "docW": 1440,
+  "winW": 1440,
+  "video": {
+   "t": 0,
+   "d": 1806.137333
+  }
+ },
+ "requestsAfterCuts": [
+  "/api/addons/intelligence/files/d1GP9UcuGH8a/frame?t=10",
+  "/api/addons/intelligence/files/d1GP9UcuGH8a/frame?t=20",
+  "/api/addons/intelligence/files/d1GP9UcuGH8a/frame?t=40",
+  "/api/addons/intelligence/files/d1GP9UcuGH8a/frame?t=50",
+  "/api/addons/intelligence/files/d1GP9UcuGH8a/frame?t=70",
+  "/api/addons/intelligence/files/d1GP9UcuGH8a/frame?t=80",
+  "/api/addons/intelligence/files/d1GP9UcuGH8a/frame?t=100",
+  "/api/addons/intelligence/files/d1GP9UcuGH8a/frame?t=110",
+  "/api/addons/intelligence/files/d1GP9UcuGH8a/frame?t=125",
+  "/api/addons/intelligence/files/d1GP9UcuGH8a/frame?t=135",
+  "/api/addons/intelligence/files/d1GP9UcuGH8a/frame?t=145",
+  "/api/addons/intelligence/files/d1GP9UcuGH8a/frame?t=155",
+  "/api/addons/intelligence/files/d1GP9UcuGH8a/frame?t=165",
+  "/api/addons/intelligence/files/d1GP9UcuGH8a/frame?t=175"
+ ],
+ "tileLabel": "0:20 から再生",
+ "afterSeek": {
+  "slider": true,
+  "ruler": {
+   "x": 270,
+   "y": 621,
+   "w": 756,
+   "h": 44,
+   "bottom": 665,
+   "right": 1026
+  },
+  "group": {
+   "x": 270,
+   "y": 699,
+   "w": 161,
+   "h": 26,
+   "bottom": 725,
+   "right": 431
+  },
+  "grid": {
+   "x": 270,
+   "y": 739,
+   "w": 756,
+   "h": 285,
+   "bottom": 1024,
+   "right": 1026
+  },
+  "chips": [
+   {
+    "text": "すべて 61",
+    "pressed": "false",
+    "cls": "rounded-full border px-2.5 py-1 text-xs border-transparent text-text-muted hover:text-text-primary",
+    "box": {
+     "w": 74,
+     "h": 26,
+     "x": 270,
+     "y": 699
+    }
+   },
+   {
+    "text": "カット 180",
+    "pressed": "true",
+    "cls": "rounded-full border px-2.5 py-1 text-xs border-accent font-semibold text-text-primary",
+    "box": {
+     "w": 83,
+     "h": 26,
+     "x": 348,
+     "y": 699
+    }
+   }
+  ],
+  "cols": 6,
+  "tiles": [
+   18,
+   [
+    "0:00 から再生",
+    "0:10 から再生",
+    "0:20 から再生",
+    "0:30 から再生"
+   ],
+   [
+    "2:45 から再生",
+    "2:55 から再生"
+   ]
+  ],
+  "imgs": {
+   "count": 18,
+   "loaded": 18
+  },
+  "emptyTiles": 0,
+  "ticks": 180,
+  "playhead": "1.173%",
+  "marks": [],
+  "valuemax": "1806",
+  "valuenow": "21",
+  "card": null,
+  "docW": 1440,
+  "winW": 1440,
+  "video": {
+   "t": 21.198184,
+   "d": 1806.137333
+  }
+ },
+ "hidden": {
+  "slider": false
+ },
+ "reshown": {
+  "slider": true,
+  "ruler": {
+   "x": 270,
+   "y": 621,
+   "w": 756,
+   "h": 44,
+   "bottom": 665,
+   "right": 1026
+  },
+  "group": {
+   "x": 270,
+   "y": 699,
+   "w": 161,
+   "h": 26,
+   "bottom": 725,
+   "right": 431
+  },
+  "grid": {
+   "x": 270,
+   "y": 739,
+   "w": 756,
+   "h": 285,
+   "bottom": 1024,
+   "right": 1026
+  },
+  "chips": [
+   {
+    "text": "すべて 61",
+    "pressed": "false",
+    "cls": "rounded-full border px-2.5 py-1 text-xs border-transparent text-text-muted hover:text-text-primary",
+    "box": {
+     "w": 74,
+     "h": 26,
+     "x": 270,
+     "y": 699
+    }
+   },
+   {
+    "text": "カット 180",
+    "pressed": "true",
+    "cls": "rounded-full border px-2.5 py-1 text-xs border-accent font-semibold text-text-primary",
+    "box": {
+     "w": 83,
+     "h": 26,
+     "x": 348,
+     "y": 699
+    }
+   }
+  ],
+  "cols": 6,
+  "tiles": [
+   18,
+   [
+    "0:00 から再生",
+    "0:10 から再生",
+    "0:20 から再生",
+    "0:30 から再生"
+   ],
+   [
+    "2:45 から再生",
+    "2:55 から再生"
+   ]
+  ],
+  "imgs": {
+   "count": 18,
+   "loaded": 18
+  },
+  "emptyTiles": 0,
+  "ticks": 180,
+  "playhead": "1.81%",
+  "marks": [],
+  "valuemax": "1806",
+  "valuenow": "33",
+  "card": null,
+  "docW": 1440,
+  "winW": 1440,
+  "video": {
+   "t": 32.696714,
+   "d": 1806.137333
+  }
+ },
+ "requestsReshow": [
+  "/api/addons/intelligence/files/d1GP9UcuGH8a/clip-timestamps",
+  "/api/addons/intelligence/files/d1GP9UcuGH8a/visual-index"
+ ],
+ "backAll": {
+  "slider": true,
+  "ruler": {
+   "x": 270,
+   "y": 621,
+   "w": 756,
+   "h": 44,
+   "bottom": 665,
+   "right": 1026
+  },
+  "group": {
+   "x": 270,
+   "y": 699,
+   "w": 160,
+   "h": 26,
+   "bottom": 725,
+   "right": 430
+  },
+  "grid": {
+   "x": 270,
+   "y": 739,
+   "w": 756,
+   "h": 285,
+   "bottom": 1024,
+   "right": 1026
+  },
+  "chips": [
+   {
+    "text": "すべて 61",
+    "pressed": "true",
+    "cls": "rounded-full border px-2.5 py-1 text-xs border-accent font-semibold text-text-primary",
+    "box": {
+     "w": 74,
+     "h": 26,
+     "x": 270,
+     "y": 699
+    }
+   },
+   {
+    "text": "カット 180",
+    "pressed": "false",
+    "cls": "rounded-full border px-2.5 py-1 text-xs border-transparent text-text-muted hover:text-text-primary",
+    "box": {
+     "w": 82,
+     "h": 26,
+     "x": 348,
+     "y": 699
+    }
+   }
+  ],
+  "cols": 6,
+  "tiles": [
+   18,
+   [
+    "0:00 から再生",
+    "0:30 から再生",
+    "1:00 から再生",
+    "1:30 から再生"
+   ],
+   [
+    "8:00 から再生",
+    "8:30 から再生"
+   ]
+  ],
+  "imgs": {
+   "count": 18,
+   "loaded": 18
+  },
+  "emptyTiles": 0,
+  "ticks": 61,
+  "playhead": "1.865%",
+  "marks": [],
+  "valuemax": "1806",
+  "valuenow": "34",
+  "card": null,
+  "docW": 1440,
+  "winW": 1440,
+  "video": {
+   "t": 33.830843,
+   "d": 1806.137333
+  }
+ },
+ "failedPictures": [],
+ "allMatches": true,
+ "cutsMatches": true,
+ "cutsTimes": [
+  "0:00",
+  "0:10",
+  "0:20",
+  "0:30",
+  "0:40",
+  "0:50",
+  "1:00",
+  "1:10",
+  "1:20",
+  "1:30",
+  "1:40",
+  "1:50",
+  "2:05",
+  "2:15",
+  "2:25",
+  "2:35",
+  "2:45",
+  "2:55"
+ ],
+ "expected": [
+  "0:00",
+  "0:10",
+  "0:20",
+  "0:30",
+  "0:40",
+  "0:50",
+  "1:00",
+  "1:10",
+  "1:20",
+  "1:30",
+  "1:40",
+  "1:50",
+  "2:05",
+  "2:15",
+  "2:25",
+  "2:35",
+  "2:45",
+  "2:55"
+ ]
+}

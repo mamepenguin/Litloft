@@ -58,6 +58,7 @@ class FileResponse(_UtcDateTimeMixin, BaseModel):
     subtitles: list[SubtitleInfo] = []
     created_at: datetime
     updated_at: datetime
+    modified_at: datetime | None = None
     deleted_at: datetime | None = None
     missing_since: datetime | None = None
     # 'verified' plus a NULL reviewed stamp means the row was bulk-migrated
@@ -171,6 +172,26 @@ class PaginatedResponse(BaseModel):
     meta: PaginationMeta
 
 
+FILE_IDS_QUERY_MAX = 10_000
+
+
+class FileIdsQuery(BaseModel):
+    """The body of the listing's and the shelves' ``/query`` POST routes.
+
+    An empty list is a real value: it passes nothing through the ``in:``
+    condition, so it must not be read as "no filter".
+    """
+
+    file_ids: list[str] = Field(..., max_length=FILE_IDS_QUERY_MAX)
+
+    @field_validator("file_ids")
+    @classmethod
+    def validate_file_ids(cls, v: list[str]) -> list[str]:
+        if any(not file_id for file_id in v):
+            raise ValueError("file_ids cannot contain an empty element")
+        return v
+
+
 class NeighborsResponse(BaseModel):
     prev_id: str | None
     next_id: str | None
@@ -214,6 +235,16 @@ class DriveAddonPoliciesResponse(BaseModel):
     """
 
     addons: dict[str, AddonPolicy]
+
+
+class DriveEntryVisibilityResponse(BaseModel):
+    """``GET /api/drives/{drive}/entry-visibility`` response envelope.
+
+    The keys are returned as configured; the browser keeps the ones it knows.
+    An empty list when the drive has no ``hidden_entries`` configured.
+    """
+
+    hidden: list[str]
 
 
 FolderKind = Literal[
@@ -270,6 +301,7 @@ class FolderCountResponse(BaseModel):
 
 class PinnedFolderResponse(BaseModel):
     path: str
+    on_home: bool
 
 
 class PinnedFolderCreateRequest(BaseModel):
@@ -683,6 +715,11 @@ class WatchProgressInfo(BaseModel):
     duration: float
 
 
+class WatchedRange(BaseModel):
+    start: float
+    end: float
+
+
 class WatchHistoryItemResponse(_UtcDateTimeMixin, BaseModel):
     id: str
     filename: str
@@ -708,6 +745,7 @@ class WatchHistoryItemResponse(_UtcDateTimeMixin, BaseModel):
     created_at: datetime
     updated_at: datetime
     watch_progress: WatchProgressInfo
+    watched_ranges: list[WatchedRange]
 
     model_config = {"from_attributes": True}
 
@@ -718,12 +756,14 @@ class WatchHistoryResponse(BaseModel):
 
 class ShelfItemResponse(FileResponse):
     watch_progress: WatchProgressInfo | None = None
+    watched_ranges: list[WatchedRange] | None = None
 
     @model_serializer(mode="wrap")
     def _omit_absent_progress(self, handler):
         data = handler(self)
         if data.get("watch_progress") is None:
             data.pop("watch_progress", None)
+            data.pop("watched_ranges", None)
         return data
 
 
@@ -845,6 +885,7 @@ class CollectionDetailResponse(_UtcDateTimeMixin, BaseModel):
     items: list[CollectionItemResponse]
     created_at: datetime
     updated_at: datetime
+    on_home: bool
 
 
 class DashboardDriveInfo(BaseModel):
@@ -1209,8 +1250,37 @@ class SmartFolderResponse(_UtcDateTimeMixin, BaseModel):
     sort_order: str | None
     created_at: datetime
     updated_at: datetime | None
+    on_home: bool
 
     model_config = {"from_attributes": True}
+
+
+_APP_KEY_PATTERN = r"^[a-z0-9][a-z0-9_-]*(/[a-z0-9][a-z0-9_-]*)?$"
+
+
+class HomeShortcutResponse(BaseModel):
+    kind: Literal["smart_folder", "pin", "collection", "app_target"]
+    id: str
+    name: str
+    query: str | None
+    file_type: str | None
+    app: str | None
+
+
+class HomeShortcutUpdate(BaseModel):
+    kind: Literal["smart_folder", "pin", "collection", "app_target"]
+    id: str
+    on_home: bool
+    app: str | None = Field(default=None, max_length=64, pattern=_APP_KEY_PATTERN)
+
+    @model_validator(mode="after")
+    def _app_matches_kind(self):
+        if self.kind == "app_target":
+            if self.app is None:
+                raise ValueError("app is required for kind 'app_target'")
+        elif self.app is not None:
+            raise ValueError("app is only allowed for kind 'app_target'")
+        return self
 
 
 class ExifResponse(BaseModel):
@@ -1253,6 +1323,7 @@ def file_to_response(
         subtitles=subtitles or [],
         created_at=file.created_at,
         updated_at=file.updated_at,
+        modified_at=file.modified_at,
         deleted_at=file.deleted_at,
         missing_since=file.missing_since,
         trust_tier=file.trust_tier,

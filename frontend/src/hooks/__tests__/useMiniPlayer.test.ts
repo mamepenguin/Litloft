@@ -12,6 +12,7 @@ describe("shouldShowMini", () => {
     osPip: false,
     desktop: true,
     shell: false,
+    stacked: false,
   };
 
   it("returns true when player is off-screen and playing on desktop", () => {
@@ -41,6 +42,10 @@ describe("shouldShowMini", () => {
   /** The shell has picture in picture, which outlives the app itself. */
   it("returns false inside the iOS shell", () => {
     expect(shouldShowMini({ ...base, shell: true })).toBe(false);
+  });
+
+  it("returns false while the inspector is stacked under the player", () => {
+    expect(shouldShowMini({ ...base, stacked: true })).toBe(false);
   });
 });
 

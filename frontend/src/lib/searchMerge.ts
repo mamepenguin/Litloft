@@ -16,6 +16,21 @@ export type PassageKind =
   | "text"
   | "screen_text";
 
+/**
+ * The eight numbers of a quadrilateral, as fractions of the frame's width and
+ * height, in the order x, y, x, y, x, y, x, y.
+ */
+export type FrameQuad = readonly [
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+  number,
+];
+
 /** One place inside a file, as `/search?passages=true` reports it. */
 export interface SearchPassage {
   kind: PassageKind;
@@ -30,6 +45,12 @@ export interface SearchPassage {
   keyword: boolean;
   highlight_terms: string[];
   frame_url: string | null;
+  /** The frame-text line the match falls on, when the answer knows it. */
+  line_box?: FrameQuad | null;
+  /** The part of that line the match covers, as fractions of its length. */
+  line_match?: readonly [number, number] | null;
+  /** A large frame of the same moment, to crop around `line_box`. */
+  line_frame_url?: string | null;
 }
 
 export interface SemanticHit {
@@ -216,6 +237,7 @@ function fileItemFromHit(hit: SemanticHit): FileItem {
     missing_since: null,
     created_at: "",
     updated_at: "",
+    modified_at: null,
   };
 }
 

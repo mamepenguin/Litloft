@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R1",
+      "status": "confirmed",
+      "note": "frontend/e2e-components/app-header.spec.ts:109 guards the only drive-floor assertion with `if (!m.targetName.whole)`, and nothing in the test checks the 'wider than two fifths' precondition named in its title (lines 96-116). The harness folder 'summer' is 'Holiday 25' (fixtures/appHeader.tsx:29) and the count is 1234 (fixtures/appHeader.tsx:19). Budget: the scope row spans grid columns 2-3, which is 375-32-40-12 = 291px. PageHeader.tsx:136 `max-sm:-mr-2` gives back 8px, so 299px. The scope floor is the drive's w-14 (56px, AppHeader.tsx:40), gap-1 (4px) and '· 1,234 videos' (~90px), ~150px in all; then gap-2 (8px). The quiet Target's max-content is px-2 + 14 + gap-1 + text + gap-1 + 14 (ToolbarMenu.tsx:214-226). The R-5 record measured 120.9px for 'Holiday 25' (decisions.md:57,61), giving ~279px < 299. So the name fits whole and the guarded assertion is skipped. The R-5 app run, with a long drive, also shows 'Holiday 25' whole at 69/69 (decisions.md:57). The exact skip depends on the test machine's fonts, which I could not run, but the margin is about 20px."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R2",
+      "status": "confirmed",
+      "note": "The drive span is `min-w-0 truncate max-sm:w-14 max-sm:max-w-max max-sm:grow` (AppHeader.tsx:40). Without `max-sm:grow` it stays at 56px. The scope div still grows (`max-sm:grow max-sm:basis-0`, PageHeader.tsx:123), and `justify-between` (PageHeader.tsx:119) keeps the Target at the end, so the leftover space opens between the count and the Target. The only count-to-Target spacing checks are app-header.spec.ts:140 and :150, and both run only in the longTarget scenarios (lines 118-121). There the Target is cut and the scope is at its min-content floor, so no space would show anyway. The long-drive default test (lines 81-94) and the summer test (96-116) check only drive cut, count/target whole and no overflow, and all of these still pass with a 56px drive. Line 45 checks only `target.left > count.right`. No other spec measures count.right against the Target (grep of frontend for count.right: only app-header.spec.ts:45,140,150 and an unrelated passage-rows spec)."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R3",
+      "status": "confirmed",
+      "note": "At this commit the scope row is `gap-2` (PageHeader.tsx:119) and the Target wrapper has `max-sm:-mr-2` (PageHeader.tsx:136). decisions.md:141-148 records d4c73ac5 as the fix that narrowed this space from 8 to 4px, and decisions.md:9-10 records ba82c6b7 as putting it back to 8px while hanging the padding into the gutter. The Japanese test (app-header.spec.ts:254-269) checks only the name span's scrollWidth <= clientWidth. So the restored gap is paid for by the hang, as claimed. One correction: compared with the state the reviewer calls '1px short' (gap 8, no hang), the hang adds 8px of room, so the margin is about 7px, not about 4px. I could not read the commit message that quotes '1px short', because no git access was available."
+    }
+  ],
+  "specification_compliance": [
+    "I10 below 640px: the code keeps the drive span as the first thing cut (AppHeader.tsx:40, grow with a w-14 floor) and the Target at the line's end (PageHeader.tsx:119,136). The R-5 record (decisions.md:42-69) shows the count and the title whole and no overflow at 375px.",
+    "I10 'the drive name being cut first': the e2e test meant to show it with a mid-length folder name (app-header.spec.ts:96-116) does not exercise the ordering, because its assertion is conditional (R1)."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "Below 640px, nothing guards the leftover space between the count and an uncut Target: no test pins the width of the space-between free space (R2)."
+  ],
+  "regression_risks": [
+    "Dropping `max-sm:grow` from the drive span would bring back the defect in detail-375-scope-row-blank-space, and no test would fail (R2).",
+    "The Japanese default-target 'whole' test depends on font metrics, with about 7px of slack after the 8px hang (R3)."
+  ],
+  "test_coverage": [
+    "app-header.spec.ts:96-116: the drive-floor ordering assertion is conditional and is most likely skipped with 'Holiday 25' at 375px.",
+    "app-header.spec.ts:133-151: the gap assertions run only when the Target's name is cut."
+  ],
+  "not_verified": [
+    "I did not run the Playwright suite, so I could not confirm in the test harness's fonts that the line 109 branch is skipped.",
+    "I did not read the git diffs or commit messages of d4c73ac5, ba82c6b7 or 03469502. The history comes from decisions.md and the current code only.",
+    "I did not check the 640px and 1280px layouts or the I1-I9 storage and resolver invariants."
+  ],
+  "confidence": 82
+}

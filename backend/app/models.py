@@ -91,6 +91,9 @@ class File(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC)
     )
+    modified_at: Mapped[datetime | None] = mapped_column(
+        DateTime, nullable=True, default=None
+    )
     deleted_at: Mapped[datetime | None] = mapped_column(
         DateTime, nullable=True, default=None
     )
@@ -105,6 +108,11 @@ class File(Base):
     )
     md_aliases: Mapped[str | None] = mapped_column(
         Text, nullable=True, default=None
+    )
+    # A frontmatter marker kept as an opaque string: the core never compares
+    # it with a value, so a caller's vocabulary stays in the caller.
+    md_origin: Mapped[str | None] = mapped_column(
+        String(32), nullable=True, default=None
     )
     trust_tier: Mapped[str] = mapped_column(
         String(16), nullable=False, default=TRUST_VERIFIED, server_default=TRUST_VERIFIED
@@ -131,6 +139,7 @@ class File(Base):
         Index("idx_files_missing_since", "missing_since"),
         Index("idx_files_file_hash", "file_hash"),
         Index("idx_files_drive_md_id", "drive", "md_id"),
+        Index("idx_files_drive_md_origin", "drive", "md_origin"),
         Index("idx_files_trust_tier", "trust_tier"),
     )
 
@@ -183,6 +192,13 @@ class PinnedFolder(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=lambda: datetime.now(UTC)
     )
+    home_added_at: Mapped[datetime | None] = mapped_column(
+        DateTime, nullable=True, default=None
+    )
+
+    @property
+    def on_home(self) -> bool:
+        return self.home_added_at is not None
 
     __table_args__ = (
         UniqueConstraint("drive", "path", name="uq_pinned_folders_drive_path"),
@@ -202,6 +218,13 @@ class Collection(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC)
     )
+    home_added_at: Mapped[datetime | None] = mapped_column(
+        DateTime, nullable=True, default=None
+    )
+
+    @property
+    def on_home(self) -> bool:
+        return self.home_added_at is not None
 
     items: Mapped[list["CollectionItem"]] = relationship(
         "CollectionItem", back_populates="collection", cascade="all, delete-orphan",
@@ -359,9 +382,34 @@ class SmartFolder(Base):
     updated_at: Mapped[datetime | None] = mapped_column(
         DateTime, nullable=True, default=None, onupdate=lambda: datetime.now(UTC)
     )
+    home_added_at: Mapped[datetime | None] = mapped_column(
+        DateTime, nullable=True, default=None
+    )
+
+    @property
+    def on_home(self) -> bool:
+        return self.home_added_at is not None
 
     __table_args__ = (
         Index("idx_smart_folders_drive", "drive"),
+    )
+
+
+class HomeAppShortcut(Base):
+    __tablename__ = "home_app_shortcuts"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    drive: Mapped[str] = mapped_column(String, nullable=False)
+    app: Mapped[str] = mapped_column(String(64), nullable=False)
+    target: Mapped[str] = mapped_column(String(64), nullable=False)
+    home_added_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=lambda: datetime.now(UTC)
+    )
+
+    __table_args__ = (
+        UniqueConstraint(
+            "drive", "app", "target", name="uq_home_app_shortcuts_drive_app_target"
+        ),
     )
 
 

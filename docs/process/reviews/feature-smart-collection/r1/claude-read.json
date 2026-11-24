@@ -1,0 +1,123 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "TP-1",
+      "origin": "reviewer",
+      "claim": "The commit changes the shared ConfirmDialog component to render through a portal, which is not in the touch-point list and reaches every ConfirmDialog caller in the app.",
+      "impact": "Every screen that opens ConfirmDialog now renders it under document.body rather than in its parent, so any caller that relied on its containing element for stacking, event handling or styling changes behaviour without spec coverage. Only the Smart Collection and FileContextMenu tests exercise it.",
+      "evidence": "frontend/src/components/ConfirmDialog.tsx:43-84 (createPortal(..., document.body) added). The touch-point list names no ConfirmDialog.tsx. frontend/src/components/__tests__/FileContextMenu.test.tsx:296-306 was edited to mock the dialog with a portal, showing the change ripples into an unrelated test.",
+      "repro": "not_reproduced. Mutation check not run; the claim rests on the diff and the touch-point list.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "No declared invariant is broken by the portal itself, but a shared component changed outside the declared touch points, with no spec or test for its other callers."
+      },
+      "severity": "MEDIUM",
+      "proposed_fix": "Move the portal into a spec-listed change or revert it for ConfirmDialog and handle the Smart Collection dialogs' containment locally."
+    },
+    {
+      "id": "TP-2",
+      "origin": "reviewer",
+      "claim": "A new file, frontend/src/components/sidebar/useMergedCollectionOrder.ts, holds the merged-order storage and persistence logic that the touch-point list assigns to useSidebarItemOrder.ts and orderMerge.ts.",
+      "impact": "The I5 drag-order persistence and the localStorage key sidebar:order:collections-all live in a file the declared list does not name, so a reviewer following the list would not look there for I5 defects.",
+      "evidence": "frontend/src/components/sidebar/useMergedCollectionOrder.ts:1-86 (new). The touch-point list names useSidebarItemOrder.ts and orderMerge.ts, which the diff does not change.",
+      "repro": "not_reproduced. Based on comparing the diff's file list with the touch-point list.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "Placement of the logic is outside the declared list but does not by itself break an invariant."
+      },
+      "severity": "LOW"
+    },
+    {
+      "id": "TP-3",
+      "origin": "reviewer",
+      "claim": "A new file, frontend/src/components/sidebar/useSmartCollectionActions.ts, holds the Smart Collection rename and delete state that the spec's touch list does not mention.",
+      "impact": "The rename and delete dialog state for Smart Collection rows (I3 and SPEC-CORE-108 step 5.7) lives in an unlisted file, so the declared touch list does not cover where this behaviour is implemented.",
+      "evidence": "frontend/src/components/sidebar/useSmartCollectionActions.ts:1-86 (new). Not in the touch-point list.",
+      "repro": "not_reproduced. Based on the diff's file list.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "Unplanned file placement with no invariant broken by its presence."
+      },
+      "severity": "LOW"
+    },
+    {
+      "id": "TP-4",
+      "origin": "reviewer",
+      "claim": "A new shared hook, frontend/src/hooks/useNameSubmission.ts, is used by every name-taking path, which the touch-point list does not name.",
+      "impact": "The in-flight and in-use state machine that enforces I9 and I10 for all paths is in an unlisted hooks file; a reviewer checking only the listed components would miss it.",
+      "evidence": "frontend/src/hooks/useNameSubmission.ts:1-54 (new). Consumed by CollectionDetail.tsx, CollectionPicker.tsx, SmartFolderSaveDialog.tsx, useCollectionManagement.ts. The touch-point list has no hooks/ entry.",
+      "repro": "not_reproduced. Based on the diff's file list.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "Unlisted file location; no invariant is broken by its existence."
+      },
+      "severity": "LOW"
+    },
+    {
+      "id": "TP-5",
+      "origin": "reviewer",
+      "claim": "A new helper, frontend/src/lib/nameInUse.ts, defines the 409 test and focusEnd, which the touch-point list does not name.",
+      "impact": "The 409 classification used by the name-in-use paths is in an unlisted lib file, so the 409 contract the spec describes has an implementation outside the declared list.",
+      "evidence": "frontend/src/lib/nameInUse.ts:1-13 (new). Imported by CollectionDetail.tsx, CollectionPicker.tsx, SmartFolderSaveButton.tsx, SmartFolderSaveDialog.tsx and the sidebar files.",
+      "repro": "not_reproduced. Based on the diff's file list.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "Unlisted file; the helper itself matches the spec's 409 behaviour."
+      },
+      "severity": "LOW"
+    },
+    {
+      "id": "TP-6",
+      "origin": "reviewer",
+      "claim": "A new file, frontend/src/lib/apiError.ts, moves the ApiStatusError class out of lib/api.ts, which the touch-point list does not name for that move.",
+      "impact": "Consumers of ApiStatusError now depend on a new module, and the class is re-exported from lib/api.ts, so any future code that imports it from the old place still works but the move is undocumented in the list.",
+      "evidence": "frontend/src/lib/apiError.ts:1-17 (new). frontend/src/lib/api.ts:4-5 re-exports it, and the class definition was removed from api.ts (diff hunk at line 284).",
+      "repro": "not_reproduced. Based on the diff.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "Unlisted file move; behaviour is preserved by the re-export."
+      },
+      "severity": "INFO"
+    }
+  ],
+  "specification_compliance": [
+    "Touch points reached and listed: the backend routers, the new services helper, backend tests, Sidebar.tsx, the named sidebar components, CollectionPicker, CollectionDetail, SmartFolderSaveDialog, SmartFolderSaveButton, HomeAppEntries, useJumpDestinations, lib/api.ts, the ja/en messages, frontend __tests__ and e2e-components, and the listed docs and DESIGN.md/README.md.",
+    "Implicit touch points (docs/specs/smart-collection.md, docs/specs/INDEX.md, docs/process/reviews/) are not reported as unplanned, as the prompt instructs.",
+    "Unplanned files reached by the diff: frontend/src/components/ConfirmDialog.tsx, frontend/src/components/sidebar/useMergedCollectionOrder.ts, frontend/src/components/sidebar/useSmartCollectionActions.ts, frontend/src/hooks/useNameSubmission.ts, frontend/src/lib/nameInUse.ts, frontend/src/lib/apiError.ts."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "ConfirmDialog now renders through a portal for all callers, not only the Smart Collection delete confirmation.",
+    "lib/api.ts createCollection now omits description from the request body when it is undefined; the touch point covers the 409 typing, not the body shape."
+  ],
+  "regression_risks": [
+    "Other ConfirmDialog callers outside the sidebar could change stacking or layout after the portal move.",
+    "Moving ApiStatusError out of api.ts could break any module that imports it by a deep path other than the re-export in api.ts."
+  ],
+  "test_coverage": [
+    "The unplanned files are covered only indirectly: FileContextMenu.test.tsx mocks ConfirmDialog, and the sidebar and dialog tests exercise the new hooks through the components.",
+    "No test exercises ConfirmDialog's other callers after the portal change."
+  ],
+  "not_verified": [
+    "I did not use Glob or Grep to confirm that the new files exist in the worktree or to list every ConfirmDialog caller; the claims rest on the diff text.",
+    "I did not run the test suite or check the portal change's effect on other callers in the browser.",
+    "I did not check whether any other file imports ApiStatusError by a path that the re-export would miss."
+  ],
+  "confidence": 80
+}

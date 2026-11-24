@@ -23,12 +23,14 @@ vi.mock("@/components/ProfileProvider", () => ({
 const getShelves = vi.fn();
 const getDriveFiles = vi.fn();
 const getSmartFolders = vi.fn();
+const getCollections = vi.fn();
 
 vi.mock("@/lib/api", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/api")>()),
   getShelves: (...args: unknown[]) => getShelves(...args),
   getDriveFiles: (...args: unknown[]) => getDriveFiles(...args),
   getSmartFolders: (...args: unknown[]) => getSmartFolders(...args),
+  getCollections: (...args: unknown[]) => getCollections(...args),
 }));
 
 type Params = Record<string, unknown>;
@@ -74,8 +76,11 @@ class FakeObserver {
   constructor(private callback: IntersectionObserverCallback) {
     FakeObserver.instances.push(this);
   }
+  live = true;
   observe() {}
-  disconnect() {}
+  disconnect() {
+    this.live = false;
+  }
   unobserve() {}
   takeRecords() {
     return [];
@@ -83,6 +88,12 @@ class FakeObserver {
   trigger() {
     this.callback([{ isIntersecting: true } as IntersectionObserverEntry], this as never);
   }
+}
+
+/** The observer is created in a passive effect, which may land after the text of the same commit. */
+async function liveSentinel() {
+  await waitFor(() => expect(FakeObserver.instances.some((o) => o.live)).toBe(true));
+  return FakeObserver.instances.filter((o) => o.live).at(-1)!;
 }
 
 const never = () => new Promise<never>(() => {});
@@ -95,6 +106,7 @@ beforeEach(() => {
   getShelves.mockReset().mockImplementation(async (_d, p) => pageOf(p));
   getDriveFiles.mockReset().mockResolvedValue({ data: [], meta: { total: 65, page: 1, limit: 1 } });
   getSmartFolders.mockReset().mockResolvedValue([]);
+  getCollections.mockReset().mockResolvedValue([]);
 });
 
 afterEach(() => {
@@ -141,7 +153,8 @@ describe("See all", () => {
     render(<VideoShelfPage drive={DRIVE} by="folder" shelfKey="Movies" />);
     await screen.findByText("Video p1-0");
 
-    act(() => FakeObserver.instances.at(-1)!.trigger());
+    const sentinel = await liveSentinel();
+    act(() => sentinel.trigger());
 
     expect(await screen.findByText("Video p2-0")).toBeInTheDocument();
     expect(getShelves.mock.calls.at(-1)![1]).toMatchObject({ page: 2 });
@@ -188,7 +201,8 @@ describe("See all", () => {
     await screen.findByText("Video p1-0");
     expect(view.container.querySelectorAll("li")).toHaveLength(60);
 
-    act(() => FakeObserver.instances.at(-1)!.trigger());
+    const sentinel = await liveSentinel();
+    act(() => sentinel.trigger());
 
     await waitFor(() => expect(getShelves.mock.calls.at(-1)![1]).toMatchObject({ page: 2 }));
     await waitFor(() => expect(view.container.querySelectorAll("li")).toHaveLength(62));
@@ -230,5 +244,11 @@ describe("the shelf page's title", () => {
     render(<VideoShelfPage drive={DRIVE} by="all" shelfKey="all" from={from} />);
 
     expect(await screen.findByRole("heading", { name: title })).toBeInTheDocument();
+  });
+
+  it("titles a tag shelf with its tag", async () => {
+    render(<VideoShelfPage drive={DRIVE} by="tag" shelfKey="Trip" />);
+
+    expect(await screen.findByRole("heading", { name: "Trip" })).toBeInTheDocument();
   });
 });

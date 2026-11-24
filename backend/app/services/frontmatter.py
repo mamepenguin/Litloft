@@ -27,6 +27,8 @@ _MAX_TAG_LEN = 30
 _MAX_ALIASES = 20
 _MAX_ALIAS_LEN = 100
 
+_MAX_ORIGIN_LEN = 32
+
 
 @dataclass(frozen=True)
 class ParsedMarkdown:
@@ -209,6 +211,19 @@ def extract_valid_tags(metadata: dict[str, Any]) -> list[str]:
         if len(out) >= _MAX_TAGS:
             break
     return out
+
+
+def extract_origin(content: str) -> str | None:
+    """The frontmatter ``origin`` marker, stripped and capped, or ``None``.
+
+    Only a string is a marker: a list, a mapping, a number or an empty value
+    leaves none. Callers check ``has_unreadable_frontmatter`` first, because a
+    block this function cannot read reports no marker at all.
+    """
+    raw = parse(content).metadata.get("origin")
+    if not isinstance(raw, str):
+        return None
+    return raw.strip()[:_MAX_ORIGIN_LEN] or None
 
 
 def extract_valid_aliases(metadata: dict[str, Any]) -> list[str]:

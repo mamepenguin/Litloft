@@ -154,6 +154,7 @@ function makeFile(overrides: Partial<FileItem> = {}): FileItem {
     trust_reviewed_at: null,
     created_at: "2026-01-01T00:00:00Z",
     updated_at: "2026-01-01T00:00:00Z",
+    modified_at: null,
     ...overrides,
   };
 }
@@ -424,7 +425,7 @@ describe("FilePreview's PDF controller pass-through", () => {
 
 
 describe("FilePreview's Office excerpt", () => {
-  const XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+  const PPTX = "application/vnd.openxmlformats-officedocument.presentationml.presentation";
   const originalFetch = globalThis.fetch;
   afterEach(() => {
     globalThis.fetch = originalFetch;
@@ -436,7 +437,7 @@ describe("FilePreview's Office excerpt", () => {
       text: async () => "Trade statistics, 2019 return",
     }) as unknown as typeof fetch;
 
-    render(<FilePreview file={makeFile({ file_type: "document", mime_type: XLSX, filename: "trade.xlsx" })} />);
+    render(<FilePreview file={makeFile({ file_type: "document", mime_type: PPTX, filename: "trade.pptx" })} />);
 
     // Both, and in this order: the excerpt is an addition to the empty
     // state, not a replacement for it — a reader still needs the download.

@@ -110,7 +110,7 @@ function DocumentRows({
                 <span className="block truncate text-xs text-text-muted" title={document.filename}>
                   {document.filename}
                 </span>
-                <span className="block text-[13px] leading-relaxed text-text-primary [line-break:strict]">
+                <span className="block text-base leading-relaxed text-text-primary [line-break:strict]">
                   {passage.text}
                 </span>
               </span>

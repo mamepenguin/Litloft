@@ -2,7 +2,8 @@
 # review.sh [--root <repo>] [--topic <name>] [--perspective a,b] [--working] [--print-brief <reviewer-id>]
 #
 # Runs the reviewers of process/reviewers.conf against HEAD in fresh `claude -p` processes,
-# writes docs/process/reviews/<topic>/r<N>/, merges the artifacts into a verdict and renders
+# writes docs/process/reviews/<topic>/r<N>/ (with product-files.txt and test-files.txt, the
+# lists a read artifact must cover), merges the artifacts into a verdict and renders
 # triage.md. Exit 0 PASS, 1 FAIL, 2 HUMAN_REVIEW_REQUIRED or a refusal to run, 64 usage error.
 # --print-brief prints one reviewer's brief and runs nothing.
 #
@@ -18,6 +19,8 @@ CLASSIFY="${PROCESS_CLASSIFY_CMD:-$HERE/classify-risk.sh}"
 VALIDATE="${PROCESS_VALIDATE_CMD:-$HERE/validate-artifact.sh}"
 MERGE="${PROCESS_MERGE_CMD:-$HERE/merge-reviews.sh}"
 RENDER="${PROCESS_RENDER_CMD:-$HERE/render-triage.sh}"
+
+. "$HERE/lib/invariants.sh"
 
 # The last `base_ref = <ref>` in <root>/process/process.conf, trimmed; empty when there is none.
 conf_base_ref() {
@@ -237,13 +240,31 @@ sub_block() {
   done
   if [ "$3" = - ]; then sdiff "$1" "$2"; else sdiff "$1" "$2" "$3"; fi
 }
-# sub_moves <old commit> <new commit> <label>: a block for each gitlink that differs.
-sub_moves() {
-  local p old new list="$W/sm.list"
+# sub_block_files <path> <from> <to>: the new paths of the same block, with the
+# superproject's prefix. A block that cannot be produced stays a warning (§ sub_block) and
+# contributes no paths.
+sub_block_files() {
+  local c
+  initialised "$1" || return 0
+  for c in "$2" "$3"; do
+    [ "$c" != - ] || continue
+    git -C "$1" cat-file -e "$c^{tree}" 2>/dev/null || return 0
+  done
+  if [ "$3" = - ]; then sdiff "$1" --name-only "$2"; else sdiff "$1" --name-only "$2" "$3"; fi \
+    | awk -v p="$1" 'NF { print p "/" $0 }'
+}
+# sub_move_pairs <old commit> <new commit>: `<path>\t<old>\t<new>` for each gitlink that
+# differs, in path order; `-` is a side without the gitlink.
+sub_move_pairs() {
   { gitlinks "$1" | sed "s/^/o$TAB/"; gitlinks "$2" | sed "s/^/n$TAB/"; } | awk -F'\t' '
     { k[$2] = 1; if ($1 == "o") o[$2] = $3; else n[$2] = $3 }
     END { for (p in k) print p "\t" (p in o ? o[p] : "-") "\t" (p in n ? n[p] : "-") }' \
-    | LC_ALL=C sort >"$list"
+    | LC_ALL=C sort
+}
+# sub_moves <old commit> <new commit> <label>: a block for each gitlink that differs.
+sub_moves() {
+  local p old new list="$W/sm.list"
+  sub_move_pairs "$1" "$2" >"$list"
   while IFS="$TAB" read -r p old new; do
     [ "$old" != "$new" ] || continue
     if [ "$old" = - ]; then printf '\nSubmodule %s%s: added at %s\n' "$p" "$3" "$new"
@@ -268,6 +289,78 @@ sub_working() {
       printf '\nUntracked file: %s/%s\n' "$p" "$f"; cat "$W/su.diff"
     done <"$W/su.list"
   done <"$W/sw.list"
+}
+
+# ------------------------------------------------------------------ file lists
+# The reviewer does not choose the files it must record: review.sh takes them from the
+# review's diff. A submodule pointer is not a file to read, and the review records are the
+# review's own output.
+gitlink_paths() { # <merge base or empty>: the gitlink paths of HEAD, the base and the index
+  { gitlinks HEAD | cut -f1
+    [ -z "$1" ] || gitlinks "$1" | cut -f1
+    git -c core.quotepath=off ls-files -s 2>/dev/null | awk -F'\t' '$1 ~ /^160000 / { print $2 }'
+  } | awk 'NF' | LC_ALL=C sort -u
+}
+# sub_changed_files <merge base or empty>: the files changed inside the submodules, with
+# the superproject's paths. The pins and the working-tree rules are the ones sub_moves and
+# sub_working attach, so the list matches the diff the reviewer reads.
+sub_changed_files() {
+  local p old new pin
+  if [ -n "$1" ]; then
+    while IFS="$TAB" read -r p old new; do
+      [ "$old" != "$new" ] || continue
+      if [ "$old" = - ] || [ "$new" = - ]; then continue; fi
+      sub_block_files "$p" "$old" "$new"
+    done < <(sub_move_pairs "$1" "$HEAD_SHA")
+  fi
+  if [ "$working" -eq 1 ]; then
+    sub_paths >"$W/scf.list"
+    while IFS= read -r p; do
+      sub_changed "$p" || continue
+      pin="$(pin_of "$p")"
+      sub_block_files "$p" "${pin:-$(git hash-object -t tree /dev/null)}" -
+      sub_untracked "$p" | awk -v p="$p" 'NF { print p "/" $0 }'
+    done <"$W/scf.list"
+  fi
+}
+changed_review_files() { # <merge base or empty>
+  { rdiff --name-only -z "$BASE...$HEAD_SHA" -- . ':(exclude)docs/process/reviews' 2>/dev/null
+    if [ "$working" -eq 1 ]; then
+      rdiff --name-only -z HEAD -- . ':(exclude)docs/process/reviews' 2>/dev/null
+      untracked_paths
+    fi
+    sub_changed_files "$1"
+  } | tr '\0' '\n' | awk 'NF'
+}
+# file_lists <merge base>: writes product-files.txt and test-files.txt under $W/ctx.
+# A product file is a changed file that is not under tests/ or a __tests__ directory, not
+# under docs/, and not a .md file. A test file is a changed file under either test
+# directory. Everything else (docs, Markdown) is listed nowhere.
+file_lists() {
+  local k
+  changed_review_files "$1" | LC_ALL=C sort -u >"$W/ctx/changed.txt"
+  gitlink_paths "$1" >"$W/ctx/subptr.txt"
+  awk -v sf="$W/ctx/subptr.txt" -v prodf="$W/ctx/product-files.txt" -v testf="$W/ctx/test-files.txt" '
+    FILENAME == sf { ptr[$0] = 1; next }
+    {
+      p = $0
+      if (p in ptr) next
+      if (p ~ /^docs\/process\/reviews\//) next
+      n = split(p, seg, "/"); istest = 0; isdocs = 0
+      for (i = 1; i < n; i++) {
+        if (seg[i] == "tests" || seg[i] == "__tests__") istest = 1
+        if (seg[i] == "docs") isdocs = 1
+      }
+      if (istest) print p > testf
+      else if (isdocs) next
+      else if (p ~ /[.]md$/) next
+      else print p > prodf
+    }' "$W/ctx/subptr.txt" "$W/ctx/changed.txt"
+  : >>"$W/ctx/product-files.txt"; : >>"$W/ctx/test-files.txt"
+  for k in product test; do
+    if [ -s "$W/ctx/$k-files.txt" ]; then cp "$W/ctx/$k-files.txt" "$W/ctx/$k-files.prompt.txt"
+    else printf '(none)\n' >"$W/ctx/$k-files.prompt.txt"; fi
+  done
 }
 
 # ------------------------------------------------------------------ fingerprint
@@ -311,13 +404,22 @@ fingerprint() {
 
 # ------------------------------------------------------------------ run state
 # MAXB: the cap on each attached diff, from `max_diff_bytes = N` in process/process.conf.
+# USTOP: the `unspecified_stop = product:N impact:M` row, normalized; empty when there is none.
 parse_process_conf() {
   local f=process/process.conf line n=0 v
   MAXB=200000
+  USTOP=""
   [ -r "$f" ] || return 0
   while IFS= read -r line || [ -n "$line" ]; do
     n=$((n + 1)); line="${line%$'\r'}"
-    case "$(trim "$line")" in max_diff_bytes|max_diff_bytes[!A-Za-z0-9_]*) ;; *) continue ;; esac
+    case "$(trim "$line")" in
+      unspecified_stop|unspecified_stop[!A-Za-z0-9_]*)
+        v="$(printf '%s' "$line" | sed -n 's/^[[:space:]]*unspecified_stop[[:space:]]*=[[:space:]]*product:\([0-9]\{1,3\}\)[[:space:]][[:space:]]*impact:\([0-9]\{1,2\}\)[[:space:]]*$/product:\1 impact:\2/p')"
+        [ -n "$v" ] || die "$f:$n: unspecified_stop must be 'product:N impact:M'"
+        USTOP="$v"; continue ;;
+      max_diff_bytes|max_diff_bytes[!A-Za-z0-9_]*) ;;
+      *) continue ;;
+    esac
     v="$(printf '%s' "$line" | sed -n 's/^[[:space:]]*max_diff_bytes[[:space:]]*=[[:space:]]*\([0-9]\{1,9\}\)[[:space:]]*$/\1/p')"
     [ -n "$v" ] && [ "$((10#$v))" -gt 0 ] || die "$f:$n: max_diff_bytes must be a positive integer of at most 9 digits"
     MAXB=$((10#$v))
@@ -382,6 +484,7 @@ build_context() {
   mb="$(git merge-base "$BASE" "$HEAD_SHA" 2>/dev/null)" || mb=""
   HAS_SUB=0
   [ -z "$(sub_paths)" ] && { [ -z "$mb" ] || [ -z "$(gitlinks "$mb")" ]; } || HAS_SUB=1
+  file_lists "$mb"
   q=$((cap / 4))
 
   # the diff against the base: the superproject's changes, then each submodule's
@@ -450,31 +553,12 @@ build_context() {
     return 0
   fi
   [ -f "$SPEC_FILE" ] || die "$INV_FILE names the spec $SPEC_FILE, which does not exist"
+  approved_specs "$W/ctx/approved.tsv" || die "cannot build the list of approved specs"
   { awk '/^## / { on = ($0 ~ /^## (Touch points|Invariants|Revises)[[:space:]]*$/) } on' "$SPEC_FILE"
-    echo; grep -v '^spec:' "$INV_FILE"; later_revisions "$SPEC_FILE"; } >"$W/ctx/invariants.txt"
+    echo; grep -v '^spec:' "$INV_FILE"; } >"$W/ctx/invariants.txt"
+  later_revisions "$SPEC_FILE" "$W/ctx/approved.tsv" >>"$W/ctx/invariants.txt" \
+    || die "cannot read the approved specs"
   INV_ARG="$W/ctx/invariants.txt"; INV_SHOWN="\`$SPEC_FILE\`, revised by \`$INV_FILE\`"
-}
-
-# later_revisions <spec>: each `<SPEC-ID> I<N>. <sentence>` line under `## Revises` in another
-# approved spec that names one of this spec's SPEC-IDs, as `I<N>. (<that spec>) <sentence>`,
-# oldest Approval date first and then by file name. A spec is approved when the hash on its
-# Approval line matches its content.
-later_revisions() {
-  local ids f rec
-  ids="$(sed -n 's/^SPEC-ID:[[:space:]]*\([^[:space:]]*\).*/\1/p' "$1" | tr '\n' ' ')"
-  [ -n "$ids" ] || return 0
-  for f in docs/specs/*.md; do
-    [ -f "$f" ] && [ "$f" != "$1" ] || continue
-    rec="$(tr -d '\r' <"$f" | grep -E '^Approval: ' | tail -n 1)"
-    [ "$(printf '%s\n' "$rec" | awk '{print $2}')" = "$(bash "$HERE/spec-hash.sh" "$f")" ] || continue
-    printf '%s\t%s\n' "$(printf '%s\n' "$rec" | awk '{print $NF}')" "$f"
-  done | LC_ALL=C sort -t "$(printf '\t')" -k1,1 -k2,2 | cut -f2- | while IFS= read -r f; do
-    awk -v ids="$ids" -v src="$f" '/^## / { on = ($0 ~ /^## Revises[[:space:]]*$/); next }
-      on && index(" " ids, " " $1 " ") && match($2, /^I[0-9]+[.:]$/) {
-        rest = $0; sub(/^[^[:space:]]+[[:space:]]+[^[:space:]]+[[:space:]]*/, "", rest)
-        print $2 " (" src ") " rest }' "$f"
-  done >"$W/ctx/later.txt"
-  [ ! -s "$W/ctx/later.txt" ] || { printf '\n## Revised by later specs\n\n'; cat "$W/ctx/later.txt"; }
 }
 
 # The earlier runs render-triage.sh shows: the latest run of each commit other than HEAD.
@@ -505,7 +589,7 @@ render_template() { # <template> ; env: T_*, F_*, IF_*
     { line = $0; for (k = 1; k <= n; k++) line = rep(line, "{{" names[k] "}}", ENVIRON["T_" names[k]]); print line }' "$1"
 }
 
-# findings_list <dir>: every finding of the read artifacts of <dir>
+# findings_list <dir>: every finding and every unspecified-behavior entry of the read artifacts of <dir>
 findings_list() {
   local id role f out=""
   while IFS="$US" read -r id _ role _ _; do
@@ -513,6 +597,12 @@ findings_list() {
     jq -r '. as $a | .findings[] | "- reviewer: \($a.reviewer)\n  id: \(.id)\n  claim: \(.claim | gsub("[\r\n]+"; " "))\n  evidence: \(.evidence | gsub("[\r\n]+"; " "))\n"' "$1/$id.json"
   done <"$W/rev.dat" >"$W/ctx/findings.txt"
   [ -s "$W/ctx/findings.txt" ] || echo "(none)" >"$W/ctx/findings.txt"
+  while IFS="$US" read -r id _ role _ _; do
+    [ "$role" = read ] && [ -n "$1" ] && [ -f "$1/$id.json" ] || continue
+    jq -r '. as $a | .potential_unspecified_behavior | to_entries[]
+      | "- reviewer: \($a.reviewer)\n  index: \(.key)\n  behavior: \(.value | if type == "string" then . else .behavior end | gsub("[\r\n]+"; " "))\n"' "$1/$id.json"
+  done <"$W/rev.dat" >"$W/ctx/unspecified.txt"
+  [ -s "$W/ctx/unspecified.txt" ] || echo "(none)" >"$W/ctx/unspecified.txt"
 }
 
 # brief_for <id> <role> <perspectives> <artifact dir> <out>
@@ -524,7 +614,8 @@ brief_for() {
   findings_list "$4"
   T_COMMIT="$HEAD_SHA" T_BASE="$BASE" T_RISK="$RISK" T_REVIEWER="$1" T_PERSPECTIVES="$pers" T_INVARIANTS_PATH="$INV_SHOWN" \
   F_BASE_DIFF="$W/ctx/base.diff" F_FIXES_DIFF="$W/ctx/fixes.diff" F_FIXES="$W/ctx/fixes.list" F_EARLIER="$W/ctx/earlier.txt" \
-  F_INVARIANTS="$W/ctx/invariants.txt" F_FINDINGS="$W/ctx/findings.txt" F_THREAT_MODEL="$W/ctx/threat.txt" \
+  F_INVARIANTS="$W/ctx/invariants.txt" F_FINDINGS="$W/ctx/findings.txt" F_UNSPECIFIED="$W/ctx/unspecified.txt" F_THREAT_MODEL="$W/ctx/threat.txt" \
+  F_PRODUCT_FILES="$W/ctx/product-files.prompt.txt" F_TEST_FILES="$W/ctx/test-files.prompt.txt" \
   IF_first="$first" IF_later="$later" IF_invariants="$inv" IF_noinvariants="$noinv" IF_perspectives="$([ -n "$pers" ] && echo 1 || echo 0)" \
   IF_threat="$THREAT" IF_nothreat="$((1 - THREAT))" \
     render_template "$PROMPTS/$2.md" >"$5"
@@ -650,6 +741,9 @@ printf '%s\n' "$HEAD_SHA" >"$RUN/head.txt"
 cp "$W/expected.txt" "$RUN/expected.txt"
 cp "$W/cls.json" "$RUN/classification.json"
 cp "$W/ctx/fixes.txt" "$RUN/fixes.txt"
+cp "$W/ctx/product-files.txt" "$RUN/product-files.txt"
+cp "$W/ctx/test-files.txt" "$RUN/test-files.txt"
+[ -z "$USTOP" ] || printf '%s\n' "$USTOP" >"$RUN/unspecified-stop.txt"
 
 mkdir "$W/out"
 : >"$W/usage.parts"

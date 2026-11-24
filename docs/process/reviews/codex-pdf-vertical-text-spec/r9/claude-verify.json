@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "MEDIUM",
+  "findings": [],
+  "verification": [],
+  "specification_compliance": [
+    "I12 (r8): the primary path raises when a page text layer cannot be read. _empty_text_pages raises VerticalTextError on a per-page get_text failure (addons/intelligence/app/extractors/pdf.py:316-326). A fitz.open failure during recovery also raises it (pdf.py:287-294). These errors are not swallowed into the fitz fallback, because PdfExtractor.extract does not catch them (pdf.py:184-189).",
+    "I12 fallback extractor: _fitz_chunks raises VerticalTextError on a page get_text failure (pdf.py:607-615) instead of skipping the page.",
+    "I12 indexing: _extract_file_content re-raises VerticalTextError (addons/intelligence/app/workers/metadata.py:151-152). The indexing function returns False before any DB write (metadata.py:394-401), so existing searchable and section data are kept, text_indexed is not set, and the task stays retryable.",
+    "I12 document read: _pdf_page raises VerticalTextError when the text layer read fails (addons/intelligence/app/document_text.py:196-203). The router turns any exception other than Busy into an error response (addons/intelligence/app/routers/document_text.py:94) and does not return partial text.",
+    "I8: every PyMuPDF call I traced in the extractor runs inside PYMUPDF_LOCK. This covers extract (pdf.py:184) and _pdf_units (document_text.py:147-152)."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "_empty_text_pages still returns a partial or empty scanned set when fitz.open itself fails (pdf.py:327-328). The primary path then raises at the second fitz.open (pdf.py:288-294), so I saw no silent success. This depends on the second open also failing."
+  ],
+  "regression_risks": [
+    "_extract_with_fitz_fallback still returns an empty fallback result when fitz.open fails (pdf.py:574-577). This is pre-existing behaviour, and it means an unopenable PDF is indexed as empty rather than kept retryable. I12 covers only the page text-layer read, so this is not a violation."
+  ],
+  "test_coverage": [
+    "Test files were not read in this verification. I did not confirm whether tests cover the I12 raise paths in _empty_text_pages, _fitz_chunks and _pdf_page."
+  ],
+  "not_verified": [
+    "I did not run the tests: I have no command execution.",
+    "I did not inspect the git diff between cfa1199c and b4c88ded directly; I reviewed the code state at HEAD only.",
+    "I did not read the database.py rules-version reset logic (I6) or the citation recomputation path (I9).",
+    "I did not review the test files or the documentation changes in docs/process/reviews."
+  ],
+  "confidence": 78
+}

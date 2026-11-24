@@ -21,6 +21,9 @@ export type ControlsLayout = "touch" | "compact" | "pointer";
  */
 export const COMPACT_MAX_WIDTH = 480;
 
+/** The pointer row fits one more 44px button from here up. */
+export const JUMP_BUTTON_MIN_WIDTH = 524;
+
 /**
  * `frameWidth` of `null` — or of `0`, which is the same thing wearing a
  * number — means the frame has not been measured yet.

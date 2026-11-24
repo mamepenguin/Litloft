@@ -23,7 +23,7 @@ to tests that would let it through.
 | `min_risk` | A `read` or `mutate` reviewer is in the expected set when the classified risk is at least this level. `verify` has none |
 | `perspectives` | Named per review, for example `--perspective security,auth` |
 
-- `read` judges the diff. Tools: Read, Glob, Grep.
+- `read` judges the diff and records what it read in `coverage`. Tools: Read, Glob, Grep.
 - `mutate` breaks the implementation one change at a time, only in a throwaway worktree at
   the fixed SHA, after the project's `worktree_setup` row has prepared it (dependencies,
   generated files, environment files, caches). It has shell and edit tools and never
@@ -52,6 +52,26 @@ The reviewer is given, in priority order: the code at a fixed SHA; the conventio
 change touches, named; the spec for this change including `## Checked, no action`; visual
 design material for anything visual; long-term notes only to ask whether something was a
 deliberate earlier decision.
+
+## Read coverage
+
+The review lists the files a reader must account for; the reader does not choose them.
+`review.sh` takes the changed files of the diff (the review records and submodule pointer
+lines are not files) and splits them:
+
+- A product file is a changed file that is not under `tests/` or a `__tests__` directory,
+  not under `docs/`, and not a `.md` file.
+- A test file is a changed file under `tests/` or a `__tests__` directory.
+
+Every `read` artifact has a `coverage` array with one `{path, read, reason}` entry per listed
+file. `full` is the whole file, or every changed hunk with its enclosing function;
+`partial` is some ranges only, named in `reason`; `not_read` says why the file was not
+opened.
+
+A product file that is `not_read`, or missing from `coverage`, makes the coverage
+incomplete. The merge records `incomplete_read` with the file names, and that alone makes
+the verdict HUMAN_REVIEW_REQUIRED, never PASS. A `not_read` test does not change the
+verdict; a wrong test is still caught by the mutation review and by reading its change.
 
 ## R-1: Review a fixed SHA
 
@@ -134,12 +154,56 @@ Per artifact: `risk`, which must equal the classifier's (an artifact whose `risk
 is invalid, and an invalid artifact in the expected set is FAIL); `specification_compliance` (required when a spec exists);
 `unspecified_behavior_found` and `potential_unspecified_behavior`; `regression_risks`;
 `test_coverage`; `not_verified`, non-empty, listing what was not checked; `confidence`
-(an empty `not_verified` with confidence 100 is invalid); the result of each named
-perspective; and, on a `read` artifact from the second review, a non-empty `trajectory`. A
+(an empty `not_verified` with confidence 100 is invalid); `coverage`, required on a `read`
+artifact for every file the review listed; the result of each named perspective; and, on a
+`read` artifact from the second review, a non-empty `trajectory`. A
 reviewer's own overall judgement is ignored. A finding the verifier adds
 (a finding in a verify artifact, with `origin: verifier`) is open and needs no record.
 The prompts ask for every text value in English, whatever language the repository or the
 conversation uses.
+
+## Unspecified behavior
+
+`potential_unspecified_behavior` lists the behaviors the change has that the spec does not
+describe, one object each: `behavior`, `frequency`, `impact` and `reason`. The reviewer that
+lists an entry scores it. Every `verify` reviewer scores each entry of every other artifact
+again, in `unspecified_scores`: `source_reviewer`, `index` (the entry's position), and the
+same three fields. When `unspecified_stop` is set (below), an entry without a score from a
+verifier makes that verifier's artifact not valid; without the row the scores cannot change
+the verdict and none is required. An entry a verifier adds is scored by that verifier alone. The author never
+scores.
+
+The scale, judged as the behavior would reach a user in ordinary use:
+
+- Frequency (0-10): 0 = no ordinary condition (an artificial delay, a crash at a precise
+  moment, hand-edited data, or use outside the threat model in `PROJECT.md`); 1 = a few
+  times a year; 3 = a few times a month; 5 = a few times a week; 8 = almost every day;
+  10 = every use.
+- Impact (1-10): 1 = a trivial visual difference, or harmless; 3 = inconvenient, easy to
+  work around; 5 = a feature does not work and the user notices; 8 = silently wrong, or
+  lost data that takes effort to recover; 10 = unrecoverable loss or a broken security
+  boundary.
+
+Which entries stop the change is set by the `unspecified_stop` row of
+`process/process.conf`:
+
+```
+unspecified_stop=product:15 impact:8
+```
+
+- Without the row, every entry of an artifact that sets `unspecified_behavior_found` stops
+  the change.
+- With the row, the scores decide and `unspecified_behavior_found` is not read: an entry
+  stops the change when any of its scores, the reviewer's or a verifier's, has
+  F×I ≥ `product`, or F ≥ 1 and I ≥ `impact`. The other entries are recorded in
+  `triage.md` with their scores and do not change the verdict.
+- An entry written as a plain string (an artifact from an earlier kit) has no scores and
+  stops exactly when its artifact sets `unspecified_behavior_found`.
+
+The scores of every entry, with the threshold, are in `verdict.json` under `unspecified`
+and `unspecified_stop`.
+
+## Verification records
 
 Every finding in a `read` or `mutate` artifact gets exactly one record from `verify`:
 `confirmed`, `rejected_with_evidence` or `needs_human`, severity unchanged, and a `note`
@@ -165,7 +229,7 @@ The one principle: a rejection removes a finding from FAIL and from nothing else
 | Verdict | When |
 |---|---|
 | FAIL | An artifact of the expected set is missing or not valid; the fingerprint changed; an open finding in bucket A or of severity BLOCKER |
-| HUMAN_REVIEW_REQUIRED | Not FAIL, and any of: an open C; a `needs_human` record; `unspecified_behavior_found`; a rejected high-consequence finding; a change that touches a human zone or a protected path |
+| HUMAN_REVIEW_REQUIRED | Not FAIL, and any of: a product file not read or missing from `coverage` (`incomplete_read`); an open C; a `needs_human` record; an unspecified-behavior entry that stops (see *Unspecified behavior*); a rejected high-consequence finding; a change that touches a human zone or a protected path |
 | PASS | Otherwise |
 
 Merging is a union over the expected set: every finding appears, and the merge never
@@ -213,8 +277,11 @@ reading `triage.md` decides what to do.
 
 `render-triage.sh` generates it from the JSON; reviewer prose is used only for
 `trajectory`. It consists of, in order, *Trajectory* (this review's answer, every earlier
-one, and the number of C findings so far), *Verdict*, *Needs a human* (only when needed),
-*Findings* (with the A/B/C counts) and *Not verified*, and its last line is
+one, and the number of C findings so far), *Verdict*, *Read coverage* (every product and
+test file with what the readers recorded, or that it is missing), *Needs a human* (only
+when needed), *Unspecified behavior, recorded* (the entries that do not stop, with every
+score; only when there are some), *Findings* (with the A/B/C counts) and *Not verified*,
+and its last line is
 `TOTAL: N findings`. Each finding shows its id and bucket, `claim`, `impact`, `evidence`, `repro` and `introduced`;
 then the reviewer's and the author's bucket side by side (the author's is display only);
 then `proposed_fix`, last and collapsed.
@@ -222,8 +289,8 @@ then `proposed_fix`, last and collapsed.
 When a human is needed, `triage.md` has a section *Needs a human*, after *Verdict*, that
 lists only those items. A finding appears with its `claim` (the question), `impact`, `evidence` and
 the reviewer's recommendation (`proposed_fix`). An item without a finding appears with the
-verification record's `note`, the artifact field that raised it
-(`potential_unspecified_behavior`), or, for a human zone or a protected path, the changed
+verification record's `note`, the entries that stop with every score and reason
+(`potential_unspecified_behavior`; an entry with one score is marked single-scored), or, for a human zone or a protected path, the changed
 paths (the human reads the diff). The reviewers prepare the review; the human
 decides. The section is shown on FAIL as well as on HUMAN_REVIEW_REQUIRED, and the author
 does not decide its items. Findings the author can resolve alone are not in that section.

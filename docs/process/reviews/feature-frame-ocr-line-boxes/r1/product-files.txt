@@ -1,0 +1,4 @@
+addons/intelligence/app/database.py
+addons/intelligence/app/indexer.py
+addons/intelligence/app/models.py
+addons/intelligence/app/workers/frame_ocr.py

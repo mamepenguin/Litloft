@@ -1,0 +1,204 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "F2",
+      "origin": "reviewer",
+      "claim": "The candidates stage's 600 s embedding budget includes the time the queue spends paused. The deadline is set once, before the batch loop, and the pause wait sits inside that loop, so a pause during embedding uses up the budget.",
+      "impact": "If the operator pauses the indexing queue for more than 10 minutes while a .loft's candidates stage is embedding, the next frame check raises BudgetExceeded and the stage fails. In a candidates-only fetch (every already-fetched YouTube reference after the upgrade backfill), that failure sets loft_candidates_done true for good. The reference silently keeps its storyboard until someone regenerates CLIP by hand. No error is shown, and the dashboard drops the reference from the pending list.",
+      "evidence": "addons/intelligence/app/workers/loft_media.py:368 sets `deadline = time.monotonic() + EMBED_BUDGET_SECONDS` once. Lines 372-374 wait with `while is_paused(): time.sleep(...)` inside the loop. Line 376 raises `_CandidatesFailure(\"BudgetExceeded\")` when `time.monotonic() >= deadline`. _candidates_stage maps that to \"failed\" (478-481), and _fetch lines 740-742 then write `loft_candidates_done: True` for a candidates-only fetch.",
+      "repro": "Not executed. Traced as follows: a candidates-only fetch reaches _embed_frames with at least 2 batches, and is_paused returns True for 601 s between batches. When it resumes, the first frame of the next batch hits the deadline. The stage returns \"failed\", the flag is written true, and the scene candidates stay the storyboard. No test reaches BudgetExceeded: grep shows no test in tests/test_spec_addon_146_candidates_stage.py that patches EMBED_BUDGET_SECONDS or the clock.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "I9 allows a stage failure to close the flag, and the spec does not say whether paused time counts toward the budget. So no declared invariant is broken, but in normal use a pause gives a silent, permanent wrong outcome."
+      },
+      "severity": "MEDIUM",
+      "proposed_fix": "Exclude paused time from the budget (extend the deadline by the time spent waiting), and add a test that pauses between batches past the budget."
+    },
+    {
+      "id": "F3",
+      "origin": "reviewer",
+      "claim": "Take a YouTube .loft whose frame text is read but not indexed and whose candidates are not settled. `prioritize` on it queues only the fetch and drops the priority-100 FRAME_OCR rebuild it queued before. The fetch does not rebuild that text, because _stages_wanted treats OCR as wanted only when frame_ocr_read is false.",
+      "impact": "After the upgrade, every already-fetched YouTube reference has loft_candidates_done false. A user who prioritizes one with stored but unindexed frame text gets a candidates-only fetch. The on-screen text stays unsearchable until the next reconciliation sweep queues the rebuild at -10, where earlier it was rebuilt at once.",
+      "evidence": "addons/intelligence/app/indexer.py:1430-1449: `if rebuild_only and not wants_candidates:` appends FRAME_OCR at 100, `else:` appends only LOFT_MEDIA at 100. loft_media.py:514-518: ocr is wanted only when `not state.frame_ocr_read`. The sweep's separate FRAME_OCR enqueue at indexer.py:1221-1226 runs at priority -10 only.",
+      "repro": "not_reproduced. tests/test_spec_addon_146_loft_candidates_queue.py::test_spec_addon_146_i8_prioritize_queues_a_fetch_at_100_when_only_the_candidates_are_wanted checks the fetch queue only and never checks the frame_ocr queue.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "I8 requires prioritize to queue a fetch at 100 in this state, and it does. Dropping the rebuild breaks no declared invariant, but it delays a user-requested result."
+      },
+      "severity": "LOW",
+      "proposed_fix": "When wants_candidates and rebuild_only are both true, queue the FRAME_OCR rebuild at 100 as well as the fetch."
+    }
+  ],
+  "specification_compliance": [
+    "SPEC-ADDON-144 step 3 / I2: fixed. clip.py:610 now sorts `times` before the (i*count)//M thinning at 611-613. The new M=2 and M=3 parameters (expected {0,18.5} and {0,12,25}) kill a mutant that removes the sort. Earlier F1 is resolved.",
+    "SPEC-ADDON-144 step 2 / I1: anchor 0 s is left out only when the first scene frame is below 1 s (clip.py:594-597). Each gap gets ceil(gap/I)-1 evenly placed fills (557-565), the trailing gap is filled up to the duration (605-608), and only kept fill times are extracted (615-622).",
+    "SPEC-ADDON-145 item 3 / I3: _move_file keeps the id and timestamp_start, sets timestamp_end to start+30, and inserts into vec_clip through insert_vector_sql. A frame moves only when it has a vector and is more than 3 s from every finite, vectored clip time (change_frames.py:48-85, 132-164). Each file is one transaction, and a failure is logged with its class and skipped (195-203).",
+    "SPEC-ADDON-145 item 4 / I4: the similar cache is cleared only when moved_frames > 0 (change_frames.py:212-215), and after each candidates commit (loft_media.py:415-417). No other fetch-path caller of invalidate_similar_cache exists (grep), so the 146 I5 test's `clears.count >= 1` does kill the mutant that deletes the call.",
+    "SPEC-ADDON-146 item 1 / I10 / I11: _migrate_loft_columns adds the column, then closes source other and capped .lofts (database.py:1227-1245). It runs before _migrate_vec_clip_if_needed (database.py:136 vs 146), which reopens only YouTube .lofts under the cap (491-502).",
+    "SPEC-ADDON-146 item 3 / I8: the sweep's query guards on mime, source and failures (indexer.py:963-971). The enqueue path re-checks source != other and failures < 3 (1196-1220). The flags block closes source other (1039-1044).",
+    "SPEC-ADDON-146 items 6 and 7 / revised 078 I7 and 121 I4: the gate is checked first under storyboard_lock, both in the leg (clip.py:1076-1078) and in the step (loft_media.py:284-288). A CLIP regenerate sets the flag false both when applied at once (routers/files.py:1146-1149) and when deferred (loft_media.py:793-796).",
+    "SPEC-ADDON-146 item 10 / I9: _failed_result closes the flag without counting for a candidates-only fetch (loft_media.py:560-564), and so do no-rendition (645-647) and a stage failure (740-744). A refusal run returns retry_backlog with no write.",
+    "Carry-over: the fix commits did not touch the r6 findings U1-U6 (touch-point and scope notes), so they stand as recorded."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "Time spent paused counts toward the candidates stage's embedding budget (F2). The spec says the stage waits while paused, and also gives a 600 s budget, but does not say whether the pause counts against that budget.",
+    "When a CLIP regenerate is recorded during a running fetch, its CLIP task can run while the flag is still true. The storyboard leg then finds the gate holding and skips the storyboard, and the flag is reset only when the fetch ends. The requeued fetch rebuilds from the video, but the 'storyboard leg writes the storyboard as before' step of I7 does not happen in that ordering."
+  ],
+  "regression_risks": [
+    "A queue pause longer than 10 minutes during the post-upgrade backfill closes candidates-only .lofts on their storyboard for good (F2).",
+    "Prioritizing a YouTube .loft with read but unindexed frame text now defers the text rebuild to the sweep (F3).",
+    "The move still runs at the same time as repair_unkeyed_vec_rows and reset_falsely_completed_clip during start-up (main.py:132-142), and as any frame scan that deletes change frames first. The spec accepts the last case."
+  ],
+  "test_coverage": [
+    "The F1 fix is pinned: the M-2 and M-3 cases in test_spec_addon_144_i2 fail if the sort at clip.py:610 is removed.",
+    "The fix round's importlib.import_module('app.search') in CacheClears makes the patch of invalidate_similar_cache independent of test order. Before it, the cache-clear assertions could pass or fail depending on whether another test had already imported app.search.",
+    "No test reaches the candidates stage's BudgetExceeded path or a pause between embedding batches (F2).",
+    "No test checks that the priority-100 FRAME_OCR rebuild is queued, or deliberately left unqueued, when prioritize also wants the candidates (F3).",
+    "No test in the 146 suite checks that a .loft's clip_thumbnail row survives the candidates stage. Reading the code, _remove_clip_embeddings defaults to embedding_type 'clip' only (clip.py:1600-1612)."
+  ],
+  "not_verified": [
+    "I ran no tests. Every mutant outcome above comes from reading the code.",
+    "I did not read repair_unkeyed_vec_rows or vec_partition.insert_vector_sql.",
+    "I did not compare the selection's _pool filter (types, vector presence, finite times) with change_frames._scene_times and _movable line by line, so I3's pool equality is assumed, not proven.",
+    "I did not read the body of _remove_clip_embeddings past its signature and docstring.",
+    "I did not read the unchanged parts of the test files beyond the diff hunks."
+  ],
+  "coverage": [
+    {
+      "path": "addons/intelligence/app/config.py",
+      "read": "partial",
+      "reason": "Lines 91-96 (FrameExtractionConfig) only."
+    },
+    {
+      "path": "addons/intelligence/app/database.py",
+      "read": "partial",
+      "reason": "Lines 120-159 (init and migration order), 436-545 (_migrate_vec_clip_if_needed, _migrate_vec_clip_change_if_needed) and 1200-1246 (_migrate_loft_columns)."
+    },
+    {
+      "path": "addons/intelligence/app/indexer.py",
+      "read": "partial",
+      "reason": "Lines 918-1077 (_collect_incomplete and the flags block), 1170-1229 (the loft enqueue), 1395-1464 (prioritize) and 2125-2184 (the loft worker hook)."
+    },
+    {
+      "path": "addons/intelligence/app/main.py",
+      "read": "partial",
+      "reason": "Lines 110-154 (start-up, with the move after cleanup_orphaned_embeddings), plus the shutdown hunk from the diff."
+    },
+    {
+      "path": "addons/intelligence/app/models.py",
+      "read": "partial",
+      "reason": "Lines 110-134 (the loft columns, including loft_candidates_done)."
+    },
+    {
+      "path": "addons/intelligence/app/routers/files.py",
+      "read": "partial",
+      "reason": "Lines 1100-1189 (reindex_file's _reset_flags and enqueue)."
+    },
+    {
+      "path": "addons/intelligence/app/workers/change_frames.py",
+      "read": "full",
+      "reason": "The whole file, lines 1-216."
+    },
+    {
+      "path": "addons/intelligence/app/workers/clip.py",
+      "read": "partial",
+      "reason": "Lines 440-629 (_extract_frame_paths, _thin_frames, _gap_fill_times, _fill_interval_gaps), 1000-1139 (storyboard_lock, _index_clip_loft, candidates_gate_holds, _index_youtube_storyboard, the start of index_storyboard) and the _remove_clip_embeddings signature at 1600-1612."
+    },
+    {
+      "path": "addons/intelligence/app/workers/frame_scan.py",
+      "read": "partial",
+      "reason": "Lines 150-287 (_store and index_frame_scan in full), plus the removed code in the diff."
+    },
+    {
+      "path": "addons/intelligence/app/workers/loft_media.py",
+      "read": "partial",
+      "reason": "Lines 260-810 (the storyboard step through _apply_recorded_requests, every changed function), plus the diff hunks for the imports, _State and _load_state."
+    },
+    {
+      "path": "addons/intelligence/search-config.yml.example",
+      "read": "partial",
+      "reason": "Lines 557-563 (the frame_extraction block)."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_111_frame_scan_index.py",
+      "read": "partial",
+      "reason": "Diff hunk only."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_111_frame_scan_model.py",
+      "read": "partial",
+      "reason": "Diff hunks only."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_111_frame_scan_task.py",
+      "read": "partial",
+      "reason": "Diff hunks only."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_117_loft_media_fetch.py",
+      "read": "partial",
+      "reason": "Diff hunks only."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_117_loft_media_queue.py",
+      "read": "partial",
+      "reason": "Diff hunks only."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_117_loft_media_schema.py",
+      "read": "partial",
+      "reason": "Diff hunk only."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_117_loft_media_start.py",
+      "read": "partial",
+      "reason": "Diff hunks only."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_121_loft_fetch_storyboard.py",
+      "read": "partial",
+      "reason": "Diff hunks only."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_144_scene_fill.py",
+      "read": "full",
+      "reason": "New file, read in full in the diff, including the fix round's M-2 and M-3 parameters."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_145_change_frame_move.py",
+      "read": "full",
+      "reason": "New file, read in full in the diff, including the fix round's importlib change."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_145_frame_scan.py",
+      "read": "full",
+      "reason": "New file, read in full in the diff."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_146_candidates_stage.py",
+      "read": "full",
+      "reason": "New file, read in full in the diff."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_146_loft_candidates_queue.py",
+      "read": "full",
+      "reason": "New file, read in full in the diff."
+    },
+    {
+      "path": "addons/intelligence/tests/test_z_clip_thumbnail_dispatch.py",
+      "read": "partial",
+      "reason": "Diff hunk only."
+    }
+  ],
+  "confidence": 80,
+  "trajectory": "There has been one product fix round since r6 (0bb67da). The other two commits (1c475b8, 6ca58a3) only record review documents. With a single round there is no earlier round to compare against, so no branch, state or prediction is repeated. The round adds one ordering statement (`times.sort` before thinning at clip.py:610), which corrects the existing thinning path without adding a branch or a state. It also adds two test parameters (M=2, M=3) and makes two test harnesses import app.search so the cache-clear patch applies. It removes nothing. There is no sign that the design is being patched."
+}

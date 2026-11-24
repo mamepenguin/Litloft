@@ -1,0 +1,172 @@
+{
+  "risk": "CRITICAL",
+  "score": 13,
+  "base": 3,
+  "zone_max": "HIGH",
+  "modifiers": [
+    "persistence",
+    "schema"
+  ],
+  "promotions": [],
+  "zones_touched": [
+    {
+      "path": "addons/knowledge",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "backend/app/database.py",
+      "level": "HIGH"
+    },
+    {
+      "path": "backend/app/models.py",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "backend/app/routers/drives.py",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "backend/app/routers/files.py",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "backend/app/routers/shelves.py",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "backend/app/services/addon_registry.py",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "backend/app/services/fileops.py",
+      "level": "HIGH"
+    },
+    {
+      "path": "backend/app/services/frontmatter.py",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "backend/app/services/origin.py",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "backend/app/services/scanner.py",
+      "level": "HIGH"
+    },
+    {
+      "path": "backend/app/services/upload.py",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "backend/tests/test_addon_navigation_list.py",
+      "level": "LOW"
+    },
+    {
+      "path": "backend/tests/test_database_migration_drive_scoped_file_path.py",
+      "level": "LOW"
+    },
+    {
+      "path": "backend/tests/test_database_migration_md_origin.py",
+      "level": "LOW"
+    },
+    {
+      "path": "backend/tests/test_md_origin_projection.py",
+      "level": "LOW"
+    },
+    {
+      "path": "backend/tests/test_origin_conditions.py",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/ADDON-DEVELOPMENT.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/addons/knowledge.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/reference/api.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/INDEX.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/clips-app.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/user-guide/notes.md",
+      "level": "LOW"
+    },
+    {
+      "path": "frontend/src/__tests__/homeAppEntries.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/Sidebar.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/SidebarAddonNav.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/home/HomeAppEntries.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/search/__tests__/jumpAddonIcon.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/search/useJumpDestinations.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/sidebar/AddonNavRows.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/sidebar/SidebarLibrarySection.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/sidebar/__tests__/SidebarDriveSwitcher.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/sidebar/isSidebarLinkActive.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/__tests__/addonNavigation.list.test.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/addonNavIcons.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/addonNavigation.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/addons.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/api.ts",
+      "level": "MEDIUM"
+    }
+  ],
+  "human_zones_touched": [],
+  "protected_paths_touched": [],
+  "docs_only": false,
+  "reasons": [
+    "highest zone HIGH (8 points)",
+    "modifiers: persistence schema"
+  ]
+}

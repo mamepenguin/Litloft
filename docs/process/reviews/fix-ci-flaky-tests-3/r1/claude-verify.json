@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "MEDIUM",
+  "findings": [],
+  "verification": [],
+  "specification_compliance": [
+    "No findings were listed to verify, so no verification records are returned.",
+    "Head commit changes only test files (frontend/src/__tests__/DriveHome.test.tsx and frontend/src/components/__tests__/CollectionDetail.nameInUse.test.tsx, per r1/test-files.txt) plus a review-record doc; no product code changed, consistent with decisions.md.",
+    "DriveHome.test.tsx:328-336: the 'content rows' describe now calls mockGetDriveFiles.mockReset() in beforeEach, so queued Once answers cannot leak between cases. Every case in that describe that renders sets its own getDriveFiles answer (lines 344, 361-363, 379), so the reset leaves no case without a stub.",
+    "DriveHome.test.tsx:361-363 queues exactly two Once answers. DriveHome.tsx:144-147 (fetchFileSections) makes exactly two getDriveFiles calls per page load, so the removed third Once answer really was surplus.",
+    "Later describes (DriveHome.test.tsx:430-436, 565-571) set mockGetDriveFiles.mockResolvedValue again, so they do not depend on the reset implementation left by the earlier describe.",
+    "CollectionDetail.nameInUse.test.tsx:163-176 waits for toast.error and then uses waitFor for the reloaded title button. This matches CollectionDetail.tsx:126-128, which closes the field, toasts and then calls load() asynchronously on a non-409 failure."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "CollectionDetail.nameInUse.test.tsx:167 reads queryByDisplayValue('Elsewhere') synchronously right after waitFor sees toast.error. toast.error is called in the same continuation as setEditingName(false) (CollectionDetail.tsx:126-127). Whether React has re-rendered by that point depends on the Testing Library asyncWrapper's post-wait drain, which I could not confirm without running the tests. If the field has not closed yet, the test types into a field that is about to unmount. The fallback branch suggests the author expected both states, so this is a residual timing risk rather than a demonstrated defect."
+  ],
+  "test_coverage": [
+    "The changed tests still assert the same behaviour as before: per-row totals and dropping a failed row in DriveHome, and the 500-then-409 rename sequence in CollectionDetail. No assertion was weakened that I could see."
+  ],
+  "not_verified": [
+    "I did not run the Vitest suites. I could not observe flakiness, or its absence, before or after the change.",
+    "I could not see the diff itself, because I had no git access. I inferred what changed from decisions.md and the current file contents.",
+    "I did not confirm the installed @testing-library/react version or its asyncWrapper drain behaviour, which the synchronous query at CollectionDetail.nameInUse.test.tsx:167 relies on.",
+    "I did not inspect the docs-only R-5 record in commit cfe7519d4 for accuracy."
+  ],
+  "confidence": 80
+}

@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1",
+      "status": "confirmed",
+      "note": "Reproduced by tracing the code at addons/intelligence/app/workers/clip.py:593-622. `times` starts as the sorted anchors (599). Each gap's fill times are then appended (600-604), followed by the trailing fill (605-608). The thinning at 610-612 indexes this unsorted list, and the only sort is on `kept` at 622. Concrete case using the test fixture: GRADIENT anchors are 0,5,12,25 and the fills are 18.5 and 32.5, so the list is [0,5,12,25,18.5,32.5] (count 6). With M=3 the code keeps indices 0,2,4, giving {0,12,18.5}. The time-ordered list [0,5,12,18.5,25,32.5] gives {0,12,25}. This violates I2's subset rule. The existing test (tests/test_spec_addon_144_scene_fill.py:227-247, M in {1,4,5,6,7}) does not catch it: for M=4 and M=5 the unsorted and sorted index sets happen to give the same times, and M=6 and M=7 skip thinning. The docstring at clip.py:579 says thinning runs on the time-ordered list."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "U1",
+      "status": "confirmed",
+      "note": "addons/intelligence/app/workers/change_frames.py exists (215 lines) and holds move_change_frames, _move_file, _plan and the other move functions. It is imported at main.py:48 and started at main.py:132-134. It is listed in docs/process/reviews/feature-clip-ten-second-fill/r6/product-files.txt, but the touch-point list has no entry for it."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "U2",
+      "status": "confirmed",
+      "note": "clip.py:547 defines _thin_frames, clip.py:557 _gap_fill_times and clip.py:1049 candidates_gate_holds, which uses get_search_db_read at 1055. clip.py:30 imports `from app.database import get_search_db, get_search_db_read`. loft_media.py:36-45 imports names from app.workers.clip, and _write_candidates calls _remove_clip_embeddings and _store_clip_embedding (loft_media.py:400-411) and embed_image (loft_media.py:381)."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "U3",
+      "status": "confirmed",
+      "note": "loft_media.py:33 imports extract_frame_to_cache, frame_cache_path and tile_cache_dir from app.frame_cache, and loft_media.py:48 imports _remove_embeddings from app.workers.metadata. The uses are at 401 (_remove_embeddings(session, file_id, CHANGE_TYPE)), 423 (tile_cache_dir) and 469-473 (frame_cache_path, extract_frame_to_cache). Neither module is on the touch-point list."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "U4",
+      "status": "confirmed",
+      "note": "_State.candidates_done is at loft_media.py:217 and is loaded at 237. index_loft_media passes candidates_set through at 544-547. New functions: _CandidatesFailure (356), _embed_frames (364), _write_candidates (389), _clear_tiles (421), _discard_entries (434), _stored_duration (442) and _candidates_stage (450). The discard now runs at 732-733, before the settled write (747) and _count_failure (749). The sibling checkout /Users/libre/Sources/video_share/addons/intelligence/app/workers/loft_media.py:534-546 shows the earlier order, with the discard after the count write. That checkout is assumed to reflect the base; origin/develop was not compared directly."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "U5",
+      "status": "confirmed",
+      "note": "main.py:132-134 wraps asyncio.to_thread(move_change_frames) in a task, and main.py:473-477 cancels and awaits it in shutdown. Cancelling the to_thread future does not stop the worker thread. The loop in change_frames.py:195-207 has no stop check, so it keeps committing per-file transactions (_move_file, change_frames.py:132-164) after shutdown starts. Each file's move is one transaction, so a file is never left half-moved."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "U6",
+      "status": "confirmed",
+      "note": "tests/test_spec_addon_117_loft_media_queue.py sets loft_candidates_done=True at lines 137, 139, 170, 299, 326 and 327. tests/test_spec_addon_117_loft_media_start.py:111-113 expects four queued entries (fresh, scanned, read, youtube at -10). tests/test_z_clip_thumbnail_dispatch.py:90 patches clip_worker.get_search_db_read. The schema-test hunk was not read line by line, but the file is in r6/test-files.txt."
+    }
+  ],
+  "specification_compliance": [
+    "I2 is violated by _fill_interval_gaps: it thins the unsorted list of anchors followed by fills (clip.py:599-612).",
+    "I4 looks satisfied: move_change_frames clears the similar cache only when moved_frames > 0 (change_frames.py:212-215), and _write_candidates clears it after each commit (loft_media.py:415-417).",
+    "I8: classification as `other` sets loft_candidates_done true (loft_media.py:582-588)."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "The change-frame move thread keeps running after the shutdown cancel (main.py:473-477; change_frames.py:195-207).",
+    "_OCR_REQUESTED.discard now runs before the failure-count and settled writes (loft_media.py:732-733)."
+  ],
+  "regression_risks": [
+    "When the scene and fill times exceed max_frames, the kept set is not the even time-ordered subset that I2 requires. Coverage between anchors can be skewed toward scene anchors and early-gap fills."
+  ],
+  "test_coverage": [
+    "test_spec_addon_144_i2_more_times_than_max_frames_are_thinned_over_the_whole_video (M in {1,4,5,6,7}) passes with the unsorted thinning, because those M values happen to give the same times. M=3 on the same fixture would expose F1 (expected {0,12,25}, got {0,12,18.5})."
+  ],
+  "not_verified": [
+    "I did not diff against origin/develop directly. The prior order of _OCR_REQUESTED.discard was taken from a sibling checkout assumed to match the base.",
+    "I ran no tests; all results come from reading the code.",
+    "I did not read the test_spec_addon_117_loft_media_schema.py hunk at 101-136 line by line.",
+    "I did not verify the invariants for the database migrations, indexer and routers/files.py."
+  ],
+  "confidence": 88
+}

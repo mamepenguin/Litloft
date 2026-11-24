@@ -1,0 +1,112 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [],
+  "specification_compliance": [
+    "R2-1 is addressed. TranscriptSection.tsx:605-608 now returns early on `!following`, and `following` is in the dependency list, so the reveal that runs when the playback highlight reaches the selected row no longer scrolls a list whose following is suspended. This matches B1 (closing the dialog does not resume following) and the panel's rule that the reader's own scroll wins.",
+    "The tap path still reveals the strip. seekTo sets following to true (TranscriptSection.tsx:822), and the reveal driven by revealPendingRef (591-595) never checks `following`, so F4 (no media controller, where seekTo returns early without resuming following) still brings the strip into view after a tap.",
+    "R2-2 is addressed. TranscriptSectionTouch.test.tsx now asserts that `fireEvent.keyDown(field, { key: 'Enter' })` returns false, which pins the preventDefault at TranscriptEditDialog.tsx:180.",
+    "The new e2e test (transcript-touch.spec.ts, 'with following suspended, playback returning to the selected row does not scroll the list') would kill the mutant that removes `!following`. The fixture's long row (2,000 characters) means following to the last row leaves row 5s above the view. Without the guard, revealCue would move the list by `viewTop - rect.top`, the target's y would change, and the toBeCloseTo(before, 0) check would fail.",
+    "I1-I9 are unchanged from r2: the strip is gated on `isSelected`, which requires `coarse`; the fine-path controls are gated on `!coarse`; the dialog captures expected_text and expected_start when it opens; `saving` blocks save, close and Escape; the field is readOnly while saving; and the panel error is hidden while editTarget is set (TranscriptSection.tsx:1110).",
+    "The reviewed commit 1e08ae53 changes documentation only. The product delta since r2 is the addon bump in 3da286167."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "addons/intelligence/app/main.py:61-63 still sets the service-wide `pdfminer` logger to ERROR. This is r1 TP-1, it is still in the diff, and no spec in this review covers it."
+  ],
+  "regression_risks": [
+    "`following` is now a dependency of the reveal effect, so the effect also runs when 再生位置に戻る (resumeFollowing) or a tap sets `following` back to true while the playing row is the selected row. The follow effect (557-560) starts a smooth scrollTo that centres the row. The reveal effect then runs in the same commit and, if the block is not yet fully visible, writes scrollTop directly. In Chromium that can cut the smooth scroll short, leaving the row and strip at the list's edge instead of centred. The row stays visible, so I11 still holds; only the scroll's resting place differs.",
+    "If every source becomes empty while the dialog is open, `if (loading || !hasAnything) return null` (TranscriptSection.tsx:1038) unmounts the dialog without clearing editTarget, so it could reappear from the stored text after a later reload. This was raised in r2 and is unchanged; the `last_utterance` guard makes it unlikely.",
+    "The new e2e test depends on smooth-scroll settling (it polls every 150ms, then waits a fixed 500ms) and could be timing-sensitive on a slow CI runner."
+  ],
+  "test_coverage": [
+    "TranscriptSectionTouch.test.tsx covers I1-I9 in jsdom. Since r2 the Return-outside-composition test also asserts that preventDefault is called.",
+    "transcript-touch.spec.ts now covers the suspended-following case of the selection reveal at 390x844 and 375x667, in addition to the I10 hit areas, the strip-in-view, following and saved-place parts of I11, the dialog's position, and 保存 ending above y=367.",
+    "No test checks the resting scroll position when resumeFollowing fires while the selected row is the playing row.",
+    "No test asserts where focus goes when the dialog closes (B10).",
+    "No test covers the main.py logging change."
+  ],
+  "not_verified": [
+    "I did not run any unit or e2e test; every conclusion comes from reading the code.",
+    "I did not confirm in a real browser whether a direct scrollTop write cancels an in-flight smooth scrollTo.",
+    "I did not confirm that Playwright's dispatchEvent('wheel') reaches the scroller's wheel listener in the fillHeight fixture (scrollingBoxOf(list) versus the list itself). The test's own check that the resume chip appears would catch it if it did not.",
+    "I did not read TranscriptSection.tsx lines 1-224, 864-1037 and 1039-1159, apart from what the diff shows.",
+    "I did not read ime-enter-guard.test.ts or row-action-reveal.test.ts beyond their diff hunks this round."
+  ],
+  "coverage": [
+    {
+      "path": "addons/intelligence/app/main.py",
+      "read": "full",
+      "reason": "The only hunk is the 3-line pdfminer logger change shown in the diff, with its module-level context."
+    },
+    {
+      "path": "addons/intelligence/frontend/ExtractionEditsReview.test.tsx",
+      "read": "partial",
+      "reason": "Read only the changed hunk at @@ -424 in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/TranscriptEditDialog.tsx",
+      "read": "full",
+      "reason": "Read the whole file (lines 1-207)."
+    },
+    {
+      "path": "addons/intelligence/frontend/TranscriptSection.test.tsx",
+      "read": "partial",
+      "reason": "Read the two changed hunks with their enclosing it() blocks in the diff, and nothing else."
+    },
+    {
+      "path": "addons/intelligence/frontend/TranscriptSection.tsx",
+      "read": "partial",
+      "reason": "Read lines 225-864 from the file, which hold the state, the selection, reveal and follow effects, and the callbacks. Read the render hunks at 1160-1366 in the diff, and grepped for editTarget and the early return. Lines 1-224 and 864-1159 were not read."
+    },
+    {
+      "path": "addons/intelligence/frontend/TranscriptSectionTouch.test.tsx",
+      "read": "full",
+      "reason": "New file. Read the whole file in the diff, including the assertion added in 3da286167."
+    },
+    {
+      "path": "addons/intelligence/frontend/messages/en.json",
+      "read": "full",
+      "reason": "Read the one-line hunk."
+    },
+    {
+      "path": "addons/intelligence/frontend/messages/ja.json",
+      "read": "full",
+      "reason": "Read the one-line hunk."
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/app.tsx",
+      "read": "full",
+      "reason": "Read both changed hunks (the import and the arrangement spread)."
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/transcriptTouch.tsx",
+      "read": "full",
+      "reason": "New file. Read the whole file in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/spec-viewport.spec.ts",
+      "read": "full",
+      "reason": "Read the one-line hunk."
+    },
+    {
+      "path": "frontend/e2e-components/transcript-touch.spec.ts",
+      "read": "full",
+      "reason": "New file. Read the whole file in the diff, including the suspended-following test added in 3da286167."
+    },
+    {
+      "path": "frontend/src/__tests__/ime-enter-guard.test.ts",
+      "read": "partial",
+      "reason": "Read only the diff hunks."
+    },
+    {
+      "path": "frontend/src/__tests__/row-action-reveal.test.ts",
+      "read": "partial",
+      "reason": "Read only the diff hunks this round."
+    }
+  ],
+  "confidence": 78,
+  "trajectory": "The design is not being patched. 3da286167 adds one condition (`!following`) to an effect that already existed in the change, with a matching dependency, plus one e2e test and one jsdom assertion that answer r2's R2-1 and R2-2. The rounds before it added no product condition: a6e38c9e0 added a test assertion, c79ab7bd2 added one jsdom test, and 3cedce4f9 was documentation. So no round adds a branch, a state or a prediction that the previous round also added. No round removed a branch or a state. 1e08ae53 is documentation only. r1 TP-1 (the pdfminer log level in main.py) is still unaddressed."
+}

@@ -17,6 +17,18 @@ export interface BuildInspectorTabsInput {
   info: { label: string; content: ReactNode };
   coreTabs?: Array<{ id: string; label: string; content: ReactNode | null }>;
   /**
+   * A file without a player's `document-side` tabs: after the core tabs and
+   * before anything that belongs to a panel. Only an explicit `true` gives
+   * one a button, and the id carries its slot so it can never take a core
+   * tab's.
+   */
+  documentTabs?: Array<{
+    entry: SlotEntry;
+    label: string;
+    content: ReactNode;
+    available?: boolean;
+  }>;
+  /**
    * `available` undefined means the entry has not answered, and an
    * unanswered tab is listed. Only an explicit `false` unlists it.
    */
@@ -25,6 +37,15 @@ export interface BuildInspectorTabsInput {
     label: string;
     content: ReactNode;
     available?: boolean;
+  }>;
+  /**
+   * Drawn after `addonTabs` and before `inspectorTabs`. Used for a core tab
+   * that has to follow a slot's tabs, such as Related on a player file.
+   */
+  postAddonTabs?: Array<{
+    id: string;
+    label: string;
+    content: ReactNode | null;
   }>;
   /**
    * Drawn after `addonTabs` whatever the priorities say. Here an entry
@@ -42,7 +63,9 @@ export interface BuildInspectorTabsInput {
 export function buildInspectorTabs({
   info,
   coreTabs = [],
+  documentTabs = [],
   addonTabs = [],
+  postAddonTabs = [],
   inspectorTabs = [],
 }: BuildInspectorTabsInput): InspectorTab[] {
   return [
@@ -58,6 +81,14 @@ export function buildInspectorTabs({
         content: tab.content,
         listed: true,
       })),
+    ...sortSlotEntries(
+      documentTabs.map((tab) => ({ ...tab, priority: tab.entry.priority })),
+    ).map((tab) => ({
+      id: `document-side:${tab.entry.id}`,
+      label: tab.label,
+      content: tab.content,
+      listed: tab.available === true,
+    })),
     // Sorted here rather than by the caller: `getSlotEntries` hands
     // back the catalogue's raw order.
     ...sortSlotEntries(
@@ -68,6 +99,14 @@ export function buildInspectorTabs({
         label: tab.label,
         content: tab.content,
         listed: tab.available !== false,
+      })),
+    ...postAddonTabs
+      .filter((tab) => tab.content != null && tab.content !== false)
+      .map((tab) => ({
+        id: tab.id,
+        label: tab.label,
+        content: tab.content,
+        listed: true,
       })),
     ...sortSlotEntries(
       inspectorTabs.map((tab) => ({ ...tab, priority: tab.entry.priority })),

@@ -4,12 +4,15 @@ import { useMemo } from "react";
 import { Folder, Hash, ListFilter } from "lucide-react";
 import { useTranslations } from "next-intl";
 
+import { useEntryVisibility } from "@/hooks/useEntryVisibility";
 import { filterBrowseRows, type BrowseNode } from "@/lib/folderBrowse";
 import { matchFolders, matchJumps } from "@/lib/pageJump";
 import {
   activeOperatorValue,
   completeOperator,
+  hasImpossibleConditions,
   parseSearchQuery,
+  resolveKinds,
   suggestValues,
 } from "@/lib/searchQuery";
 import { pinHrefFor } from "../sidebar/libraryRowActive";
@@ -41,8 +44,17 @@ export function useLauncherRows(
 ): LauncherRows {
   const t = useTranslations("search");
   const browsing = browse.path !== null;
-  const off = !!scope || !drive || browsing;
-  const destinations = useJumpDestinations(open && !scope, drive);
+  const impossible = useMemo(() => {
+    const parsed = parseSearchQuery(query);
+    const fixed = scope?.type ?? null;
+    return (
+      resolveKinds(fixed, parsed.types).impossible ||
+      hasImpossibleConditions(parsed, fixed)
+    );
+  }, [query, scope?.type]);
+  const off = !!scope || !drive || browsing || impossible;
+  const { hidden: hiddenKeys } = useEntryVisibility(drive);
+  const destinations = useJumpDestinations(open && !scope, drive, hiddenKeys);
   const folderIndex = useJumpFolders(open && !scope, drive);
   const tags = useDriveTagNames(open, drive);
   const suggestions = useMemo<JumpDestination[]>(() => {

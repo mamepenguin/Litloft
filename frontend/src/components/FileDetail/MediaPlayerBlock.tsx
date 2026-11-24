@@ -12,7 +12,6 @@ import { playerKind } from "@/lib/playerKind";
 import { useAddonSlots } from "../AddonSlotsProvider";
 import { AddonSlot } from "../AddonSlot";
 import { FilePreview } from "../FilePreview";
-import { MediaLayoutToggle } from "../MediaLayoutToggle";
 
 /**
  * Content goes outside `.media-detail-player`: that box is the playable
@@ -48,10 +47,17 @@ export interface MediaPlayerBlockProps {
   framed: boolean;
   bleed?: boolean;
   /**
-   * `null` means the toggle is not this block's to draw — the shell puts
-   * it in the page row instead, where the confirmed layout has it.
+   * False where the shell moves the actions onto the workbench row, so they
+   * are mounted once there instead of here.
    */
-  layoutToggle: { railGated: boolean } | null;
+  showPreviewActions?: boolean;
+  /**
+   * False where the file page draws the panel itself, in the inspector's
+   * Info tab, so the entry is mounted once.
+   */
+  showMetadataAside?: boolean;
+  /** The viewer takes the file page's canvas height. */
+  fillCanvas?: boolean;
 }
 
 export function MediaPlayerBlock({
@@ -75,11 +81,13 @@ export function MediaPlayerBlock({
   playerWrapperRef,
   framed,
   bleed = false,
-  layoutToggle,
+  showPreviewActions = true,
+  showMetadataAside = true,
+  fillCanvas = false,
 }: MediaPlayerBlockProps) {
   const { hasSlot } = useAddonSlots();
   const aside =
-    playerKind(file) === "loft" && hasSlot(MEDIA_ASIDE_SLOT);
+    showMetadataAside && playerKind(file) === "loft" && hasSlot(MEDIA_ASIDE_SLOT);
   return (
     <>
       <div
@@ -109,25 +117,30 @@ export function MediaPlayerBlock({
           miniPlayerRoot={miniPlayerRoot}
           onEnded={onEnded}
           autoPlay={autoPlay}
+          fillCanvas={fillCanvas}
         />
 
         {/* Directly below the player rather than inside its control bar:
           that bar belongs to the .loft embed and native video does not
           have one, so a button there would appear for some media and
           not others. */}
-        <div className="flex items-center justify-end gap-2 px-3 pt-2 empty:hidden">
-          <AddonSlot
-            id="file-preview-actions"
-            layout="stack"
-            props={addonSlotProps}
-          />
-          {layoutToggle && (
-            <MediaLayoutToggle railGated={layoutToggle.railGated} />
+        <div
+          data-preview-actions={showPreviewActions ? "true" : undefined}
+          className="flex items-center justify-end gap-2 px-3 pt-2 empty:hidden"
+        >
+          {showPreviewActions && (
+            <AddonSlot
+              id="file-preview-actions"
+              layout="stack"
+              props={addonSlotProps}
+            />
           )}
         </div>
       </div>
       {aside && (
-        <div className="media-detail-player-aside empty:hidden">
+        <div
+          className={`media-detail-player-aside empty:hidden${framed ? " -mx-4 md:mx-0" : ""}`}
+        >
           <AddonSlot
             id={MEDIA_ASIDE_SLOT}
             props={{ fileId: file.id, drive: file.drive }}

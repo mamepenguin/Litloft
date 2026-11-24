@@ -10,11 +10,17 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { Library, ListFilter } from "lucide-react";
 
 import { DismissScrim } from "@/components/DismissScrim";
 import { useMenuSurface } from "@/components/ToolbarMenu";
-import { getCollections, getDriveTags, getFolderTree } from "@/lib/api";
+import {
+  getCollections,
+  getDriveTags,
+  getFolderTree,
+  getSmartFolders,
+} from "@/lib/api";
 import {
   FILE_KINDS,
   closeOpenQuote,
@@ -24,23 +30,29 @@ import {
   kindHolds,
   parseSearchQuery,
   resolveKinds,
+  resolveModified,
   suggestValues,
 } from "@/lib/searchQuery";
-import type { Comparison } from "@/lib/searchQuery";
+import type { Comparison, ModifiedToken } from "@/lib/searchQuery";
 import type {
   CollectionSummary,
   FileKind,
   FolderTreeNode,
 } from "@/types";
+import type { SmartFolder } from "@/types/smartFolder";
 
 export type ConditionEntry =
   | "tag"
   | "kind"
   | "folder"
   | "collection"
+  | "collectionWithSmart"
   | "size"
   | "duration"
-  | "favorite";
+  | "modified"
+  | "favorite"
+  | "untagged"
+  | "noCollection";
 
 interface ConditionMenuProps {
   drive: string;
@@ -67,9 +79,21 @@ interface Preset {
     | "filterSize1GBOrMore"
     | "filterDurationUnder5Min"
     | "filterDuration30MinOrMore"
-    | "filterDuration1HourOrMore";
+    | "filterDuration1HourOrMore"
+    | "filterModifiedLast30Days"
+    | "filterModifiedOverAYear"
+    | "filterModifiedOver3Years";
   value: string;
   comparison: Comparison;
+}
+
+/** A preset whose `modified:` token is resolved against the menu's `now`. */
+interface ModifiedPreset {
+  label:
+    | "filterModifiedLast30Days"
+    | "filterModifiedOverAYear"
+    | "filterModifiedOver3Years";
+  token: ModifiedToken;
 }
 
 const SIZE_PRESETS: readonly Preset[] = [
@@ -106,6 +130,20 @@ const LENGTH_PRESETS: readonly Preset[] = [
     value: ">=1h",
     comparison: { operator: "gte", value: 3600 },
   },
+];
+
+function modifiedPreset(
+  label: ModifiedPreset["label"],
+  value: string,
+): ModifiedPreset {
+  // Every preset is an operator with an amount, so the parser reads it back.
+  return { label, token: parseSearchQuery(`modified:${value}`).modified![0] };
+}
+
+const MODIFIED_PRESETS: readonly ModifiedPreset[] = [
+  modifiedPreset("filterModifiedLast30Days", ">=30d"),
+  modifiedPreset("filterModifiedOverAYear", "<1y"),
+  modifiedPreset("filterModifiedOver3Years", "<3y"),
 ];
 
 function includesComparison(
@@ -152,7 +190,9 @@ export function ConditionMenu({
 }: ConditionMenuProps) {
   const t = useTranslations("search");
   const tFilter = useTranslations("filter");
+  const locale = useLocale();
   const [level, setLevel] = useState<Level>("closed");
+  const [modifiedNow, setModifiedNow] = useState<number | null>(null);
   const [tagFilterText, setTagFilterText] = useState("");
   const [tags, setTags] = useState<TagState>({ status: "loading", items: [] });
   const [folderFilterText, setFolderFilterText] = useState("");
@@ -162,6 +202,10 @@ export function ConditionMenu({
   });
   const [collectionFilterText, setCollectionFilterText] = useState("");
   const [collections, setCollections] = useState<ListState<CollectionSummary>>({
+    status: "loading",
+    items: [],
+  });
+  const [smartFolders, setSmartFolders] = useState<ListState<SmartFolder>>({
     status: "loading",
     items: [],
   });
@@ -225,6 +269,19 @@ export function ConditionMenu({
       .catch(() => setCollections({ status: "failed", items: [] }));
   };
 
+  const openCollectionsWithSmart = () => {
+    setLevel("collectionWithSmart");
+    setCollectionFilterText("");
+    setCollections({ status: "loading", items: [] });
+    setSmartFolders({ status: "loading", items: [] });
+    getCollections(drive)
+      .then((items) => setCollections({ status: "ready", items }))
+      .catch(() => setCollections({ status: "failed", items: [] }));
+    getSmartFolders(drive)
+      .then((items) => setSmartFolders({ status: "ready", items }))
+      .catch(() => setSmartFolders({ status: "failed", items: [] }));
+  };
+
   const choose = (operator: string, value: string) => {
     const closed = closeOpenQuote(query);
     const token = formatOperatorToken(operator, value);
@@ -234,36 +291,48 @@ export function ConditionMenu({
   };
 
   const kindOptions = useMemo(() => {
-    const chosen = [...parsed.types, ...(typeFilter ? [typeFilter] : [])];
+    const positive = [...parsed.types, ...(typeFilter ? [typeFilter] : [])];
     return FILE_KINDS.filter((kind) => {
       if (kind === "epub") return false;
-      if (chosen.includes(kind)) return false;
-      if (chosen.some((held) => kindHolds(held, kind) || kindHolds(kind, held))) {
+      if (positive.includes(kind)) return false;
+      if (positive.some((held) => kindHolds(held, kind) || kindHolds(kind, held))) {
+        return false;
+      }
+      if (parsed.excludedTypes.some((excluded) => kindHolds(excluded, kind))) {
         return false;
       }
       return !resolveKinds(typeFilter, [...parsed.types, kind]).impossible;
     });
-  }, [parsed.types, typeFilter]);
+  }, [parsed.types, parsed.excludedTypes, typeFilter]);
 
   const tagOptions = useMemo(() => {
     if (tags.status !== "ready") return [];
     return suggestValues(
       { operator: "tag", partial: tagFilterText, replaceFrom: 0 },
       tags.items,
-      parsed.tags,
+      [...parsed.tags, ...parsed.excludedTags],
     );
-  }, [tags, tagFilterText, parsed.tags]);
+  }, [tags, tagFilterText, parsed.tags, parsed.excludedTags]);
 
   const folderOptions = useMemo(() => {
     if (folders.status !== "ready") return [];
     const needle = fold(folderFilterText);
-    const used = new Set(parsed.folders);
+    const used = new Set([...parsed.folders, ...parsed.excludedFolders]);
     return folders.items
       .filter(
         (node): node is Extract<FolderTreeNode, { kind: "folder" }> =>
           node.kind === "folder",
       )
-      .filter((node) => node.path !== "" && !used.has(node.path) && !hasQuote(node.path))
+      .filter(
+        (node) =>
+          node.path !== "" &&
+          !used.has(node.path) &&
+          !parsed.excludedFolders.some(
+            (excluded) =>
+              node.path === excluded || node.path.startsWith(`${excluded}/`),
+          ) &&
+          !hasQuote(node.path),
+      )
       .map((node) => {
         const path = fold(node.path);
         const last = fold(node.path.split("/").at(-1) ?? "");
@@ -282,12 +351,16 @@ export function ConditionMenu({
       )
       .slice(0, OPTION_LIMIT)
       .map(({ node }) => node);
-  }, [folders, folderFilterText, parsed.folders]);
+  }, [folders, folderFilterText, parsed.folders, parsed.excludedFolders]);
 
   const collectionOptions = useMemo(() => {
     if (collections.status !== "ready") return [];
     const needle = fold(collectionFilterText);
-    const used = new Set(parsed.collections.map((name) => name.toLowerCase()));
+    const used = new Set(
+      [...parsed.collections, ...parsed.excludedCollections].map((name) =>
+        name.toLowerCase(),
+      ),
+    );
     return collections.items
       .filter(
         (collection) =>
@@ -304,7 +377,58 @@ export function ConditionMenu({
       .sort((a, b) => a.group - b.group)
       .slice(0, OPTION_LIMIT)
       .map(({ collection }) => collection);
-  }, [collections, collectionFilterText, parsed.collections]);
+  }, [collections, collectionFilterText, parsed.collections, parsed.excludedCollections]);
+
+  const collectionsWithSmartOptions = useMemo(() => {
+    const rows: Array<{
+      key: string;
+      name: string;
+      smart: boolean;
+    }> = [
+      ...(collections.status === "ready"
+        ? collections.items.map((collection) => ({
+            key: `collection-${collection.id}`,
+            name: collection.name,
+            smart: false,
+          }))
+        : []),
+      ...(smartFolders.status === "ready"
+        ? smartFolders.items.map((folder) => ({
+            key: `smart-${folder.id}`,
+            name: folder.name,
+            smart: true,
+          }))
+        : []),
+    ];
+    const used = new Set(
+      [...parsed.collections, ...parsed.excludedCollections].map((name) =>
+        name.toLowerCase(),
+      ),
+    );
+    const needle = fold(collectionFilterText);
+    const collator = new Intl.Collator(locale, { numeric: true });
+    return rows
+      .filter(
+        (row) => !used.has(row.name.toLowerCase()) && !hasQuote(row.name),
+      )
+      .map((row) => {
+        const name = fold(row.name);
+        return {
+          ...row,
+          group: name.startsWith(needle) ? 0 : name.includes(needle) ? 1 : -1,
+        };
+      })
+      .filter((row) => row.group >= 0)
+      .sort((a, b) => a.group - b.group || collator.compare(a.name, b.name))
+      .slice(0, OPTION_LIMIT);
+  }, [
+    collections,
+    smartFolders,
+    collectionFilterText,
+    parsed.collections,
+    parsed.excludedCollections,
+    locale,
+  ]);
 
   const sizePresets = useMemo(
     () =>
@@ -328,6 +452,21 @@ export function ConditionMenu({
       ),
     [parsed.durations],
   );
+
+  const modifiedPresets = useMemo(() => {
+    const held = parsed.modified ?? [];
+    return MODIFIED_PRESETS.filter((preset) => {
+      if (held.some((token) => token.identity === preset.token.identity)) {
+        return false;
+      }
+      if (modifiedNow === null) return true;
+      const comparisons = resolveModified(
+        { ...parsed, modified: [...held, preset.token] },
+        modifiedNow,
+      ).comparisons;
+      return !comparisonsImpossible(comparisons, "modified");
+    });
+  }, [parsed, modifiedNow]);
 
   function handleMenuKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
     if (level === "closed") return;
@@ -371,13 +510,16 @@ export function ConditionMenu({
 
   const hasPlus = label.startsWith("＋") || label.startsWith("+");
 
-  const presetLabel = (key: Preset["label"]): string => {
+  const presetLabel = (key: Preset["label"] | ModifiedPreset["label"]): string => {
     if (key === "filterSizeUnder10MB") return t("filterSizeUnder10MB");
     if (key === "filterSize100MBOrMore") return t("filterSize100MBOrMore");
     if (key === "filterSize1GBOrMore") return t("filterSize1GBOrMore");
     if (key === "filterDurationUnder5Min") return t("filterDurationUnder5Min");
     if (key === "filterDuration30MinOrMore") return t("filterDuration30MinOrMore");
     if (key === "filterDuration1HourOrMore") return t("filterDuration1HourOrMore");
+    if (key === "filterModifiedLast30Days") return t("filterModifiedLast30Days");
+    if (key === "filterModifiedOverAYear") return t("filterModifiedOverAYear");
+    if (key === "filterModifiedOver3Years") return t("filterModifiedOver3Years");
     return "";
   };
 
@@ -405,6 +547,35 @@ export function ConditionMenu({
             role="menuitem"
             className={rootItemClass}
             onClick={() => choose(operator, preset.value)}
+          >
+            {presetLabel(preset.label)}
+          </button>
+        ))
+      )}
+    </>
+  );
+
+  const modifiedPresetList = (presets: readonly ModifiedPreset[]) => (
+    <>
+      <button
+        type="button"
+        role="menuitem"
+        aria-label={t("filterBack")}
+        onClick={openRoot}
+        className={backItemClass}
+      >
+        ← {t("filterBack")}
+      </button>
+      {presets.length === 0 ? (
+        <div className={stateRowClass}>{t("filterNoPreset")}</div>
+      ) : (
+        presets.map((preset) => (
+          <button
+            key={preset.token.identity}
+            type="button"
+            role="menuitem"
+            className={rootItemClass}
+            onClick={() => choose("modified", preset.token.value)}
           >
             {presetLabel(preset.label)}
           </button>
@@ -463,6 +634,7 @@ export function ConditionMenu({
                           type="button"
                           role="menuitem"
                           className={rootItemClass}
+                          disabled={parsed.noTag}
                           onClick={openTags}
                         >
                           {t("filterTag")}
@@ -510,6 +682,20 @@ export function ConditionMenu({
                         </button>
                       );
                     }
+                    if (entry === "collectionWithSmart") {
+                      return (
+                        <button
+                          key={entry}
+                          type="button"
+                          role="menuitem"
+                          className={rootItemClass}
+                          disabled={parsed.collections.length >= 10}
+                          onClick={openCollectionsWithSmart}
+                        >
+                          {t("filterCollection")}
+                        </button>
+                      );
+                    }
                     if (entry === "size") {
                       return (
                         <button
@@ -538,18 +724,70 @@ export function ConditionMenu({
                         </button>
                       );
                     }
-                    return (
-                      <button
-                        key={entry}
-                        type="button"
-                        role="menuitem"
-                        className={rootItemClass}
-                        disabled={parsed.favorite}
-                        onClick={() => choose("is", "favorite")}
-                      >
-                        {t("filterFavorite")}
-                      </button>
-                    );
+                    if (entry === "modified") {
+                      return (
+                        <button
+                          key={entry}
+                          type="button"
+                          role="menuitem"
+                          className={rootItemClass}
+                          disabled={(parsed.modified?.length ?? 0) >= 4}
+                          onClick={() => {
+                            // The presets' offer check resolves against one
+                            // instant, taken when the list opens.
+                            setModifiedNow(Date.now());
+                            setLevel("modified");
+                          }}
+                        >
+                          {t("filterModified")}
+                        </button>
+                      );
+                    }
+                    if (entry === "favorite") {
+                      return (
+                        <button
+                          key={entry}
+                          type="button"
+                          role="menuitem"
+                          className={rootItemClass}
+                          disabled={parsed.favorite || parsed.notFavorite}
+                          onClick={() => choose("is", "favorite")}
+                        >
+                          {t("filterFavorite")}
+                        </button>
+                      );
+                    }
+                    if (entry === "untagged") {
+                      return (
+                        <button
+                          key={entry}
+                          type="button"
+                          role="menuitem"
+                          className={rootItemClass}
+                          disabled={
+                            parsed.noTag || parsed.hasTag || parsed.tags.length > 0
+                          }
+                          onClick={() => choose("-has", "tag")}
+                        >
+                          {t("filterUntagged")}
+                        </button>
+                      );
+                    }
+                    if (entry === "noCollection") {
+                      return (
+                        <button
+                          key={entry}
+                          type="button"
+                          role="menuitem"
+                          className={rootItemClass}
+                          disabled={parsed.noCollection || parsed.hasCollection}
+                          onClick={() => choose("-has", "collection")}
+                        >
+                          {t("filterNoCollection")}
+                        </button>
+                      );
+                    }
+                    return null;
                   })}
                 </>
               )}
@@ -706,9 +944,76 @@ export function ConditionMenu({
                 </>
               )}
 
+              {level === "collectionWithSmart" && (
+                <>
+                  <button
+                    type="button"
+                    onClick={openRoot}
+                    className={backItemClass}
+                  >
+                    ← {t("filterBack")}
+                  </button>
+                  <input
+                    type="text"
+                    value={collectionFilterText}
+                    aria-label={t("filterCollectionSearch")}
+                    onChange={(e) => setCollectionFilterText(e.target.value)}
+                    placeholder={t("filterCollectionSearch")}
+                    className={filterInputClass}
+                  />
+                  {(collections.status === "loading" ||
+                    smartFolders.status === "loading") && (
+                    <div className={stateRowClass}>
+                      <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-accent border-t-transparent" />
+                      {t("filterCollectionsLoading")}
+                    </div>
+                  )}
+                  {collections.status !== "loading" &&
+                    smartFolders.status !== "loading" && (
+                      <>
+                        {collectionsWithSmartOptions.map((option) => {
+                          const Icon = option.smart ? ListFilter : Library;
+                          return (
+                            <button
+                              key={option.key}
+                              type="button"
+                              role="menuitem"
+                              className={`${rootItemClass} min-w-0 gap-2`}
+                              onClick={() => choose("in", option.name)}
+                            >
+                              <Icon
+                                size={14}
+                                className="flex-shrink-0 text-text-muted"
+                              />
+                              <span className="truncate">{option.name}</span>
+                            </button>
+                          );
+                        })}
+                        {collections.status === "failed" ||
+                        smartFolders.status === "failed" ? (
+                          <div className={stateRowClass}>
+                            {t("filterCollectionsFailed")}
+                          </div>
+                        ) : (
+                          collectionsWithSmartOptions.length === 0 && (
+                            <div className={stateRowClass}>
+                              {collections.items.length === 0 &&
+                              smartFolders.items.length === 0
+                                ? t("filterCollectionsNone")
+                                : t("filterCollectionsNoMatch")}
+                            </div>
+                          )
+                        )}
+                      </>
+                    )}
+                </>
+              )}
+
               {level === "size" && presetList(sizePresets, "size")}
 
               {level === "duration" && presetList(lengthPresets, "duration")}
+
+              {level === "modified" && modifiedPresetList(modifiedPresets)}
 
               {level === "kind" &&
                 kindOptions.map((kind) => (

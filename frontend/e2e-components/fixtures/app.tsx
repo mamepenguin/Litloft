@@ -13,9 +13,11 @@ import { FolderTree, Trash2 } from "lucide-react";
 
 import { NextIntlClientProvider } from "next-intl";
 
+import { ActionMenuItem } from "@/components/ActionMenuItem";
 import { AddButton } from "@/components/AddButton";
 import { Button } from "@/components/Button";
 import { ChromeButtons } from "@/components/ChromeButtons";
+import { DriveUnavailable } from "@/components/DriveUnavailable";
 import { PageFrame, type PageFrameWidth } from "@/components/PageFrame";
 import { PageHeader } from "@/components/PageHeader";
 import { Breadcrumb } from "@/components/Breadcrumb";
@@ -25,7 +27,6 @@ import { ToolbarMenu } from "@/components/ToolbarMenu";
 import { SortButton } from "@/components/SortButton";
 import { ArchiveImageViewer } from "@/components/archive/ArchiveImageViewer";
 import { FileDetailChrome } from "@/components/FileDetail/FileDetailChrome";
-import { MediaLayoutToggle } from "@/components/MediaLayoutToggle";
 import { MarkdownViewModeToggle } from "@/components/MarkdownViewModeToggle";
 import { MarkdownDocumentLayout } from "@/components/markdown/MarkdownDocumentLayout";
 import { TextLines } from "@/components/TextLines";
@@ -57,6 +58,7 @@ import { ConditionMenu } from "@/components/search/ConditionMenu";
 import { FolderToolbar } from "@/components/folder/FolderToolbar";
 import { PassageList } from "@/components/search/PassageList";
 import { SearchQueryHeader } from "@/components/search/SearchQueryHeader";
+import { SmartFolderController } from "@/components/SmartFolderSaveButton";
 import type { PassageGroup } from "@/lib/searchPassages";
 import type { SearchPassage } from "@/lib/searchMerge";
 import {
@@ -77,14 +79,66 @@ import { useAnchoredDirection } from "@/hooks/useAnchoredDirection";
 import { folderTransitionKind } from "@/lib/folderTransition";
 import { showOpenGhost } from "@/lib/openGhost";
 import { JustifiedHoldArrangement } from "./justifiedHold";
+import {
+  HeaderRowCollectionArrangement,
+  HeaderRowCollectionNoteArrangement,
+  HeaderRowCollectionSwapArrangement,
+  HeaderRowLateArrangement,
+  HeaderRowMissingArrangement,
+  HeaderRowSwapArrangement,
+  HeaderRowTwoPaneLongArrangement,
+  HeaderRowInboxLongArrangement,
+  HeaderRowInboxNoteArrangement,
+  HeaderRowLeaveArrangement,
+  HeaderRowLongArrangement,
+  HeaderRowNoteArrangement,
+  HeaderRowPendingArrangement,
+  HeaderRowRootArrangement,
+  HeaderRowTextArrangement,
+  HeaderRowTwoPaneArrangement,
+  HeaderRowOrdinaryArrangement,
+  HeaderRowVideoArrangement,
+} from "./fileHeaderRow";
 import { PlayedRangesArrangement } from "./playedRanges";
+import { WatchedBandArrangement, WatchedRangeCardsArrangement } from "./watchedRanges";
+import { PeakJumpArrangement } from "./peakJump";
 import { TextResumeArrangement } from "./textResume";
 import { HomeAppEntriesArrangement } from "./homeAppEntries";
 import { DiscoverPrefixArrangement } from "./discoverPrefix";
 import { VideoCardBylineArrangement } from "./videoCardByline";
 import { VideoCardSpacingArrangement } from "./videoCardSpacing";
+import { FolderRowsArrangement } from "./folderRows";
+import { AppHeaderArrangement } from "./appHeader";
 import { PersistentHighlightsArrangement } from "./persistentHighlights";
-import { ScenesSectionArrangement } from "./scenesSection";
+import {
+  ScenesBoundedArrangement,
+  ScenesFlowArrangement,
+  ScenesHeldVisualArrangement,
+  ScenesPendingVisualArrangement,
+  ScenesSectionArrangement,
+} from "./scenesSection";
+import { ClipsPageArrangement, clipsPageResponse } from "./clipsPage";
+import { ClipsRowArrangement, clipsRowResponse } from "./clipsRow";
+import { NotesLibraryArrangement, notesLibraryResponse } from "./notesLibrary";
+import { READING_ARRANGEMENTS } from "./readingTextSize";
+import { FRAME_CROP_ARRANGEMENTS } from "./frameCrop";
+import { FRAME_OUTLINE_ARRANGEMENTS } from "./frameOutline";
+import { NAME_IN_USE_ARRANGEMENTS } from "./nameInUse";
+import { FILE_MENU_DIVIDER_ARRANGEMENTS } from "./fileMenuDivider";
+import { BATCH_PROGRESS_ARRANGEMENTS } from "./batchProgress";
+import { FOCUS_MODE_ARRANGEMENTS } from "./focusMode";
+import { TRANSCRIPT_TOUCH_ARRANGEMENTS } from "./transcriptTouch";
+import { APP_CARD_MENU_ARRANGEMENTS } from "./appCardMenu";
+import { FILE_GRID_APP_CARD_MENU_ARRANGEMENTS } from "./fileGridAppCardMenu";
+import {
+  InspectorArchiveArrangement,
+  InspectorPdfArrangement,
+  InspectorPdfCollectionArrangement,
+  InspectorVideoArrangement,
+  InspectorVideoSidebarArrangement,
+  InspectorVideoTwoPaneArrangement,
+  InspectorVideoCollectionArrangement,
+} from "./inspectorResponsive";
 import AskTab from "../../src/addons/intelligence/AskTab";
 import { getAskThread } from "../../src/addons/intelligence/askStore";
 import intelligenceEn from "../../src/addons/intelligence/messages/en.json";
@@ -93,6 +147,8 @@ import {
   notifyNavigationCommit,
 } from "@/lib/viewTransitions";
 
+import { DrivesSection } from "@/app/admin/settings/DrivesSection";
+import { PasswordsSection } from "@/app/admin/settings/PasswordsSection";
 import "../../e2e-layout/fixtures/globals.built.css";
 
 // The fixture has no server: only the image-search availability gate is
@@ -103,6 +159,24 @@ window.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
   const url =
     typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
   const method = (init?.method ?? "GET").toUpperCase();
+  const library = notesLibraryResponse(url);
+  if (library !== null) return Promise.resolve(library);
+  const clips = clipsPageResponse(url, init) ?? clipsRowResponse(url, init);
+  if (clips !== null) return clips;
+  if (url.endsWith("/api/admin/config/drives")) {
+    return Promise.resolve(
+      jsonResponse([{ name: "Household Archive", path: "/mnt/archive", access_group: "family" }]),
+    );
+  }
+  if (url.endsWith("/api/admin/config/passwords")) {
+    return Promise.resolve(jsonResponse([{ password: "secret", groups: ["family"] }]));
+  }
+  if (url.includes("/api/drives/fixture/smart-folders")) {
+    return Promise.resolve(jsonResponse(FIXTURE_SMART_FOLDERS));
+  }
+  if (/\/api\/drives\/fixture\/collections$/.test(url)) {
+    return Promise.resolve(jsonResponse([]));
+  }
   if (url.includes("/api/addons/intelligence/search/by-image/available")) {
     return Promise.resolve(
       new Response("{}", {
@@ -117,6 +191,40 @@ window.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
   }
   if (url.includes("/api/addons/intelligence/llm/choices/rag")) {
     return Promise.resolve(jsonResponse({ auto: "local", choices: [] }));
+  }
+  // The Knowledge fixtures draw the real page, rows and toolbar, so they ask
+  // the endpoints those components ask; every answer stays in the fixture.
+  if (url.includes("/api/addons/knowledge/")) {
+    return Promise.resolve(jsonResponse({ openings: {} }));
+  }
+  if (url.includes("/api/drives/fixture/shelves")) {
+    return Promise.resolve(jsonResponse({ shelves: [] }));
+  }
+  if (url.includes("/api/drives/fixture/folder-counts")) {
+    return Promise.resolve(
+      jsonResponse([
+        { path: "研究資料", count: 12 },
+        { path: "Research", count: 8 },
+      ]),
+    );
+  }
+  if (url.includes("/api/drives/fixture/tags")) {
+    return Promise.resolve(
+      jsonResponse([
+        { name: "研究", count: 5 },
+        { name: "clips", count: 2 },
+      ]),
+    );
+  }
+  if (url.includes("/api/drives/fixture/files")) {
+    if (url.includes("origin=webclip")) {
+      return Promise.resolve(
+        jsonResponse({ data: [], meta: { total: 3, page: 1, limit: 1 } }),
+      );
+    }
+    return Promise.resolve(
+      jsonResponse({ data: [], meta: { total: 0, page: 1, limit: 30 } }),
+    );
   }
   return nativeFetch(input, init);
 };
@@ -922,19 +1030,60 @@ function SheetUnderSidebar(): ReactElement {
  * The Add menu with the shortcut stack it answers Escape through. The page
  * control fills the lower half, so a press outside the menu lands on it.
  */
-function AddMenu(): ReactElement {
+function AddMenuArrangement({
+  locale,
+  edge,
+}: {
+  locale: "en" | "ja";
+  edge: "left" | "right";
+}): ReactElement {
   const [created, setCreated] = useState(0);
   return (
-    <NextIntlClientProvider locale="en" messages={enMessages}>
+    <NextIntlClientProvider locale={locale} messages={locale === "ja" ? jaMessages : enMessages}>
       <ShortcutsProvider>
         <PageControl id="underneath" className="fixed inset-x-0 bottom-0 z-0 h-1/2 bg-bg-elevated">
           page
         </PageControl>
-        <div className="p-4" data-created={created} id="add-host">
-          <AddButton onCreateFolder={() => setCreated((n) => n + 1)} />
+        <div
+          className={`flex p-4 ${edge === "right" ? "justify-end" : ""}`}
+          data-created={created}
+          id="add-host"
+        >
+          <AddButton
+            align={edge === "right" ? "right" : "left"}
+            onCreateFolder={() => setCreated((n) => n + 1)}
+          />
         </div>
       </ShortcutsProvider>
     </NextIntlClientProvider>
+  );
+}
+
+function AddMenu(): ReactElement {
+  return <AddMenuArrangement locale="en" edge="left" />;
+}
+
+function AddMenuJa(): ReactElement {
+  return <AddMenuArrangement locale="ja" edge="left" />;
+}
+
+function AddMenuRight(): ReactElement {
+  return <AddMenuArrangement locale="en" edge="right" />;
+}
+
+function AddMenuJaRight(): ReactElement {
+  return <AddMenuArrangement locale="ja" edge="right" />;
+}
+
+function ActionMenuItemLongLabel(): ReactElement {
+  return (
+    <div className="w-40" role="menu">
+      <ActionMenuItem
+        icon={FolderTree}
+        label="Create descriptions for every image in this drive"
+        onClick={() => {}}
+      />
+    </div>
   );
 }
 
@@ -1061,7 +1210,44 @@ interface ResultsBarState {
   typeFilter: FileKind | null;
   operator: boolean;
   scene: boolean;
+  smartFolder?: boolean;
+  /** A Smart Collection whose saved query equals the page's, in the Files view. */
+  smartPlay?: "operator" | "text";
 }
+
+const FIXTURE_SMART_FOLDER = {
+  id: "fixture-sf",
+  drive: "fixture",
+  name: "Fixture folder",
+  query: "cats",
+  file_type: null,
+  sort_by: null,
+  sort_order: null,
+  created_at: "2026-05-01T00:00:00Z",
+  updated_at: null,
+};
+
+const FIXTURE_SMART_FOLDER_OPERATOR = {
+  ...FIXTURE_SMART_FOLDER,
+  id: "fixture-sf-operator",
+  name: "Fixture operator folder",
+  query: "cats tag:meeting",
+};
+
+const FIXTURE_SMART_FOLDER_TEXT = {
+  ...FIXTURE_SMART_FOLDER,
+  id: "fixture-sf-text",
+  name: "Fixture text folder",
+};
+
+const FIXTURE_SMART_FOLDERS = [
+  FIXTURE_SMART_FOLDER,
+  FIXTURE_SMART_FOLDER_OPERATOR,
+  FIXTURE_SMART_FOLDER_TEXT,
+];
+
+const SMART_FOLDER_CHANGED_QUERY =
+  "cats tag:meeting tag:research tag:archive folder:Projects";
 
 /**
  * The results page's body without the app toolbar: the real header, results
@@ -1070,12 +1256,25 @@ interface ResultsBarState {
  */
 function SearchResultsBar({ state }: { state: ResultsBarState }): ReactElement {
   const noop = () => {};
-  const query = state.operator ? "cats tag:meeting" : "cats";
+  const query = state.smartFolder
+    ? SMART_FOLDER_CHANGED_QUERY
+    : state.operator
+      ? "cats tag:meeting"
+      : "cats";
+  const smartPlayFolder =
+    state.smartPlay === "operator"
+      ? FIXTURE_SMART_FOLDER_OPERATOR
+      : state.smartPlay === "text"
+        ? FIXTURE_SMART_FOLDER_TEXT
+        : null;
+  const smartFolderId = state.smartFolder
+    ? FIXTURE_SMART_FOLDER.id
+    : (smartPlayFolder?.id ?? null);
+  const inSmartCollection = state.smartFolder || smartPlayFolder !== null;
   const showScene = !state.operator;
   const showShelf = showScene && state.scene && state.view === "files";
 
-  return (
-    <NextIntlClientProvider locale="en" messages={enMessages}>
+  const body = (
       <div className="flex min-h-screen flex-col bg-bg-primary">
         <div className="min-w-0 pb-2 pt-5">
           <SearchQueryHeader
@@ -1084,7 +1283,7 @@ function SearchResultsBar({ state }: { state: ResultsBarState }): ReactElement {
             typeFilter={state.typeFilter}
             sort="relevance"
             order="desc"
-            smartFolderId={null}
+            smartFolderId={smartFolderId}
             includeSceneClip={state.scene}
             show={state.view}
             onRemoveType={noop}
@@ -1106,13 +1305,13 @@ function SearchResultsBar({ state }: { state: ResultsBarState }): ReactElement {
             passageCountLabel: "3 files · 7 passages",
             passageCountShort: "7 passages",
             query,
-            smartFolderId: null,
+            smartFolderId,
             showFind: showScene,
             onSelect: noop,
             hideArranging: false,
           }}
           isPassages={state.view === "passages"}
-          hasPlayableFiles={false}
+          hasPlayableFiles={!!state.smartPlay}
           sort="relevance"
           order="desc"
           typeFilter={state.typeFilter}
@@ -1168,6 +1367,28 @@ function SearchResultsBar({ state }: { state: ResultsBarState }): ReactElement {
           </ul>
         )}
       </div>
+  );
+
+  return (
+    <NextIntlClientProvider locale="en" messages={enMessages}>
+      {inSmartCollection ? (
+        <SmartFolderController
+          drive="fixture"
+          query={query}
+          typeFilter={state.typeFilter}
+          smartFolderId={smartFolderId}
+          show={state.view}
+          includeSceneClip={state.scene}
+          sort="relevance"
+          order="desc"
+          hasPlayableFiles={!!state.smartPlay}
+          passagesView={state.view === "passages"}
+        >
+          {body}
+        </SmartFolderController>
+      ) : (
+        body
+      )}
     </NextIntlClientProvider>
   );
 }
@@ -1181,6 +1402,27 @@ const SEARCH_RESULTS_BAR: Record<string, ResultsBarState> = {
   "passages-scene": { view: "passages", typeFilter: null, operator: false, scene: true },
   "passages-operator": { view: "passages", typeFilter: null, operator: true, scene: false },
   sticky: { view: "files", typeFilter: null, operator: false, scene: true },
+  "smart-folder-changed": {
+    view: "files",
+    typeFilter: "video",
+    operator: false,
+    scene: false,
+    smartFolder: true,
+  },
+  "smart-play-operator": {
+    view: "files",
+    typeFilter: null,
+    operator: true,
+    scene: false,
+    smartPlay: "operator",
+  },
+  "smart-play-text": {
+    view: "files",
+    typeFilter: null,
+    operator: false,
+    scene: false,
+    smartPlay: "text",
+  },
 };
 
 function searchResultsBarArrangement(id: string): ReactElement {
@@ -1195,6 +1437,35 @@ const SearchResultsBarPassages = (): ReactElement => searchResultsBarArrangement
 const SearchResultsBarPassagesScene = (): ReactElement => searchResultsBarArrangement("passages-scene");
 const SearchResultsBarPassagesOperator = (): ReactElement => searchResultsBarArrangement("passages-operator");
 const SearchResultsBarSticky = (): ReactElement => searchResultsBarArrangement("sticky");
+const SearchResultsBarSmartFolderChanged = (): ReactElement =>
+  searchResultsBarArrangement("smart-folder-changed");
+const SearchResultsBarSmartPlayOperator = (): ReactElement =>
+  searchResultsBarArrangement("smart-play-operator");
+const SearchResultsBarSmartPlayText = (): ReactElement =>
+  searchResultsBarArrangement("smart-play-text");
+
+const NEGATED_LONG_FOLDER = "a".repeat(200);
+
+function SearchChipsNegatedLong(): ReactElement {
+  return (
+    <NextIntlClientProvider locale="en" messages={enMessages}>
+      <div className="flex min-h-screen flex-col bg-bg-primary">
+        <div className="min-w-0 pb-2 pt-5">
+          <SearchQueryHeader
+            drive="fixture"
+            query={`cats -path:${NEGATED_LONG_FOLDER} tag:meeting`}
+            typeFilter={null}
+            sort="relevance"
+            order="desc"
+            smartFolderId={null}
+            includeSceneClip={false}
+            onRemoveType={() => {}}
+          />
+        </div>
+      </div>
+    </NextIntlClientProvider>
+  );
+}
 
 function OpenScoped({ label }: { label: string }): null {
   const scope = useMemo(
@@ -1663,6 +1934,19 @@ function FolderListingHeaderShallowArrangement(): ReactElement {
   );
 }
 
+/** A control in the page row, standing in for whatever sits there. */
+function RowControl(): ReactElement {
+  return (
+    <button
+      type="button"
+      aria-label="File options"
+      className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-bg-card text-text-muted"
+    >
+      <FolderTree size={16} aria-hidden />
+    </button>
+  );
+}
+
 function FileDetailChromeArrangement(): ReactElement {
   const noop = () => {};
   return (
@@ -1674,7 +1958,7 @@ function FileDetailChromeArrangement(): ReactElement {
           title={DEEP_LEAF}
           inspector={{ open: false, onToggle: noop }}
         >
-          <MediaLayoutToggle />
+          <RowControl />
         </FileDetailChrome>
       </div>
     </NextIntlClientProvider>
@@ -1873,7 +2157,7 @@ function FileDetailChromePlainPhoneArrangement(): ReactElement {
           title={DEEP_LEAF}
           inspector={{ open: false, onToggle: noop }}
         >
-          <MediaLayoutToggle />
+          <RowControl />
         </FileDetailChrome>
       </div>
     </NextIntlClientProvider>
@@ -1898,7 +2182,7 @@ function FileDetailChromeCollectionArrangement(): ReactElement {
           onBack={noop}
           inspector={{ open: false, onToggle: noop }}
         >
-          <MediaLayoutToggle />
+          <RowControl />
         </FileDetailChrome>
       </div>
     </NextIntlClientProvider>
@@ -2325,10 +2609,166 @@ function PageHeaderTitleActions(): ReactElement {
   );
 }
 
+function PageHeaderPrimaryAction(): ReactElement {
+  const quiet = "whitespace-nowrap rounded-lg px-2 py-1.5 text-sm";
+  return (
+    <PageHeaderActionsArrangement
+      header={
+        <PageHeader
+          titleIcon={FolderTree}
+          title="Notes"
+          scope="12 notes"
+          scopeEnd={
+            <button type="button" id="scope-end" className={quiet}>
+              Target All notes
+            </button>
+          }
+          tabs={
+            <nav id="tabs" className="flex gap-4 text-sm">
+              <a href="#home">Home</a>
+              <a href="#library">Library</a>
+            </nav>
+          }
+          actions={
+            <button type="button" id="header-sort" className={quiet}>
+              Sort
+            </button>
+          }
+          primaryAction={
+            <button
+              type="button"
+              id="header-action"
+              className="whitespace-nowrap rounded-lg border border-border-default px-3 py-1.5 text-sm"
+            >
+              New note
+            </button>
+          }
+        />
+      }
+    />
+  );
+}
+
+function PageHeaderPrimaryOnly(): ReactElement {
+  return (
+    <PageHeaderActionsArrangement
+      header={
+        <PageHeader
+          titleIcon={FolderTree}
+          title="Notes"
+          scope="12 notes"
+          scopeEnd={
+            <button type="button" id="scope-end" className="whitespace-nowrap rounded-lg px-2 py-1.5 text-sm">
+              Target All notes
+            </button>
+          }
+          tabs={
+            <nav id="tabs" className="flex gap-4 text-sm">
+              <a href="#home">Home</a>
+              <a href="#library">Library</a>
+            </nav>
+          }
+          primaryAction={
+            <button
+              type="button"
+              id="header-action"
+              className="whitespace-nowrap rounded-lg border border-border-default px-3 py-1.5 text-sm"
+            >
+              New note
+            </button>
+          }
+        />
+      }
+    />
+  );
+}
+
+function AdminSettingsRows(): ReactElement {
+  return (
+    <NextIntlClientProvider locale="en" messages={enMessages}>
+      <div className="flex flex-col gap-6 p-4">
+        <DrivesSection />
+        <PasswordsSection />
+      </div>
+    </NextIntlClientProvider>
+  );
+}
+
+/** A drive name with no spaces anywhere, 80 characters long. */
+const LONG_DRIVE_NAME =
+  "HouseholdArchiveFromTheOldLaptopBeforeItWasHandedDownToMySisterAndWasResetIn2019";
+
+function DriveUnavailableArrangement(): ReactElement {
+  return (
+    <NextIntlClientProvider locale="en" messages={enMessages}>
+      <DriveUnavailable
+        drive="work"
+        unlockHref="/unlock?redirect=%2Fdrive%2Fwork"
+      />
+    </NextIntlClientProvider>
+  );
+}
+
+function PageHeaderTitleMediumActions(): ReactElement {
+  return (
+    <PageHeaderActionsArrangement
+      header={
+        <PageHeader
+          title="Dashboard"
+          actions={
+            <>
+              <button type="button" className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm">
+                <FolderTree size={16} />
+                Markdown images
+              </button>
+              <button type="button" className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm">
+                <FolderTree size={16} />
+                Settings
+              </button>
+            </>
+          }
+        />
+      }
+    />
+  );
+}
+
+function PageHeaderTitleShortAction(): ReactElement {
+  return (
+    <PageHeaderActionsArrangement
+      header={
+        <PageHeader
+          titleIcon={FolderTree}
+          title="Reading"
+          scope="12 items"
+          actions={
+            <button type="button" className="rounded-lg px-3 py-1.5 text-sm">
+              Add
+            </button>
+          }
+        />
+      }
+    />
+  );
+}
+
+function DriveUnavailableLongArrangement(): ReactElement {
+  return (
+    <NextIntlClientProvider locale="en" messages={enMessages}>
+      <DriveUnavailable drive={LONG_DRIVE_NAME} />
+    </NextIntlClientProvider>
+  );
+}
+
 const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "page-header-trail-actions": PageHeaderTrailActions,
   "page-header-title-field-actions": PageHeaderTitleFieldActions,
   "page-header-title-actions": PageHeaderTitleActions,
+  "page-header-title-medium-actions": PageHeaderTitleMediumActions,
+  "page-header-title-short-action": PageHeaderTitleShortAction,
+  "page-header-primary-action": PageHeaderPrimaryAction,
+  "page-header-primary-only": PageHeaderPrimaryOnly,
+  "admin-settings-rows": AdminSettingsRows,
   "chrome-buttons": ChromeButtonsArrangement,
   "folder-listing-header-deep": FolderListingHeaderArrangement,
   "folder-listing-header-shallow": FolderListingHeaderShallowArrangement,
@@ -2377,6 +2817,10 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "measured-tree-pane": TreePaneColumn,
   "measured-picker-in-dialog": PickerInDialog,
   "add-menu": AddMenu,
+  "add-menu-ja": AddMenuJa,
+  "add-menu-right": AddMenuRight,
+  "add-menu-ja-right": AddMenuJaRight,
+  "action-menu-item-long-label": ActionMenuItemLongLabel,
   "condition-menu": ConditionMenuArrangement,
   "search-results-bar-files": SearchResultsBarFiles,
   "search-results-bar-files-type": SearchResultsBarFilesType,
@@ -2386,6 +2830,10 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "search-results-bar-passages-scene": SearchResultsBarPassagesScene,
   "search-results-bar-passages-operator": SearchResultsBarPassagesOperator,
   "search-results-bar-sticky": SearchResultsBarSticky,
+  "search-results-bar-smart-folder-changed": SearchResultsBarSmartFolderChanged,
+  "search-results-bar-smart-play-operator": SearchResultsBarSmartPlayOperator,
+  "search-results-bar-smart-play-text": SearchResultsBarSmartPlayText,
+  "search-chips-negated-long": SearchChipsNegatedLong,
   "quick-note-footer-ja": QuickNoteFooterJa,
   "quick-note-footer-en": QuickNoteFooterEn,
   "scoped-search-ja": ScopedSearchJa,
@@ -2417,25 +2865,101 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "epub-bar-loading": EpubBarLoading,
   "markdown-tables": MarkdownTables,
   "played-ranges": PlayedRangesArrangement,
+  "watched-band": WatchedBandArrangement,
+  "watched-range-cards": WatchedRangeCardsArrangement,
+  "peak-jump": PeakJumpArrangement,
   "text-resume": TextResumeArrangement,
   "home-app-entries": HomeAppEntriesArrangement,
+  "clips-page": ClipsPageArrangement,
+  "clips-row": ClipsRowArrangement,
+  "notes-library": NotesLibraryArrangement,
   "discover-prefix": DiscoverPrefixArrangement,
   "video-card-byline": VideoCardBylineArrangement,
   "video-card-spacing": VideoCardSpacingArrangement,
+  "folder-rows": FolderRowsArrangement,
+  "app-header": AppHeaderArrangement,
   "persistent-highlights": PersistentHighlightsArrangement,
-  "scenes-351": () => <ScenesSectionArrangement hostWidth={351} />,
-  "scenes-384": () => <ScenesSectionArrangement hostWidth={384} />,
-  "scenes-390": () => <ScenesSectionArrangement hostWidth={390} />,
-  "scenes-900": () => <ScenesSectionArrangement hostWidth={900} />,
+  "scenes-351": () => <ScenesSectionArrangement hostWidth={351} hostHeight={900} />,
+  "scenes-384": () => <ScenesSectionArrangement hostWidth={384} hostHeight={1400} />,
+  "scenes-390": () => <ScenesSectionArrangement hostWidth={390} hostHeight={844} />,
+  "scenes-688": () => <ScenesSectionArrangement hostWidth={688} hostHeight={844} />,
+  "scenes-900": () => <ScenesSectionArrangement hostWidth={900} hostHeight={900} />,
   "scenes-long-351": () => (
-    <ScenesSectionArrangement hostWidth={351} long />
+    <ScenesSectionArrangement hostWidth={351} hostHeight={900} long />
   ),
   "scenes-long-384": () => (
-    <ScenesSectionArrangement hostWidth={384} long />
+    <ScenesSectionArrangement hostWidth={384} hostHeight={1400} long />
   ),
   "scenes-long-390": () => (
-    <ScenesSectionArrangement hostWidth={390} long />
+    <ScenesSectionArrangement hostWidth={390} hostHeight={844} long />
   ),
+  "scenes-bounded-1024": () => (
+    <ScenesBoundedArrangement hostWidth={1024} hostHeight={600} />
+  ),
+  "scenes-short-688": () => (
+    <ScenesSectionArrangement hostWidth={688} hostHeight={360} />
+  ),
+  "scenes-bounded-short": () => (
+    <ScenesBoundedArrangement hostWidth={1024} hostHeight={260} />
+  ),
+  "scenes-bounded-pending": () => (
+    <ScenesPendingVisualArrangement hostWidth={1024} hostHeight={400} />
+  ),
+  "scenes-bounded-held": () => (
+    <ScenesHeldVisualArrangement
+      hostWidth={1024}
+      hostHeight={Number(
+        new URLSearchParams(location.search).get("hostHeight") ?? 400,
+      )}
+    />
+  ),
+  "scenes-flow": () => (
+    <ScenesFlowArrangement
+      hostWidth={390}
+      scrollerHeight={420}
+      scrollerPaddingBottom={16}
+    />
+  ),
+  "scenes-flow-no-visual": () => (
+    <ScenesFlowArrangement hostWidth={390} scrollerHeight={420} noVisual />
+  ),
+  "inspector-video": InspectorVideoArrangement,
+  "inspector-video-sidebar": InspectorVideoSidebarArrangement,
+  "inspector-pdf": InspectorPdfArrangement,
+  "inspector-pdf-collection": InspectorPdfCollectionArrangement,
+  "inspector-archive": InspectorArchiveArrangement,
+  "inspector-video-two-pane": InspectorVideoTwoPaneArrangement,
+  "inspector-video-collection": InspectorVideoCollectionArrangement,
+  "header-row-ordinary": HeaderRowOrdinaryArrangement,
+  "header-row-video": HeaderRowVideoArrangement,
+  "header-row-note": HeaderRowNoteArrangement,
+  "header-row-long": HeaderRowLongArrangement,
+  "header-row-root": HeaderRowRootArrangement,
+  "header-row-pending": HeaderRowPendingArrangement,
+  "header-row-leave": HeaderRowLeaveArrangement,
+  "header-row-text": HeaderRowTextArrangement,
+  "header-row-two-pane": HeaderRowTwoPaneArrangement,
+  "header-row-collection": HeaderRowCollectionArrangement,
+  "header-row-collection-note": HeaderRowCollectionNoteArrangement,
+  "header-row-collection-swap": HeaderRowCollectionSwapArrangement,
+  "header-row-late": HeaderRowLateArrangement,
+  "header-row-missing": HeaderRowMissingArrangement,
+  "header-row-swap": HeaderRowSwapArrangement,
+  "header-row-two-pane-long": HeaderRowTwoPaneLongArrangement,
+  "header-row-inbox-note": HeaderRowInboxNoteArrangement,
+  "header-row-inbox-long": HeaderRowInboxLongArrangement,
+  "drive-unavailable": DriveUnavailableArrangement,
+  "drive-unavailable-long": DriveUnavailableLongArrangement,
+  ...READING_ARRANGEMENTS,
+  ...FRAME_CROP_ARRANGEMENTS,
+  ...FRAME_OUTLINE_ARRANGEMENTS,
+  ...NAME_IN_USE_ARRANGEMENTS,
+  ...FILE_MENU_DIVIDER_ARRANGEMENTS,
+  ...BATCH_PROGRESS_ARRANGEMENTS,
+  ...FOCUS_MODE_ARRANGEMENTS,
+  ...TRANSCRIPT_TOUCH_ARRANGEMENTS,
+  ...APP_CARD_MENU_ARRANGEMENTS,
+  ...FILE_GRID_APP_CARD_MENU_ARRANGEMENTS,
 };
 
 function App(): ReactElement {

@@ -1,0 +1,228 @@
+{
+  "risk": "HIGH",
+  "score": 7,
+  "base": 3,
+  "zone_max": "MEDIUM",
+  "modifiers": [],
+  "promotions": [],
+  "zones_touched": [
+    {
+      "path": "docs/ADDON-DEVELOPMENT.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/INDEX.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/app-target-collections.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/user-guide/reading.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/user-guide/video.md",
+      "level": "LOW"
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/app.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/appHeader.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/videoCardSpacing.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/projects.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/spec-viewport.spec.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/target-menu-rows-desktop.spec.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/target-menu-rows.cases.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/target-menu-rows.measure.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/target-menu-rows.spec.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/ToolbarMenu.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/readingVideoLayoutFixtureParity.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/appshell/ManageTargetsDialog.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/appshell/TargetMenu.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/appshell/__tests__/TargetMenu.collections.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/appshell/__tests__/TargetMenu.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/readingapp/ReadingAppHeader.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/readingapp/__tests__/ReadingApp.collectionTarget.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/readingapp/__tests__/ReadingApp.continueDesk.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/readingapp/__tests__/ReadingApp.discover.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/readingapp/__tests__/ReadingApp.library.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/readingapp/__tests__/ReadingShelfPage.continueOrder.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/readingapp/__tests__/ReadingShelfPage.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/readingapp/useReadingApp.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/videoapp/VideoAppHeader.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/ShelfPage.collectionTarget.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoApp.collectionTarget.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoApp.collectionTargetDiscoverCache.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoApp.continueDesk.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoApp.discoverCache.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoApp.discoverPageProviders.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoApp.discoverPrefix.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoApp.discoverProviders.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoApp.navigation.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoApp.recommendedSeeAll.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoApp.states.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoApp.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoShelfPage.continueOrder.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoShelfPage.provider.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoShelfPage.recommended.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoShelfPage.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/videoapp/useVideoApp.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/__tests__/appTarget.collection.test.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/appPrefs.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/appTarget.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/readingAppTarget.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/videoAppTarget.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/messages-core/en.json",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/messages-core/ja.json",
+      "level": "MEDIUM"
+    }
+  ],
+  "human_zones_touched": [],
+  "protected_paths_touched": [],
+  "docs_only": false,
+  "reasons": [
+    "highest zone MEDIUM (4 points)"
+  ]
+}

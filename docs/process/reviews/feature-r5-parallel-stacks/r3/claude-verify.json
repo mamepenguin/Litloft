@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R3-drive-below-bind-target-missed",
+      "status": "confirmed",
+      "note": "I traced this through the code; I did not run it. scripts/dev/r5_stack.py:241 adds a bind source only when some drive path t equals the bind target or starts with target + '/'. Take a bind target of /app/drives/media/a and a drive path of /app/drives/media: neither test is true, so that source is left out of drive_sources. In plan_overlay, `drive` at :268 is then None. The source is not under main_data, and :276 handles only files, so a directory bind gets no overlay entry and stays read-write. shared_writes at :301 checks the same drive_sources, and :299-300 do not match a directory outside main_data, so nothing is reported. The user writes drives.json and the compose overrides, so this layout is ordinary configuration and falls within the threat model."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R3-compose-passthrough-still-gated",
+      "status": "confirmed",
+      "note": "I traced this through the code; I did not run it. main() at scripts/dev/r5_stack.py:421-422 sends every `compose` argument list to compose(). compose() at :367-369 always calls verified_env first, and verified_env at :333-338 raises Abort when shared_writes reports anything. So `compose down`, `compose stop` and `compose rm` are refused while the check fails. Only the `down` subcommand (:423-424) and cmd_destroy (:394) go through stop() at :372-376, which skips the check. The top-level `down` subcommand still works around this."
+    }
+  ],
+  "specification_compliance": [
+    "stop() skips the mount check only for `down` and `destroy`, as its docstring says. The `compose` passthrough is still checked for every subcommand."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "Whether the `compose` passthrough should skip the check for subcommands that only stop or remove containers is not specified anywhere."
+  ],
+  "regression_risks": [
+    "A backend bind mounted below a drive path is still mounted read-write against the shared drive, and nothing reports it."
+  ],
+  "test_coverage": [
+    "I did not look for tests of drive_sources with a bind mounted below a drive path, or of the compose passthrough with down, stop or rm."
+  ],
+  "not_verified": [
+    "I did not run r5_stack.py or docker compose. Both conclusions come from reading the code.",
+    "I did not check whether any test file covers drive_sources or the compose passthrough.",
+    "I did not check the user's actual compose override files to see whether they contain a bind below a drive path."
+  ],
+  "confidence": 90
+}

@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R7-1",
+      "status": "confirmed",
+      "note": "Traced statically. In flow form scrollerOf(list) is the [data-inspector-scroller] ancestor, and the sticky ruler box sits inside it (ScenesSectionPresenter.tsx:304-308). useSceneList.ts:434 adds a passive touchmove listener to that scroller. takeOver (useSceneList.ts:396-402) checks only shownRef and visibleRef.canScroll, not the event target, and calls setFollowing(false) and onReaderTakeOver() inside flushSync. onReaderTakeOver is ScenesSectionContainer.tsx:424-427, which calls setBrowsePoint(null). The ruler is touch-pan-y (Presenter.tsx:522), so a horizontal drag is not handed to the browser. No pointercancel fires, and touch events keep reaching the ruler and bubble to the scroller. handlePointerMove (Container.tsx:519-524) applies the point on each pointermove past 8 px. handlePointerUp (Container.tsx:535-537) returns early when start.dragged, so nothing re-applies the point after the last touchmove. Under the Pointer Events compatibility mapping, a pointer event fires before its touch event, so the touchmove clears the point last. The drag therefore ends with no ruler point and following cleared, which goes against I9 ('a horizontal drag of at least 8 px sets the ruler point'). No test covers this. The flow-form test at ScenesSectionRulerMap.test.tsx:220-235 covers only a vertical swipe. The drag test at :237-257 renders bounded form via open(), where the scroller is the list itself and the ruler is outside it, and it fires the touchMove before the pointerMove, the reverse of browser order. I did not run a real browser to watch the dispatch order."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R7-2",
+      "status": "confirmed",
+      "note": "The core claim holds: H depends on which state is drawn, against spec §3 at docs/specs/scenes-scroll-list.md:224-227 ('Because H does not depend on which card is drawn, the choice does not flip'). The finding understates the size. useSceneList.ts:160-163 computes H = list.clientHeight + cardBox height − 7.6rem. While awaiting (Presenter.tsx:385-401), cardBox holds the placeholder (card + 2.25rem), and no action row is drawn: actionRowDrawn (Presenter.tsx:169-172) is false because visual is null. When the scene card is drawn and the state has actions (rows 3 and 4 of buildVisualView, Container.tsx:843-869), cardBox holds only the card. The action row (Presenter.tsx:419-420, min-h-9 = 2.25rem) is then a separate child after the gap-3.5 (0.875rem) section gap (Presenter.tsx:300-301). With the bounded column's total height fixed, H in the card state is lower by the gap plus the action row, about 3.125rem, not only the 0.875rem gap. A stale note lowers it further by its line plus another gap. In row 2 (no actions, no note) the two states give equal H. So in rows 3 and 4, when H falls within that window above 2 row steps, the card is full while awaiting and turns one-line once the Visual Index arrives. Not run in a browser."
+    }
+  ],
+  "specification_compliance": [
+    "R7-1: In flow form a horizontal touch drag on the ruler ends with no ruler point and following cleared. This goes against SPEC-ADDON-153 I9 and SPEC-ADDON-089 I3 as revised.",
+    "R7-2: In bounded form, H differs between the placeholder state and the card-with-action-row state. This goes against the §3 statement that H does not depend on which card is drawn (I5)."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "Whether the placeholder should also stand in for the gap before the action row, and for the stale note, is not stated in §3; it only says 'plus the action row's 2.25rem'."
+  ],
+  "regression_risks": [
+    "A fix for R7-1 that filters touchmove by target (ignoring touches that start in rulerBox) must still treat a vertical swipe that starts on the ruler in flow form as a reader's scroll. ScenesSectionRulerMap.test.tsx:220 covers that case."
+  ],
+  "test_coverage": [
+    "No test drives a horizontal touch drag in flow form with touchmove events bubbling to the shared scroller in browser order (pointermove before touchmove).",
+    "No test compares oneLine before and after the Visual Index arrives in bounded form when the state has actions."
+  ],
+  "not_verified": [
+    "Real-browser dispatch order of pointermove versus touchmove; I reasoned from the Pointer Events compatibility mapping and did not observe it.",
+    "The exact rendered height of the action row (filled button padding may exceed min-h-9) and so the exact size of the R7-2 window.",
+    "e2e-components specs and fixtures were not read."
+  ],
+  "confidence": 85
+}

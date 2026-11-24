@@ -39,7 +39,7 @@ export function MetadataEditor({
         onChange={(e) => onDescriptionChange(e.target.value)}
         placeholder={t("addDescription")}
         rows={3}
-        className="w-full rounded-2xl bg-bg-card px-3 py-2 text-sm text-text-primary outline-none focus:ring-2 focus:ring-focus-ring"
+        className="w-full rounded-2xl bg-bg-card px-3 py-2 text-base text-text-primary outline-none focus:ring-2 focus:ring-focus-ring"
       />
       <div className="flex gap-2">
         <Button

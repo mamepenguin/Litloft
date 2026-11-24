@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "MEDIUM",
+  "findings": [],
+  "specification_compliance": [
+    "Answer to the first-review question: the diff reaches no place outside the declared touch-point list. The changed files are addons/intelligence/app/workers/loft_media.py and clip.py (both listed), the test file addons/intelligence/tests/test_spec_addon_121_loft_fetch_storyboard.py (listed under tests), docs/addons/intelligence.md (listed), the addons/intelligence submodule pointer and docs/specs/INDEX.md (both listed). The spec file docs/specs/loft-fetch-storyboard.md and the review records are implicit touch points and are not counted. The list is complete for this diff.",
+    "clip.py is in the touch-point list, but its spec note says 'the leg itself unchanged'. The diff does restructure the leg: the body moves into index_storyboard, the no-storyboard path replaces _storyboard_definite with an inline _close_scene_leg and return True, and the failure path logs inline and returns False. Reading clip.py:1015-1026, 1054-1057 and 1160-1167, the observable effect is the same: the gate is cleared on True by the outer function and added on False, and the log line format is unchanged. This is a description mismatch inside a listed file, not an unplanned reach, so no finding is raised."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "_storyboard_locks grows by one entry per file_id and is never pruned. This is a small in-process memory cost and is not a user-visible defect."
+  ],
+  "regression_risks": [
+    "If clip.py is later changed to write the gate in index_storyboard, the outer function's discard on True and add on False would have to be kept in step with it."
+  ],
+  "test_coverage": [
+    "I only read the diff and the current clip.py and loft_media.py sections. I did not run the tests, so I did not check whether the new tests pass or fail."
+  ],
+  "not_verified": [
+    "I did not run git, so I could not confirm the file list of the single commit cde5d1fac. The review used the branch diff given in the prompt.",
+    "I did not run the test suite or any mutation of the code.",
+    "I did not read the full test file or the submodule content at 535679c. The touch-point check rests on the file paths in the diff."
+  ],
+  "confidence": 82
+}

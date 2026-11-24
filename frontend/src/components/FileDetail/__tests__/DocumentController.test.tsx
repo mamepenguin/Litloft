@@ -203,7 +203,6 @@ beforeEach(() => {
   slotMocks.occupied.clear();
   slotMocks.entries.clear();
   window.localStorage.clear();
-  document.documentElement.removeAttribute("data-media-layout");
   setViewport();
   mockUseProfile.mockReturnValue({
     nickname: "kaori",
@@ -271,6 +270,15 @@ function currentPdfPage(): string | null {
   );
 }
 
+/**
+ * The Pages tab is drawn from the document's page count, which arrives after
+ * the viewer has mounted. Until then `goTo` is ignored for every page, so a
+ * test that acts or asserts "nothing moved" must wait for this first.
+ */
+async function waitForPagesTab(): Promise<HTMLElement> {
+  return screen.findByRole("tab", { name: "Pages" });
+}
+
 const GO_TO_PAGE_LABEL = "Go to page 6";
 
 describe("SPEC-CORE-036 I9 - documentController on a file page that has no document viewer", () => {
@@ -297,7 +305,7 @@ describe("SPEC-CORE-036 I9 - documentController while a PDF viewer is mounted", 
     const controller = await waitForController();
     expect(currentPdfPage()).toBe("1");
 
-    fireEvent.click(screen.getByRole("tab", { name: "Pages" }));
+    fireEvent.click(await waitForPagesTab());
     const row = await screen.findByRole("button", { name: GO_TO_PAGE_LABEL });
     fireEvent.click(row);
     await waitFor(() => expect(currentPdfPage()).toBe("6"));
@@ -312,6 +320,7 @@ describe("SPEC-CORE-036 I9 - documentController while a PDF viewer is mounted", 
   it("does nothing for a page out of range", async () => {
     await renderFile(PDF);
     const controller = await waitForController();
+    await waitForPagesTab();
     act(() => controller.goTo({ page: 5 }));
     await waitFor(() => expect(currentPdfPage()).toBe("5"));
 
@@ -323,6 +332,7 @@ describe("SPEC-CORE-036 I9 - documentController while a PDF viewer is mounted", 
   it("does nothing for a section", async () => {
     await renderFile(PDF);
     const controller = await waitForController();
+    await waitForPagesTab();
     act(() => controller.goTo({ page: 4 }));
     await waitFor(() => expect(currentPdfPage()).toBe("4"));
 

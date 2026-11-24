@@ -303,83 +303,72 @@ test("a trail shallow enough to draw is drawn whole", async ({ page }) => {
 });
 
 /**
- * Below `md` the same row draws no trail: a back control naming the parent
- * folder, and — for a note — the rename control, which is the file's name
- * and a button at once.
+ * Below `md` the row is the app header's: a two-line heading (the parent
+ * folder over the file name) and nothing to its left but the fixed buttons.
+ * The heading's two lines never compete for one line of width, so what is
+ * measured here is the stack and that neither line leaves the row.
  */
-async function readLeadingRow(page: Page) {
+async function readNarrowHeading(page: Page) {
   return page.evaluate(
     new Function(`${MEASURE}
+    const header = document.querySelector("header");
     const row = document.querySelector("[data-testid='file-detail-chrome']");
-    const back = document.querySelector("[data-testid='file-detail-back']");
-    const leading = back.parentElement;
+    const nav = row.querySelector("nav");
+    const leaf = nav.lastElementChild;
+    const leafLabel = labelOf(leaf);
     return {
       documentScroll: document.documentElement.scrollWidth,
       documentClient: document.documentElement.clientWidth,
+      header: measure(header),
       row: measure(row),
-      leading: measure(leading),
-      leadingCount: leading.children.length,
-      back: measure(labelOf(back)),
-      // By position, not by tag: the back control is a button too whenever
-      // the host supplies its own handler.
-      name: measure(labelOf(leading.lastElementChild)),
+      back: measure(labelOf(document.querySelector("[data-testid='file-detail-back']"))),
+      leaf: measure(leafLabel),
       controls: [...row.children]
-        .filter((el) => el !== leading && el.offsetParent !== null)
+        .filter((el) => el !== nav && !el.contains(nav) && el.offsetParent !== null)
         .map(measure),
     };`) as () => {
       documentScroll: number;
       documentClient: number;
+      header: Part;
       row: Part;
-      leading: Part;
-      leadingCount: number;
       back: Part;
-      name: Part;
+      leaf: Part;
       controls: Box[];
     },
   );
 }
 
-test("a note's row on a phone: the name and the parent folder give way together", async ({
+test("SPEC-CORE-094 D5 / I8 (a note at 390px): the parent folder is line 1 and the name is line 2, each on one line inside the row", async ({
   page,
 }) => {
-  await openPage(page, "file-detail-chrome-note", 390);
-  const m = await readLeadingRow(page);
+  await openPage(page, "header-row-note", 390);
+  const m = await readNarrowHeading(page);
 
   expect(m.documentScroll).toBe(m.documentClient);
-  expect(isCut(m.row)).toBe(false);
-  expect(isCut(m.leading)).toBe(false);
-
-  // Both names are present, or the two measurements below are one
-  // measurement taken twice.
-  expect(m.leadingCount).toBe(2);
-  // Declared: this arrangement asks for more than the row has, so each of
-  // the two has to give. One of them whole is one of them having taken
-  // everything — which is what `flex-none` and `flex-1` each do here.
-  expect(isCut(m.back)).toBe(true);
-  expect(isCut(m.name)).toBe(true);
+  expect(isCut(m.header)).toBe(false);
+  // Two lines, stacked: the parent's link ends above the name begins.
+  expect(m.back.bottom).toBeLessThanOrEqual(m.leaf.top + 1);
   expect(m.back.lines).toBe(1);
-  expect(m.name.lines).toBe(1);
-  expect(m.name.right).toBeLessThanOrEqual(m.leading.right);
-
-  expect(m.controls.length).toBe(3);
-  for (const control of m.controls) expect(overlaps(m.name, control)).toBe(false);
+  expect(m.leaf.lines).toBe(1);
+  expect(m.back.right).toBeLessThanOrEqual(m.row.right);
+  expect(m.leaf.right).toBeLessThanOrEqual(m.row.right);
+  for (const control of m.controls) expect(overlaps(m.leaf, control)).toBe(false);
 });
 
-test("a plain file's row on a phone: the back control is the only name, and it stays in the row", async ({
+test("SPEC-CORE-094 D5 / I8 (a plain file at 390px): the file's name is line 2 under the parent folder, not a back control alone", async ({
   page,
 }) => {
-  await openPage(page, "file-detail-chrome-plain-phone", 390);
-  const m = await readLeadingRow(page);
+  await openPage(page, "header-row-video", 390);
+  const m = await readNarrowHeading(page);
 
   expect(m.documentScroll).toBe(m.documentClient);
-  expect(isCut(m.leading)).toBe(false);
-  // No `titleNode`, so the row drops the file's name here and the back
-  // control is alone.
-  expect(m.leadingCount).toBe(1);
+  expect(isCut(m.header)).toBe(false);
+  expect(m.back.bottom).toBeLessThanOrEqual(m.leaf.top + 1);
   expect(m.back.lines).toBe(1);
-  expect(m.back.right).toBeLessThanOrEqual(m.leading.right);
-  expect(m.controls.length).toBe(2);
-  for (const control of m.controls) expect(overlaps(m.leading, control)).toBe(false);
+  expect(m.leaf.text).toBe("holiday.webm");
+  expect(m.leaf.lines).toBe(1);
+  expect(m.leaf.right).toBeLessThanOrEqual(m.row.right);
+  for (const control of m.controls) expect(overlaps(m.leaf, control)).toBe(false);
 });
 
 

@@ -26,6 +26,7 @@ from app.services.diskpath import existing_or_409, name_taken, new_or_409, resol
 from app.services.heic import cleanup_heic_cache
 from app.services.markdown_images import project_markdown_thumbnail
 from app.services import inbox as inbox_service
+from app.services.mtime import read_modified_at
 from app.services.subtitle import move_sidecar_subtitles
 from app.services.thumbnail import (
     prune_empty_dirs,
@@ -37,6 +38,7 @@ from app.services.tagops import (
     project_frontmatter_tags,
     retarget_file_tags,
 )
+from app.services.origin import project_frontmatter_origin
 
 logger = logging.getLogger(__name__)
 
@@ -298,6 +300,7 @@ def copy_file(db: Session, file_id: str, target_drive: str | None, target_folder
             duration=source.duration,
             image_width=source.image_width,
             image_height=source.image_height,
+            modified_at=read_modified_at(new_full),
             is_favorite=False,
             liked_at=None,
         )
@@ -324,6 +327,7 @@ def copy_file(db: Session, file_id: str, target_drive: str | None, target_folder
                 content = _read_markdown_for_projection(new_full)
                 if content is not None:
                     project_frontmatter_tags(db, new_file, content)
+                    project_frontmatter_origin(db, new_file, content)
                     project_markdown_thumbnail(db, new_file, content)
                     if new_file.thumbnail_path:
                         projected_thumb = (

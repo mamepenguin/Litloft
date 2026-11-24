@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "CRITICAL",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "CR4-1",
+      "status": "confirmed",
+      "note": "Reproduced by reading the code. .github/workflows/ci.yml:390-394 defines the `fonts` step with no `if`. ci.yml:407 gates the EPUB step on `${{ !cancelled() && steps.browsers.outcome == 'success' }}`, and `!cancelled()` replaces the implicit success() check, so a failed fonts step still lets `pnpm test:e2e:epub` run without the pinned fontconfig. The layout step (ci.yml:396-398) has no `if`, so it is skipped. tests/test_ci_browser_jobs.py:244-245 says 'nothing lets a test step run without it', which is false for the EPUB step. test_fonts_step_installs_the_user_fontconfig (:246-264) checks only the fonts step's own if/continue-on-error, and EPUB_IF (:30, asserted at :188) pins the condition without `fonts`. Two mitigating facts. First, the spec itself pins this exact `if` string (docs/specs/ci-browser-container.md:40-42), so the code matches the spec and the gap is in the spec and in the test comment. Second, a failed fonts step already turns the job red, so the EPUB run under the wrong fonts does not produce a silent pass. It only produces EPUB results under a misleading font setup, the same situation the comment at ci.yml:403-405 says the gate exists to avoid. I12's literal wording ('a step that installs ... runs before every test step') is arguably still met, because the step does run."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "CD-1",
+      "status": "confirmed",
+      "note": "This is the same defect as CR4-1, and it is verified the same way. ci.yml:390-394 has the `fonts` step with no `if`. ci.yml:407's condition does not reference steps.fonts. tests/test_ci_browser_jobs.py:244-245 has the contradicting comment, and :188 with EPUB_IF at :30 would fail if `steps.fonts.outcome == 'success'` were added. That fix would also mean updating spec docs/specs/ci-browser-container.md:40, which pins the same string. The job is still red when the fonts step fails, so nothing passes silently."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "CD-2",
+      "status": "confirmed",
+      "note": "tests/test_ci_browser_jobs.py:276-279 accepts any <alias> whose first <family> is the generic and whose <prefer>'s first <family> is 'Liberation Sans'. It never reads the `binding` attribute, so removing binding=\"strong\" from .github/playwright-fonts.conf:4-5 would leave the test green. With fontconfig's default weak alias binding, language matching can rank above the preferred family, and that could let the CJK fallback win again. The test is purely static: it parses the XML and never runs fc-match in the image. So it cannot show that the user config takes effect after the image's system confs (the include order around 50-user.conf). The spec's I12 wording requires only 'prefer Liberation Sans', so the test meets the invariant as written. The weakness is that the test is less strict than the measured behaviour it is meant to protect."
+    }
+  ],
+  "specification_compliance": [
+    "The EPUB step's `if` (ci.yml:407) matches the literal string the spec pins at docs/specs/ci-browser-container.md:40, and that string omits the fonts step's outcome.",
+    "The step order (checkout < setup-addons < pnpm < node < install < browsers < fonts < tests) matches spec item 3, and test_browser_job_step_order checks it.",
+    "The fonts conf uses <alias binding=\"strong\"> to prefer Liberation Sans for sans-serif and system-ui, which matches the wording of I12."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "If the fonts step fails, the EPUB suite still runs under the image's default CJK fallback. The job is already red, but the EPUB result is produced under a font setup the spec says is wrong."
+  ],
+  "regression_risks": [
+    "If someone drops binding=\"strong\" from playwright-fonts.conf, the tests stay green, while the fallback measurements could drift back to the WenQuanYi Zen Hei ones (560 px against 548 px)."
+  ],
+  "test_coverage": [
+    "test_fonts_step_installs_the_user_fontconfig runs the step's shell in a temporary HOME and compares the bytes of the copied file. This covers the copy itself.",
+    "No test checks that a failed fonts step keeps the EPUB step from running.",
+    "test_fonts_conf_prefers_liberation_sans does not check the alias binding and does not check fontconfig resolution in the image."
+  ],
+  "not_verified": [
+    "I did not run fc-match or Playwright inside mcr.microsoft.com/playwright:v1.58.2-noble, so I did not confirm that the user fontconfig takes effect there or that a weak binding would actually change the resolved font.",
+    "I did not run the pytest suite.",
+    "I did not confirm the HOME value and its writability for --user 1001 in GitHub container jobs.",
+    "I did not review check-playwright-browsers.mjs, the vitest test, the testing.md table or the branch protection settings."
+  ],
+  "confidence": 88
+}

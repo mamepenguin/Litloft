@@ -1,5 +1,6 @@
 import type { AddonNavigation } from "./addonNavigation";
 import type { ComponentType, LazyExoticComponent } from "react";
+import { addonsStatusUrl, readAddonsStatus } from "./addonStatusRequest";
 
 export type AddonScope = "drive" | "global" | "both";
 
@@ -10,7 +11,7 @@ export interface AddonMeta {
   type?: "in_process" | "external_service";
   scope?: AddonScope;
   slots?: Record<string, SlotEntry[]>;
-  navigation?: AddonNavigation;
+  navigation?: AddonNavigation | AddonNavigation[];
 }
 
 export function addonUrlFor(name: string, meta: AddonMeta, currentDrive: string | null): string | null {
@@ -51,6 +52,11 @@ export interface SlotEntry {
   addonName?: string;
   /** A path relative to `/drive/{drive}/`, for a shelf's See all. */
   href?: string;
+  /**
+   * Read on `document-side` entries only: the inspector widens while this
+   * entry's tab is selected beside the canvas. Ignored on every other slot.
+   */
+  wide?: boolean;
 }
 
 export interface AddonsStatus {
@@ -64,20 +70,20 @@ export interface AddonsStatus {
 const _cacheKey = (drive: string | null) => drive ?? "__global__";
 const _cached: Map<string, AddonsStatus> = new Map();
 const _fetchPromise: Map<string, Promise<AddonsStatus>> = new Map();
+// An empty `addons` is both "the drive has none" and "the status request
+// failed", so an entry alone cannot answer `getSemanticAvailability`.
+const _answered: Map<string, boolean> = new Map();
 
 async function fetchAddonsStatus(drive: string | null): Promise<AddonsStatus> {
-  const url = drive
-    ? `/api/addons/status?drive=${encodeURIComponent(drive)}`
-    : "/api/addons/status";
+  const key = _cacheKey(drive);
   try {
-    const res = await fetch(url, { credentials: "include" });
-    if (!res.ok) return { addons: {}, slots: {} };
-    const data = await res.json();
-    return {
-      addons: (data.addons as Record<string, AddonMeta>) ?? {},
-      slots: (data.slots as Record<string, SlotEntry[]>) ?? {},
-    };
+    const answer = await readAddonsStatus(
+      await fetch(addonsStatusUrl(drive), { credentials: "include" }),
+    );
+    _answered.set(key, answer.answered);
+    return answer.status;
   } catch {
+    _answered.set(key, false);
     return { addons: {}, slots: {} };
   }
 }
@@ -107,6 +113,27 @@ export async function getEnabledAddons(
   return status.addons;
 }
 
+export type SemanticAvailability = "available" | "off" | "unknown";
+
+/**
+ * Whether the meaning search can run for the drive. `unknown` means the
+ * status request failed, which a caller must not treat as "no hits"; a cached
+ * failure is asked again rather than reused, so an addon enabled since then is
+ * seen.
+ */
+export async function getSemanticAvailability(
+  drive: string,
+): Promise<SemanticAvailability> {
+  const key = _cacheKey(drive);
+  if (_answered.get(key) === true) {
+    return _cached.get(key)?.addons["intelligence"] ? "available" : "off";
+  }
+  if (!_fetchPromise.has(key)) _cached.delete(key);
+  const status = await getAddonsStatus(drive);
+  if (_answered.get(key) !== true) return "unknown";
+  return status.addons["intelligence"] ? "available" : "off";
+}
+
 export async function getSlots(
   drive: string | null = null,
 ): Promise<Record<string, SlotEntry[]>> {
@@ -125,6 +152,7 @@ export function hasSlotEntries(
 export function invalidateAddonsCache(): void {
   _cached.clear();
   _fetchPromise.clear();
+  _answered.clear();
 }
 
 export type ShelfProvider = (args: {
@@ -151,6 +179,19 @@ export type ShelfPageProvider = (args: {
   restrict: (ids: string[]) => Promise<string[]>;
 }) => Promise<ShelfPageAnswer>;
 
+export interface ShelfItemAction {
+  id: string;
+  label: string;
+  icon?: ComponentType<{ size?: number }>;
+  run: (fileId: string) => Promise<{ message: string; undo?: () => Promise<void> }>;
+}
+
+export type ShelfItemActions = (args: {
+  drive: string;
+  locale: string;
+  t: (key: string) => string;
+}) => ShelfItemAction[];
+
 export type SlotModule = {
   slotComponents?: Record<
     string,
@@ -158,6 +199,7 @@ export type SlotModule = {
   >;
   slotProviders?: Record<string, ShelfProvider>;
   slotPageProviders?: Record<string, ShelfPageProvider>;
+  slotItemActions?: Record<string, ShelfItemActions>;
 };
 
 // Shared with `SlotEntryRenderer`, so a provider resolves from a module the
@@ -218,6 +260,53 @@ export async function loadSlotPageProvider(entry: SlotEntry): Promise<ShelfPageP
   } catch {
     return null;
   }
+}
+
+/**
+ * The item actions an entry attaches to its cards, or `[]` when the module,
+ * `slotItemActions` or the entry's factory is missing, throws or answers with
+ * anything but an array. Unusable elements and repeated ids are dropped one
+ * by one; the rest of the list survives.
+ */
+export async function loadSlotItemActions(
+  entry: SlotEntry,
+  args: { drive: string; locale: string; t: (key: string) => string },
+): Promise<ShelfItemAction[]> {
+  if (!entry.addonName) return [];
+  let raw: unknown;
+  try {
+    const mod = await loadAddonSlotModule(entry.addonName);
+    const factory = mod.slotItemActions?.[entry.id];
+    if (typeof factory !== "function") return [];
+    raw = factory(args);
+  } catch {
+    return [];
+  }
+  if (!Array.isArray(raw)) return [];
+
+  const seen = new Set<string>();
+  const actions: ShelfItemAction[] = [];
+  for (const candidate of raw) {
+    if (candidate === null || typeof candidate !== "object") continue;
+    const { id, label, icon, run } = candidate as {
+      id?: unknown;
+      label?: unknown;
+      icon?: unknown;
+      run?: unknown;
+    };
+    if (typeof id !== "string" || typeof label !== "string" || typeof run !== "function") continue;
+    if (seen.has(id)) continue;
+    seen.add(id);
+    actions.push({
+      id,
+      label,
+      icon: typeof icon === "function" || (typeof icon === "object" && icon !== null)
+        ? (icon as ShelfItemAction["icon"])
+        : undefined,
+      run: run as ShelfItemAction["run"],
+    });
+  }
+  return actions;
 }
 
 /**

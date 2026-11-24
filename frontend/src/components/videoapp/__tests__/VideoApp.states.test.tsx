@@ -7,7 +7,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor, fireEvent, act } from "@testing-library/react";
 
-import { readAppPrefs, writeAppPrefs } from "@/lib/appPrefs";
+import { readAppPrefs, readTargetView, writeAppPrefs, writeTargetView } from "@/lib/appPrefs";
 import { VideoApp } from "../VideoApp";
 
 const { DRIVE } = vi.hoisted(() => ({ DRIVE: "main" }));
@@ -44,12 +44,14 @@ vi.mock("@/components/AddonSlotsProvider", () => ({
 const getShelves = vi.fn();
 const getDriveFiles = vi.fn();
 const getSmartFolders = vi.fn();
+const getCollections = vi.fn();
 
 vi.mock("@/lib/api", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/api")>()),
   getShelves: (...args: unknown[]) => getShelves(...args),
   getDriveFiles: (...args: unknown[]) => getDriveFiles(...args),
   getSmartFolders: (...args: unknown[]) => getSmartFolders(...args),
+  getCollections: (...args: unknown[]) => getCollections(...args),
 }));
 
 type Params = Record<string, unknown>;
@@ -107,13 +109,22 @@ const defaultFiles = (_d: string, p: Params) => ({
 
 const never = () => new Promise<never>(() => {});
 
+/** The observer is created in a passive effect, which may land after the text of the same commit. */
+async function liveSentinel() {
+  await waitFor(() => expect(FakeObserver.instances.some((o) => o.live)).toBe(true));
+  return FakeObserver.instances.filter((o) => o.live).at(-1)!;
+}
+
 class FakeObserver {
   static instances: FakeObserver[] = [];
   constructor(private callback: IntersectionObserverCallback) {
     FakeObserver.instances.push(this);
   }
+  live = true;
   observe() {}
-  disconnect() {}
+  disconnect() {
+    this.live = false;
+  }
   unobserve() {}
   takeRecords() {
     return [];
@@ -131,6 +142,7 @@ beforeEach(() => {
   getShelves.mockReset().mockImplementation(async (d, p) => defaultShelves(d, p));
   getDriveFiles.mockReset().mockImplementation(async (d, p) => defaultFiles(d, p));
   getSmartFolders.mockReset().mockResolvedValue([]);
+  getCollections.mockReset().mockResolvedValue([]);
 });
 
 afterEach(() => {
@@ -216,28 +228,69 @@ describe("the profile as an input", () => {
     expect(screen.queryByText("Pick me")).not.toBeInTheDocument();
   });
 
-  it("drops Continue and the Watch state choice when the profile is cleared", async () => {
-    writeAppPrefs(DRIVE, { face: "library", classification: "watch" });
+  it("SPEC-CORE-147 I7 a stored Watch State shows Folder before and after the profile is cleared, and stays stored", async () => {
+    writeAppPrefs(DRIVE, { face: "library" });
+    writeTargetView("video", DRIVE, "default", { group: "watch" });
     const view = render(<VideoApp drive={DRIVE} />);
-    await waitFor(() => expect(getShelves.mock.calls.some(([, p]) => p.by === "watch")).toBe(true));
+    await waitFor(() => expect(getShelves.mock.calls.some(([, p]) => p.by === "folder")).toBe(true));
+    expect(getShelves.mock.calls.some(([, p]) => p.by === "watch" && p.key === undefined)).toBe(false);
 
     nickname = null;
     view.rerender(<VideoApp drive={DRIVE} />);
 
     await waitFor(() => expect(getShelves.mock.calls.at(-1)![1]).toMatchObject({ by: "folder" }));
-    expect(readAppPrefs(DRIVE).classification).toBe("watch");
+    expect(readTargetView("video", DRIVE, "default").group).toBe("watch");
+  });
+
+  it("SPEC-CORE-147 I7 keeps a chosen sort and Folder when the profile returns over a stored Watch State", async () => {
+    nickname = null;
+    writeAppPrefs(DRIVE, { face: "library" });
+    writeTargetView("video", DRIVE, "default", { group: "watch" });
+    const view = render(<VideoApp drive={DRIVE} />);
+    await waitFor(() =>
+      expect(
+        getShelves.mock.calls.some(
+          ([, p]) => (p as Params).by === "folder" && (p as Params).sort === "created_at",
+        ),
+      ).toBe(true),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Sort By/ }));
+    fireEvent.click(await screen.findByRole("menuitemradio", { name: "Size" }));
+    await waitFor(() =>
+      expect(
+        getShelves.mock.calls.some(
+          ([, p]) => (p as Params).by === "folder" && (p as Params).sort === "file_size",
+        ),
+      ).toBe(true),
+    );
+
+    const before = getShelves.mock.calls.length;
+    nickname = "alice";
+    view.rerender(<VideoApp drive={DRIVE} />);
+
+    await act(async () => {});
+    const after = getShelves.mock.calls.slice(before).map(([, p]) => p as Params);
+    expect(after.filter((p) => p.by === "watch" && p.key === undefined)).toEqual([]);
+    const library = getShelves.mock.calls
+      .map(([, p]) => p as Params)
+      .filter((p) => p.by !== "watch");
+    expect(library.at(-1)).toMatchObject({ by: "folder", sort: "file_size" });
+    expect(screen.getByRole("button", { name: /Group By/ })).toHaveTextContent("Folder");
+    expect(readTargetView("video", DRIVE, "default").group).toBe("watch");
   });
 
   it("falls back to Folder in the Library when the server turns the viewer away", async () => {
     const { ApiStatusError } = await import("@/lib/api");
-    writeAppPrefs(DRIVE, { face: "library", classification: "watch" });
+    writeAppPrefs(DRIVE, { face: "library" });
+    writeTargetView("video", DRIVE, "default", { group: "watch" });
     getShelves.mockImplementation(async (d, p: Params) => {
       if (p.by === "watch") throw Object.assign(new ApiStatusError(400, "x"), { detail: "viewer_required" });
       return defaultShelves(d, p);
     });
     render(<VideoApp drive={DRIVE} />);
 
-    expect(await screen.findByText("Shelf 0")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Shelf 0" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /retry/i })).not.toBeInTheDocument();
   });
 });
@@ -251,7 +304,7 @@ describe("the Library while it pages and fails", () => {
     getShelves.mockImplementation(never);
     const { container } = render(<VideoApp drive={DRIVE} />);
 
-    await screen.findByRole("button", { name: /Classification/ });
+    await screen.findByRole("button", { name: /Group By/ });
     await waitFor(() => expect(container.querySelectorAll(".animate-pulse").length).toBeGreaterThan(0));
     expect(screen.queryByText("No files")).not.toBeInTheDocument();
   });
@@ -264,40 +317,42 @@ describe("the Library while it pages and fails", () => {
     });
     render(<VideoApp drive={DRIVE} />);
 
-    const retry = await screen.findByRole("button", { name: /retry/i });
+    const retries = await screen.findAllByRole("button", { name: /retry/i });
     fail = false;
-    fireEvent.click(retry);
+    fireEvent.click(retries.at(-1)!);
 
-    expect(await screen.findByText("Shelf 0")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Shelf 0" })).toBeInTheDocument();
   });
 
   it("loads the next 12 shelves from the offset when the end comes into view", async () => {
     render(<VideoApp drive={DRIVE} />);
-    await screen.findByText("Shelf 0");
+    await screen.findByRole("heading", { name: "Shelf 0" });
 
-    act(() => FakeObserver.instances.at(-1)!.trigger());
+    const sentinel = await liveSentinel();
+    act(() => sentinel.trigger());
 
-    expect(await screen.findByText("Shelf 12")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Shelf 12" })).toBeInTheDocument();
     expect(getShelves.mock.calls.at(-1)![1]).toMatchObject({ offset: 12, shelf_limit: 12 });
-    expect(screen.getByText("Shelf 0")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Shelf 0" })).toBeInTheDocument();
   });
 
   it("keeps the shelves it has and offers retry when a later page fails", async () => {
     render(<VideoApp drive={DRIVE} />);
-    await screen.findByText("Shelf 0");
+    await screen.findByRole("heading", { name: "Shelf 0" });
     getShelves.mockImplementation(async () => {
       throw new Error("boom");
     });
 
-    act(() => FakeObserver.instances.at(-1)!.trigger());
+    const sentinel = await liveSentinel();
+    act(() => sentinel.trigger());
 
     expect(await screen.findByRole("button", { name: /retry/i })).toBeInTheDocument();
-    expect(screen.getByText("Shelf 0")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Shelf 0" })).toBeInTheDocument();
   });
 
   it("asks for the order the sort menu names", async () => {
     render(<VideoApp drive={DRIVE} />);
-    await screen.findByText("Shelf 0");
+    await screen.findByRole("heading", { name: "Shelf 0" });
 
     fireEvent.click(screen.getByRole("button", { name: /Sort/ }));
     expect(screen.queryByText("Random")).not.toBeInTheDocument();
@@ -360,7 +415,8 @@ describe("the count in the header", () => {
     writeAppPrefs(DRIVE, { target: "pics" });
     render(<VideoApp drive={DRIVE} />);
 
-    expect(await screen.findByText(/main · 0/)).toBeInTheDocument();
+    const drive = await screen.findByText(DRIVE);
+    await waitFor(() => expect(drive.parentElement?.textContent).toContain("main · 0"));
     expect(getShelves).not.toHaveBeenCalled();
     expect(getDriveFiles).not.toHaveBeenCalled();
     expect(await screen.findByText("No files")).toBeInTheDocument();

@@ -27,11 +27,11 @@ const FIXTURE = pathToFileURL(PAGE).href;
 /**
  * The hook reads the release velocity from the moves' timestamps, so the
  * gap is the input: a push is a third of the dismiss velocity, and a flick
- * is as fast as a CDP round trip allows.
+ * is four times it.
  */
 const STEP_PX = 20;
 const PUSH = { gapMs: Math.round(STEP_PX / (SHEET_PULL_DISMISS_VELOCITY / 3)) };
-const FLICK = { gapMs: 0 };
+const FLICK = { gapMs: Math.round(STEP_PX / (SHEET_PULL_DISMISS_VELOCITY * 4)) };
 
 const stepsFor = (down: number) =>
   Math.max(2, Math.round(Math.abs(down) / STEP_PX));
@@ -137,20 +137,28 @@ async function swipe(
   const x = Math.round(box.x + box.width / 2);
   const y0 = Math.round(box.y + box.height / 2);
   const cdp = await page.context().newCDPSession(page);
+  // Stamped rather than left to the clock: a CDP round trip on a loaded CI
+  // runner is slow enough to turn a flick into a push. The real wait keeps
+  // the stamps from running ahead of the page's clock.
+  const landedAt = Date.now();
+  const at = (step: number) => (landedAt + step * gapMs) / 1000;
   await cdp.send("Input.dispatchTouchEvent", {
     type: "touchStart",
     touchPoints: [{ x, y: y0 }],
+    timestamp: at(0),
   });
   for (let step = 1; step <= steps; step += 1) {
-    if (gapMs > 0) await page.waitForTimeout(gapMs);
+    await page.waitForTimeout(gapMs);
     await cdp.send("Input.dispatchTouchEvent", {
       type: "touchMove",
       touchPoints: [{ x, y: Math.round(y0 + (down * step) / steps) }],
+      timestamp: at(step),
     });
   }
   await cdp.send("Input.dispatchTouchEvent", {
     type: "touchEnd",
     touchPoints: [],
+    timestamp: at(steps),
   });
   await cdp.detach();
   if (!wait) return;

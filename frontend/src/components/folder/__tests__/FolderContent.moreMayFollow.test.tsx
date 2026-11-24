@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { createRef } from "react";
 
-import { FolderContent } from "../FolderContent";
+import { FolderContent } from "./folderContentHarness";
 import type { FileItem, Folder } from "@/types";
 
 vi.mock("next/link", () => ({
@@ -42,6 +42,7 @@ const photo = (id: string): FileItem => ({
   trust_reviewed_at: null,
   created_at: "2026-01-01T00:00:00Z",
   updated_at: "2026-01-01T00:00:00Z",
+  modified_at: null,
 });
 
 const props = {

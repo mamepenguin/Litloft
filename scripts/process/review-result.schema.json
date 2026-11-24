@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Review result artifact",
-  "description": "One reviewer's result for one review. validate-artifact.sh enforces this shape with jq.",
+  "description": "One reviewer's result for one review. validate-artifact.sh enforces this shape with jq, and also accepts potential_unspecified_behavior as an array of strings, the shape of earlier kits.",
   "type": "object",
   "required": [
     "schema_version",
@@ -17,6 +17,21 @@
     "not_verified",
     "confidence"
   ],
+  "if": {
+    "properties": {
+      "role": {
+        "const": "read"
+      }
+    },
+    "required": [
+      "role"
+    ]
+  },
+  "then": {
+    "required": [
+      "coverage"
+    ]
+  },
   "properties": {
     "schema_version": {
       "const": 1
@@ -59,7 +74,10 @@
       "type": "boolean"
     },
     "potential_unspecified_behavior": {
-      "$ref": "#/definitions/strings"
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/unspecified_entry"
+      }
     },
     "regression_risks": {
       "$ref": "#/definitions/strings"
@@ -77,6 +95,12 @@
           "minItems": 1
         }
       ]
+    },
+    "coverage": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/coverage_entry"
+      }
     },
     "confidence": {
       "type": "integer",
@@ -103,6 +127,12 @@
     },
     "trajectory": {
       "type": "string"
+    },
+    "unspecified_scores": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/unspecified_score"
+      }
     }
   },
   "definitions": {
@@ -198,6 +228,29 @@
         }
       }
     },
+    "coverage_entry": {
+      "type": "object",
+      "required": [
+        "path",
+        "read",
+        "reason"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "#/definitions/text"
+        },
+        "read": {
+          "enum": [
+            "full",
+            "partial",
+            "not_read"
+          ]
+        },
+        "reason": {
+          "$ref": "#/definitions/text"
+        }
+      }
+    },
     "verification_record": {
       "type": "object",
       "required": [
@@ -273,6 +326,67 @@
               }
             }
           }
+        }
+      }
+    },
+    "frequency": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 10
+    },
+    "impact_score": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 10
+    },
+    "unspecified_entry": {
+      "type": "object",
+      "required": [
+        "behavior",
+        "frequency",
+        "impact",
+        "reason"
+      ],
+      "properties": {
+        "behavior": {
+          "$ref": "#/definitions/text"
+        },
+        "frequency": {
+          "$ref": "#/definitions/frequency"
+        },
+        "impact": {
+          "$ref": "#/definitions/impact_score"
+        },
+        "reason": {
+          "$ref": "#/definitions/text"
+        }
+      }
+    },
+    "unspecified_score": {
+      "type": "object",
+      "required": [
+        "source_reviewer",
+        "index",
+        "frequency",
+        "impact",
+        "reason"
+      ],
+      "properties": {
+        "source_reviewer": {
+          "$ref": "#/definitions/text"
+        },
+        "index": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "frequency": {
+          "$ref": "#/definitions/frequency"
+        },
+        "impact": {
+          "$ref": "#/definitions/impact_score"
+        },
+        "reason": {
+          "$ref": "#/definitions/text"
         }
       }
     }

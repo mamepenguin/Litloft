@@ -24,6 +24,7 @@ import {
 import { usePlaybackProgress } from "@/lib/playbackProgress";
 import { useNativePlayerUiPreference } from "@/lib/nativePlayerUi";
 import MediaControls from "./player/MediaControls";
+import { FindOutlineLayer } from "./player/FindOutlineLayer";
 import { useFullscreen } from "./player/hooks/useFullscreen";
 import { useReassertCaptions } from "./player/hooks/useReassertCaptions";
 import { useVideoShortcuts } from "./player/hooks/useVideoShortcuts";
@@ -259,6 +260,8 @@ const BrowserVideoPlayer = forwardRef(function BrowserVideoPlayer(
           )}
           {t("videoNotSupported")}
         </video>
+
+        <FindOutlineLayer video={videoElement} controller={mc} />
 
         {playerUi === "litloft" && (
           <LitloftVideoControls

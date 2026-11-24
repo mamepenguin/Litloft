@@ -1,0 +1,85 @@
+2026-11-15T13:55:21.600507872Z INFO:     192.168.147.2:49998 - "POST /files/ht8Pv6R9TBmg/ask HTTP/1.1" 200 OK
+2026-11-15T13:55:21.767773575Z 2026-11-15 13:55:21,767 [INFO] app.rag.file_question: frames_dropped: chosen=8 dropped=0 (file ht8Pv6R9TBmg)
+2026-11-15T13:58:32.655275141Z INFO:     192.168.147.2:58838 - "POST /files/ht8Pv6R9TBmg/ask HTTP/1.1" 200 OK
+2026-11-15T13:58:32.825434408Z 2026-11-15 13:58:32,825 [INFO] app.rag.file_question: frames_dropped: chosen=8 dropped=0 (file ht8Pv6R9TBmg)
+2026-11-15T13:58:50.377838450Z 2026-11-15 13:58:50,377 [INFO] httpx: HTTP Request: POST http://host.docker.internal:11500/api/chat "HTTP/1.0 200 OK"
+2026-11-15T14:02:13.142497023Z INFO:     192.168.147.2:45974 - "POST /files/ht8Pv6R9TBmg/ask HTTP/1.1" 200 OK
+2026-11-15T14:02:13.354578603Z 2026-11-15 14:02:13,354 [INFO] app.rag.file_question: frames_dropped: chosen=8 dropped=0 (file ht8Pv6R9TBmg)
+2026-11-15T14:02:31.820866966Z 2026-11-15 14:02:31,820 [INFO] httpx: HTTP Request: POST http://host.docker.internal:11500/api/chat "HTTP/1.0 200 OK"
+2026-11-15T14:05:09.624988778Z INFO:     192.168.147.2:51964 - "POST /files/ht8Pv6R9TBmg/ask HTTP/1.1" 200 OK
+2026-11-15T14:05:09.800964845Z 2026-11-15 14:05:09,800 [INFO] app.rag.file_question: frames_dropped: chosen=8 dropped=0 (file ht8Pv6R9TBmg)
+2026-11-15T14:05:27.404318770Z 2026-11-15 14:05:27,403 [INFO] httpx: HTTP Request: POST http://host.docker.internal:11500/api/chat "HTTP/1.0 200 OK"
+2026-11-15T14:06:31.763065419Z INFO:     192.168.147.2:37468 - "POST /files/ht8Pv6R9TBmg/ask HTTP/1.1" 200 OK
+2026-11-15T14:06:31.967060598Z 2026-11-15 14:06:31,966 [INFO] app.rag.file_question: frames_dropped: chosen=8 dropped=0 (file ht8Pv6R9TBmg)
+2026-11-15T14:06:34.585484425Z 2026-11-15 14:06:34,585 [INFO] httpx: HTTP Request: POST http://host.docker.internal:11500/api/chat "HTTP/1.0 200 OK"
+2026-11-15T14:07:16.463766312Z INFO:     192.168.147.2:43900 - "POST /files/ht8Pv6R9TBmg/ask HTTP/1.1" 200 OK
+2026-11-15T14:07:16.633425160Z 2026-11-15 14:07:16,633 [INFO] app.rag.file_question: frames_dropped: chosen=8 dropped=0 (file ht8Pv6R9TBmg)
+2026-11-15T14:07:19.452445065Z 2026-11-15 14:07:19,452 [INFO] httpx2: HTTP Request: POST http://host.docker.internal:11501/api/v1/chat/completions "HTTP/1.0 200 OK"
+2026-11-15T14:07:25.948129818Z 2026-11-15 14:07:25,947 [INFO] httpx2: HTTP Request: POST http://host.docker.internal:11501/api/v1/chat/completions "HTTP/1.0 200 OK"
+2026-11-15T14:07:27.673365288Z 2026-11-15 14:07:27,672 [INFO] app.routers.rag: frame requests: 1 calls, 4 frames (file ht8Pv6R9TBmg)
+2026-11-15T14:08:33.696540272Z INFO:     192.168.147.2:33158 - "POST /files/ht8Pv6R9TBmg/ask HTTP/1.1" 200 OK
+2026-11-15T14:08:33.869683857Z 2026-11-15 14:08:33,869 [INFO] app.rag.file_question: frames_dropped: chosen=8 dropped=0 (file ht8Pv6R9TBmg)
+2026-11-15T14:08:35.931519831Z 2026-11-15 14:08:35,930 [INFO] httpx2: HTTP Request: POST http://host.docker.internal:11501/api/v1/chat/completions "HTTP/1.0 200 OK"
+2026-11-15T14:08:41.972187892Z 2026-11-15 14:08:41,971 [INFO] httpx2: HTTP Request: POST http://host.docker.internal:11501/api/v1/chat/completions "HTTP/1.0 200 OK"
+2026-11-15T14:08:59.149432525Z 2026-11-15 14:08:59,149 [INFO] httpx2: HTTP Request: POST http://host.docker.internal:11501/api/v1/chat/completions "HTTP/1.0 200 OK"
+2026-11-15T14:09:13.178383903Z 2026-11-15 14:09:13,177 [INFO] httpx2: HTTP Request: POST http://host.docker.internal:11501/api/v1/chat/completions "HTTP/1.0 200 OK"
+2026-11-15T14:09:18.593308021Z 2026-11-15 14:09:18,591 [INFO] app.routers.rag: frame requests: 3 calls, 10 frames (file ht8Pv6R9TBmg)
+2026-11-15T14:12:24.353002938Z INFO:     192.168.147.2:32898 - "POST /files/ht8Pv6R9TBmg/ask HTTP/1.1" 200 OK
+2026-11-15T14:12:24.524608885Z 2026-11-15 14:12:24,524 [INFO] app.rag.file_question: frames_dropped: chosen=8 dropped=0 (file ht8Pv6R9TBmg)
+2026-11-15T14:12:29.105103430Z 2026-11-15 14:12:29,104 [INFO] httpx2: HTTP Request: POST http://host.docker.internal:11501/api/v1/chat/completions "HTTP/1.0 200 OK"
+2026-11-15T14:12:36.638875006Z 2026-11-15 14:12:36,637 [INFO] httpx2: HTTP Request: POST http://host.docker.internal:11501/api/v1/chat/completions "HTTP/1.0 200 OK"
+2026-11-15T14:12:52.841560105Z 2026-11-15 14:12:52,840 [INFO] httpx2: HTTP Request: POST http://host.docker.internal:11501/api/v1/chat/completions "HTTP/1.0 200 OK"
+2026-11-15T14:13:06.291539753Z 2026-11-15 14:13:06,290 [WARNING] app.routers.rag: frame_tool_fallback (file ht8Pv6R9TBmg)
+2026-11-15T14:13:07.661136515Z 2026-11-15 14:13:07,660 [INFO] httpx2: HTTP Request: POST http://host.docker.internal:11501/api/v1/chat/completions "HTTP/1.0 200 OK"
+2026-11-15T14:13:10.820096745Z 2026-11-15 14:13:10,818 [INFO] app.routers.rag: frame requests: 2 calls, 8 frames (file ht8Pv6R9TBmg)
+2026-11-15T14:13:44.133999840Z INFO:     127.0.0.1:50528 - "POST /files/ht8Pv6R9TBmg/ask HTTP/1.1" 200 OK
+2026-11-15T14:13:44.304434736Z 2026-11-15 14:13:44,304 [INFO] app.rag.file_question: frames_dropped: chosen=8 dropped=0 (file ht8Pv6R9TBmg)
+2026-11-15T14:13:47.622656393Z 2026-11-15 14:13:47,622 [INFO] httpx2: HTTP Request: POST http://host.docker.internal:11501/api/v1/chat/completions "HTTP/1.0 200 OK"
+2026-11-15T14:13:52.593308905Z 2026-11-15 14:13:52,592 [INFO] httpx2: HTTP Request: POST http://host.docker.internal:11501/api/v1/chat/completions "HTTP/1.0 200 OK"
+2026-11-15T14:14:00.198527016Z 2026-11-15 14:14:00,197 [WARNING] app.routers.rag: frame_tool_fallback (file ht8Pv6R9TBmg)
+2026-11-15T14:14:03.188601405Z 2026-11-15 14:14:03,187 [INFO] httpx2: HTTP Request: POST http://host.docker.internal:11501/api/v1/chat/completions "HTTP/1.0 200 OK"
+2026-11-15T14:14:05.740783600Z 2026-11-15 14:14:05,740 [INFO] app.routers.rag: frame requests: 1 calls, 4 frames (file ht8Pv6R9TBmg)
+2026-11-15T14:15:11.444121731Z INFO:     192.168.147.2:36256 - "POST /files/vb74YwPHV6jx/ask HTTP/1.1" 200 OK
+2026-11-15T14:15:12.259830109Z 2026-11-15 14:15:12,259 [INFO] app.rag.file_question: frames_dropped: chosen=8 dropped=0 (file vb74YwPHV6jx)
+2026-11-15T14:15:25.908300360Z 2026-11-15 14:15:25,907 [INFO] httpx: HTTP Request: POST http://host.docker.internal:11500/api/chat "HTTP/1.0 200 OK"
+2026-11-15T14:16:04.053955838Z INFO:     192.168.147.2:49586 - "POST /files/vb74YwPHV6jx/ask HTTP/1.1" 200 OK
+2026-11-15T14:16:04.182654298Z 2026-11-15 14:16:04,182 [INFO] app.rag.file_question: frames_dropped: chosen=8 dropped=0 (file vb74YwPHV6jx)
+2026-11-15T14:16:16.655880306Z 2026-11-15 14:16:16,655 [INFO] httpx: HTTP Request: POST http://host.docker.internal:11500/api/chat "HTTP/1.0 200 OK"
+2026-11-15T14:16:59.047585504Z INFO:     192.168.147.2:45448 - "POST /files/vb74YwPHV6jx/ask HTTP/1.1" 200 OK
+2026-11-15T14:16:59.175501207Z 2026-11-15 14:16:59,175 [INFO] app.rag.file_question: frames_dropped: chosen=8 dropped=0 (file vb74YwPHV6jx)
+2026-11-15T14:17:00.919429787Z 2026-11-15 14:17:00,918 [INFO] httpx2: HTTP Request: POST http://host.docker.internal:11501/api/v1/chat/completions "HTTP/1.0 200 OK"
+2026-11-15T14:17:04.561423830Z 2026-11-15 14:17:04,561 [INFO] httpx2: HTTP Request: POST http://host.docker.internal:11501/api/v1/chat/completions "HTTP/1.0 200 OK"
+2026-11-15T14:17:06.737483137Z 2026-11-15 14:17:06,737 [INFO] app.routers.rag: frame requests: 1 calls, 4 frames (file vb74YwPHV6jx)
+2026-11-15T14:17:47.609502082Z INFO:     192.168.147.2:37042 - "POST /files/vb74YwPHV6jx/ask HTTP/1.1" 200 OK
+2026-11-15T14:17:47.737663320Z 2026-11-15 14:17:47,737 [INFO] app.rag.file_question: frames_dropped: chosen=8 dropped=0 (file vb74YwPHV6jx)
+2026-11-15T14:17:47.748351208Z 2026-11-15 14:17:47,748 [INFO] httpx: HTTP Request: POST http://host.docker.internal:11500/api/chat "HTTP/1.0 400 Bad Request"
+2026-11-15T14:17:47.748374500Z 2026-11-15 14:17:47,748 [WARNING] app.routers.rag: file question frames failed: ImageRejected (file vb74YwPHV6jx)
+2026-11-15T14:17:47.748376667Z 2026-11-15 14:17:47,748 [WARNING] app.routers.rag: frame_tool_fallback (file vb74YwPHV6jx)
+2026-11-15T14:18:13.534146166Z 2026-11-15 14:18:13,533 [INFO] httpx: HTTP Request: POST http://host.docker.internal:11500/api/chat "HTTP/1.0 200 OK"
+2026-11-15T14:20:05.957584190Z INFO:     192.168.147.2:44396 - "POST /files/ht8Pv6R9TBmg/ask HTTP/1.1" 200 OK
+2026-11-15T14:20:12.362629508Z 2026-11-15 14:20:12,362 [INFO] app.rag.file_question: frames_dropped: chosen=8 dropped=0 (file ht8Pv6R9TBmg)
+2026-11-15T14:20:14.261006794Z 2026-11-15 14:20:14,260 [INFO] httpx2: HTTP Request: POST http://host.docker.internal:11501/api/v1/chat/completions "HTTP/1.0 200 OK"
+2026-11-15T14:20:22.245992777Z 2026-11-15 14:20:22,245 [INFO] httpx2: HTTP Request: POST http://host.docker.internal:11501/api/v1/chat/completions "HTTP/1.0 200 OK"
+2026-11-15T14:20:24.747944230Z 2026-11-15 14:20:24,747 [INFO] app.routers.rag: frame requests: 1 calls, 4 frames (file ht8Pv6R9TBmg)
+2026-11-15T14:22:01.727131590Z INFO:     192.168.147.2:51542 - "POST /files/vb74YwPHV6jx/ask HTTP/1.1" 200 OK
+2026-11-15T14:22:01.860179452Z 2026-11-15 14:22:01,860 [INFO] app.rag.file_question: frames_dropped: chosen=8 dropped=0 (file vb74YwPHV6jx)
+2026-11-15T14:22:03.062060657Z 2026-11-15 14:22:03,061 [INFO] httpx2: HTTP Request: POST http://host.docker.internal:11501/api/v1/chat/completions "HTTP/1.0 200 OK"
+2026-11-15T14:22:08.843380973Z 2026-11-15 14:22:08,843 [INFO] httpx2: HTTP Request: POST http://host.docker.internal:11501/api/v1/chat/completions "HTTP/1.0 200 OK"
+2026-11-15T14:22:14.582663207Z 2026-11-15 14:22:14,581 [INFO] httpx2: HTTP Request: POST http://host.docker.internal:11501/api/v1/chat/completions "HTTP/1.0 200 OK"
+2026-11-15T14:22:23.141529562Z 2026-11-15 14:22:23,140 [INFO] httpx2: HTTP Request: POST http://host.docker.internal:11501/api/v1/chat/completions "HTTP/1.0 200 OK"
+2026-11-15T14:22:26.924282088Z 2026-11-15 14:22:26,923 [INFO] app.routers.rag: frame requests: 3 calls, 12 frames (file vb74YwPHV6jx)
+2026-11-15T14:22:44.722777689Z INFO:     192.168.147.2:37770 - "POST /files/vb74YwPHV6jx/ask HTTP/1.1" 200 OK
+2026-11-15T14:22:44.851009695Z 2026-11-15 14:22:44,850 [INFO] app.rag.file_question: frames_dropped: chosen=8 dropped=0 (file vb74YwPHV6jx)
+2026-11-15T14:22:47.620996072Z 2026-11-15 14:22:47,620 [INFO] httpx2: HTTP Request: POST http://host.docker.internal:11501/api/v1/chat/completions "HTTP/1.0 200 OK"
+2026-11-15T14:22:50.174460342Z 2026-11-15 14:22:50,174 [INFO] httpx2: HTTP Request: POST http://host.docker.internal:11501/api/v1/chat/completions "HTTP/1.0 200 OK"
+2026-11-15T14:22:56.387381198Z 2026-11-15 14:22:56,385 [INFO] app.routers.rag: frame requests: 1 calls, 4 frames (file vb74YwPHV6jx)
+2026-11-15T14:23:34.712008187Z INFO:     192.168.147.2:53066 - "POST /files/vb74YwPHV6jx/ask HTTP/1.1" 200 OK
+2026-11-15T14:23:34.832900207Z 2026-11-15 14:23:34,832 [INFO] app.rag.file_question: frames_dropped: chosen=8 dropped=0 (file vb74YwPHV6jx)
+2026-11-15T14:23:36.455262305Z 2026-11-15 14:23:36,453 [INFO] httpx2: HTTP Request: POST http://host.docker.internal:11501/api/v1/chat/completions "HTTP/1.0 200 OK"
+2026-11-15T14:23:38.494298458Z 2026-11-15 14:23:38,493 [INFO] httpx2: HTTP Request: POST http://host.docker.internal:11501/api/v1/chat/completions "HTTP/1.0 200 OK"
+2026-11-15T14:23:41.355332890Z 2026-11-15 14:23:41,355 [INFO] app.routers.rag: frame requests: 1 calls, 2 frames (file vb74YwPHV6jx)
+2026-11-15T14:28:07.705919294Z INFO:     192.168.147.2:57386 - "POST /files/vb74YwPHV6jx/ask HTTP/1.1" 200 OK
+2026-11-15T14:28:07.829981063Z 2026-11-15 14:28:07,829 [INFO] app.rag.file_question: frames_dropped: chosen=8 dropped=0 (file vb74YwPHV6jx)
+2026-11-15T14:28:21.513220249Z 2026-11-15 14:28:21,512 [INFO] httpx: HTTP Request: POST http://host.docker.internal:11500/api/chat "HTTP/1.0 200 OK"
+2026-11-15T14:28:27.210354854Z 2026-11-15 14:28:27,209 [INFO] httpx: HTTP Request: POST http://host.docker.internal:11500/api/chat "HTTP/1.0 200 OK"
+2026-11-15T14:28:32.700539009Z 2026-11-15 14:28:32,699 [INFO] app.routers.rag: frame requests: 1 calls, 2 frames (file vb74YwPHV6jx)

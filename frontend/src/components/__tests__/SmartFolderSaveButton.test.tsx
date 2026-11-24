@@ -115,7 +115,7 @@ const replaced = () => {
   return { pathname: url.pathname, params: url.searchParams };
 };
 
-describe("the Smart Folder rows in the … menu", () => {
+describe("SPEC-CORE-106 I1 the Smart Collection rows in the … menu", () => {
   beforeEach(() => {
     routerReplace.mockReset();
     createMock.mockReset();
@@ -126,7 +126,7 @@ describe("the Smart Folder rows in the … menu", () => {
 
   it("offers Save when no smart folder is resolved", () => {
     menu();
-    expect(screen.getByRole("menuitem", { name: "Save as Smart Folder" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Save as Smart Collection" })).toBeInTheDocument();
   });
 
   it("offers nothing for a blank query", () => {
@@ -134,7 +134,7 @@ describe("the Smart Folder rows in the … menu", () => {
     expect(screen.queryAllByRole("menuitem")).toHaveLength(0);
   });
 
-  it("shows the saved name as a non-item row, then Update, Rename and Delete", () => {
+  it("SPEC-CORE-103 I8: shows the saved name as a non-item row, then Overwrite, Rename and Delete", () => {
     mockSmartFolders = [SAMPLE];
     menu({ smartFolderId: "sf1", typeFilter: "video" });
 
@@ -142,23 +142,23 @@ describe("the Smart Folder rows in the … menu", () => {
     expect(label.closest("[role]")?.getAttribute("role")).toBe("presentation");
     expect(label.classList).toContain("truncate");
     expect(screen.queryByRole("menuitem", { name: /Saved:/ })).toBeNull();
-    for (const name of ["Update", "Rename", "Delete"]) {
+    for (const name of ["Overwrite", "Rename", "Delete"]) {
       expect(screen.getByRole("menuitem", { name })).toBeInTheDocument();
     }
-    expect(screen.queryByRole("menuitem", { name: "Save as Smart Folder" })).toBeNull();
+    expect(screen.queryByRole("menuitem", { name: "Save as Smart Collection" })).toBeNull();
   });
 
   it("falls back to Save for an unresolved smart_folder_id", () => {
     mockSmartFolders = [SAMPLE];
     menu({ smartFolderId: "missing-id" });
 
-    expect(screen.getByRole("menuitem", { name: "Save as Smart Folder" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Save as Smart Collection" })).toBeInTheDocument();
     expect(screen.queryByText(/Saved:/)).toBeNull();
   });
 
   it("closes the menu before opening Save", () => {
     const { closeMenu } = menu();
-    fireEvent.click(screen.getByRole("menuitem", { name: "Save as Smart Folder" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Save as Smart Collection" }));
 
     expect(closeMenu).toHaveBeenCalledTimes(1);
     expect(screen.getByTestId("save-dialog-save")).toBeInTheDocument();
@@ -173,7 +173,7 @@ describe("the Smart Folder rows in the … menu", () => {
         </div>
       </SmartFolderController>,
     );
-    fireEvent.click(screen.getByRole("menuitem", { name: "Save as Smart Folder" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Save as Smart Collection" }));
 
     rerender(
       <SmartFolderController {...props}>
@@ -188,7 +188,7 @@ describe("the Smart Folder rows in the … menu", () => {
     createMock.mockResolvedValueOnce({ ...SAMPLE, id: "new-id" });
     menu({ query: "foo", typeFilter: "video", show: "passages", includeSceneClip: true });
 
-    fireEvent.click(screen.getByRole("menuitem", { name: "Save as Smart Folder" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Save as Smart Collection" }));
     fireEvent.click(screen.getByTestId("dialog-submit"));
 
     await waitFor(() => expect(createMock).toHaveBeenCalledTimes(1));
@@ -207,21 +207,27 @@ describe("the Smart Folder rows in the … menu", () => {
     expect(params.get("include_scene_clip")).toBe("true");
   });
 
-  it("updates with the URL's query after closing the menu", async () => {
+  it("SPEC-CORE-103 I3: overwrites with the URL's query after closing the menu, without a confirmation", async () => {
     mockSmartFolders = [SAMPLE];
-    updateMock.mockResolvedValueOnce({ ...SAMPLE });
-    const { closeMenu } = menu({ query: "newquery", typeFilter: "video", smartFolderId: "sf1" });
+    updateMock.mockResolvedValueOnce({ ...SAMPLE, query: "newquery" });
+    const { closeMenu } = menu({ query: "  newquery ", typeFilter: "video", smartFolderId: "sf1" });
 
-    fireEvent.click(screen.getByRole("menuitem", { name: "Update" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Overwrite" }));
     expect(closeMenu).toHaveBeenCalledTimes(1);
-    fireEvent.click(screen.getByTestId("confirm-ok"));
+    expect(screen.queryByTestId("confirm-dialog")).toBeNull();
 
-    await waitFor(() => {
-      expect(updateMock).toHaveBeenCalledWith("sf1", {
-        query: "newquery",
-        file_type: "video",
-      });
-    });
+    await waitFor(() => expect(updateMock).toHaveBeenCalledTimes(1));
+    expect(updateMock.mock.calls[0]).toEqual(["sf1", { query: "newquery", file_type: "video" }]);
+  });
+
+  it("SPEC-CORE-103 I1: disables Overwrite while the URL's conditions equal the folder's", () => {
+    mockSmartFolders = [SAMPLE];
+    menu({ query: " foo ", typeFilter: "video", smartFolderId: "sf1" });
+
+    const row = screen.getByRole("menuitem", { name: "Overwrite" });
+    expect(row).toBeDisabled();
+    fireEvent.click(row);
+    expect(updateMock).not.toHaveBeenCalled();
   });
 
   it("deletes and keeps show and include_scene_clip", async () => {
@@ -262,11 +268,11 @@ describe("the Smart Folder rows in the … menu", () => {
     createMock.mockRejectedValueOnce(new Error("offline"));
     menu();
 
-    fireEvent.click(screen.getByRole("menuitem", { name: "Save as Smart Folder" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Save as Smart Collection" }));
     await act(async () => {
       fireEvent.click(screen.getByTestId("dialog-submit"));
     });
 
-    expect(await screen.findByText("Failed to save Smart Folder")).toBeInTheDocument();
+    expect(await screen.findByText("Failed to save Smart Collection")).toBeInTheDocument();
   });
 });

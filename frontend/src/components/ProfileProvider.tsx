@@ -5,6 +5,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -45,30 +46,32 @@ function deleteCookie(name: string): void {
 
 export function ProfileProvider({ children }: { children: ReactNode }) {
   const [nickname, setNicknameState] = useState<string | null>(null);
-  const [mounted, setMounted] = useState(false);
+  // A child's mount effect runs before this provider's, so a nickname it
+  // wrote must not be replaced by the stored value read there.
+  const wroteNickname = useRef(false);
 
   useEffect(() => {
-    const stored = readCookie(COOKIE_NAME);
-    setNicknameState(stored);
-    setMounted(true);
+    if (wroteNickname.current) return;
+    setNicknameState(readCookie(COOKIE_NAME));
   }, []);
 
   const setNickname = useCallback((name: string) => {
     const clean = sanitizeNickname(name);
     if (!clean) return;
     writeCookie(COOKIE_NAME, clean);
+    wroteNickname.current = true;
     setNicknameState(clean);
   }, []);
 
   const clearNickname = useCallback(() => {
     deleteCookie(COOKIE_NAME);
+    wroteNickname.current = true;
     setNicknameState(null);
   }, []);
 
-  if (!mounted) {
-    return <>{children}</>;
-  }
-
+  // `children` must keep the same parent element in every render: serving
+  // them bare until the cookie has been read would remount the whole page
+  // subtree when the provider appears.
   return (
     <ProfileContext value={{ nickname, setNickname, clearNickname }}>
       {children}

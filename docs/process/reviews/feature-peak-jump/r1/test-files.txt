@@ -1,0 +1,7 @@
+frontend/src/components/__tests__/componentFixtureParity.test.tsx
+frontend/src/components/__tests__/peakJump.shortcuts.test.tsx
+frontend/src/components/player/MediaControls/__tests__/peakJump.controls.test.tsx
+frontend/src/components/player/MediaControls/__tests__/peakJump.order.test.tsx
+frontend/src/components/player/MediaControls/__tests__/peakJump.strings.test.ts
+frontend/src/components/player/MediaControls/__tests__/peakJumpHarness.tsx
+frontend/src/components/player/__tests__/peakJump.shell.test.tsx

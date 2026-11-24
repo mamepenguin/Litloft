@@ -1,0 +1,266 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [],
+  "specification_compliance": [
+    "r8 R8-1 (I9, a pointercancel after an 8 px touch drag must not be undone by later touchmoves of the same gesture): fixed. handlePointerCancel (ScenesSectionContainer.tsx:571-581) now leaves dragStart as `{ ...start, cancelled: true }` after it restores the state. useSceneList's onTouchMove (useSceneList.ts:412-420) skips takeOver while dragStart holds any non-mouse drag, so touchmoves of the cancelled gesture no longer clear following or the restored ruler point. handlePointerMove ignores a cancelled drag (Container.tsx:548). Window touchend and touchcancel listeners (Container.tsx:163-172) clear the marker when the gesture ends, so a later touch on the list is a reader's scroll again.",
+    "The vertical-swipe path still counts as a reader's scroll. In that path the drag is not `dragged` when the browser cancels it, so the scroller's native pointercancel listener calls takeOver, and handlePointerCancel sets dragStart to null without the marker.",
+    "The new jsdom case in ScenesSectionRulerButtons.test.tsx covers the fix in flow form. Touchmoves after the cancel keep aria-valuenow at the restored 10 and leave scrollTop alone. After touchEnd, a touchmove on the list clears the point. Two mutations would each fail this test: reverting the marker, and removing the window touchend listener.",
+    "The earlier rounds' fixes (I5 measured with partsBelowList, I11, I12, I13, I14, the shared clock) are untouched by this round."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "After a cancelled horizontal ruler drag, the browser may go on panning the shared scroller for the rest of the gesture while following is restored to true. The list then rests wherever the pan left it, with following set and no chip, until the next placement event (a clock tick) places the playing row again. §1.12 asks for this outcome, but no invariant says what the scroller should show between the pan and the next tick."
+  ],
+  "regression_risks": [
+    "dragStart's lifetime is now managed in six places: handlePointerDown, handlePointerUp, handlePointerCancel, a window pointerup listener, window touchend/touchcancel listeners, and the reset/expand/collapse paths. It is read by the Container and by useSceneList's scroller listeners. If a touchend never reaches window (for example a stopPropagation added by a host on a touch's end, or a multi-touch where another finger ends first), the cancelled marker stays set, and every later touchmove on the shared scroller is ignored until the next ruler press. Reader swipes then stop clearing following.",
+    "The flow-form split between a ruler drag and a reader's scroll still depends on the scroller's native pointercancel listener running before React's delegated onPointerCancel. That holds only while the React root sits outside [data-inspector-scroller]."
+  ],
+  "test_coverage": [
+    "The new jsdom case dispatches touchMove before pointerMove during the drag, which is the reverse of the browser's order. This does not affect what it asserts after the cancel.",
+    "No e2e case sends touchmoves after a touchCancel of a dragged ruler gesture in a real browser. The cancel case in scenes-scroll-list.spec.ts still stops after touchCancel.",
+    "The `start.cancelled` guard in handlePointerMove has no test. Removing it would survive, but a pointermove for the same pointer after its pointercancel does not normally occur."
+  ],
+  "not_verified": [
+    "I did not run any jsdom or Playwright test; every result comes from reading the code.",
+    "Whether real browsers (iOS Safari, Android Chrome) deliver touchmoves after a pointercancel on the touch-pan-y ruler once a horizontal drag has started, and whether touchend then always reaches window.",
+    "Whether any host (the vaul sheet) stops propagation of touchend or touchcancel before window. The marker's clearing depends on it.",
+    "I did not re-read useSceneList.ts beyond the listener lines found with Grep. Its contents are taken from the supplied diff."
+  ],
+  "confidence": 78,
+  "trajectory": "The only change in this round is in the submodule (ebfa52b4..b5a835ca). It fixes R8-1 by adding a `cancelled` flag to the DragStart state, a guard on that flag in handlePointerMove, and two more window listeners (touchend, touchcancel) that end the flag. This repeats the pattern of the earlier rounds. The r7 fix round added the touchmove gate on rulerDrag and the scroller pointercancel listener. The second r7 round added a window pointerup listener for mouse drags. This round adds another state and two more lifetime listeners around the same dragStart ref. Every round has added a branch or a state about who owns a ruler gesture, and none has removed one, so the gesture-ownership design is being patched. The I5 side, by contrast, was simplified in the previous cycle, when partsBelowList replaced the predicted action-row term, and this round does not touch it.",
+  "coverage": [
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/ScenesSectionContainer.tsx",
+      "read": "full",
+      "reason": "Opened lines 80-599 in the worktree; the remaining lines (key handler, view and Presenter props) read in the supplied diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/ScenesSectionPresenter.tsx",
+      "read": "full",
+      "reason": "Every changed hunk read in the supplied diff; unchanged in this round."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/browseLifetime.ts",
+      "read": "full",
+      "reason": "Deleted file; whole content read in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/hooks/usePlaybackClock.ts",
+      "read": "full",
+      "reason": "Whole resulting file read in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/hooks/useSceneList.ts",
+      "read": "full",
+      "reason": "New file; whole content read in the diff; the listener lines confirmed with Grep in the worktree."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/hooks/useScenePictures.ts",
+      "read": "full",
+      "reason": "New file; whole content read in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/hooks/useSceneRows.ts",
+      "read": "full",
+      "reason": "Deleted file; whole content read in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/hooks/useWindowPictures.ts",
+      "read": "full",
+      "reason": "Deleted file; whole content read in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/sceneList.ts",
+      "read": "full",
+      "reason": "New file; whole content read in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/scenesModel.ts",
+      "read": "full",
+      "reason": "The only hunk (removals) read in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/messages/en.json",
+      "read": "full",
+      "reason": "The single added key read in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/messages/ja.json",
+      "read": "full",
+      "reason": "The single added key read in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/app.tsx",
+      "read": "full",
+      "reason": "All changed hunks read in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/scenesSection.tsx",
+      "read": "full",
+      "reason": "All changed hunks read in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/scenesSectionData.ts",
+      "read": "full",
+      "reason": "The changed hunk read in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/projects.ts",
+      "read": "full",
+      "reason": "The changed hunk read in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/scenes-scroll-list-card-form-desktop.spec.ts",
+      "read": "full",
+      "reason": "New file; whole content read in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/scenes-scroll-list-desktop.spec.ts",
+      "read": "full",
+      "reason": "New file; whole content read in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/scenes-scroll-list-flow.spec.ts",
+      "read": "full",
+      "reason": "New file; whole content read in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/scenes-scroll-list-ruler-touch.spec.ts",
+      "read": "full",
+      "reason": "New file; whole content read in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/scenes-scroll-list-scrollbar-desktop.spec.ts",
+      "read": "full",
+      "reason": "New file; whole content read in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/scenes-scroll-list.cases.ts",
+      "read": "full",
+      "reason": "New file; whole content read in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/scenes-scroll-list.spec.ts",
+      "read": "full",
+      "reason": "New file; whole content read in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/scenes-section-desktop.spec.ts",
+      "read": "full",
+      "reason": "Whole new content read in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/scenes-section-rows-desktop.spec.ts",
+      "read": "full",
+      "reason": "Deleted file; content read in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/scenes-section-rows-scrollbar-desktop.spec.ts",
+      "read": "full",
+      "reason": "Deleted file; content read in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/scenes-section-rows.cases.ts",
+      "read": "full",
+      "reason": "Deleted file; content read in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/scenes-section-rows.spec.ts",
+      "read": "full",
+      "reason": "Deleted file; content read in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/scenes-section.cases.ts",
+      "read": "full",
+      "reason": "Every changed hunk read in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/scenes-section.spec.ts",
+      "read": "full",
+      "reason": "Whole new content read in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/spec-viewport.spec.ts",
+      "read": "full",
+      "reason": "The changed hunks read in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/__tests__/ScenesSectionClock.test.tsx",
+      "read": "full",
+      "reason": "New file; whole content read in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/__tests__/ScenesSectionController.test.tsx",
+      "read": "full",
+      "reason": "New file; whole content read in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/__tests__/ScenesSectionKeyboard.test.tsx",
+      "read": "partial",
+      "reason": "Changed hunks only, read in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/__tests__/ScenesSectionOneList.test.tsx",
+      "read": "partial",
+      "reason": "Changed hunks only, read in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/__tests__/ScenesSectionReload.test.tsx",
+      "read": "full",
+      "reason": "New file; whole content read in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/__tests__/ScenesSectionRequests.test.tsx",
+      "read": "partial",
+      "reason": "Changed hunks only, read in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/__tests__/ScenesSectionRows.test.ts",
+      "read": "full",
+      "reason": "Deleted file; content read in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/__tests__/ScenesSectionRulerButtons.test.tsx",
+      "read": "full",
+      "reason": "New file; whole content, including this round's cancelled-gesture case, read in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/__tests__/ScenesSectionRulerMap.test.tsx",
+      "read": "full",
+      "reason": "New file; whole content read in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/__tests__/ScenesSectionScrollList.test.tsx",
+      "read": "full",
+      "reason": "New file; whole content read in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/__tests__/ScenesSectionSeek.test.tsx",
+      "read": "partial",
+      "reason": "Changed hunks only, read in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/__tests__/ScenesSectionTimeline.test.tsx",
+      "read": "partial",
+      "reason": "Changed hunks only, read in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/__tests__/ScenesSectionVisualIndex.test.tsx",
+      "read": "partial",
+      "reason": "Changed hunk only, read in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/__tests__/ScenesSectionWidth.test.tsx",
+      "read": "partial",
+      "reason": "Changed hunks only, read in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/__tests__/scrollListLayout.tsx",
+      "read": "full",
+      "reason": "New file; whole content read in the diff."
+    }
+  ]
+}

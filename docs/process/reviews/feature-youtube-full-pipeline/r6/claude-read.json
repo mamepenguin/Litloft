@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "TP-1",
+      "origin": "reviewer",
+      "claim": "The diff changes addons/intelligence/app/routers/scenes.py (_require_youtube_loft now trusts indexed loft_source before reading the .loft), but that file is not in the declared touch-point list.",
+      "impact": "Changes to the /scenes route for a .loft are outside the reviewed scope; a reader checking the change against the touch-point list would not look at this route's behaviour for other or unclassified .loft files.",
+      "evidence": "addons/intelligence/app/routers/scenes.py:56-66 (hunk adds classified = indexed.get(\"loft_source\"); returns for \"youtube\", raises 400 Not a video file for any other non-null value, and falls through to read_loft only when NULL). Touch-point list names routers/video_visual.py and routers/files.py but not routers/scenes.py.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "The file is reached by the diff but breaks no declared invariant; it is a scoping gap in the touch-point list.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add addons/intelligence/app/routers/scenes.py to the Touch points list of docs/specs/youtube-full-pipeline.md."
+    },
+    {
+      "id": "TP-2",
+      "origin": "reviewer",
+      "claim": "The diff adds or edits many test files that are not in the touch-point list: tests/loft_media_world.py, tests/youtube_frame_doubles.py, tests/test_spec_addon_117_*.py (seven new files), tests/test_listing_call_inventory.py, and frontend tests IndexDetailsDialogLoft.test.tsx, IndexStatusWidgetLoftMedia.test.tsx, ScenesSection/__tests__/ScenesSectionLoftVisualIndex.test.tsx and ScenesSectionRequests.test.tsx.",
+      "impact": "Test-harness changes such as the yt-dlp double's download mode and the new loft_media_world helper are not covered by the review scope, so their own defects could hide behind a passing suite.",
+      "evidence": "Diff paths under addons/intelligence/tests/ and addons/intelligence/frontend/**/*.test.tsx; the touch list names only production frontend files.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Test files break no declared invariant; they are a scoping gap in the touch-point list.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Add the test directories and the new test files to the touch-point list, or state that tests are outside it."
+    },
+    {
+      "id": "TP-3",
+      "origin": "reviewer",
+      "claim": "The diff rewrites expectations of existing tests for SPEC-ADDON-085, SPEC-ADDON-078, SPEC-ADDON-111 and the frontend SPEC-ADDON-089 suite, which are not in the touch-point list.",
+      "impact": "A changed reindex answer for a queued CLIP task (202 already_queued becomes 200 accepted with a loft_media enqueue) and a removed already_queued helper are visible only in test edits; a reader relying on the old tests would not see that existing expectations changed.",
+      "evidence": "addons/intelligence/tests/test_spec_addon_085_storyboard_retry.py:104-109 (already_queued helper deleted), :178-183 and :401-404 (assertions moved from 202 to 200 and enqueued list changed); test_spec_addon_078_youtube_reset_sites.py:118 (enqueued list gains loft_media); frontend ScenesSectionRequests.test.tsx:415-552 (mount requests and the no-Visual-Index test rewritten).",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Existing spec tests were changed to match new behaviour; no declared invariant is broken by the edit itself, but the change of old expectations is not in the touch-point list.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "List the edited SPEC-ADDON-078, 085 and 111 tests and the SPEC-ADDON-089 frontend test under the touch points, noting that their expectations change."
+    }
+  ],
+  "specification_compliance": [
+    "The code-level touch points match the list for indexer.py, loft_media.py, youtube_source.py, frame_scan.py, frame_ocr.py, video_visual.py, rag/context.py, routers/video_visual.py, routers/files.py, schemas.py, database.py, models.py, and the listed frontend files, docs and rules.",
+    "Unlisted production code: addons/intelligence/app/routers/scenes.py. Unlisted tests: see findings TP-2 and TP-3.",
+    "Spec and INDEX.md and review records are implicit touch points and were not reported."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "The /scenes route for a .loft (app/routers/scenes.py _require_youtube_loft) now answers 400 Not a video file from the stored loft_source without reading the file, for any non-youtube classified .loft. The spec does not name this route's answer for other .loft files."
+  ],
+  "regression_risks": [
+    "Existing SPEC-ADDON-085 reindex expectations changed (a queued CLIP task now answers 200 accepted and also enqueues loft_media); any caller that relied on 202 already_queued for a .loft's CLIP task sees a different answer."
+  ],
+  "test_coverage": [
+    "Tests cover the touch-point behaviour listed in the spec; the scenes.py change has no dedicated test in the diff (its only reference is the /scenes test test_spec_addon_117_loft_scenes.py, which exercises a native-like path with loft_source set to youtube)."
+  ],
+  "not_verified": [
+    "I did not open addons/intelligence/app/routers/scenes.py beyond the diff hunk, nor the full text of the touch-point list in the spec, so I did not check whether the list was meant to include tests.",
+    "I did not run the test suite or any mutation; the repro entries are not_reproduced.",
+    "I did not check whether scenes.py has other callers that depend on the old read-based check."
+  ],
+  "confidence": 80
+}

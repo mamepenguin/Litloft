@@ -21,6 +21,9 @@ export interface MarkdownChromeContextValue {
   setViewMode: (m: MarkdownViewMode) => void;
   publishSaveState: (s: MarkdownSaveState) => void;
   isMobile: boolean;
+  /** The heading's rename field is open. */
+  renaming?: boolean;
+  setRenaming?: (renaming: boolean) => void;
 }
 
 const Ctx = createContext<MarkdownChromeContextValue | null>(null);

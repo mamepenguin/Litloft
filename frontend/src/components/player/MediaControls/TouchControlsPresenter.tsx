@@ -7,6 +7,7 @@ import {
   Pause,
   Play,
   Settings,
+  Target,
   Volume2,
   VolumeX,
 } from "lucide-react";
@@ -34,6 +35,10 @@ export function TouchControlsPresenter({
   playbackRate,
   interrupted,
   visible,
+  bottomOnly = false,
+  watchedPieces,
+  bandVisible,
+  onChromeFocus,
   isFullscreen,
   isPseudoFullscreen = false,
   onTogglePlay,
@@ -49,22 +54,42 @@ export function TouchControlsPresenter({
   onSettingsOpenChange,
   settingsExtra,
   settingsToggles,
+  showJump = false,
+  onJump,
 }: MediaControlsPresenterProps) {
   const t = useTranslations("player");
 
   const seekable = duration > 0 && !interrupted;
   const playedFraction = duration > 0 ? displayTime / duration : 0;
+  // Bottom-only outranks a whole chrome the idle timer has not hidden
+  // yet: the skip draws the bottom bar alone whatever was up before it.
+  const whole = visible && !bottomOnly;
+  const drawn = visible || bottomOnly;
   // Faded-out controls must not take taps: an invisible play button
   // under the viewer's finger would toggle playback on the tap that
   // was only meant to bring the controls back. Keyboard focus still
   // reaches them, which pointer-events does not affect.
-  const pointerEvents = visible ? "pointer-events-auto" : "pointer-events-none";
+  const pointerEvents = whole ? "pointer-events-auto" : "pointer-events-none";
+  const bottomPointerEvents = drawn ? "pointer-events-auto" : "pointer-events-none";
 
   return (
     <>
       <div
         data-testid="touch-controls-root"
         data-player-chrome=""
+        onFocusCapture={(e) => {
+          // Pressing a button focuses it, so focus inside the bar
+          // bottom-only already draws is that press, not a visit to the
+          // controls it hides.
+          if (
+            bottomOnly &&
+            e.target instanceof Element &&
+            e.target.closest('[data-testid="bottom-controls"]')
+          ) {
+            return;
+          }
+          onChromeFocus?.();
+        }}
         className={[
           "absolute inset-0 z-10 transition-opacity duration-200 ease-out motion-reduce:transition-none",
           // This box covers the whole frame purely to position its
@@ -81,9 +106,11 @@ export function TouchControlsPresenter({
           // selectable — the loupe appears and the gesture is lost.
           "select-none [-webkit-user-select:none] [-webkit-touch-callout:none]",
           // Keyboard users must be able to reach the controls even once
-          // the idle timer has faded them out.
-          "focus-within:opacity-100",
-          visible ? "opacity-100" : "opacity-0",
+          // the idle timer has faded them out. Not focus-within: a tap
+          // leaves focus on the button it pressed, which would hold the
+          // bar on screen after the timer hid it.
+          "has-[:focus-visible]:opacity-100",
+          drawn ? "opacity-100" : "opacity-0",
         ].join(" ")}
       >
         {/* Play alone. Skipping is a double tap on either half of the
@@ -91,7 +118,10 @@ export function TouchControlsPresenter({
             it would only cover the video to duplicate a gesture. */}
         <div
           data-testid="transport"
-          className="pointer-events-none absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center"
+          className={[
+            "pointer-events-none absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center",
+            whole ? "" : "opacity-0",
+          ].join(" ")}
         >
           <ControlButton
             size="hero"
@@ -114,7 +144,11 @@ export function TouchControlsPresenter({
                 }
               : undefined
           }
-          className={`absolute right-0 top-0 flex items-center gap-0.5 p-2 ${pointerEvents}`}
+          className={[
+            "absolute right-0 top-0 flex items-center gap-0.5 p-2",
+            pointerEvents,
+            whole ? "" : "opacity-0",
+          ].join(" ")}
         >
           {/* No volume slider: iOS silently ignores writes to volume,
               so it would look broken rather than absent. The mute
@@ -157,7 +191,7 @@ export function TouchControlsPresenter({
             // is what keeps a finger-sized target there.
             "absolute inset-x-0 bottom-0 flex flex-col pt-8",
             "bg-gradient-to-t from-black/80 via-black/50 to-transparent",
-            pointerEvents,
+            bottomPointerEvents,
           ].join(" ")}
         >
           {/* The padding lives on the status row, not the block, so the
@@ -178,6 +212,11 @@ export function TouchControlsPresenter({
             )}
 
             <div className="ml-auto flex items-center gap-0.5">
+              {showJump && onJump && (
+                <ControlButton label={t("jumpToMostWatched")} onClick={onJump}>
+                  <Target size={20} />
+                </ControlButton>
+              )}
               <ControlButton
                 label={isFullscreen ? t("exitFullscreen") : t("fullscreen")}
                 onClick={onToggleFullscreen}
@@ -196,6 +235,8 @@ export function TouchControlsPresenter({
             onScrubStart={onScrubStart}
             onScrubChange={onScrubChange}
             onScrubEnd={onScrubEnd}
+            watchedPieces={watchedPieces}
+            bandVisible={bandVisible}
           />
         </div>
       </div>
@@ -216,7 +257,7 @@ export function TouchControlsPresenter({
           controls go away. Full screen on a phone is the one place that
           keeps nothing: the frame is the whole screen, and a line across
           it is a mark on the picture rather than chrome on a player. */}
-      {!visible && !isFullscreen && (
+      {!drawn && !isFullscreen && (
         <ProgressHairline
           playedFraction={playedFraction}
           bufferedFraction={bufferedFraction}

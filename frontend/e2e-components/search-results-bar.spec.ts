@@ -5,7 +5,9 @@ import {
   measure,
   nothingAboveTheField,
   oneOfEach,
+  measureOverwrite,
   open,
+  openChanged,
   overlapVertically,
   positionsHoldWithoutTheCheckbox,
 } from "./search-results-bar.cases";
@@ -77,3 +79,32 @@ for (const id of [ARRANGEMENT.files, ARRANGEMENT.passagesScene]) {
     expect(m.counts[0].lines).toBe(1);
   });
 }
+
+test("SPEC-CORE-103 I9 / D4 at 375px: 上書き保存 wraps below the chips, nothing scrolls sideways, the bar stays one row", async ({
+  page,
+}) => {
+  await openChanged(page, 375);
+  const o = await measureOverwrite(page);
+  const m = await measure(page);
+
+  expect(m.scrollWidth).toBeLessThanOrEqual(375);
+  expect(o.lastInRow).toBe(true);
+  expect(o.button.left).toBeGreaterThanOrEqual(o.row.left - 1);
+  expect(o.button.right).toBeLessThanOrEqual(o.row.right + 1);
+  expect(o.button.right).toBeLessThanOrEqual(375);
+  for (const other of o.others) {
+    const sideBySide = overlapVertically(o.button, other);
+    const overlapsHorizontally = o.button.left < other.right && other.left < o.button.right;
+    expect(sideBySide && overlapsHorizontally).toBe(false);
+    if (sideBySide) expect(o.button.left).toBeGreaterThanOrEqual(other.right);
+    expect(other.top).toBeLessThan(o.button.bottom);
+  }
+  expect(o.button.bottom).toBeLessThanOrEqual(m.bar.top + 0.5);
+  expect(m.coarse).toBe(true);
+  expect(o.button.height).toBeGreaterThanOrEqual(44);
+
+  const controls = [...m.switches, ...m.counts, ...m.mores];
+  expect(m.counts).toHaveLength(1);
+  for (const a of controls) for (const b of controls) expect(overlapVertically(a, b)).toBe(true);
+  expect(m.counts[0].lines).toBe(1);
+});

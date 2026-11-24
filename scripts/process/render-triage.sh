@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # render-triage.sh <run-dir> [--earlier <dir>]... [--invariants <file>] [--second-run] [--spec-present]
-# Writes <run-dir>/triage.md from the artifacts in <run-dir>, its verdict.json and the
+# Writes <run-dir>/triage.md from the artifacts in <run-dir>, its verdict.json, the
+# product-files.txt and test-files.txt review.sh writes beside them, and the
 # artifacts of each earlier run directory, and prints the path. The options are passed to
-# validate-artifact.sh for the artifacts of <run-dir>; earlier runs are validated without them.
+# validate-artifact.sh for the artifacts of <run-dir>; earlier runs are validated without
+# them, and a read artifact there may lack coverage (it came from a kit before coverage).
 # Exit 1 when an artifact is invalid or verdict.json is missing or malformed, in which case
 # no triage.md is left in <run-dir>; exit 2 on a usage error.
 
@@ -44,6 +46,18 @@ done
 [ -d "$run" ] || die_usage "no such directory: $run"
 run="${run%/}"
 
+# review.sh writes the two lists beside the artifacts. A run without them (an older run,
+# or a direct render) still renders the coverage the artifacts recorded.
+products='[]'; tests='[]'
+if [ -f "$run/product-files.txt" ]; then
+  products="$(jq -R -s 'split("\n") | map(select(length > 0))' "$run/product-files.txt")" \
+    || die "$run/product-files.txt is unreadable"
+fi
+if [ -f "$run/test-files.txt" ]; then
+  tests="$(jq -R -s 'split("\n") | map(select(length > 0))' "$run/test-files.txt")" \
+    || die "$run/test-files.txt is unreadable"
+fi
+
 rm -f "$run/triage.md"
 
 [ -f "$run/verdict.json" ] || die "$run/verdict.json is missing"
@@ -72,6 +86,8 @@ gather() {
     [ -z "$inv_file" ] || vflags+=(--invariants "$inv_file")
     [ "$second" = false ] || vflags+=(--second-run)
     [ "$spec" = false ] || vflags+=(--spec-present)
+  else
+    vflags+=(--allow-missing-coverage)
   fi
   list_artifacts "$1" >"$list"
   while IFS= read -r f; do
@@ -121,9 +137,33 @@ def entry($label): nl as $v | if ($v | contains("\n")) then "- \($label):\n" + (
 | ([$vd.findings[] | {key: ([.reviewer, .id] | tojson), value: .state}] | from_entries) as $state
 | ([$all[] | select(.bucket_proposal.bucket == "C")] | length) as $cur_c
 | ([$in.earlier[].artifacts[].findings[] | select(.bucket_proposal.bucket == "C")] | length) as $earlier_c
+# A verdict.json from an earlier merge has no `unspecified`; its entries are then unscored,
+# and they stop when their artifact raised them.
+| ($vd.unspecified // [$cur[] | . as $a | .potential_unspecified_behavior | to_entries[]
+      | {reviewer: $a.reviewer, index: .key,
+         behavior: (.value | if type == "string" then . else .behavior end),
+         scores: (.value | if type == "string" then [] else [{by: $a.reviewer, frequency, impact, reason}] end),
+         stops: $a.unspecified_behavior_found}]) as $unspec
 
 | def st: $state[[.reviewer, .id] | tojson] // "open";
   def lookup($ref): [$all[] | select(.reviewer == $ref.reviewer and .id == $ref.finding_id)] | .[0];
+
+  def cov_entries($p): [$cur[] | select(.role == "read") | .coverage[]? | select(.path == $p)];
+  def cov_line($p):
+    cov_entries($p) as $e
+    | if ($e | length) == 0 then "- \($p | flat) — missing from coverage"
+      elif any($e[]; .read == "not_read") then
+        "- \($p | flat) — not_read: " + ([$e[] | select(.read == "not_read") | .reason | flat] | unique | join("; "))
+      else
+        "- \($p | flat) — " + ([$e[] | select(.read != "not_read") | "\(.read): \(.reason | flat)"] | unique | join("; "))
+      end;
+
+  def uline:
+    (.reviewer | flat) as $l
+    | [(.behavior | entry($l))]
+      + [.scores[] | "  - F\(.frequency) × I\(.impact) = \(.frequency * .impact), \(.by | flat): \(.reason | flat)"]
+      + (if (.scores | length) == 1 then ["  - single-scored"] else [] end)
+    | join("\n");
 
   def human_item:
     (if .ref then "\(.ref.reviewer):\(.ref.finding_id)" | flat else null end) as $refname
@@ -141,11 +181,10 @@ def entry($label): nl as $v | if ($v | contains("\n")) then "- \($label):\n" + (
               end)
          else empty end),
         (if (.note | length) > 0 then (.note | labelled("Note")) else empty end),
-        (if (.kind == "human_zone" or .kind == "protected_path") and (.paths | length) > 0
+        (if (.kind == "human_zone" or .kind == "protected_path" or .kind == "incomplete_read") and (.paths | length) > 0
          then "Paths:", (.paths[] | "- " + flat) else empty end),
         (if .kind == "unspecified_behavior" then
-           ($cur[] | select(.unspecified_behavior_found == true) | .reviewer as $r
-              | .potential_unspecified_behavior[] | entry($r | flat))
+           (.reviewer as $who | $unspec[] | select(.stops and ($who == null or .reviewer == $who)) | uline)
          else empty end),
         ""
       ] | join("\n");
@@ -191,11 +230,26 @@ def entry($label): nl as $v | if ($v | contains("\n")) then "- \($label):\n" + (
     "Reasons:",
     ($vd.reasons | map("- " + flat) | or_none | join("\n")),
     "",
+    "## Read coverage",
+    "",
+    "Product files:",
+    (if ($products | length) > 0 then ([$products[] | cov_line(.)] | join("\n")) else "- none" end),
+    "",
+    "Test files:",
+    (if ($tests | length) > 0 then ([$tests[] | cov_line(.)] | join("\n")) else "- none" end),
+    "",
     (if ($vd.needs_human | length) > 0 and ($vd.verdict == "FAIL" or $vd.verdict == "HUMAN_REVIEW_REQUIRED") then
        "## Needs a human",
        "",
        ($vd.needs_human | map(human_item) | join("\n"))
      else empty end),
+    ([$unspec[] | select(.stops | not)] as $rec
+     | if ($rec | length) > 0 then
+         "## Unspecified behavior, recorded",
+         "",
+         ($rec | map(uline) | join("\n")),
+         ""
+       else empty end),
     "## Findings",
     "",
     "A: \([$all[] | select(.bucket_proposal.bucket == "A")] | length)",
@@ -214,6 +268,7 @@ def entry($label): nl as $v | if ($v | contains("\n")) then "- \($label):\n" + (
 out="$run/triage.md.tmp.$$"
 if ! jq -n -r --arg dir "$(basename "$(cd "$run" && pwd)")" \
       --slurpfile v "$run/verdict.json" --slurpfile c "$tmp/current.json" --slurpfile e "$tmp/earlier.json" \
+      --argjson products "$products" --argjson tests "$tests" \
       "$PROGRAM" >"$out"; then
   rm -f "$out"
   die "could not render $run"

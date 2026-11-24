@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "R4-file-copy-basename-collision",
+      "origin": "reviewer",
+      "claim": "plan_overlay copies every read-write single-file bind under the main checkout to .r5-stack/files/<basename> and skips the copy if that path already exists. Two such binds with the same basename from different directories therefore both mount whichever file was copied first.",
+      "impact": "A service would silently read the wrong configuration file in the cloned stack. No error or warning is raised. None of the files bound read-write in the shipped layouts (drives.json, passwords.json) share a basename today, so a user hits this only after adding such a bind.",
+      "evidence": "scripts/dev/r5_stack.py:278-282: `new = files_dir / src.name; if not new.exists(): shutil.copy2(src, new)`. The second bind with the same name reuses the first copy. shared_writes (:293-) skips anything under .r5-stack, so the check does not catch it.",
+      "repro": "not_reproduced: bind ./a/config.json and ./b/config.json read-write (both under the main checkout) into two services, then run `clone`. Expected: both overlay entries point at .r5-stack/files/config.json, which holds a's content.",
+      "introduced": "pre-existing",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Silent wrong result, but it needs a layout that no shipped configuration uses, and no invariant is declared. The r1 verifier already noted it, and c216434 leaves it unchanged.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Mirror the path relative to the main checkout under files/ (files/<relpath>) instead of using the basename."
+    },
+    {
+      "id": "R4-non-starting-by-first-arg",
+      "origin": "reviewer",
+      "claim": "compose() decides whether to skip the check by looking only at args[0]. A passthrough that puts a global compose option before the subcommand, such as `compose --profile x down` or `compose --ansi never stop`, is still refused while the overlay fails the check.",
+      "impact": "This is a narrower version of the r2/r3 passthrough issue. Stopping a stack whose overlay fails the check with a leading global option prints the refusal and leaves the stack running. The failure is loud, and the top-level `down` works.",
+      "evidence": "scripts/dev/r5_stack.py compose(): `if args and args[0] in NON_STARTING:`. Every other argument list goes through verified_env, which raises Abort when shared_writes reports problems.",
+      "repro": "not_reproduced: make the overlay fail the check, then run `r5_stack.py compose --profile x down`. Expected: exit 1 with 'the stack could still write outside .r5-stack/'.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "An inconsistency that fails loudly and has a working alternative.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Find the first argument that does not start with '-' (skipping option values), or document that global options must come after the subcommand."
+    }
+  ],
+  "specification_compliance": [
+    "r3 finding R3-drive-below-bind-target-missed is resolved by c216434. plan_overlay no longer depends on drive detection to protect anything. A bind is left alone only if it is already read-only. Data binds are redirected to the clone, cloned drives are redirected to their clones, and read-write files under the main checkout are copied. Every other read-write bind, including a bind below a drive path, gets the `else: new, read_only = src, True` branch (r5_stack.py:283-284). shared_writes now flags every read-write bind outside .r5-stack plus anything under main data/, so the check matches the plan whatever the mount layout.",
+    "r3 finding R3-compose-passthrough-still-gated is resolved for passthrough calls whose first argument is down/stop/kill/rm/ps/logs. The remaining gap with leading global options is R4-non-starting-by-first-arg.",
+    "r1's regression risk that a read-write directory bind under the main checkout which is neither data/ nor a drive goes unflagged is resolved: such a bind is now made read-only and the check would flag it if it stayed read-write.",
+    "r3's unspecified behaviour of data/ being cloned a second time as a drive is resolved: drive_sources now drops sources under main data/ (:244-245). The nested-drive extra clone is also resolved, because only the outermost sources are returned (:246).",
+    "I traced every bind in the shipped configure fixture (tests/fixtures/configure/all_enabled) and in docker-compose.override.yml.example against the new plan_overlay. Each one ends up under .r5-stack or read-only, so verified_env passes for them at clone time.",
+    "No invariants file exists, so compliance with a declared touch-point list cannot be assessed."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "A read-write bind whose host source does not exist (for example passwords.json bound in the override while the main checkout lacks it) is rewritten into a long-syntax read-only overlay entry with no `bind.create_host_path`. Whether compose keeps the base entry's create_host_path when it merges by target decides between two outcomes: `up` fails with 'bind source path does not exist', or Docker creates a directory outside .r5-stack.",
+    "Binds outside the main checkout that a service needs to write (for example a host model cache or a socket directory added in a future override) are now silently made read-only. That service then fails at run time rather than at `clone`.",
+    "Non-bind volumes (named volumes, external volumes) are neither redirected nor checked. They are isolated only because the compose project name defaults to the worktree directory name. A COMPOSE_PROJECT_NAME in the symlinked .env, or a top-level `name:`, would make the clone share them, or the containers themselves, with the main stack.",
+    "`compose config`, `compose exec` and `compose restart` go through the check and are refused while the overlay fails it, although they start nothing new."
+  ],
+  "regression_risks": [
+    "Read-write binds that used to stay shared and unflagged (directories under the main checkout that are not data/ or a drive, and files outside the main checkout) are now read-only in the clone. A service that writes through one of them now fails where it used to succeed.",
+    "With --with-drives, only drives bound on the backend are cloned. A drive bound read-write only by another service is now read-only rather than shared. That is safer, but writes that service makes to the drive fail."
+  ],
+  "test_coverage": [
+    "There are still no tests for scripts/dev/r5_stack.py: a grep outside the review docs finds it only in the script itself, PROJECT.md and .gitignore. No test would fail under any of these mutations: deleting the `else: new, read_only = src, True` branch (verified_env would catch that only at run time), dropping `or not vol.get(\"read_only\")` from shared_writes, removing an entry from NON_STARTING, or reverting drive_sources' main_data exclusion or outermost filter.",
+    "The manual R-5 run recorded earlier predates this commit, and the triage warns that R-5 ran at 564cf63 before r5_stack.py changed."
+  ],
+  "not_verified": [
+    "I did not run the script, docker or docker compose. Everything here comes from reading the code.",
+    "I did not check how compose-go merges a long-syntax overlay bind over a short-syntax base bind with the same target, in particular whether bind.create_host_path is kept.",
+    "I did not read the untracked docker-compose.override.yml or .env in the main checkout, so I did not confirm the binds or the COMPOSE_PROJECT_NAME in use.",
+    "I did not check whether the backend or the addons write to any non-data bind at startup, which would now fail on the read-only mount."
+  ],
+  "confidence": 80,
+  "trajectory": "486eb96 only adds review documents. c216434 removes more than it adds. It drops the round-by-round inference of which binds are drives as a safety mechanism: the `drive is not None and not read_only` branch is gone, and so are the three-clause `shared` predicate and the uncloned-drive list in shared_writes. In their place is one layout-independent rule: every read-write bind outside .r5-stack becomes read-only, and the check flags any that is not. Drive detection is now used only to choose what --with-drives clones. It also replaces the per-entry-point bypass stop() from 8fbe25c with one path through compose(). This round ends the pattern r2 and r3 identified, in which 672b795, 09e716a and the r3-proposed fix each widened the same drive prediction. It does add one new prediction, the NON_STARTING set keyed on args[0]. That is a classification of compose subcommands, and future rounds could patch it the same way, for leading global options or for exec/config/restart. On balance, this round removed a branch and a state rather than repeating one."
+}

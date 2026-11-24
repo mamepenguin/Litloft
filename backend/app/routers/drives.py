@@ -3,11 +3,13 @@ import re
 import unicodedata
 import logging
 from collections import defaultdict
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import Integer, case, cast, func, not_, or_
+from pydantic import BaseModel, Field
+from sqlalchemy import Integer, case, cast, distinct, func, not_, or_
 from sqlalchemy.orm import Session
 
 import app.config as config
@@ -34,6 +36,7 @@ from app.schemas import (
     DriveSummaryResponse,
     DuplicateGroup,
     DuplicatesResponse,
+    FileIdsQuery,
     FileResponse,
     FolderCreateRequest,
     FolderMoveRequest,
@@ -54,7 +57,9 @@ from app.schemas import (
 )
 from app.services import fileops
 from app.services import inbox as inbox_service
+from app.services.mtime import read_modified_at
 from app.services.tagops import cleanup_orphan_tags, project_frontmatter_tags
+from app.services.origin import project_frontmatter_origin
 from app.services.file_versions import record_version
 from app.services.filetype import classify
 from app.services.markdown_relations import sync_markdown_file_relations
@@ -62,6 +67,8 @@ from app.services.atomic_write import replace_file_contents
 from app.services.diskpath import existing_or_409, name_taken, new_or_409
 from app.services.safepath import _contains_symlink, resolve_safe_path
 from app.services.scanner import scan_drive
+from app.services.watch_state import WatchState, join_watch, watch_bucket
+from app.services.watched_ranges import watched_ranges_by_file
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/drives", tags=["drives"])
@@ -165,6 +172,7 @@ def normalize_collections(values: list[str]) -> list[str]:
 MAX_RANGE_COMPARISONS = 4
 MAX_SIZE_BYTES = 2**53 - 1
 MAX_DURATION_SECONDS = Decimal("10000000")
+MAX_MODIFIED_EPOCH = 253402300799
 
 # Wire form: one of the four comparison words, a colon, a plain decimal.
 # `=` and `gt`/`GTE` spellings are not the form: the frontend writes exactly
@@ -209,6 +217,20 @@ def parse_duration_comparison(item: str) -> str:
     return f"{operator}:{text}"
 
 
+def parse_modified_comparison(item: str) -> str:
+    """Rewrite one listing / ``/files/matching`` modified item in the wire form."""
+    match = _WIRE_FORM.match(item)
+    if match is None:
+        raise ValueError(f"Invalid modified comparison: {item!r}")
+    operator, amount = match.groups()
+    if not _SIZE_NUMBER.fullmatch(amount):
+        raise ValueError(f"Invalid modified comparison: {item!r}")
+    number = int(amount)
+    if number > MAX_MODIFIED_EPOCH:
+        raise ValueError(f"Invalid modified comparison: {item!r}")
+    return f"{operator}:{number}"
+
+
 def _normalise_comparisons(
     values: list[str], parse, label: str
 ) -> list[str]:
@@ -230,6 +252,10 @@ def normalize_durations(values: list[str]) -> list[str]:
     return _normalise_comparisons(values, parse_duration_comparison, "durations")
 
 
+def normalize_modified(values: list[str]) -> list[str]:
+    return _normalise_comparisons(values, parse_modified_comparison, "modified")
+
+
 _COMPARISONS = {
     "gt": lambda column, number: column > number,
     "gte": lambda column, number: column >= number,
@@ -247,6 +273,7 @@ def _apply_range_filters(
     query,
     sizes: list[str] | None,
     durations: list[str] | None,
+    modified: list[str] | None,
 ):
     for item in normalize_sizes(sizes or []):
         operator, number = _split_comparison(item)
@@ -257,6 +284,12 @@ def _apply_range_filters(
     for item in normalize_durations(durations or []):
         operator, number = _split_comparison(item)
         query = query.filter(_COMPARISONS[operator](whole_seconds, float(number)))
+    for item in normalize_modified(modified or []):
+        operator, number = _split_comparison(item)
+        boundary = datetime.fromtimestamp(int(number), UTC).replace(tzinfo=None)
+        query = query.filter(
+            _COMPARISONS[operator](File.modified_at, boundary)
+        )
     return query
 
 
@@ -431,7 +464,15 @@ def apply_file_filters(
     collections: list[str] | None = None,
     sizes: list[str] | None = None,
     durations: list[str] | None = None,
+    modified: list[str] | None = None,
+    exclude_tags: list[str] | None = None,
+    exclude_kinds: list[FileKindParam] | None = None,
+    exclude_folders: list[str] | None = None,
+    exclude_collections: list[str] | None = None,
+    has_tag: bool | None = None,
+    has_collection: bool | None = None,
     drive: str | None = None,
+    file_ids: list[str] | None = None,
 ):
     """Shared by the listing and the Internal API's filter resolution.
 
@@ -446,7 +487,8 @@ def apply_file_filters(
             File.liked_at.is_not(None) if liked else File.liked_at.is_(None)
         )
     chosen = [name for name in tags or [] if name]
-    if chosen:
+    excluded = [name for name in exclude_tags or [] if name]
+    if chosen or excluded:
         # Folded in Python: SQLite's lower() leaves non-ASCII capitals alone.
         # Not narrowed to this drive's rows: a file moved before tags followed
         # their drive links to its old drive's row, and File.drive on the
@@ -458,12 +500,17 @@ def apply_file_filters(
             query = query.filter(
                 File.tags.any(Tag.id.in_(by_fold[name.lower()]))
             )
+        for name in excluded:
+            query = query.filter(
+                ~File.tags.any(Tag.id.in_(by_fold[name.lower()]))
+            )
     chosen_folders = normalize_folders(folders or [])
     if chosen_folders:
         query = query.filter(
             or_(*(_folder_subtree(folder) for folder in chosen_folders))
         )
     chosen_collections = normalize_collections(collections or [])
+    collection_condition = None
     if chosen_collections:
         if drive is None:
             raise ValueError("drive is required to resolve collections")
@@ -476,17 +523,66 @@ def apply_file_filters(
             )
             if name.lower() in wanted
         ]
-        query = query.filter(
-            File.id.in_(
-                db.query(CollectionItem.file_id).filter(
-                    CollectionItem.collection_id.in_(collection_ids)
-                )
+        collection_condition = File.id.in_(
+            db.query(CollectionItem.file_id).filter(
+                CollectionItem.collection_id.in_(collection_ids)
             )
         )
-    query = _apply_range_filters(query, sizes, durations)
-    return _apply_kinds_filter(
+    if file_ids is None:
+        if collection_condition is not None:
+            query = query.filter(collection_condition)
+    else:
+        # ``file_ids`` widens ``in:`` rather than intersecting with it: a
+        # named collection keeps its own members, and `file_ids: []` still
+        # leaves those members passing.
+        listed = File.id.in_(file_ids)
+        query = query.filter(
+            listed if collection_condition is None
+            else or_(collection_condition, listed)
+        )
+    for excluded_folder in normalize_folders(exclude_folders or []):
+        query = query.filter(~_folder_subtree(excluded_folder))
+    excluded_collection_names = normalize_collections(exclude_collections or [])
+    if excluded_collection_names:
+        if drive is None:
+            raise ValueError("drive is required to resolve collections")
+        wanted = {name.lower() for name in excluded_collection_names}
+        excluded_collection_ids = [
+            collection_id
+            for collection_id, name in db.query(Collection.id, Collection.name).filter(
+                Collection.drive == drive
+            )
+            if name.lower() in wanted
+        ]
+        if excluded_collection_ids:
+            query = query.filter(
+                ~File.id.in_(
+                    db.query(CollectionItem.file_id).filter(
+                        CollectionItem.collection_id.in_(excluded_collection_ids)
+                    )
+                )
+            )
+    if has_tag is not None:
+        query = query.filter(File.tags.any() if has_tag else ~File.tags.any())
+    if has_collection is not None:
+        if drive is None:
+            raise ValueError("drive is required to resolve collections")
+        in_collection = File.id.in_(
+            db.query(CollectionItem.file_id)
+            .join(Collection, Collection.id == CollectionItem.collection_id)
+            .filter(Collection.drive == drive)
+        )
+        query = query.filter(in_collection if has_collection else ~in_collection)
+    query = _apply_range_filters(query, sizes, durations, modified)
+    query = _apply_kinds_filter(
         query, [_normalize_kind(kind) for kind in kinds or []]
     )
+    excluded_kind_list = [_normalize_kind(kind) for kind in exclude_kinds or []]
+    if excluded_kind_list:
+        query = query.filter(
+            not_(or_(*(_kind_predicate(kind) for kind in excluded_kind_list)))
+        )
+    return query
 
 
 def _kind_predicate(kind: FileKind):
@@ -931,7 +1027,17 @@ def filtered_drive_files(
     collection: list[str] | None = None,
     size: list[str] | None = None,
     duration: list[str] | None = None,
+    modified: list[str] | None = None,
+    exclude_tag: list[str] | None = None,
+    exclude_type: list[FileKindParam] | None = None,
+    exclude_folder: list[str] | None = None,
+    exclude_collection: list[str] | None = None,
+    has_tag: bool | None = None,
+    has_collection: bool | None = None,
     trust: str | None = None,
+    origin: str | None = None,
+    exclude_origin: str | None = None,
+    file_ids: list[str] | None = None,
 ):
     """The active files of one drive under the listing's filters.
 
@@ -947,6 +1053,9 @@ def filtered_drive_files(
         collection = normalize_collections(collection or [])
         size = normalize_sizes(size or [])
         duration = normalize_durations(duration or [])
+        modified = normalize_modified(modified or [])
+        exclude_folder = normalize_folders(exclude_folder or [])
+        exclude_collection = normalize_collections(exclude_collection or [])
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -986,7 +1095,15 @@ def filtered_drive_files(
         collections=collection,
         sizes=size,
         durations=duration,
+        modified=modified,
+        exclude_tags=exclude_tag,
+        exclude_kinds=exclude_type,
+        exclude_folders=exclude_folder,
+        exclude_collections=exclude_collection,
+        has_tag=has_tag,
+        has_collection=has_collection,
         drive=drive_name,
+        file_ids=file_ids,
     )
     if trust == "unreviewed":
         # Not a tier: the review queue is "nobody has ruled on this", which
@@ -995,7 +1112,54 @@ def filtered_drive_files(
         query = query.filter(File.trust_reviewed_at.is_(None))
     elif trust:
         query = query.filter(File.trust_tier == trust)
+    if origin is not None:
+        query = query.filter(File.md_origin == origin)
+    if exclude_origin is not None:
+        query = query.filter(
+            or_(File.md_origin.is_(None), File.md_origin != exclude_origin)
+        )
     return query, normalized_search
+
+
+class FileFiltersQuery(BaseModel):
+    """The parameters that filter a drive's files, shared by every route listing them."""
+
+    search: str | None = Field(None, max_length=200)
+    favorite: bool | None = None
+    liked: bool | None = None
+    tag: list[str] | None = None
+    type: list[FileKindParam] | None = None
+    folder: list[str] | None = None
+    collection: list[str] | None = None
+    size: list[str] | None = None
+    duration: list[str] | None = None
+    modified: list[str] | None = None
+    exclude_tag: list[str] | None = None
+    exclude_type: list[FileKindParam] | None = None
+    exclude_folder: list[str] | None = None
+    exclude_collection: list[str] | None = None
+    has_tag: bool | None = None
+    has_collection: bool | None = None
+    trust: str | None = Field(None, pattern="^(verified|unverified|unreviewed)$")
+    origin: str | None = Field(None, min_length=1, max_length=32)
+    exclude_origin: str | None = Field(None, min_length=1, max_length=32)
+
+
+class TagCountsQuery(FileFiltersQuery):
+    """The tag-counts filters: the listing's own, plus the viewer's watch state."""
+
+    watch: WatchState | None = None
+
+
+class FileListingQuery(FileFiltersQuery):
+    path: str | None = None
+    recursive: bool = False
+    sort: str = Field(
+        "created_at", pattern="^(created_at|title|file_size|liked_at|updated_at|random)$"
+    )
+    order: str = Field("desc", pattern="^(asc|desc)$")
+    page: int = Field(1, ge=1)
+    limit: int = Field(30, ge=1, le=500)
 
 
 @router.get("/{drive_name}/files", response_model=PaginatedResponse)
@@ -1003,69 +1167,87 @@ def list_drive_files(
     drive_name: str,
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
-    path: str | None = None,
-    recursive: bool = False,
-    search: str | None = Query(None, max_length=200),
-    favorite: bool | None = None,
-    liked: bool | None = None,
-    tag: list[str] | None = Query(None),
-    type: list[FileKindParam] | None = Query(None),
-    folder: list[str] | None = Query(None),
-    collection: list[str] | None = Query(None),
-    size: list[str] | None = Query(None),
-    duration: list[str] | None = Query(None),
-    trust: str | None = Query(None, pattern="^(verified|unverified|unreviewed)$"),
-    sort: str = Query(
-        "created_at", pattern="^(created_at|title|file_size|liked_at|updated_at|random)$"
-    ),
-    order: str = Query("desc", pattern="^(asc|desc)$"),
-    page: int = Query(1, ge=1),
-    limit: int = Query(30, ge=1, le=500),
+    params: Annotated[FileListingQuery, Query()],
 ):
     """List a drive's active files.
 
     `path` is an exact `folder_path` match by default — direct children only.
     `recursive=True` widens it to the folder's whole subtree.
     """
+    return _list_drive_files(db, drive_name, unlocked_groups, params)
+
+
+@router.post("/{drive_name}/files/query", response_model=PaginatedResponse)
+def query_drive_files(
+    drive_name: str,
+    db: Annotated[Session, Depends(get_db)],
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
+    params: Annotated[FileListingQuery, Query()],
+    body: FileIdsQuery,
+):
+    """The listing, with the body's ids joining `collection` in the `in:` condition."""
+    return _list_drive_files(
+        db, drive_name, unlocked_groups, params, file_ids=body.file_ids
+    )
+
+
+def _list_drive_files(
+    db: Session,
+    drive_name: str,
+    unlocked_groups: list[str],
+    params: FileListingQuery,
+    *,
+    file_ids: list[str] | None = None,
+) -> PaginatedResponse:
     _validate_drive(drive_name, unlocked_groups)
     query, normalized_search = filtered_drive_files(
         db,
         drive_name,
-        path=path,
-        recursive=recursive,
-        search=search,
-        favorite=favorite,
-        liked=liked,
-        tag=tag,
-        type=type,
-        folder=folder,
-        collection=collection,
-        size=size,
-        duration=duration,
-        trust=trust,
+        path=params.path,
+        recursive=params.recursive,
+        search=params.search,
+        favorite=params.favorite,
+        liked=params.liked,
+        tag=params.tag,
+        type=params.type,
+        folder=params.folder,
+        collection=params.collection,
+        size=params.size,
+        duration=params.duration,
+        modified=params.modified,
+        exclude_tag=params.exclude_tag,
+        exclude_type=params.exclude_type,
+        exclude_folder=params.exclude_folder,
+        exclude_collection=params.exclude_collection,
+        has_tag=params.has_tag,
+        has_collection=params.has_collection,
+        trust=params.trust,
+        origin=params.origin,
+        exclude_origin=params.exclude_origin,
+        file_ids=file_ids,
     )
 
     total = query.count()
 
-    if sort == "random":
+    if params.sort == "random":
         query = query.order_by(func.random())
     else:
-        sort_column = getattr(File, sort)
+        sort_column = getattr(File, params.sort)
         id_column = File.id
-        if order == "desc":
+        if params.order == "desc":
             sort_column = sort_column.desc()
             id_column = id_column.desc()
         query = query.order_by(sort_column, id_column)
 
-    offset = (page - 1) * limit
-    files = query.offset(offset).limit(limit).all()
+    offset = (params.page - 1) * params.limit
+    files = query.offset(offset).limit(params.limit).all()
 
     return PaginatedResponse(
         data=[
             _to_response(f, match_source=_classify_match_source(f, normalized_search))
             for f in files
         ],
-        meta=PaginationMeta(total=total, page=page, limit=limit),
+        meta=PaginationMeta(total=total, page=params.page, limit=params.limit),
     )
 
 
@@ -1165,16 +1347,163 @@ def list_folder_counts(
     drive_name: str,
     db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
-    type: FileKindParam | None = None,
+    params: Annotated[FileFiltersQuery, Query()],
 ):
-    """Active files per exact ``folder_path``, optionally of one kind."""
-    _validate_drive(drive_name, unlocked_groups)
-    query = db.query(File.folder_path, func.count(File.id)).filter(
-        File.drive == drive_name, active_file_filter()
+    """Active files per exact ``folder_path`` under the listing's filters."""
+    return _folder_counts(db, drive_name, unlocked_groups, params)
+
+
+@router.post(
+    "/{drive_name}/folder-counts/query", response_model=list[FolderCountResponse]
+)
+def query_folder_counts(
+    drive_name: str,
+    db: Annotated[Session, Depends(get_db)],
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
+    params: Annotated[FileFiltersQuery, Query()],
+    body: FileIdsQuery,
+):
+    """The folder counts, with the body's ids joining `collection` in the `in:` condition."""
+    return _folder_counts(
+        db, drive_name, unlocked_groups, params, file_ids=body.file_ids
     )
-    query = _apply_kind_filter(query, _normalize_kind(type))
-    rows = query.group_by(File.folder_path).order_by(File.folder_path).all()
+
+
+def _folder_counts(
+    db: Session,
+    drive_name: str,
+    unlocked_groups: list[str],
+    params: FileFiltersQuery,
+    *,
+    file_ids: list[str] | None = None,
+) -> list[FolderCountResponse]:
+    _validate_drive(drive_name, unlocked_groups)
+    query, _ = filtered_drive_files(
+        db,
+        drive_name,
+        search=params.search,
+        favorite=params.favorite,
+        liked=params.liked,
+        tag=params.tag,
+        type=params.type,
+        folder=params.folder,
+        collection=params.collection,
+        size=params.size,
+        duration=params.duration,
+        modified=params.modified,
+        exclude_tag=params.exclude_tag,
+        exclude_type=params.exclude_type,
+        exclude_folder=params.exclude_folder,
+        exclude_collection=params.exclude_collection,
+        has_tag=params.has_tag,
+        has_collection=params.has_collection,
+        trust=params.trust,
+        origin=params.origin,
+        exclude_origin=params.exclude_origin,
+        file_ids=file_ids,
+    )
+    rows = (
+        query.with_entities(File.folder_path, func.count(distinct(File.id)))
+        .group_by(File.folder_path)
+        .order_by(File.folder_path)
+        .all()
+    )
     return [FolderCountResponse(path=path, count=count) for path, count in rows]
+
+
+@router.get("/{drive_name}/tag-counts", response_model=list[TagResponse])
+def list_tag_counts(
+    drive_name: str,
+    db: Annotated[Session, Depends(get_db)],
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
+    viewer_id: Annotated[str | None, Depends(get_viewer_id)],
+    params: Annotated[TagCountsQuery, Query()],
+):
+    """The matching files' tags, grouped by folded name, with distinct file counts."""
+    return _tag_counts(db, drive_name, unlocked_groups, viewer_id, params)
+
+
+@router.post("/{drive_name}/tag-counts/query", response_model=list[TagResponse])
+def query_tag_counts(
+    drive_name: str,
+    db: Annotated[Session, Depends(get_db)],
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
+    viewer_id: Annotated[str | None, Depends(get_viewer_id)],
+    params: Annotated[TagCountsQuery, Query()],
+    body: FileIdsQuery,
+):
+    """The tag counts, with the body's ids joining `collection` in the `in:` condition."""
+    return _tag_counts(
+        db, drive_name, unlocked_groups, viewer_id, params, file_ids=body.file_ids
+    )
+
+
+def _tag_counts(
+    db: Session,
+    drive_name: str,
+    unlocked_groups: list[str],
+    viewer_id: str | None,
+    params: TagCountsQuery,
+    *,
+    file_ids: list[str] | None = None,
+) -> list[TagResponse]:
+    _validate_drive(drive_name, unlocked_groups)
+    if params.watch is not None and viewer_id is None:
+        raise HTTPException(status_code=400, detail="viewer_required")
+    query, _ = filtered_drive_files(
+        db,
+        drive_name,
+        search=params.search,
+        favorite=params.favorite,
+        liked=params.liked,
+        tag=params.tag,
+        type=params.type,
+        folder=params.folder,
+        collection=params.collection,
+        size=params.size,
+        duration=params.duration,
+        modified=params.modified,
+        exclude_tag=params.exclude_tag,
+        exclude_type=params.exclude_type,
+        exclude_folder=params.exclude_folder,
+        exclude_collection=params.exclude_collection,
+        has_tag=params.has_tag,
+        has_collection=params.has_collection,
+        trust=params.trust,
+        origin=params.origin,
+        exclude_origin=params.exclude_origin,
+        file_ids=file_ids,
+    )
+    if params.watch is not None:
+        query = join_watch(query, viewer_id)
+        query = query.filter(watch_bucket() == params.watch)
+    # Every Tag row of a matching file is counted, another drive's included:
+    # a file moved before its tags followed still links to its old drive's row.
+    rows = (
+        query.with_entities(File.id, Tag.name, Tag.drive)
+        .join(file_tags, file_tags.c.file_id == File.id)
+        .join(Tag, Tag.id == file_tags.c.tag_id)
+        .all()
+    )
+    files_by_fold: dict[str, set[str]] = defaultdict(set)
+    spellings: dict[str, set[str]] = defaultdict(set)
+    own_spellings: dict[str, set[str]] = defaultdict(set)
+    for file_id, name, tag_drive in rows:
+        fold = name.lower()
+        files_by_fold[fold].add(file_id)
+        spellings[fold].add(name)
+        if tag_drive == drive_name:
+            own_spellings[fold].add(name)
+    counted = [
+        (len(ids), _first_spelling(own_spellings.get(fold) or spellings[fold]))
+        for fold, ids in files_by_fold.items()
+    ]
+    counted.sort(key=lambda entry: (-entry[0], entry[1].casefold(), entry[1]))
+    return [TagResponse(name=name, count=count) for count, name in counted]
+
+
+def _first_spelling(names: set[str]) -> str:
+    return min(names, key=lambda name: (name.casefold(), name))
 
 
 @router.post("/{drive_name}/folders", response_model=FolderResponse)
@@ -1223,6 +1552,7 @@ _SUFFIX_MAX_ATTEMPTS = 99
 def _project_created_markdown_tags(db: Session, file: File, content: str) -> None:
     if not fileops._is_markdown_file(file):
         return
+    project_frontmatter_origin(db, file, content)
     project_frontmatter_tags(db, file, content)
     cleanup_orphan_tags(db, file.drive)
 
@@ -1326,6 +1656,7 @@ async def create_text_file(
         file_type, mime_type = classify(filename)
 
         replace_file_contents(resolved, content_bytes)
+        modified_at = read_modified_at(resolved)
 
         nfc_name = unicodedata.normalize("NFC", resolved.name)
         parent_rel = str(_Path(normalized_rel).parent)
@@ -1346,6 +1677,8 @@ async def create_text_file(
         existing_missing.mime_type = mime_type
         existing_missing.filename = nfc_name
         existing_missing.folder_path = folder_path
+        if modified_at is not None:
+            existing_missing.modified_at = modified_at
         _record_created_file_version(db, existing_missing, content_bytes)
         _project_created_markdown_tags(db, existing_missing, body.content)
         if body.arrival is not None:
@@ -1447,6 +1780,7 @@ async def create_text_file(
             file_size=len(content_bytes),
             file_type=file_type,
             mime_type=mime_type,
+            modified_at=read_modified_at(candidate_resolved),
         )
         db.add(new_file)
         try:
@@ -1573,7 +1907,7 @@ def list_pinned_folders(
         .order_by(PinnedFolder.id)
         .all()
     )
-    return [PinnedFolderResponse(path=pin.path) for pin in pins]
+    return [PinnedFolderResponse(path=pin.path, on_home=pin.on_home) for pin in pins]
 
 
 @router.post("/{drive_name}/pins", response_model=PinnedFolderResponse, status_code=201)
@@ -1598,7 +1932,7 @@ def pin_folder(
     db.add(pin)
     db.commit()
     db.refresh(pin)
-    return PinnedFolderResponse(path=pin.path)
+    return PinnedFolderResponse(path=pin.path, on_home=pin.on_home)
 
 
 @router.delete("/{drive_name}/pins", status_code=204)
@@ -1631,6 +1965,8 @@ def get_watch_history(
     limit: int = Query(20, ge=1, le=50),
     filter: str = Query("unfinished", pattern=r"^(unfinished|all|continue|not_continue)$"),
     type: FileKindParam | None = None,
+    origin: Annotated[str | None, Query(min_length=1, max_length=32)] = None,
+    exclude_origin: Annotated[str | None, Query(min_length=1, max_length=32)] = None,
 ):
     _validate_drive(drive_name, unlocked_groups)
 
@@ -1663,6 +1999,13 @@ def get_watch_history(
     # rows rather than being spent on rows about to be discarded.
     query = _apply_kind_filter(query, _normalize_kind(type))
 
+    if origin is not None:
+        query = query.filter(File.md_origin == origin)
+    if exclude_origin is not None:
+        query = query.filter(
+            or_(File.md_origin.is_(None), File.md_origin != exclude_origin)
+        )
+
     records = (
         query
         .order_by(WatchHistory.last_played_at.desc())
@@ -1670,6 +2013,9 @@ def get_watch_history(
         .all()
     )
 
+    ranges = watched_ranges_by_file(
+        db, viewer_id, {record.file_id: record.duration for record in records}
+    )
     items = [
         WatchHistoryItemResponse(
             **_to_response(record.file).model_dump(),
@@ -1677,6 +2023,7 @@ def get_watch_history(
                 position=record.playback_position,
                 duration=record.duration,
             ),
+            watched_ranges=ranges[record.file_id],
         )
         for record in records
     ]

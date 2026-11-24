@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "MEDIUM",
+  "findings": [
+    {
+      "id": "F1",
+      "origin": "reviewer",
+      "claim": "Even after the regex was widened, the guard in fixture-origin.spec.ts does not notice a second navigation of the same page within one test (a second `page.goto` or `open()` after a localStorage write). So a spec can cross documents that way, stay on `file://`, and the guard still passes.",
+      "impact": "Test-only. A future spec that writes localStorage and then calls `page.goto` again could hit the flaky null-after-navigation the fix targets, while the guard reports that spec as covered. No product user can observe this. No current spec does this: the only crossings use `.reload(` or `.context().newPage(`, all in the two migrated files.",
+      "evidence": "frontend/e2e-components/fixture-origin.spec.ts:13 `ACROSS_DOCUMENTS = /\\.reload\\(|\\.go(Back|Forward)\\(|\\bcontext(\\(\\))?\\.newPage\\(/` has no alternative for a repeated `goto`. Both specs navigate through `page.goto` inside `open()` (player-workbench-desktop.spec.ts:63, workbench-split-desktop.spec.ts:62). Calling open() twice in one test is a document crossing that the pattern cannot see. Line 20 also scans only `*.spec.ts`, so a crossing placed in a `.cases.ts` helper (scenes-section-rows.cases.ts already touches localStorage) is never inspected. A grep for reload/goBack/goForward/newPage/newContext across e2e-components finds only the 7 sites in the two migrated specs, so the gap is latent.",
+      "repro": "not_reproduced. Mutation in my head: add a spec that calls `open(page, X)`, writes localStorage, then calls `open(page, X)` again and reads the value, using `pathToFileURL(PAGE)`. ACROSS_DOCUMENTS does not match it, the file is not in `crossing`, the `toEqual` list at line 24 stays correct, and the guard passes.",
+      "introduced": "pre-existing",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "No invariants file exists. This is the part of r1 F1 that the fix commit did not address. The guard is weaker than its doc comment (\"A spec that reads localStorage across documents\") suggests, but nothing breaks today."
+      },
+      "severity": "LOW",
+      "proposed_fix": "Stop enumerating call shapes. Require serveFixture (and forbid pathToFileURL) in every spec whose source mentions `localStorage`, or scan `.cases.ts` files too and treat more than one `goto(`/`open(` per test as crossing."
+    }
+  ],
+  "specification_compliance": [
+    "r1 F2 (unstubbed fetch resolves 404 instead of rejecting): addressed. fixtureOrigin.ts:50-52 now calls `route.abort()` (default errorCode `failed`) whenever no file is read, including paths that escape ROOT. A fetch nothing stubs therefore rejects as a network error, as it does under file://. A missing element resource such as the subtitle track fires its error event either way. The 404 branch is gone, so no fulfill-with-status path remains.",
+    "r1 F1 (guard too narrow): partially addressed. fixture-origin.spec.ts:13 now also matches `context.newPage(` taken from the fixture (`\\bcontext` matches both `page.context().newPage(` and a bare `context.newPage(`) and `goBack(`/`goForward(`. A repeated same-page `goto` and `.cases.ts` files are still not covered (F1 above). `browser.newContext()` is rightly not matched, because a new context does not share storage.",
+    "The widened regex does not match its own source text in fixture-origin.spec.ts (the escaped `\\(` breaks every alternative), so the guard does not list itself. Grep confirms that only the two expected files match today, so the hard-coded list at :24-27 stays correct.",
+    "No invariants file exists, so I could not compare against touch points. The change is confined to e2e-components test helpers."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "Under abort, Chromium logs a console error `net::ERR_FAILED` for an unserved resource, where file:// logs `net::ERR_FILE_NOT_FOUND`. workbench-split-desktop.spec.ts:814-831 collects console errors but compares only errors raised after load, and a failure is logged as an error either way, so the outcome should be equivalent."
+  ],
+  "regression_risks": [
+    "Every unserved path is now aborted, including a file the bundle needs but the build failed to write. Before this change such a file returned a 404, which is also a failure, so the risk does not grow.",
+    "The guard's growing list of regex alternatives can still drift from how specs actually navigate (F1)."
+  ],
+  "test_coverage": [
+    "Nothing tests serveFixture's abort-vs-fulfill behaviour directly. The migrated specs exercise it only indirectly.",
+    "The guard is static source matching. It does not check that serveFixture runs before navigation or that FIXTURE derives from FIXTURE_URL; it only checks that the text `serveFixture(` is present and `pathToFileURL(` is absent.",
+    "No test pins the widened regex alternatives (goBack/goForward, bare context.newPage). Removing any of them would not fail a test today, because no spec uses those forms."
+  ],
+  "not_verified": [
+    "I could not run Playwright, so I did not observe at runtime that `route.abort()` makes fetch reject, or that the migrated specs pass and are no longer flaky.",
+    "I did not inspect the built bundle (.build), so I do not know which assets, if any, it requests and are now aborted.",
+    "I did not read every test in player-workbench-desktop.spec.ts or workbench-split-desktop.spec.ts. I read only the changed hunks, open(), and the crossing and console tests.",
+    "I did not check whether any spec calls open()/goto more than once in a single test after writing localStorage."
+  ],
+  "coverage": [
+    {
+      "path": "frontend/e2e-components/fixture-origin.spec.ts",
+      "read": "full",
+      "reason": "Read the whole file (33 lines)."
+    },
+    {
+      "path": "frontend/e2e-components/fixtureOrigin.ts",
+      "read": "full",
+      "reason": "Read the whole file (60 lines)."
+    },
+    {
+      "path": "frontend/e2e-components/player-workbench-desktop.spec.ts",
+      "read": "partial",
+      "reason": "Read lines 1-70 (changed hunk and open()) and 550-589 (reload and second-page tests). Grepped the whole file for crossings, console listeners and track."
+    },
+    {
+      "path": "frontend/e2e-components/spec-viewport.spec.ts",
+      "read": "partial",
+      "reason": "The fix commit does not touch this file. I reviewed only the one-line registry addition shown in the diff (fixture-origin.spec.ts added to AT_THE_PHONE_WIDTH); r1 read the whole file."
+    },
+    {
+      "path": "frontend/e2e-components/workbench-split-desktop.spec.ts",
+      "read": "partial",
+      "reason": "Read lines 1-70 (changed hunk and open()) and 755-1074 (every reload, second-page, storage and console-error test)."
+    }
+  ],
+  "confidence": 80,
+  "trajectory": "One fix round (8b64b05). In fixtureOrigin.ts it removed a state rather than adding one: the 404 branch is gone and the single fallback became abort, so that part is a simplification. In fixture-origin.spec.ts it added two more predictions about how a spec crosses documents (goBack/goForward and a bare context.newPage) to the alternatives the previous round introduced. Each review has so far added alternatives to this pattern list, and it still misses a repeated goto (F1). That part of the design is being patched shape by shape instead of keyed on what matters (localStorage use)."
+}

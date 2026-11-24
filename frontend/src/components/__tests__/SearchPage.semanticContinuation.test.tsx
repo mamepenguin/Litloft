@@ -97,7 +97,7 @@ vi.mock("@/components/TreeRefreshContext", () => ({ useTreeRefresh: () => vi.fn(
 vi.mock("@/hooks/useShortcuts", () => ({ useShortcuts: vi.fn() }));
 vi.mock("@/hooks/useSelectedFile", () => ({ useSelectedFile: () => ({ fileId: null }) }));
 vi.mock("@/hooks/useTreeVisible", () => ({
-  useTreeVisible: () => ({ visible: false, beside: false, toggle: vi.fn() }),
+  useTreeVisible: () => ({ visible: false, beside: false, toggle: vi.fn(), yielded: false }),
 }));
 vi.mock("@/hooks/useFolderViewMode", () => ({
   useFolderSort: () => ({ sort: "created_at", order: "desc", setSort: vi.fn() }),
@@ -115,7 +115,7 @@ vi.mock("@/lib/listSnapshot", () => ({
   saveListSnapshot: vi.fn(),
 }));
 vi.mock("@/components/folder/usePinnedFolders", () => ({
-  usePinnedFolders: () => ({ pinnedPaths: new Set<string>(), handleTogglePin: vi.fn() }),
+  usePinnedFolders: () => ({ pinnedPaths: new Set<string>(), homePaths: new Set<string>(), handleTogglePin: vi.fn(), handleToggleHome: vi.fn() }),
 }));
 vi.mock("@/components/folder/useDriveScan", () => ({
   useDriveScan: () => ({ scanning: false, handleScan: vi.fn() }),
@@ -150,7 +150,7 @@ vi.mock("@/hooks/useWebSocketRefresh", () => ({
   },
 }));
 
-const observer = vi.hoisted(() => ({ instances: [] as MockIntersectionObserver[] }));
+const observer = vi.hoisted(() => ({ instances: [] as MockIntersectionObserver[], fired: 0 }));
 
 class MockIntersectionObserver {
   readonly root: Element | Document | null = null;
@@ -204,6 +204,7 @@ const file = (id: string, overrides: Partial<FileItem> = {}): FileItem => ({
   trust_reviewed_at: null,
   created_at: "2026-01-01T00:00:00Z",
   updated_at: "2026-01-01T00:00:00Z",
+  modified_at: null,
   ...overrides,
 });
 
@@ -327,6 +328,7 @@ function resetServer() {
   server.imagesHandler = null;
   searchCache.hit = null;
   observer.instances = [];
+  observer.fired = 0;
   stableRouter.push.mockClear();
   stableRouter.replace.mockClear();
   invalidateAddonsCache();
@@ -372,7 +374,21 @@ async function clickShowMore(container: HTMLElement) {
   return container;
 }
 
+/**
+ * Both sentinels' observers are replaced whenever the rows or the loading
+ * state change, in an effect that runs after the commit.
+ */
 async function reveal() {
+  await waitFor(() =>
+    expect(
+      observer.instances.slice(observer.fired).some((instance) => instance.targets.size > 0),
+    ).toBe(true),
+  );
+  fireSentinels();
+}
+
+function fireSentinels() {
+  observer.fired = observer.instances.length;
   act(() => {
     for (const instance of [...observer.instances]) {
       for (const target of instance.targets) {
@@ -657,7 +673,7 @@ describe("SPEC-CORE-035 I10 the answer is revealed 100 rows at a time", () => {
     ]);
 
     await reveal();
-    await reveal();
+    fireSentinels();
 
     await waitFor(() => expect(drawnIds()).toHaveLength(31 + 30 + 100));
     expect(drawnIds()).not.toContain("cont-101");

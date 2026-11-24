@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [],
+  "specification_compliance": [
+    "I1/I2/I3/I5: addons/media_import/frontend/players/YouTubeEmbed.tsx:484 computes gesturesInteractive = !adActive && (!ended || fullscreen.isFullscreen), and line 563 passes it to MediaControls. GestureOverlay.tsx:46 turns it into pointerEvents auto/none. With no ad the overlay is auto during playback, auto at ENDED in fullscreen and none at ENDED in the page. During an ad it is always none.",
+    "I4: useFullscreen.ts:125 sets pseudoOpen = phase === 'on', and line 205 sets isFullscreen = nativeActive || pseudoOpen, while isPseudo (pseudoActive) also covers 'closing'. isFullscreen therefore turns false when the carry back starts and the frame is still pinned. ended is React state and does not change, so gesturesInteractive goes to false on that same render without a new player state.",
+    "I6: YouTubeEmbed.tsx:339-349 calls notifyEnded and onEnded once per ENDED state change unless isInterrupted(). This path does not depend on fullscreen and the change did not touch it.",
+    "I7: MediaControlsContainer.tsx:96/292/380/406 receives interactive. At ENDED in fullscreen it gets the same value it gets during a pause (true), and at ENDED in the page it gets false."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "While pseudo fullscreen is opening (phase 'opening'), isFullscreen is still false, so at ENDED the overlay stays none until the pin takes effect. This matches I4, which ties the change to isFullscreen."
+  ],
+  "regression_risks": [
+    "At ENDED in fullscreen, backendOwnsFrame (MediaControlsContainer.tsx:406, !interactive) is now false, where it used to be true. Gestures, the scrim and tap/click handling now behave as they do during a pause, which is what I7 asks for, but YouTube's own end-screen tiles in fullscreen are covered by the overlay."
+  ],
+  "test_coverage": [
+    "YouTubeEmbedPlayer.test.tsx:407-530 covers I1 (native and pseudo), I4 (entering, leaving native, leaving pseudo), I3 (an ad in fullscreen at the end) and I7 (scrim, click restarts, double-click leaves fullscreen).",
+    "Gap: the I4 pseudo-leave test (lines 451-465) does not assert that the frame is still pinned ('fixed') when it checks pointerEvents. It therefore does not show that the overlay stands down at the start of the carry back rather than after it settles.",
+    "Gap: the tests assert I1 only as pointerEvents 'auto'. No test in this file has a swipe down or a pinch in at ENDED in fullscreen actually leave fullscreen.",
+    "Gap: the onEnded-once tests (lines 910-931) do not run in fullscreen. The code path is independent of fullscreen."
+  ],
+  "not_verified": [
+    "Did not run the test suite. I cannot run commands.",
+    "Did not trace the swipe-down and pinch-in handlers in usePlayerGestures and useFullscreen to show that a gesture starting on the overlay at ENDED actually leaves fullscreen.",
+    "Did not check that the addons submodule pointer in core matches the addon commit I read in the worktree.",
+    "Did not read the spec document or the revised invariants.md directly. I relied on the invariants quoted in the prompt."
+  ],
+  "confidence": 80
+}

@@ -62,7 +62,7 @@ export function addMenuCases(): void {
   test("a row runs its action once and closes the menu", async ({ page, isMobile }) => {
     await page.clock.install();
     await openMenu(page, isMobile);
-    await press(page, page.getByRole("menuitem", { name: "New Folder" }), isMobile);
+    await press(page, page.getByRole("menuitem", { name: "New folder", exact: true }), isMobile);
     await expect(page.getByRole("menu")).toHaveCount(0);
     await expect(page.locator("#add-host")).toHaveAttribute("data-created", "1");
     // Runs every timer the press left behind, so a second call cannot arrive later.

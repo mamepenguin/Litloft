@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "TP-1",
+      "origin": "reviewer",
+      "claim": "The diff changes the SceneCard in ScenesSectionPresenter.tsx (a 7.6rem min-height on the whole card, justify-start, and the removal of the per-span min-h-[2.4rem] and min-h-[2.45rem]), and none of the four Presenter touch points (column count, removal of max-w-96, loading skeleton, window band) covers it.",
+      "impact": "The scene card's height and layout change at every width, including the 384px inspector. Before, a one-line label was followed by a blank reserved line. Now the text follows it directly and the spare space sits at the card's foot. My arithmetic puts the maximum content at about 7.59rem (1rem time line + 2 × 0.25rem gaps + 2 × 1.203rem label + 2 × 1.219rem text + 1.25rem padding), so 7.6rem still holds the section height steady (SPEC-ADDON-089 I5). This is a visible change outside the declared plan, made under the human decision D-1 in decisions.md:16.",
+      "evidence": "addons/intelligence/frontend/ScenesSection/ScenesSectionPresenter.tsx:526 (min-h-[7.6rem] ... justify-start), :535 and :538 (the line-clamp-2 spans no longer have min-h). The touch-point list in docs/specs/scene-timeline-width.md names only the grid column count, max-w-96, the skeleton and the band for the Presenter. The change is recorded in docs/process/reviews/feature-scene-timeline-width/design-check.md:18-20 (D-1) and decisions.md:16, but the spec's touch points were not updated.",
+      "repro": "not_reproduced. Comparing the diff hunk at SceneCard with the touch-point list shows the change is not in the list.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No declared invariant is broken. The height stays fixed by the card's total min-height, and the e2e height check at frames 0 and 5 covers the extreme pair of a short label with no text and a long label with long text. The touch-point list is incomplete for a user-visible card change.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add the scene card's height reservation to the Presenter touch points (or the Revisions), citing D-1."
+    },
+    {
+      "id": "TP-2",
+      "origin": "reviewer",
+      "claim": "The diff edits frontend/e2e-components/fixtures/scenesSectionData.ts (SCENES_LONG_LABEL is made much longer), and that file is not in the touch-point list, which names only fixtures/scenesSection.tsx and fixtures/app.tsx.",
+      "impact": "Only test data is affected. The longer label makes the e2e assertion `labelClipped === true` hold at the new 688px and 900px widths, where the old label would fit in two lines. No user-facing behaviour changes.",
+      "evidence": "frontend/e2e-components/fixtures/scenesSectionData.ts:8-9 (diff hunk); used at frontend/e2e-components/scenes-section.cases.ts:248-251 and fixtures/scenesSectionData.ts:57. Touch points list `fixtures/scenesSection.tsx` and `fixtures/app.tsx` only. The r6 classification.json already records this path.",
+      "repro": "not_reproduced. Comparing the diff's file list with the touch-point list shows the file is missing.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is a test fixture outside the listed touch points. No invariant is affected.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Add fixtures/scenesSectionData.ts to the Core touch points."
+    }
+  ],
+  "specification_compliance": [
+    "Every other path the diff reaches is listed or implicit: the scenesModel.ts window function and sceneColumns; the Container's window, requests and columns; the Presenter grid columns, max-w-96 removal, skeleton and band; the new __tests__/ScenesSectionWidth.test.tsx; scenes-section.cases.ts; both spec files; fixtures/app.tsx (the scenes-688 arrangement); the gitlink; plus the implicit docs/specs files and INDEX.md.",
+    "useRulerWidth.ts is unchanged in the diff, as the touch points say ('read only'). Only its call site in the Container moved.",
+    "No new spec file was added, so spec-viewport.spec.ts is rightly untouched."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "The SceneCard's total min-height of 7.6rem replaces per-line reservations, so a scene with a one-line label and no text now leaves its spare space at the card's foot rather than between the label and the text. This applies at every width, not only in wide hosts."
+  ],
+  "regression_risks": [
+    "The 7.6rem card min-height is a hand-computed sum. A future change to the card's font size, line-height, gap or padding could exceed it, and then the section height would change between scenes (SPEC-ADDON-089 I5). Today's e2e height check would catch that only for the fixture's specific label and text lengths."
+  ],
+  "test_coverage": [
+    "The e2e cases check that a one-line label takes one line (labelLines 1) and that a long label clamps to two lines, at 384, 390, 688 and 900px. Section height equality across the frame-0 card (short label, no text) and the frame-5 card (long label, long text) covers the card height reservation.",
+    "jsdom tests in ScenesSectionWidth.test.tsx cover column counts, root font fallbacks, the window start at 5 columns, requests, the band, the width-change redraw and the skeleton. None checks the SceneCard classes."
+  ],
+  "not_verified": [
+    "I did not run any test (read-only reviewer). The e2e results at 688px and 900px are unverified.",
+    "I did not open the design boards (Wide.dc.html, Main.dc.html) to compare the card's layout.",
+    "I did not check whether the commit bb762a04 itself contains only review records. I reviewed the full diff as given against origin/develop.",
+    "I did not verify that the card's computed line-heights in the real Tailwind config match my 7.59rem estimate."
+  ],
+  "confidence": 85
+}

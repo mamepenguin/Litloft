@@ -1,9 +1,12 @@
 "use client";
 
+import { useCallback } from "react";
 import { Menu } from "lucide-react";
 import { useTranslations } from "next-intl";
 
+import { useIsMobile } from "@/hooks/useIsMobile";
 import { DriveTreeToggle } from "./DriveTreeToggle";
+import { useFileHeaderRowHost } from "./FileHeaderRowProvider";
 import { useSidebar } from "./SidebarProvider";
 
 function MenuButton() {
@@ -31,19 +34,39 @@ function MenuButton() {
  * copy of its geometry.
  *
  * PWA safe-area: when iOS runs in standalone mode the viewport can extend
- * under the status bar, so the row is anchored to the safe-area top + 12px
- * instead of a raw 12px offset. In a regular browser `safe-area-inset-top`
- * resolves to 0.
+ * under the status bar, so the row is anchored to the safe-area top + 8px
+ * instead of a raw 8px offset. In a regular browser `safe-area-inset-top`
+ * resolves to 0. 8px puts the 40px buttons on the 56px header's centre line,
+ * which the header's controls and a file page's trail share.
  */
-export function ChromeButtons() {
+export function ChromeButtons({
+  hidden = false,
+}: {
+  /** The focus layout hides the header, so its buttons go with it. */
+  hidden?: boolean;
+} = {}) {
+  const rowHost = useFileHeaderRowHost();
+  const setChromeButtons = rowHost?.setChromeButtons;
+  const attach = useCallback(
+    (node: HTMLDivElement | null) => setChromeButtons?.(node),
+    [setChromeButtons],
+  );
+  // The tree has no width beside a file on a phone, so its toggle would do
+  // nothing there.
+  const isMobile = useIsMobile();
+  const hideTree = !!rowHost?.top && isMobile;
+
   return (
     <div
+      ref={attach}
       data-testid="chrome-buttons"
-      style={{ top: "calc(env(safe-area-inset-top, 0px) + 12px)" }}
+      data-focus-header={hidden ? "hidden" : undefined}
+      inert={hidden}
+      style={{ top: "calc(env(safe-area-inset-top, 0px) + 8px)" }}
       className="fixed left-3 z-50 flex items-center gap-2"
     >
       <MenuButton />
-      <DriveTreeToggle />
+      {!hideTree && <DriveTreeToggle />}
     </div>
   );
 }

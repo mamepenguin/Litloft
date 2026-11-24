@@ -1,0 +1,195 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "R1",
+      "origin": "reviewer",
+      "claim": "The new 8-bit test only bounds READ_HASH_BITS from above. No test fixture has a change of 1-7 dHash bits that must not be read, so lowering the threshold below 8 passes the suite.",
+      "impact": "I1 says a later frame is read 'only when' its hash differs by at least 8 bits. If the threshold dropped to, say, 4, the reader would read noise-level changes (compression flicker, a blinking cursor) at every 3-second gap. It would stay silent in CI and the engine time per video hour would grow beyond the 15-minute gate that the bench measures only on the production host.",
+      "evidence": "tests/test_frame_ocr_read_threshold.py:121 asserts the clip's change is exactly 8 bits and :126 asserts it is read. That kills READ_HASH_BITS 9..16 and the `<` to `<=` mutant at frame_ocr.py:405. The other selection fixtures are static between changes (about 0 bits): test_frame_page_ocr_readers.py:37-65 _encode switches colour and moves the block once at 6 s, _encode_steady_text moves a block by about 60 px per second, test_spec_addon_122_frame_ocr_selection.py flips a full ramp, and frame_box_doubles.py flips a band. None has a sub-8-bit change between candidate frames at least 3 s apart, so the exact engine-call counts (e.g. test_frame_page_ocr_readers.py `engine.calls == [(320, 240), (320, 240)]`) hold for any threshold from 1 to 8.",
+      "repro": "Mutation (reasoned, not run): frame_ocr.py:55 `READ_HASH_BITS = 4`. The expected outcome is that it survives every frame-OCR test.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Test gap. The code as written matches I1, but a regression of its lower bound would pass CI.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add a clip whose change, at least 3 s after the first frame, moves the reader's dHash by 7 bits (assert the distance as the 8-bit test does), and assert that only the first frame is read."
+    }
+  ],
+  "specification_compliance": [
+    "r2 R1 fix confirmed. indexer.py:2185-2194 wraps the _outdated_frame_ids lookup in _native_frame_busy and returns True on any exception. The loft worker (indexer.py:2103-2106) then re-enqueues the backlog task with force=True instead of letting the exception reach the outer handler at :2153 and drop it. tests/test_frame_ocr_worker_reread.py's new test makes the lookup raise and asserts that the task is waiting again and is fetched once the lookup works. Removing the try would leave waiting at 0, so that mutant is killed.",
+    "r2 R2 fix confirmed for the upper side. test_frame_ocr_read_threshold.py builds a clip whose single change is exactly 8 dHash bits (asserted through the module's own _dhash on the same fps=1 decode the reader uses) and asserts reads == ['left','right']. This kills thresholds 9..16 and a `<=` comparison. The lower side is still open (R1).",
+    "The no-frame case was added to the I8 incomplete re-read parametrisation (test_spec_addon_122_frame_ocr_reread.py). frame_ocr.py:649-659 writes only frame_ocr_rule for that outcome, through _keep_earlier_read.",
+    "I1: READ_HASH_BITS=8 and READ_GAP_SECONDS=3.0 are local to frame_ocr (frame_ocr.py:55-57, 404-407). frame_scan still imports the shared GAP_SECONDS/HASH_BITS_THRESHOLD (frame_scan.py:29-31).",
+    "I3/I4/I5: matching takes the strict-greater highest IoU at or above 0.8 among untaken previous boxes and marks the pick as taken before the region test. The region test compares against picked.grey, which is carried over on reuse. The window walk follows step 3.3, with the last window cut. A raising frame sets boxes=[], and previous_boxes becomes [] (frame_ocr.py:246-298, 409-435).",
+    "I6: _store_read writes the rows, frame_ocr_read, frame_ocr_indexed=False and frame_ocr_rule=2 in one session (frame_ocr.py:464-490). _build_rows sets indexed only after writing the rows. The migration at database.py:1269-1272 is guarded and adds a nullable INTEGER.",
+    "I7: get_status (indexer.py:513-532), _collect_incomplete/_resume_incomplete (indexer.py:957, 1129-1150), prioritize (indexer.py:1369-1384) and index details (files.py:1276-1284) all treat outdated as native VIDEO_TYPES only, under on_index.",
+    "I8: _reread (frame_ocr.py:586-672) writes only the rule on incomplete outcomes. It writes nothing when the file is unreachable, the engine is missing or lost, the row is inactive or the write fails.",
+    "I10: the all-queued branch (files.py:1106-1108) raises the queued re-read through raise_task_priority. That function drains the file's entries and enqueues one task at 100 (indexer.py:1489-1513). The mixed-request raise is at files.py:1174-1176."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "When the .loft gate's lookup keeps failing, _native_frame_busy returns True every time. The backlog fetch is then held indefinitely, with a warning logged about every 2 s (indexer.py:2191-2194, 2105). The spec does not state the fail-closed choice; it is the safer reading of SPEC-ADDON-117 I3.",
+    "_collect_incomplete's queueing condition (indexer.py:1129-1146) and the SQL _outdated_frame_read (indexer.py:169-179) restate the outdated rule instead of calling frame_read_is_outdated. They are equivalent today."
+  ],
+  "regression_risks": [
+    "_outdated_frame_ids binds every queued or processing FRAME_OCR id in one IN clause, about 8,834 during the re-read backlog. The image is python:3.12-slim (Dockerfile:1), whose bundled SQLite has the 32766-variable limit, so the query should succeed. If it ever failed persistently, the r2 fail-closed fix would hold the .loft backlog for the whole re-read, which is the opposite of I11.",
+    "Each gate check while a non-re-read frame task holds the backlog loads full IndexedFile rows for every queued frame id every 2 s.",
+    "detect_boxes/recognise_boxes depend on RapidOCR internals. CI always fakes both seams, so only the bench's i2_check catches an engine bump.",
+    "test_frame_ocr_read_threshold.py asserts an exact hash distance of 8 on a libx264-encoded clip. A different ffmpeg/x264 build could shift it, but that would show up as a loud test failure."
+  ],
+  "test_coverage": [
+    "Newly covered: a failed .loft gate lookup puts the backlog fetch back and fetches it later; an 8-bit change is read (upper bound of I1's threshold); a no-frame incomplete re-read keeps the earlier read.",
+    "Gap: the lower bound of I1's 8-bit threshold (R1).",
+    "Gap (carried): the `last_data = time.monotonic()` reset after a frame (frame_ocr.py:423), and paused time inside _read_boxes not counting towards the 120 s stall limit. A mutant removing the reset most likely survives.",
+    "Gap (carried): _engine_call_lock in detect_boxes/recognise_boxes is never exercised, because both seams are always faked (I9's 'no two engine calls at once').",
+    "I2 is checked only by scripts/dev/frame_ocr_bench/i2_check.py against the real engine, as the clarification accepts. run.sh records each clip's exit status but itself exits 0 when a clip differs; the person running it must read i2.txt."
+  ],
+  "not_verified": [
+    "No tests or mutants were run; all mutation outcomes are reasoned.",
+    "The diff of fix commit 53c41b7e0 (docs only, per its message) was not shown in the record and was not inspected.",
+    "RapidOCR internals were not inspected, so whether _detect_boxes reproduces engine(image)'s box order (I2) is unverified.",
+    "app/main.py and app/workers/loft_media.py were not read.",
+    "Apart from test_frame_ocr_read_threshold.py and part of test_frame_page_ocr_readers.py, the test files were seen only through the prompt's diff.",
+    "The exact SQLite version in the production image was inferred from the python:3.12-slim base, not checked."
+  ],
+  "coverage": [
+    {
+      "path": "addons/intelligence/app/database.py",
+      "read": "partial",
+      "reason": "Lines 1245-1304: the whole _migrate_frame_page_ocr_columns function containing the changed hunk."
+    },
+    {
+      "path": "addons/intelligence/app/indexer.py",
+      "read": "partial",
+      "reason": "Lines 55-69, 160-209, 296-307, 480-579, 915-1154, 1330-1399, 1489-1513 and 1998-2195: every changed hunk with its enclosing function."
+    },
+    {
+      "path": "addons/intelligence/app/models.py",
+      "read": "partial",
+      "reason": "Lines 95-114: the changed column and its neighbours."
+    },
+    {
+      "path": "addons/intelligence/app/routers/files.py",
+      "read": "partial",
+      "reason": "Lines 60-94 (_get_indexed_file_or_404), 1000-1199 (reindex_file from layer 2b on) and 1262-1291 (get_index_details status): every changed hunk; import line 20 seen via grep."
+    },
+    {
+      "path": "addons/intelligence/app/workers/frame_ocr.py",
+      "read": "full",
+      "reason": "Lines 1-793, the whole file."
+    },
+    {
+      "path": "addons/intelligence/app/workers/frame_scan.py",
+      "read": "partial",
+      "reason": "Lines 1-35: the changed docstring and its imports; the docstring is the only change."
+    },
+    {
+      "path": "addons/intelligence/app/workers/ocr.py",
+      "read": "partial",
+      "reason": "Lines 95-239: run_engine and every new function (all changed hunks)."
+    },
+    {
+      "path": "scripts/dev/frame_ocr_bench/i2_check.py",
+      "read": "full",
+      "reason": "Whole file opened."
+    },
+    {
+      "path": "scripts/dev/frame_ocr_bench/measure.py",
+      "read": "full",
+      "reason": "Whole file opened."
+    },
+    {
+      "path": "scripts/dev/frame_ocr_bench/reference.py",
+      "read": "full",
+      "reason": "Whole file opened."
+    },
+    {
+      "path": "scripts/dev/frame_ocr_bench/run.sh",
+      "read": "full",
+      "reason": "Whole file opened."
+    },
+    {
+      "path": "addons/intelligence/tests/frame_box_doubles.py",
+      "read": "not_read",
+      "reason": "Not opened; seen only in the prompt's diff."
+    },
+    {
+      "path": "addons/intelligence/tests/loft_media_world.py",
+      "read": "not_read",
+      "reason": "Not opened; seen only in the prompt's diff."
+    },
+    {
+      "path": "addons/intelligence/tests/ocr_fixtures.py",
+      "read": "not_read",
+      "reason": "Not opened; seen only in the prompt's diff."
+    },
+    {
+      "path": "addons/intelligence/tests/test_frame_ocr_read_threshold.py",
+      "read": "full",
+      "reason": "Whole file opened (lines 1-131)."
+    },
+    {
+      "path": "addons/intelligence/tests/test_frame_ocr_worker_reread.py",
+      "read": "not_read",
+      "reason": "Not opened; seen only in the prompt's diff, including the r2 fix hunk."
+    },
+    {
+      "path": "addons/intelligence/tests/test_frame_page_ocr_readers.py",
+      "read": "partial",
+      "reason": "Opened lines 30-65 (_encode); the rest seen only in the prompt's diff."
+    },
+    {
+      "path": "addons/intelligence/tests/test_picture_lines_frames.py",
+      "read": "not_read",
+      "reason": "Not opened; seen only in the prompt's diff."
+    },
+    {
+      "path": "addons/intelligence/tests/test_reindex_endpoint.py",
+      "read": "not_read",
+      "reason": "Not opened; seen only in the prompt's diff."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_122_frame_ocr_outdated.py",
+      "read": "not_read",
+      "reason": "Not opened; seen only in the prompt's diff."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_122_frame_ocr_reread.py",
+      "read": "not_read",
+      "reason": "Not opened; seen only in the prompt's diff, including the r2 fix hunk."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_122_frame_ocr_reread_text.py",
+      "read": "not_read",
+      "reason": "Not opened; seen only in the prompt's diff."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_122_frame_ocr_selection.py",
+      "read": "not_read",
+      "reason": "Not opened; seen only in the prompt's diff."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_122_loft_fetch_gate.py",
+      "read": "not_read",
+      "reason": "Not opened; seen only in the prompt's diff."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_122_loft_read_rule.py",
+      "read": "not_read",
+      "reason": "Not opened; seen only in the prompt's diff."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_123_frame_box_reuse.py",
+      "read": "not_read",
+      "reason": "Not opened; seen only in the prompt's diff."
+    }
+  ],
+  "confidence": 80,
+  "trajectory": "Yes: the r2 round repeats a branch that the round before it added, so the design is being patched. The r1 round wrapped the frame OCR worker's DB-backed 'is this frame task a re-read?' lookup (_is_outdated_frame_read) in its own try/except. The r2 round adds the same kind of guard on the same lookup at its other call site, the .loft gate (_native_frame_busy calling _outdated_frame_ids), and fails closed there. The prediction is still evaluated in several places and each failure path gets its own guard; nothing was restructured. Apart from that guard, r2 added tests only: the 8-bit threshold test, the failed-gate-lookup test and the no-frame re-read case. It removed nothing. The r1 round had removed state (_ReadResult.frame_gap) and the run.sh filter. The r2 docs commit 53c41b7e0 was not shown and was not assessed."
+}

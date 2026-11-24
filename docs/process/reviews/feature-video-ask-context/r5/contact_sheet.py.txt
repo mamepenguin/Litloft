@@ -1,0 +1,24 @@
+"""Labelled contact sheet: sheet.py <out.jpg> <frames_dir> <first_n> <ms> [<ms> ...]"""
+import os, sys
+from PIL import Image, ImageDraw, ImageFont
+out, fdir, n0 = sys.argv[1], sys.argv[2], int(sys.argv[3])
+ms = sys.argv[4:]
+W = 640
+tiles = []
+for i, m in enumerate(ms):
+    im = Image.open(os.path.join(fdir, f"{m}.large.webp")).convert("RGB")
+    im = im.resize((W, int(im.height * W / im.width)))
+    s = int(m) / 1000
+    lab = f"[{n0+i}] {int(s//60)}:{int(s%60):02d}  ({s:.3f}s)"
+    d = ImageDraw.Draw(im)
+    f = ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", 28)
+    d.rectangle([0, 0, 330, 38], fill=(0, 0, 0))
+    d.text((6, 4), lab, fill=(255, 255, 0), font=f)
+    tiles.append(im)
+cols = 2 if len(tiles) > 1 else 1
+rows = (len(tiles) + cols - 1) // cols
+h = max(t.height for t in tiles)
+sheet = Image.new("RGB", (cols * W, rows * h), (40, 40, 40))
+for i, t in enumerate(tiles):
+    sheet.paste(t, ((i % cols) * W, (i // cols) * h))
+sheet.save(out, quality=80)

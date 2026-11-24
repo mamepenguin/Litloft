@@ -130,7 +130,14 @@ export function GlobalSearch() {
   const availability = useImageAvailability(drive);
   const imageEnabled =
     availability === "available" && !scope && !browsing && !!drive;
-  const { merged, total, loading, semanticPending, reset: resetResults } = useFileSearch({
+  const {
+    merged,
+    total,
+    loading,
+    semanticPending,
+    inNameError,
+    reset: resetResults,
+  } = useFileSearch({
     open,
     drive,
     query,
@@ -625,6 +632,7 @@ export function GlobalSearch() {
       total={total}
       loading={loading}
       semanticPending={semanticPending}
+      inNameError={inNameError}
       selectedIndex={selectedIndex}
       onOpenJump={openJump}
       onEnterFolder={enterFolder}
@@ -810,6 +818,7 @@ export function GlobalSearch() {
           />
           <div
             className="relative z-10 w-full max-w-3xl rounded-2xl border border-bg-border bg-bg-primary shadow-lg animate-fade-in-scale"
+            aria-modal="true"
             onDragEnter={imageEnabled ? handleDragEnter : undefined}
             onDragOver={imageEnabled ? handleDragOver : undefined}
             onDragLeave={imageEnabled ? handleDragLeave : undefined}

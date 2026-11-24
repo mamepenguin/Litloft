@@ -31,13 +31,19 @@ branch name with `/` replaced by `-`; `review.sh` derives it the same way. Note 
 - Answer all ten required items. Write "none" with the reason where one does not apply.
   Also answer the stack-specific questions in `docs/process/PROJECT.md`.
 - `## Touch points`: every file, table, endpoint, event, rule, script and workflow the
-  change is planned to reach, and every protected path it edits.
-- `## Invariants`: five to ten lines, each `I<N>. <observable sentence>` that a mutation
-  could violate. Sources in order: the project's rules at the touch points, what the work
-  is for, data that cannot be regenerated.
+  change is planned to reach, and every protected path it edits. Write each path in
+  backticks.
+- After the touch points are written, and again whenever they change, save the list with
+  `out="$(git rev-parse --path-format=absolute --git-path process/related-specs.txt)" && mkdir -p "$(dirname "$out")" && bash scripts/process/related-specs.sh <spec> >"$out"`.
+  Read the listed invariants before writing `## Invariants` and `## Revises`; the list is an
+  aid, and you may search beyond it.
+- `## Invariants`: five to ten lines, each `I<N>.` or `I<N><letters>.` followed by an
+  observable sentence that a mutation could violate. Sources in order: the project's rules
+  at the touch points, what the work is for, data that cannot be regenerated.
 - `## Revises`: if the change breaks an invariant of an earlier approved spec, one line
-  per invariant, `SPEC-<DOMAIN>-<NNN> I<N>. <the new sentence>`. Never edit the earlier
-  spec. Delete the section when there is none.
+  per invariant, `SPEC-<DOMAIN>-<NNN> I<N>. <the new sentence>` (the id may carry lowercase
+  letters, as in `I16b.`). Never edit the earlier spec. Delete the section when there is
+  none.
 - `## Checked, no action`: what you considered and skipped.
 - Leave the `Approval:` line empty.
 - Add one row per SPEC-ID to `docs/specs/INDEX.md`:
@@ -45,10 +51,11 @@ branch name with `/` replaced by `-`; `review.sh` derives it the same way. Note 
 
 ## 4. Spec design review
 
-Launch the `spec-design-reviewer` agent as a new agent, not a fork. Give it only the spec
-path. Resolve each finding in the spec, or move it to `## Checked, no action` with the
-reason. A finding the reviewer marks as the human's call becomes a question in step 5.
-After substantial edits, review again with a new agent.
+Launch the `spec-design-reviewer` agent as a new agent, not a fork. Give it the spec
+path and the absolute path of the related-specs file. Resolve each finding in the spec, or
+move it to `## Checked, no action` with the reason. A finding the reviewer marks as the
+human's call becomes a question in step 5. After substantial edits, review again with a new
+agent.
 
 ## 5. Human approval
 

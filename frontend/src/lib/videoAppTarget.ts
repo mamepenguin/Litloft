@@ -1,5 +1,8 @@
 import type { ShelvesParams } from "@/lib/api";
-import { comparisonWireForm, parseSearchQuery, resolveKinds } from "@/lib/searchQuery";
+import { resolveCollectionTarget } from "@/lib/appTarget";
+import { resolveMemberTarget, type MemberTarget } from "@/lib/memberTarget";
+import { comparisonWireForm, hasNewToken, parseSearchQuery, resolveKinds } from "@/lib/searchQuery";
+import type { CollectionSummary } from "@/types";
 import type { SmartFolder } from "@/types/smartFolder";
 
 /** The conditions a target adds to every request of the app. */
@@ -25,6 +28,12 @@ export function resolveVideoTarget(folder: SmartFolder | null): VideoTarget {
   if (folder === null) return { usable: true, params: { type: VIDEO_ONLY } };
 
   const parsed = parseSearchQuery(folder.query);
+  if (hasNewToken(parsed)) {
+    return { usable: false, reason: "unsupported_part" };
+  }
+  if ((parsed.modified?.length ?? 0) > 0) {
+    return { usable: false, reason: "unsupported_part" };
+  }
   const { kinds, impossible } = resolveKinds(folder.file_type, parsed.types);
   // No kind named at all leaves the base kind; `impossible` is the folder's own kinds contradicting.
   if (impossible || (kinds.length > 0 && !kinds.includes("video"))) {
@@ -41,4 +50,20 @@ export function resolveVideoTarget(folder: SmartFolder | null): VideoTarget {
   if (parsed.sizes.length > 0) params.size = parsed.sizes.map(comparisonWireForm);
   if (parsed.durations.length > 0) params.duration = parsed.durations.map(comparisonWireForm);
   return { usable: true, params };
+}
+
+/** The Smart Collection a target sends members for; `null` when it resolves to listing parameters. */
+export function resolveVideoMemberTarget(folder: SmartFolder | null): MemberTarget | null {
+  return resolveMemberTarget(folder, VIDEO_ONLY);
+}
+
+/** A collection's videos, in Video's own params type. */
+export function resolveVideoCollectionTarget(collection: CollectionSummary): VideoTarget {
+  const { params } = resolveCollectionTarget(collection, VIDEO_ONLY);
+  return { usable: true, params: { type: VIDEO_ONLY, collection: params.collection } };
+}
+
+/** The kinds a member target's requests carry; `null` when its kinds meet no video. */
+export function videoMemberParams(target: MemberTarget): VideoTargetParams | null {
+  return target.kinds.length === 0 ? null : { type: VIDEO_ONLY };
 }

@@ -65,9 +65,9 @@ const AI_ROWS = [
   "Create image descriptions…",
 ];
 const ADD_ROWS = [
-  "Files",
-  "Folder",
-  "New Folder",
+  "Upload files",
+  "Upload folder",
+  "New folder",
   "Import from URL",
   "New note",
   "Clip web page",

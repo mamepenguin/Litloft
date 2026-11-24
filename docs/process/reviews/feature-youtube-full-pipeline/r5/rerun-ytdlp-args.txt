@@ -1,0 +1,1 @@
+15:04:32 PROC /usr/local/bin/python3.12 /usr/local/bin/yt-dlp -f bv*[height<=720][protocol=https] --http-chunk-size 10M --no-playlist --ignore-config -o /intelligence-data/loft_media/EKCONLkv6vZZ.part.%(ext)s <stored youtube.com/watch URL>&t=2705s 

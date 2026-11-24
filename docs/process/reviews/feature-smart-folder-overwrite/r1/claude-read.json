@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "F1",
+      "origin": "reviewer",
+      "claim": "The diff changes `frontend/src/components/FolderBrowser.tsx`, which is not in the touch-point list. Besides the focus plumbing for I10 (`moreTriggerRef`, `focusMoreTrigger` passed to `SmartFolderController`), it changes the search-mode URL sync effect so it no longer calls `router.replace` when the rebuilt params string equals the current URL's.",
+      "impact": "Every search page is affected, not only Smart Folder pages. The sync effect now skips navigations it used to make whenever the rebuilt query string matches the URL byte for byte, and still replaces when only the parameter order differs. No invariant or touch point names this, so a reader of the spec cannot tell that URL-sync behaviour moved. Today I found no wrong result a user can hit, because the skipped replace would have written the same URL.",
+      "evidence": "frontend/src/components/FolderBrowser.tsx:432-435 adds `urlParamsRef` and assigns it during render. :449-451 add `if (params.toString() === urlParamsRef.current.toString()) return;` before `folderRouter.replace(next)`. :89-93 and :966 add the focus plumbing. The touch-point list names SmartFolderSaveButton.tsx, SearchQueryHeader.tsx, useSmartFolders.ts, the e2e fixture, the tests, messages, docs and DESIGN.md, and does not name FolderBrowser.tsx.",
+      "repro": "Mutation done in my head: remove the early return at FolderBrowser.tsx:451. In SearchPage.smartFolderOverwrite.test.tsx, 'keeps the button when the URL moved to other conditions during the request' calls `page.navigate(...)`. That changes `searchQuery`, so the effect runs `router.replace` again and `routerCalls()` no longer equals `before`. That test would fail. So the dedup is held in place by an I4 test, which counts router calls the page itself causes on navigation and not only calls caused by the overwrite.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No declared invariant is broken. The file is edited outside the declared touch points, and the URL-sync change reaches every search page. By the repository's practice (earlier triage records) an off-list file is bucket B.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add FolderBrowser.tsx to the touch points, covering both the focus hand-off and the URL-sync dedup. Alternatively, make I4's router-call assertion measure only calls caused by the overwrite, and drop the dedup if nothing else needs it."
+    },
+    {
+      "id": "F2",
+      "origin": "reviewer",
+      "claim": "The diff changes `frontend/src/components/folder/FolderToolbar.tsx`, which is not in the touch-point list, by adding an optional `moreTriggerRef` prop that replaces the toolbar's own ref for the `…` trigger.",
+      "impact": "When a parent passes the prop, the shared ref takes over from the toolbar's own ref. FolderBrowser passes it on every view (the folder, special and search toolbars), not only on Smart Folder pages. The menu's focus return and outside-click logic then go through a ref owned by the parent. I found no broken behaviour, but the spec does not declare this coupling.",
+      "evidence": "frontend/src/components/folder/FolderToolbar.tsx:123-127 adds the prop. :158-159 are `const ownMoreTriggerRef = useRef(...)` and `const moreTriggerRef = sharedMoreTriggerRef ?? ownMoreTriggerRef;`. FolderBrowser.tsx:799 passes `moreTriggerRef={moreTriggerRef}` with no condition.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "The file is edited outside the declared touch points. It serves I10 but breaks no invariant.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add FolderToolbar.tsx (the `moreTriggerRef` prop) to the touch points."
+    },
+    {
+      "id": "F3",
+      "origin": "reviewer",
+      "claim": "The diff adds a shared test helper, `frontend/src/test/smartFolderServer.ts`, and edits `componentFixtureParity.test.tsx`. The touch-point list names neither.",
+      "impact": "Users are not affected. The fake server answers any path it does not match with `[]`, and it merges PATCH bodies with no validation. Other tests that adopt it later inherit that leniency without the spec mentioning it.",
+      "evidence": "frontend/src/test/smartFolderServer.ts (new, 124 lines; `if (!match) return json([]);`). frontend/src/components/__tests__/componentFixtureParity.test.tsx:286 adds the new arrangement id. The touch points name only the mocks of `@/components/SmartFolderSaveButton`, the rewrites in SmartFolderSaveButton.test.tsx and SearchPage.resultsBar.test.tsx, and the e2e-components files.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Test-only files outside the declared touch points. No invariant is involved.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "List the new test helper and the parity test in the touch points, or accept them as implied test scaffolding."
+    }
+  ],
+  "specification_compliance": [
+    "The edits listed in the touch points appear in the diff: SmartFolderSaveButton.tsx, SearchQueryHeader.tsx, useSmartFolders.ts, the e2e-components fixture and specs, the mocks gaining SmartFolderOverwriteButton, the messages, the user guide and DESIGN.md.",
+    "Edits outside the list: FolderBrowser.tsx (focus plumbing and a URL-sync dedup), FolderToolbar.tsx (moreTriggerRef prop), src/test/smartFolderServer.ts (new helper) and componentFixtureParity.test.tsx.",
+    "No backend file and no protected path is edited."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "The search-mode URL sync in FolderBrowser now skips `router.replace` when the rebuilt params equal the current URL's (FolderBrowser.tsx:451). This affects every search page and is not in the spec."
+  ],
+  "regression_risks": [
+    "The URL-sync dedup compares the rebuilt params with the URL as of the last render. If the order of the URL's parameters differs, a replace still happens. If some path relied on a same-URL replace (for example to re-trigger something in the router), that replace is now gone.",
+    "FolderToolbar's `…` trigger ref is now owned by FolderBrowser in every view, not only search."
+  ],
+  "test_coverage": [
+    "The URL-sync dedup is held in place only indirectly, by the I4 'URL moved during the request' test, which counts router calls. No test names the dedup as intended behaviour.",
+    "No test checks FolderToolbar's fallback to its own ref when `moreTriggerRef` is not passed. The existing FolderToolbar tests exercise it implicitly."
+  ],
+  "not_verified": [
+    "I ran no tests or e2e cases. Mutation outcomes were reasoned through by reading the code.",
+    "I did not check whether any other caller renders FolderToolbar and depends on its `…` focus behaviour.",
+    "I did not check Next.js App Router behaviour for a same-URL `router.replace`, so I cannot say whether the skipped replace had any user-visible effect.",
+    "I did not isolate commit 828c99cb1's own diff from the branch diff given in the prompt. My answer is based on the diff provided."
+  ],
+  "confidence": 80
+}

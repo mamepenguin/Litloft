@@ -1,0 +1,25 @@
+R-5 2026-11-16, file _3_ovFrTI-yg (簡単3分【揚げ出し豆腐風】…, YouTube jtAY-uo_NR0, 77 s), profile gpt-6-luna (openai/gpt-6-luna via OpenRouter), file Ask tab.
+Question: このレシピを、材料（分量つき）と手順をすべて挙げてまとめてください。
+
+Ground truth read by the R-5 runner from the video frames (yt-frames, before reading any answer):
+  豆腐150g (0:01) / 味が染み込むように切り込みを入れます (0:04-0:17) / めんつゆ(3倍濃縮) 小さじ2 (~0:23) /
+  ごま油 小さじ1 (~0:29) / ラップをし、レンジで600w1分30秒（500w1分50秒）加熱します (0:32-0:38) / レンチン後 /
+  お好みでトッピングします (~0:44) / 天かす (~0:47) / かつお節 (~0:51) / 小ネギ (0:54-0:55) / 白いりごま (~0:57) /
+  天かすや薬味のおかげで揚げ出し豆腐の味になります (1:00)
+
+Stored frame OCR (video_frame_texts, 7 rows, one per 10 s window; 30-40 s window has none):
+  0-10 豆腐150g | 10-20 味が染み込むように/切り込みを入れます | 20-30 5ml/めんつゆ(3倍濃縮)小さじ2 | 40-50 レンチン後 |
+  50-60 かつお節 | 60-70 天かすや薬味のおかげで/揚げ出し豆腐の味になります」 | 70-76 レンジで簡単なので、/ぜひ作ってみてください♡
+  Not in the stored text: ごま油 小さじ1, ラップ/レンジ 600w..., お好みでトッピング, 天かす (as its own caption), 小ネギ, 白いりごま.
+
+Run 1 (04:28:50, log "frame requests: 2 calls, 8 frames"; answer complete ~19 s):
+  材料 豆腐150g / めんつゆ（3倍濃縮）小さじ2（5mlの計量スプーンで計量）/ 天かす、かつお節、白いりごま、刻みねぎ：適量
+  手順 切り込み / めんつゆをかける / ラップ・600W 1分30秒（500W 1分50秒）/ 天かす・かつお節・白いりごま・刻みねぎをトッピング / 揚げ出し豆腐風の味わい
+  Missing: ごま油 小さじ1 (ingredient and its pouring step).
+Run 2 (04:34:10, "frame requests: 2 calls, 8 frames", ~19 s):
+  材料 豆腐150g / めんつゆ（3倍濃縮）小さじ2（5ml計量スプーン2杯）/ 天かす、かつお節、小ネギ、白いりごま：お好みで
+  手順 切り込み / めんつゆ → ラップ → 600W 1分30秒・500W 1分50秒 / トッピング
+  Missing: ごま油 小さじ1.
+
+Drive-wide Ask (質問 page, gpt-6-luna): 揚げ出し豆腐風の作り方で、めんつゆは何をどれだけ使いますか？
+  -> めんつゆは3倍濃縮のものを小さじ2使います。… (4.6 s); first source is the cooking .loft.

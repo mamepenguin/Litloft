@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-1",
+      "status": "confirmed",
+      "note": "addons/intelligence/frontend/ScenesSection/ScenesSectionPresenter.tsx:526 now gives the card `min-h-[7.6rem] ... justify-start`. The spans at :535 and :538 (line-clamp-2) no longer have min-h. design-check.md:20, recorded at 0192b534, shows the spans had min-h-[2.4rem] and min-h-[2.45rem] before this change. decisions.md:16 records D-1 being fixed by moving the reserved height onto the card. The Presenter touch points in docs/specs/scene-timeline-width.md:113-117 list only the column count, max-w-96, the skeleton and the window band. Nothing in the spec mentions the card's height (lines 13 and 91 cover only its width), so the touch-point list does not cover this change."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-2",
+      "status": "confirmed",
+      "note": "frontend/e2e-components/fixtures/scenesSectionData.ts:8-9 defines a very long SCENES_LONG_LABEL. Commit 0192b534 ('make the long scene label clamp at every measured width') is on the branch, and r6/classification.json:26 lists this path among the touched zones. The label is used at scenes-section.cases.ts:248 and scenesSectionData.ts:57. docs/specs/scene-timeline-width.md:125 lists only fixtures/scenesSection.tsx and fixtures/app.tsx, so this file is outside the declared touch points."
+    }
+  ],
+  "specification_compliance": [
+    "The touch-point list in docs/specs/scene-timeline-width.md:107-138 leaves out the scene card's height change in the Presenter and the edit to fixtures/scenesSectionData.ts. decisions.md and the classification record both changes, but the spec does not."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "The card's fixed min-height (7.6rem), with the spare space at its foot, is not stated in the spec. Only design-check D-1 and decisions.md record it."
+  ],
+  "regression_risks": [
+    "Moving the reserved height from the spans to the card keeps the total height the same. I estimate 1.25rem of padding plus 2.4rem, 0.25rem and 2.45rem of content, about 7.35rem, which fits within the 7.6rem minimum. If the font size or line height drifts, the card's height could change and break the fixed-height rule in SPEC-ADDON-089 I5."
+  ],
+  "test_coverage": [
+    "scenes-section.cases.ts:248 checks that the long label renders. I did not check that a test pins the card's height when the label takes one line."
+  ],
+  "not_verified": [
+    "I did not read the actual diff against origin/develop, because I have no git access. I inferred the changes from the HEAD files, design-check.md, decisions.md and r6/classification.json.",
+    "I did not check the card height in a browser at any width."
+  ],
+  "confidence": 85
+}

@@ -24,6 +24,18 @@ import type {
 
 const DEBOUNCE_MS = 300;
 const QUERY_MAX = 200;
+/** A link writes `start` to three decimals, so a half-millisecond miss is its own row. */
+const PLACE_TOLERANCE = 0.001;
+
+function isPlaceAt(row: FindRow, time: number): boolean {
+  return (
+    row.kind === "scene" &&
+    Array.isArray(row.boxes) &&
+    row.boxes.length > 0 &&
+    typeof row.start === "number" &&
+    Math.abs(row.start - time) < PLACE_TOLERANCE
+  );
+}
 
 export interface UseFindInFileOptions {
   fileId: string;
@@ -31,6 +43,7 @@ export interface UseFindInFileOptions {
   enabled: boolean;
   isMobile: boolean;
   initialFind?: string;
+  initialTime?: number;
   mediaController: MediaController | null;
   documentController: DocumentController | null;
 }
@@ -46,6 +59,7 @@ export function useFindInFile({
   enabled,
   isMobile,
   initialFind,
+  initialTime,
   mediaController,
   documentController,
 }: UseFindInFileOptions) {
@@ -82,6 +96,7 @@ export function useFindInFile({
   const rememberedTabRef = useRef<string | null>(null);
   const requestSeqRef = useRef(0);
   const appliedInitialRef = useRef(false);
+  const initialPlaceRef = useRef<number | null>(null);
   const urlStripRef = useRef<(() => void) | null>(null);
 
   const clearTimer = useCallback(() => {
@@ -98,6 +113,7 @@ export function useFindInFile({
     latestSeqRef.current += 1;
     fetchingRef.current = false;
     pendingStepRef.current = null;
+    initialPlaceRef.current = null;
     setStatus({ kind: "idle" });
     setFilter("all");
     currentRowRef.current = null;
@@ -186,10 +202,18 @@ export function useFindInFile({
           return;
         }
         setStatus({ kind: "hits", answer });
+        const time = initialPlaceRef.current;
+        initialPlaceRef.current = null;
         if (step && answer.rows.length > 0) {
           const row =
             step === "next" ? answer.rows[0] : answer.rows[answer.rows.length - 1];
           makeCurrent(row);
+        } else if (time !== null) {
+          const row = answer.rows.find((candidate) => isPlaceAt(candidate, time));
+          if (row) {
+            currentRowRef.current = row;
+            setCurrentRow(row);
+          }
         }
       });
     },
@@ -380,8 +404,11 @@ export function useFindInFile({
     appliedInitialRef.current = true;
     const value = normaliseInitial(initialFind);
     if (!value) return;
+    if (initialTime !== undefined && Number.isFinite(initialTime)) {
+      initialPlaceRef.current = initialTime;
+    }
     openWithQuery(value);
-  }, [enabled, initialFind, openWithQuery]);
+  }, [enabled, initialFind, initialTime, openWithQuery]);
 
   const rows = useMemo(
     () => (status.kind === "hits" ? status.answer.rows : []),

@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "F1-fixture-app-and-inspectorResponsive",
+      "origin": "reviewer",
+      "claim": "The commit adds a new fixture arrangement `inspector-video-sidebar` (a fixed sidebar and `pl-60` padding) and `panels=four` fixture toggles in `frontend/e2e-components/fixtures/app.tsx` and `frontend/e2e-components/fixtures/inspectorResponsive.tsx`, and neither file is named in the declared touch points.",
+      "impact": "No user-facing impact. The unplanned surface is test infrastructure that the reviewer of the spec cannot see in the touch-point list, so the list does not show the full set of files the change edits.",
+      "evidence": "Diff of app.tsx: new import `InspectorVideoSidebarArrangement` and new `ARRANGEMENTS` key `inspector-video-sidebar` (hunk at old lines 113 and 2571). Diff of inspectorResponsive.tsx: `panels=four` block added to ADDONS_STATUS (hunk at old line 143) and `InspectorVideoSidebarArrangement` export added (hunk at old line 484). The touch-point 'Tests' item names only the spec file and Vitest files.",
+      "repro": "not_reproduced: a scope check by reading the diff against the touch-point list, not a runtime defect.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "No declared invariant is broken. The files are test fixtures that the e2e tests depend on, so the change reads as planned test support but is not listed as a touch point.",
+        "severity_note": "scope-only"
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add the fixture files to the Tests touch point of the spec, or accept them as implicit test support and record that in the review."
+    },
+    {
+      "id": "F2-fixture-addon-stubs",
+      "origin": "reviewer",
+      "claim": "The commit adds three fixture slot components (`fixture-scenes`, `fixture-detailed-summary`, `fixture-note`) to `frontend/e2e-components/stubs/addons.ts`, which is not named in the declared touch points.",
+      "impact": "No user-facing impact. The stub module is test-only, but the set of files the change edits is larger than the touch-point list states.",
+      "evidence": "Diff of stubs/addons.ts: three new entries in `slotComponents` (hunk at old line 20).",
+      "repro": "not_reproduced: a scope check by reading the diff against the touch-point list.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "No declared invariant is broken. This is a test stub outside the declared list.",
+        "severity_note": "scope-only"
+      },
+      "severity": "LOW",
+      "proposed_fix": "Same as F1: name the test stubs in the Tests touch point or record them as implicit test support."
+    },
+    {
+      "id": "F3-fixture-parity-test",
+      "origin": "reviewer",
+      "claim": "The commit edits `frontend/src/components/__tests__/componentFixtureParity.test.tsx` to add `inspector-video-sidebar` to the list of expected fixture arrangements, and this file is not named in the declared touch points.",
+      "impact": "No user-facing impact. The parity test now depends on the new arrangement, so a reader of the touch-point list would not expect this file to change.",
+      "evidence": "Diff of componentFixtureParity.test.tsx: `\"inspector-video-sidebar\"` added to the expected arrangement list (hunk at old line 326).",
+      "repro": "not_reproduced: a scope check by reading the diff against the touch-point list.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "No declared invariant is broken. The edit follows from F1, and the file is a test.",
+        "severity_note": "scope-only"
+      },
+      "severity": "INFO",
+      "proposed_fix": "Name it with F1 in the spec's Tests touch point."
+    }
+  ],
+  "specification_compliance": [
+    "The diff's source files (the workbenchBeside.ts pure function, Workbench.tsx, ShellLayout.tsx, globals.css, layoutSizes.ts, DESIGN.md) are all in the declared touch-point list.",
+    "The implicit ledger and spec files (docs/specs/INDEX.md, docs/specs/enlarged-row-beside.md) are not reported as unplanned, as the review instructions require.",
+    "The e2e and Vitest test files named in the Tests touch point are present in the diff.",
+    "Test infrastructure outside the Tests touch point is changed: two fixture files, a stub module and a parity test."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The fixture `inspector-video-sidebar` is an unlisted page arrangement; its fixed `aside` and `pl-60` padding stand in for the app's sidebar, which the spec does not describe."
+  ],
+  "regression_risks": [
+    "The `componentFixtureParity` test now requires `inspector-video-sidebar` to exist in the fixture; removing the fixture without also removing that entry would break the parity test."
+  ],
+  "test_coverage": [
+    "The diff's tests cover the pure function, the attribute condition and the e2e geometry, as the touch-point list says. The fixtures and stubs are used by those tests but are not themselves checked."
+  ],
+  "not_verified": [
+    "I did not open the repository's full files, the workbenchHelpers test module or the rules documents; I judged only from the diff text given.",
+    "I did not confirm that the untracked review directory and the spec's approval line match what the ledger records.",
+    "I did not check whether any other file outside the diff would need the touch-point list to be updated."
+  ],
+  "confidence": 85
+}

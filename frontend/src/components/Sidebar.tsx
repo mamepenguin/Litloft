@@ -9,12 +9,13 @@ import { disarmLeaveConfirmation, useUpload } from "@/hooks/useUpload";
 
 import { addonNavEntries } from "@/lib/addonNavigation";
 import { lock as lockApi } from "@/lib/api";
+import { EMPTY_HIDDEN_KEYS, isEntryShown } from "@/lib/entryVisibility";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { useAddonSlots } from "./AddonSlotsProvider";
 import { useSidebar } from "./SidebarProvider";
 import { useCurrentDrive, useCurrentFolderPath, useSetOverrideDrive } from "./CurrentDriveProvider";
 import { useSidebarData } from "./sidebar/useSidebarData";
-import { isSidebarLinkActive } from "./sidebar/isSidebarLinkActive";
+import { activeAddonNavKey, isSidebarLinkActive } from "./sidebar/isSidebarLinkActive";
 import { AddonNavRows } from "./sidebar/AddonNavRows";
 import { useCollectionManagement } from "./sidebar/useCollectionManagement";
 import { SidebarLibrarySection } from "./sidebar/SidebarLibrarySection";
@@ -23,23 +24,27 @@ import { isLibraryRowActive, pinHrefFor } from "./sidebar/libraryRowActive";
 import { normaliseDriveView } from "@/lib/driveViews";
 import { SidebarCollectionsSection } from "./sidebar/SidebarCollectionsSection";
 import { SidebarPinsSection } from "./sidebar/SidebarPinsSection";
-import { SidebarSmartFoldersSection } from "./sidebar/SidebarSmartFoldersSection";
 import { SidebarTagsSection } from "./sidebar/SidebarTagsSection";
 import { SectionDragHandle } from "./sidebar/SectionDragHandle";
 import { useSidebarSectionOrder } from "./sidebar/useSidebarSectionOrder";
 import { useReorderableDnD } from "./sidebar/useReorderableDnD";
 
 /**
- * Stable IDs for the four reorderable sections (canonical order = default display order).
+ * Stable IDs for the three reorderable sections (canonical order = default display order).
  * These IDs match the keys used by useSidebarSectionCollapsed to keep namespaces consistent.
  */
 // Read only by `typeof` on the next line, which the rule does not count as
 // a use. The declaration cannot go: the type is derived from the value.
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-const REORDERABLE_SECTIONS = ["collections", "pins", "smart-folders", "tags"] as const;
+const REORDERABLE_SECTIONS = ["collections", "pins", "tags"] as const;
 type ReorderableSectionId = (typeof REORDERABLE_SECTIONS)[number];
 
-function SidebarNav() {
+interface SidebarProps {
+  /** The drive's hidden entry keys; `null` while that list is loading. */
+  hiddenKeys?: ReadonlySet<string> | null;
+}
+
+function SidebarNav({ hiddenKeys }: { hiddenKeys: ReadonlySet<string> | null }) {
   const t = useTranslations("sidebar");
   const tUpload = useTranslations("upload");
   const pathname = usePathname();
@@ -78,9 +83,19 @@ function SidebarNav() {
     () => (catalogueDrive === currentDrive ? addons : {}),
     [addons, catalogueDrive, currentDrive],
   );
-  const primaryAddons = useMemo(() => addonNavEntries(navAddons, currentDrive, "primary"), [navAddons, currentDrive]);
+  const primaryAddons = useMemo(
+    () =>
+      addonNavEntries(navAddons, currentDrive, "primary").filter((entry) =>
+        isEntryShown(entry.key, hiddenKeys),
+      ),
+    [navAddons, currentDrive, hiddenKeys],
+  );
   const sourceAddons = useMemo(() => addonNavEntries(navAddons, currentDrive, "sources"), [navAddons, currentDrive]);
   const utilityAddons = useMemo(() => addonNavEntries(navAddons, currentDrive, "utility"), [navAddons, currentDrive]);
+  const activeAddonKey = useMemo(
+    () => activeAddonNavKey(pathname ?? "", [...primaryAddons, ...sourceAddons, ...utilityAddons]),
+    [pathname, primaryAddons, sourceAddons, utilityAddons],
+  );
 
   const { drives, tags, pins, collectionList, setCollectionList, authStatus, driveSummary } =
     useSidebarData(currentDrive, currentFolderPath, refreshKey);
@@ -106,13 +121,12 @@ function SidebarNav() {
     const ids: ReorderableSectionId[] = [];
     if (driveBase) ids.push("collections");
     if (driveBase) ids.push("pins");
-    if (currentDrive) ids.push("smart-folders");
     if (driveBase) ids.push("tags");
     return ids;
-  // driveBase / currentDrive change only when the drive changes, so this
-  // memo is very stable in practice.
+  // driveBase changes only when the drive changes, so this memo is very
+  // stable in practice.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [!!driveBase, !!currentDrive]);
+  }, [!!driveBase]);
 
   const { order, setOrder } = useSidebarSectionOrder(availableSections);
   const dnd = useReorderableDnD({
@@ -152,7 +166,7 @@ function SidebarNav() {
   return (
     <nav className="scrollbar-hover flex h-full flex-col gap-1 overflow-y-auto p-3">
       {/* Library section: fixed at top, never reordered */}
-      <SidebarLibrarySection driveBase={driveBase} currentDrive={currentDrive} drives={drives} linkClass={linkClass} close={closeIfOverlay} primaryAddons={primaryAddons} sourceAddons={sourceAddons} libraryActive={libraryActive} />
+      <SidebarLibrarySection driveBase={driveBase} currentDrive={currentDrive} drives={drives} linkClass={linkClass} close={closeIfOverlay} primaryAddons={primaryAddons} sourceAddons={sourceAddons} activeAddonKey={activeAddonKey} libraryActive={libraryActive} hiddenKeys={hiddenKeys} />
 
       {/* Reorderable sections */}
       {order.map((id) => {
@@ -176,6 +190,7 @@ function SidebarNav() {
                 currentDrive={currentDrive}
                 setCollectionList={setCollectionList}
                 dragHandle={handle}
+                close={closeIfOverlay}
                 {...collection}
               />
             </div>
@@ -191,19 +206,6 @@ function SidebarNav() {
                 drive={currentDrive}
                 pins={pins}
                 linkClass={linkClass}
-                close={closeIfOverlay}
-                dragHandle={handle}
-              />
-            </div>
-          );
-        }
-
-        if (id === "smart-folders" && currentDrive) {
-          return (
-            <div key={id} className="relative" {...dnd.getRowProps(id)}>
-              {dropIndicator}
-              <SidebarSmartFoldersSection
-                drive={currentDrive}
                 close={closeIfOverlay}
                 dragHandle={handle}
               />
@@ -235,7 +237,7 @@ function SidebarNav() {
 
       {/* Below the reader's own sections: these are about the drive
           rather than about what is in it, and are reached rarely. */}
-      <AddonNavRows entries={utilityAddons} linkClass={linkClass} close={closeIfOverlay} />
+      <AddonNavRows entries={utilityAddons} linkClass={linkClass} close={closeIfOverlay} activeKey={activeAddonKey} hiddenKeys={hiddenKeys} />
 
       <SidebarSystemSection driveBase={driveBase} linkClass={linkClass} close={closeIfOverlay} driveSummary={driveSummary} isAdmin={authStatus?.is_admin === true} />
 
@@ -273,10 +275,10 @@ function SidebarNav() {
   );
 }
 
-function SidebarContent() {
+function SidebarContent({ hiddenKeys }: { hiddenKeys: ReadonlySet<string> | null }) {
   return (
     <Suspense fallback={<div className="p-6" />}>
-      <SidebarNav />
+      <SidebarNav hiddenKeys={hiddenKeys} />
     </Suspense>
   );
 }
@@ -295,7 +297,7 @@ function SidebarShortcuts() {
   return null;
 }
 
-export function Sidebar() {
+export function Sidebar({ hiddenKeys = EMPTY_HIDDEN_KEYS }: SidebarProps) {
   const { isOpen, isOverlay, close } = useSidebar();
 
   useEffect(() => {
@@ -320,6 +322,7 @@ export function Sidebar() {
       )}
 
       <aside
+        data-app-sidebar
         className={`fixed top-0 left-0 z-40 h-dvh w-60 flex-shrink-0 border-r border-bg-border bg-bg-sidebar transition-transform duration-150 ease-out ${
           isOpen ? "translate-x-0" : "-translate-x-full"
         }`}
@@ -327,7 +330,7 @@ export function Sidebar() {
         aria-modal={isOverlay && isOpen ? true : undefined}
         role={isOverlay ? "dialog" : undefined}
       >
-        <SidebarContent />
+        <SidebarContent hiddenKeys={hiddenKeys} />
       </aside>
     </>
   );

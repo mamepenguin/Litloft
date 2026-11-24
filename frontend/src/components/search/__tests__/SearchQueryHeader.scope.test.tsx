@@ -107,7 +107,7 @@ describe("SPEC-CORE-043 I9 the menu's first level", () => {
     expect(button.getAttribute("aria-label")).toBe("Add filter");
   });
 
-  it("offers Tag, Type, Folder, Collection, Favorites in that order", () => {
+  it("offers Tag, Type, Folder, Collection, Favorites and the two exclusions in that order", () => {
     renderHeader();
     openRoot();
 
@@ -115,7 +115,18 @@ describe("SPEC-CORE-043 I9 the menu's first level", () => {
       within(screen.getByRole("menu"))
         .getAllByRole("menuitem")
         .map((row) => row.textContent?.trim()),
-    ).toEqual(["Tag", "Type", "Folder", "Collection", "Size", "Length", "Favorites"]);
+    ).toEqual([
+      "Tag",
+      "Type",
+      "Folder",
+      "Collection",
+      "Size",
+      "Length",
+      "Modified",
+      "Favorites",
+      "Untagged",
+      "In no collection",
+    ]);
   });
 });
 

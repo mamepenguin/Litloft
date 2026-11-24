@@ -1,5 +1,3 @@
-import { playerKind } from "./playerKind";
-
 /**
  * Narrower than `ridesFileDetailShell` and it has to stay that way: the
  * shell draws the page row for whatever rides it, and this asks the
@@ -24,17 +22,10 @@ export function usesDocumentShell(
 
 /**
  * `"canonical"` is `/drive/{drive}/{path}?file={id}`, the file's address.
- * `"collection"` is `/files/{id}`, reached only with `?collection=` /
- * `?folder_play=1`. The collection route is not where the inspector goes.
+ * `"collection"` is `/files/{id}` with a queue. The collection route is not
+ * where the inspector goes.
  */
 export type FileDetailSurface = "canonical" | "collection";
-
-/**
- * Named rather than matched: a `text/` prefix reaches every `text/*` that
- * is not the document form — `text/plain` and `text/vtt` among them — and
- * would hand each of them a floor on the strength of the name alone.
- */
-const FLOORED_MIMES: ReadonlySet<string> = new Set(["application/pdf"]);
 
 const DOCUMENT_VIEWER_MIMES: ReadonlySet<string> = new Set([
   "application/pdf",
@@ -44,25 +35,6 @@ const DOCUMENT_VIEWER_MIMES: ReadonlySet<string> = new Set([
 /** A viewer whose content brings its own margin, so the canvas adds none around it. */
 export function isDocumentViewer(mimeType: string | undefined): boolean {
   return DOCUMENT_VIEWER_MIMES.has(mimeType ?? "");
-}
-
-/**
- * A kind absent from here rides the shell and gets no floor, which is the
- * safe half: a viewer that is a short panel keeps its own height.
- *
- * Images are excluded: `FilePreview` already gives them `max-h-[70vh]`,
- * so a floor would add white space around a small photograph and nothing
- * else.
- */
-export function viewerTakesCanvasFloor(
-  fileType: string | undefined,
-  mimeType: string | undefined,
-): boolean {
-  if (playerKind({ file_type: fileType, mime_type: mimeType }) !== null) {
-    return false;
-  }
-  if (fileType === "archive") return true;
-  return FLOORED_MIMES.has(mimeType ?? "");
 }
 
 /**

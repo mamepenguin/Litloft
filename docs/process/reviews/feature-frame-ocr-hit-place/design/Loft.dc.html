@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>YouTube の埋め込みの上の枠</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:#211922}a:hover{color:#211922}
+</style>
+</helmet>
+<div style="width: 1040px; height: 720px; box-sizing: border-box; padding: 40px; background: #f6f6f3; font-family: -apple-system, system-ui, 'Segoe UI', Roboto, sans-serif; color: #211922; display: flex; flex-direction: column; gap: 32px">
+  <div style="display: flex; gap: 40px; align-items: flex-start">
+    <div style="display: flex; flex-direction: column; gap: 10px">
+      <div style="font-size: 13px; color: #62625b">16:9 の動画</div>
+      <div style="position: relative; width: 460px; height: 259px; background: #000000; border-radius: 12px; overflow: hidden">
+        <div style="position: absolute; inset: 0; background: linear-gradient(160deg, #c9b79c, #7a5f45)"></div>
+        <div style="position: absolute; left: 30px; top: 40px; width: 180px; height: 150px; border-radius: 50%; background: #e9e2d0; opacity: 0.85"></div>
+        <div style="position: absolute; left: 0; right: 0; top: 196px; text-align: center; font-size: 22px; font-weight: 700; color: #ffffff; text-shadow: 0 0 4px #000000, 0 0 2px #000000">ごま油 小さじ1</div>
+        <svg aria-hidden="true" viewBox="0 0 1 1" preserveAspectRatio="none" style="position: absolute; left: 0; top: 0; width: 460px; height: 259px; pointer-events: none">
+          <polygon points="0.3478,0.749 0.6522,0.749 0.6522,0.8726 0.3478,0.8726" fill="rgba(255,248,197,0.55)" stroke="#d63031" stroke-width="2" vector-effect="non-scaling-stroke"></polygon>
+        </svg>
+        <div style="position: absolute; left: 12px; top: 10px; display: flex; align-items: center; gap: 8px; color: #ffffff; font-size: 13px">
+          <span style="width: 24px; height: 24px; border-radius: 50%; background: #444444"></span>
+          <span>きょうの副菜</span>
+        </div>
+        <div style="position: absolute; left: 0; right: 0; bottom: 0; height: 4px; background: rgba(255,255,255,0.3)"><div style="width: 38%; height: 4px; background: #ff0000"></div></div>
+      </div>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 10px">
+      <div style="font-size: 13px; color: #62625b">縦長の動画</div>
+      <div style="position: relative; width: 460px; height: 259px; background: #000000; border-radius: 12px; overflow: hidden">
+        <div style="position: absolute; left: 157px; top: 0; width: 146px; height: 259px; background: linear-gradient(180deg, #8fb3c9, #3d5566)"></div>
+        <div style="position: absolute; left: 157px; width: 146px; top: 150px; text-align: center; font-size: 15px; font-weight: 700; color: #ffffff; text-shadow: 0 0 3px #000000">片栗粉 大さじ2</div>
+        <svg aria-hidden="true" viewBox="0 0 1 1" preserveAspectRatio="none" style="position: absolute; left: 157px; top: 0; width: 146px; height: 259px; pointer-events: none">
+          <polygon points="0.1,0.568 0.9,0.568 0.9,0.664 0.1,0.664" fill="rgba(255,248,197,0.55)" stroke="#d63031" stroke-width="2" vector-effect="non-scaling-stroke"></polygon>
+        </svg>
+        <div style="position: absolute; left: 0; right: 0; bottom: 0; height: 4px; background: rgba(255,255,255,0.3)"><div style="width: 55%; height: 4px; background: #ff0000"></div></div>
+      </div>
+    </div>
+  </div>
+  <div style="display: flex; flex-direction: column; gap: 10px">
+    <div style="font-size: 13px; color: #62625b">広告の再生中</div>
+    <div style="position: relative; width: 460px; height: 259px; background: #000000; border-radius: 12px; overflow: hidden">
+      <div style="position: absolute; inset: 0; background: linear-gradient(120deg, #2d3e50, #6c7a89)"></div>
+      <div style="position: absolute; left: 12px; bottom: 16px; padding: 2px 8px; border-radius: 4px; background: #f2c94c; color: #211922; font-size: 12px; font-weight: 600">広告</div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1040,"height":720}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

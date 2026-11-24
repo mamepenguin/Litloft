@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { act } from "react";
+import { createPortal } from "react-dom";
 import { FileContextMenu } from "../FileContextMenu";
 import { ShortcutsProvider } from "../ShortcutsProvider";
 import type { FileItem } from "@/types";
@@ -87,6 +88,7 @@ const file: FileItem = {
   trust_reviewed_at: null,
   created_at: "2026-03-20T10:00:00",
   updated_at: "2026-03-20T10:00:00",
+  modified_at: null,
 };
 
 function makeProps(
@@ -294,13 +296,14 @@ describe("FileContextMenu", () => {
       .spyOn(ConfirmDialogModule, "ConfirmDialog")
       .mockImplementation((props: { open: boolean; onConfirm: () => Promise<void> | void }) => {
         if (!props.open) return null;
-        return (
+        return createPortal(
           <button
             data-testid="trigger-confirm"
             onClick={() => {
               void props.onConfirm();
             }}
-          />
+          />,
+          document.body,
         );
       });
 

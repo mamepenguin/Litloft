@@ -22,6 +22,13 @@ describe("TextPreview document capture", () => {
     await waitFor(() =>
       expect(container.querySelector("pre")?.textContent).toContain("beta"),
     );
+    // The listener is attached by the same effect that publishes the
+    // controller, and that effect runs after the text is drawn.
+    await waitFor(() =>
+      expect(onDocumentCaptureController).toHaveBeenCalledWith(
+        expect.objectContaining({ getSnapshot: expect.any(Function) }),
+      ),
+    );
     const range = document.createRange();
     range.selectNodeContents(container.querySelector("pre")!);
     const selection = window.getSelection()!;

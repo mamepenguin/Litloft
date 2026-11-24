@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R1",
+      "status": "confirmed",
+      "note": "frontend/src/components/ToolbarMenu.tsx:225 gives the quiet value span `min-w-[2.5em] truncate`. At text-sm that is 35px. docs/specs/addon-app-header.md:135-136 (step 10) sets the floor at the icon, three characters and the chevron. When the text overflows, the ellipsis is drawn inside those 35px. For Latin text, the ellipsis plus three glyphs ('Eve…') is about 2.7em in common sans fonts, which is more than 2.5em, so the floor shows about two characters. A CJK name gets one glyph plus the ellipsis. The test helper cannot catch this: app-header.measure.ts:131-142 computes `whole` from the Range rect of the first three characters against the boxes of overflow-clipping ancestors. Text-overflow ellipsis does not change that rect, so `targetNameFirstThree.whole` can be true while the third character is replaced by the ellipsis. This is my estimate, not a measurement: at 375px and 320px the scope floor (56px drive + count) plus the Target floor (~87px) fits in the line, so normal use reaches the floor only on narrower screens or with very long count text. The latent mismatch with step 10 is real."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R2",
+      "status": "rejected_with_evidence",
+      "note": "Removing the floor is caught. In PageHeader.tsx:123 the scope cell is `max-sm:min-w-min max-sm:grow max-sm:basis-0`, so on a phone its floor is the min-content of the scope span. The span is the flex container in AppHeader.tsx:39. Its min-content is the sum of its items' min-content contributions. With `max-sm:w-14` (AppHeader.tsx:40), the drive span's preferred width is definite, so it contributes 56px. Without it, the span's width is auto and it contributes its full nowrap text width; `min-w-0` and `overflow:hidden` affect only the automatic minimum, not the intrinsic contribution. With LONG_DRIVE_NAME ('Household archive on the second NAS in the study', app-header.measure.ts:17), that floor alone is wider than the 375px line. The Target, in a `min-w-0` cell (PageHeader.tsx:134), would then be squeezed. That fails `expect(m.targetName.whole).toBe(true)` at app-header.spec.ts:87 (the 'long drive name' test) and at :127 (the 'fits beside the count' test), and likely the overflow checks at :89-90. Raising the floor a lot (w-32 = 128px) also fails :127, because the precondition at :124-125 puts the Target at 40-65% of the line. Only part of the claim holds: a moderate change of the value (about w-8 to w-20) passes every test. But the drive is still cut first, down to its floor, so the cut order the finding is about does not change. My reasoning is from CSS intrinsic sizing; I did not run the suite."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R3",
+      "status": "confirmed",
+      "note": "app-header.spec.ts:103-125 measures the Target's max-content (padding + svgs + gaps + name.scrollWidth) against the width of the scope line, then asserts 0.4 < ratio ≤ 0.65. The ratio depends on the fixture text ('Holiday 25', spec.ts:29) and the font metrics. It is a precondition that the fixture's folder name fits beside the count, not an assertion of the header's behaviour. A font change can push the ratio out of the window and fail the test even when the layout is correct. Impact under the threat model is low: the test would fail loudly, it would not pass silently, and the behavioural assertions at :127-133 stay. I did not check the commit message's note about the Linux CI fonts."
+    }
+  ],
+  "specification_compliance": [
+    "docs/specs/addon-app-header.md step 10: the Target name's floor `min-w-[2.5em]` (ToolbarMenu.tsx:225) is below 'three characters' once the ellipsis is drawn (R1).",
+    "Step 10's drive-first cut order is implemented by `max-sm:w-14` on the drive span (AppHeader.tsx:40) together with the scope cell's `max-sm:min-w-min max-sm:basis-0 max-sm:grow` (PageHeader.tsx:123)."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The spec gives no exact pixel value for the drive name's floor on a phone; the code uses 56px (w-14)."
+  ],
+  "regression_risks": [
+    "The 'fits beside the count' precondition (ratio 0.4–0.65) can fail spuriously after a font change in CI."
+  ],
+  "test_coverage": [
+    "`targetNameFirstThree.whole` uses Range rects and cannot detect a character hidden behind a text-overflow ellipsis, so the three-character floor is not effectively tested.",
+    "Removing the drive name's floor (w-14) is caught by app-header.spec.ts:87 and :127; changing its value moderately is not."
+  ],
+  "not_verified": [
+    "I did not run Playwright or any test; the CSS layout conclusions come from reading intrinsic-sizing rules.",
+    "The actual font metrics of the fixture fonts (ellipsis width, glyph widths) were not measured.",
+    "The commit 56d3b8f5 message about Linux CI fonts was not read.",
+    "The invariants other than I10's phone layout were not examined."
+  ],
+  "confidence": 78
+}

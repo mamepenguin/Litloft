@@ -1,0 +1,12 @@
+addons/intelligence/frontend/PickupWidget.notInterested.test.tsx
+addons/intelligence/frontend/PickupWidget.test.tsx
+addons/intelligence/frontend/PickupWidget.tsx
+addons/intelligence/frontend/messages/en.json
+addons/intelligence/frontend/messages/ja.json
+addons/intelligence/frontend/pages/pickup.notInterested.test.tsx
+addons/intelligence/frontend/pages/pickup.test.tsx
+addons/intelligence/frontend/pages/pickup.tsx
+addons/intelligence/frontend/slots.ts
+addons/intelligence/manifest.json
+frontend/src/messages-core/en.json
+frontend/src/messages-core/ja.json

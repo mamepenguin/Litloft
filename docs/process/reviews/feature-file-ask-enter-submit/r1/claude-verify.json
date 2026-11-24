@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [],
+  "specification_compliance": [
+    "I1: AskTab.tsx:328-331 and Page.tsx:1060-1063 send on Enter/Cmd+Enter/Ctrl+Enter (no Shift, no Alt) through formRef.requestSubmit(), which runs the same onSubmit handler the submit button runs (AskTab.tsx:409 submit, Page.tsx:1135 handleSubmit). One press calls requestSubmit once. In AskTab, ask() calls beginAsk synchronously before its first await (AskTab.tsx:247), and the store re-check at AskTab.tsx:235 blocks a second send.",
+    "I2: Shift-only or Alt-only Enter reaches the newline branch (AskTab.tsx:333-344, Page.tsx:1065-1071). The branch calls preventDefault, replaces selectionStart..selectionEnd with one '\\n' and sets a pending caret that a layout effect (AskTab) or an effect (Page) applies. AskTab skips the insert when the result would exceed MAX_QUESTION_CHARS (AskTab.tsx:342). The Page textarea has no maxLength, so the max-length clause does not apply there.",
+    "I3: isImeKeystroke runs first in both handlers (AskTab.tsx:326, Page.tsx:1058) and returns before any preventDefault or insert when isComposing is set, when keyCode is 229, or when the Enter arrives within 100ms of compositionend (ime.ts:39-50). Both textareas wire onCompositionEnd (AskTab.tsx:421, Page.tsx:1143).",
+    "I4: When the button is disabled, a sending key still calls preventDefault and requestSubmit. Both submit handlers re-check sendability and return (AskTab.tsx:302-303, Page.tsx:1039), and they queue nothing. While streaming, the Page swaps in a type=button abort control, and requestSubmit() without a submitter still reaches handleSubmit, which returns. When Ask is unavailable, the Page textarea is disabled (Page.tsx:1150).",
+    "I5: Shift+Alt fails the first check, and shiftKey===altKey returns it with no preventDefault. Ctrl/Meta combined with Shift or Alt returns at the same check. A non-Enter key returns at the key check, after the IME check, which itself has no side effect except consuming the grace stamp for Enter/Escape.",
+    "Touch point: ime-enter-guard.test.ts:55 lists intelligence/frontend/AskTab.tsx, and line 110 expects a length of 9.",
+    "Touch point: AskTabKeys.test.tsx:13,475 uses confirmConversionThenEnter for the measured IME event order."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "In Page.tsx, the caret is restored with useEffect (Page.tsx:1049) rather than a layout effect, so after the controlled value update the caret may sit at the end of the text for one painted frame before it moves. The end state matches I2.",
+    "In Page.tsx, two Enter presses before React re-renders can both pass the stale canSubmit check, and runAsk then aborts the first stream and starts a second. Double-clicking the button has the same pre-existing behavior, so this is consistent with I1's 'same as a click' wording."
+  ],
+  "regression_risks": [
+    "The touch-point text says the files that mention \"Enter\" stay those two. Several other non-test files in addons/intelligence/frontend (TranscriptSection.tsx, PictureTextSection.tsx, DetailedSummarySection.tsx, pages/search-compare.tsx) also contain \"Enter\". These appear to be pre-existing key handlers. I did not confirm from the diff that this commit left them untouched."
+  ],
+  "test_coverage": [
+    "AskTabKeys.test.tsx and PageKeys.test.tsx have describe blocks for I1, I2, I3, I4 and I5, with it.each over send keys, newline keys and other combinations. The AskTab IME test uses the core confirmConversionThenEnter helper. The Page IME test fires compositionEnd and then keyDown manually.",
+    "No test was found for I6 (the comment section) in the files examined."
+  ],
+  "not_verified": [
+    "I did not run the tests: I had no shell access.",
+    "I did not inspect the git diff against origin/develop, so I could not confirm that the comment-section code (I6) and the other Enter-handling files are unchanged.",
+    "I did not check that docs/user-guide/keyboard-shortcuts.md has an Ask section, that docs/specs/INDEX.md was updated, or that the submodule pointer bump is in the same core commit.",
+    "I did not check that no protected path was edited.",
+    "I did not read the test bodies in detail to judge the quality of their assertions."
+  ],
+  "confidence": 80
+}

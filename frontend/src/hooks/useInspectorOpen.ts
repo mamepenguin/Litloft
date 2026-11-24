@@ -10,10 +10,13 @@ interface UseInspectorOpenResult {
   toggle: () => void;
 }
 
-export function useInspectorOpen(drive: string): UseInspectorOpenResult {
+export function useInspectorOpen(
+  drive: string,
+  isPlayerFile = false,
+): UseInspectorOpenResult {
   const open = useSyncExternalStore(
     inspectorOpenStore.subscribe,
-    () => inspectorOpenStore.get(drive),
+    () => inspectorOpenStore.get(drive, isPlayerFile),
     () => false,
   );
   const setOpen = useCallback(
@@ -23,7 +26,7 @@ export function useInspectorOpen(drive: string): UseInspectorOpenResult {
     [drive],
   );
   const toggle = useCallback(() => {
-    inspectorOpenStore.set(drive, !inspectorOpenStore.get(drive));
-  }, [drive]);
+    inspectorOpenStore.set(drive, !inspectorOpenStore.get(drive, isPlayerFile));
+  }, [drive, isPlayerFile]);
   return { open, setOpen, toggle };
 }

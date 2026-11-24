@@ -34,12 +34,14 @@ vi.mock("@/components/AddonSlotsProvider", () => ({
 const getShelves = vi.fn();
 const getDriveFiles = vi.fn();
 const getSmartFolders = vi.fn();
+const getCollections = vi.fn();
 
 vi.mock("@/lib/api", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/api")>()),
   getShelves: (...args: unknown[]) => getShelves(...args),
   getDriveFiles: (...args: unknown[]) => getDriveFiles(...args),
   getSmartFolders: (...args: unknown[]) => getSmartFolders(...args),
+  getCollections: (...args: unknown[]) => getCollections(...args),
 }));
 
 type Params = Record<string, unknown>;
@@ -123,6 +125,7 @@ beforeEach(() => {
   getShelves.mockReset().mockImplementation(async (d, p) => shelves(d, p));
   getDriveFiles.mockReset().mockImplementation(async (d, p) => files(d, p));
   getSmartFolders.mockReset().mockResolvedValue([]);
+  getCollections.mockReset().mockResolvedValue([]);
 });
 
 describe("Video's Discover shelves link to See all", () => {
@@ -155,7 +158,7 @@ describe("Video's Library sort reaches See all", () => {
   it("passes the chosen sort in the link", async () => {
     writeAppPrefs(DRIVE, { face: "library" });
     render(<VideoApp drive={DRIVE} />);
-    await screen.findByText("Movies");
+    await screen.findByRole("heading", { name: "Movies" });
 
     fireEvent.click(screen.getByRole("button", { name: /Sort/ }));
     fireEvent.click(screen.getByText("Size"));

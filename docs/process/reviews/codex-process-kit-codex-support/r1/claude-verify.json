@@ -1,0 +1,82 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "CRITICAL",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F-TEST-HOOK",
+      "status": "confirmed",
+      "note": "No test executes the hook. Grep of the repository (excluding docs/) for pre-push|githooks matches only .githooks/pre-push itself, process/risk-zones.conf:35 and scripts/process/review.sh:573-574 (a hooksPath warning). The deletion-only early exit at .githooks/pre-push:36-39 and the REFS/UPDATES counting at :24-30 are therefore untested. The swap-the-arms scenario is a hypothetical mutant; tracing it by reading gives UPDATES=0 and exit 0 on ordinary pushes, which is consistent with the claim, but no mutant was run."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F-TOUCH-HOOK",
+      "status": "confirmed",
+      "note": "process/risk-zones.conf:35 classifies .githooks/** as CRITICAL. Glob finds no invariants.md under docs/process/reviews/codex-process-kit-codex-support/ (only decisions.md and r1/ files). The commit changes the hook's REFS/UPDATES control flow, and no declared touch-point list names .githooks/pre-push."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F-TOUCH-CLAUDE",
+      "status": "confirmed",
+      "note": "CLAUDE.md:201-203 contains the process-kit:codex-begin/end block. .process-kit.lock lines 2-33 do not list CLAUDE.md. process/protected-paths.conf:13 lists CLAUDE.md only as a commented suggestion (line 10-11 say to remove the leading '#' to enable it). docs/process/workflow.md:71-73 says prose defining the process is a protected path, so whether CLAUDE.md counts as such is a judgement the repository leaves open."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F-TOUCH-LOCK",
+      "status": "confirmed",
+      "note": "Lock file .process-kit.lock line 1 reads 'version 0.5.0', line 8 holds the .githooks/pre-push hash 108ffb6d..., and line 10 lists docs/process/codex.md. scripts/process/classify-risk.sh:333 makes any path equal to .process-kit.lock protected. No docs/specs/ file is named in the diff as reviewed, and no invariants file exists. Whether the diff touches docs/specs/ was not checked against git; see not_verified."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F-TOUCH-CODEXDOC",
+      "status": "confirmed",
+      "note": "docs/process/codex.md exists with 23 lines of content (Read confirmed). .process-kit.lock:10 lists it, so classify-risk.sh:333 treats it as protected. No invariants file or spec under docs/specs/ names it."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "F1",
+      "status": "confirmed",
+      "note": "Traced by reading .githooks/pre-push. For a stdin line with an all-zero local sha (deletion), line 30 matches the '*)' arm and runs 'continue' before PROTECTED_PUSH is set at :33. With REFS=1 and UPDATES=0, lines 36-38 exit 0 before PRECHECK (:42), CLASSIFY (:44) and TRACE (:47). The header comment at lines 3-4 documents this ('A push that only deletes refs runs no step'), so the behaviour is intended as written. Whether it is a regression depends on the pre-commit hook, which I could not read with Read/Glob/Grep, so the regression part of the claim is unverified."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "F2",
+      "status": "confirmed",
+      "note": "Glob over scripts/process/** and tests/** finds no hook test, and Grep for pre-push|githooks in .github/** (workflows) returns no match in .github/workflows/process.yml or ci.yml. The hook is covered by no test or CI step. This duplicates F-TEST-HOOK."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "F3",
+      "status": "confirmed",
+      "note": "The four paths are .githooks/pre-push (risk-zones.conf:35 CRITICAL), .process-kit.lock (classify-risk.sh:333 protected), CLAUDE.md (not in protected-paths.conf, which only has the commented suggestion) and docs/process/codex.md (.process-kit.lock:10, so protected). No invariants file exists to name them, as confirmed by Glob. The diff header itself was not read; the four paths come from the reviewers' diff listing."
+    }
+  ],
+  "specification_compliance": [
+    "The protected-path rule in scripts/process/classify-risk.sh:333-334 and process/risk-zones.conf:35 is consistent with the reviewers' reading: .process-kit.lock, docs/process/codex.md and .githooks/pre-push are classified protected or CRITICAL. workflow.md:71-73 says prose defining the process is a protected path, which bears on CLAUDE.md; the repository leaves that open.",
+    "The hook's own header (.githooks/pre-push:3-4) states that a deletion-only push runs no step. The implementation at :26-39 follows that statement.",
+    "No spec in docs/specs/ was checked against the commit; the absence of a spec naming these paths is only confirmed for the invariants file."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "Deleting a protected branch (develop or main, per process/process.conf:22) by a push that contains only deletions runs no precheck, classification or traceability, and exits 0 (.githooks/pre-push:30, 36-38). The header documents this, but the header does not say that a protected-branch deletion is intentionally ungated."
+  ],
+  "regression_risks": [
+    "The early exit at .githooks/pre-push:36-39 and the case at :30 have no test, so a future edit that inverts the case arms would silently skip all three checks on ordinary pushes.",
+    "If the removed loop gated protected-branch deletions, the new code lets a single-ref deletion of develop or main pass with no checks. The prior version was not readable with the tools available, so this is unverified."
+  ],
+  "test_coverage": [
+    "No test or CI step executes .githooks/pre-push: Grep of scripts/**, tests/** and .github/** finds no reference to pre-push or githooks beyond the hooksPath warning at scripts/process/review.sh:573-574.",
+    "The deletion-only path, the UPDATES counter and the protected-branch detection at .githooks/pre-push:33 are all untested."
+  ],
+  "not_verified": [
+    "The diff itself was not inspected: I could not run git, so the list of changed paths (including whether any docs/specs/ file changed) comes from the reviewers' summaries and was checked only against the current working tree.",
+    "The prior content of .githooks/pre-push and CLAUDE.md at the base commit was not readable (git objects are compressed and only Read/Glob/Grep are available). Claims about what the removed loop did are unverified.",
+    "The sha256 hashes in .process-kit.lock were not recomputed, so I could not confirm that the lock matches the committed files.",
+    "I did not run the hook, its mutants, or any test, because command execution was not available.",
+    "I did not check whether scripts/process/review.sh or other kit scripts depend on the hook behaviour changed here."
+  ],
+  "confidence": 80
+}

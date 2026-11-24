@@ -1,0 +1,505 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "R1",
+      "origin": "reviewer",
+      "claim": "The change edits the shared `frontend/src/components/ToolbarMenu.tsx`, which is not in the touch-point list, and the edit changes how every quiet menu with `truncateValue` draws its value, not only the new view menus.",
+      "impact": "The quiet sort menus in the Video and Reading See all / shelf page headers (`VideoShelfPage.tsx:196-201` and `ReadingShelfPage.tsx:228` via `SortChoiceMenu`/`ReadingSortMenu`, which pass `quiet` and `truncateValue`) now render their value with `whitespace-nowrap` and no `truncate`/`min-w-*`. A long sort label therefore never shortens with an ellipsis. The spec says those quiet menus 'keep their look and get only the new wording'. Every outlined ToolbarMenu in the app also picks up `[&>svg]:flex-shrink-0`, and every labelled value picks up `min-w-0`. That includes callers outside this feature (OverflowMenu, PdfPreview, ArchiveToolbar, FilterMenu, TargetMenu's siblings and others).",
+      "evidence": "`frontend/src/components/ToolbarMenu.tsx:231`: `<span className={truncateValue ? \"whitespace-nowrap\" : \"min-w-[2.5em] truncate\"}>` inside the `quiet` branch (previously always `min-w-[2.5em] truncate`). `ToolbarMenu.tsx:223` adds `[&>svg]:flex-shrink-0` and `w-full` under `fullWidth`. `ToolbarMenu.tsx:250` adds `min-w-0`. Callers that pass quiet+truncateValue: `frontend/src/components/videoapp/LibraryControls.tsx:28-29` and `frontend/src/components/readingapp/LibraryControls.tsx:152-154`. The e2e-layout fixture `frontend/e2e-layout/fixtures/video-app.html:35` still models the quiet value as `min-w-0 truncate`, so the layout suite measures a truncating value that the real component no longer draws.",
+      "repro": "not_reproduced. By reading: render VideoShelfPage at a narrow width with sort `Date Added (Newest First)`. The value span is `whitespace-nowrap` with no min-w-0, so it cannot shrink below its text width. The real-component check `app-header.spec.ts` (375px, en) only asserts page scrollWidth ≤ 375 and the sort's right edge.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is an unplanned reach into a shared component outside the touch-point list. The 375px e2e check suggests no invariant (I10) is shown broken, but the quiet-menu look differs from what the spec states and from the e2e-layout fixture.",
+        "invariant_ref": null
+      },
+      "severity": "MEDIUM",
+      "proposed_fix": "Add ToolbarMenu.tsx (and `e2e-layout/fixtures/toolbar-menu.html`) to the touch points, or confine the quiet-branch change to the callers that need it. Bring `video-app.html`'s `quietMenuValue` in line with what the component draws."
+    },
+    {
+      "id": "R2",
+      "origin": "reviewer",
+      "claim": "The Japanese Clips `seeAll` / `seeAllIn` strings change from すべて表示 to すべて見る. This wording is not in the spec's wording table and also reaches Clips Home shelves.",
+      "impact": "Every Clips shelf's See all link, on Home (Unread, Recently opened, Unverified, New clips) as well as on the Library, now reads すべて見る, as does its accessible name 'すべて見る: {name}'. Nothing in the touch points or wording table plans a change to Home's wording.",
+      "evidence": "`addons/knowledge/frontend/messages/ja.json:410-411`. The strings are used by `addons/knowledge/frontend/clipsapp/ClipShelfBlock.tsx:75,78`, which Home and the Library share.",
+      "repro": "not_reproduced. Open Clips Home in ja: the Unread shelf's link text is すべて見る.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This user-visible wording change sits outside the planned wording table and breaks no declared invariant.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Record the See all wording in the spec's wording table, or revert it."
+    },
+    {
+      "id": "R3",
+      "origin": "reviewer",
+      "claim": "Several test-infrastructure files that the diff reaches are not named in the touch-point list.",
+      "impact": "No user impact. The planned scope of the e2e-components harness is under-declared: new specs are registered in the project and viewport lists, and the shared app-header fixture gains a `face=library` mode that answers `/shelves` with items.",
+      "evidence": "Not listed but changed:\n- `frontend/e2e-components/projects.ts` (DESKTOP_ONLY additions) and `frontend/e2e-components/spec-viewport.spec.ts`;\n- `frontend/e2e-components/fixtures/appHeader.tsx` (new `library` install path) and `frontend/e2e-components/app-header.measure.ts` (sort regex);\n- the new `view-menus*.spec.ts`, `clips-view-menus*.spec.ts` and `notes-view-menus*.spec.ts`;\n- `frontend/e2e-layout/fixtures/toolbar-menu.html`;\n- `frontend/src/components/__tests__/viewMenus.wording.test.tsx`;\n- `addons/knowledge/frontend/__tests__/{notesApp.home,notesFrame,clipsAppHarness,clipsViewPerTarget,notesViewPerTarget,viewMenusJa}.test*`.",
+      "repro": "not_reproduced. Compare the diff's file list with the Touch points section.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "The touch-point list is incomplete for test and harness files; no invariant is affected.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    },
+    {
+      "id": "R4",
+      "origin": "reviewer",
+      "claim": "The change adds a second, separate spec, `docs/specs/app-library-filters.md` (SPEC-CORE-147/148, SPEC-ADDON-151), whose revisions already rewrite this change's I3, I11 and I15, although nothing in that spec is implemented here.",
+      "impact": "A reader who checks the code against the 'Revised by later specs' I15 or I3 would conclude that Video must not offer 視聴状態. The code under review still offers it (`videoapp/labels.ts` VIDEO_GROUPS includes `watch`; `LibraryFace.tsx` filters it only by profile) and keeps the 'watch without profile shows Folder' rule in `useVideoApp.ts` pickVideoGroup. That reading could lead to a wrong code change in this PR.",
+      "evidence": "`docs/specs/app-library-filters.md` (new, approved, revises SPEC-CORE-145 I15/I11/I3). `docs/specs/INDEX.md` adds SPEC-CORE-147/148/SPEC-ADDON-151 rows. Meanwhile `frontend/src/components/videoapp/labels.ts` VIDEO_GROUPS = folder, tag, month, duration, watch, all, and `viewMenus.wording.test.tsx` expects 視聴状態.",
+      "repro": "not_reproduced. Read the 'Revised by later specs' I15 and compare it with the Video Group By options the tests pin.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "The later spec's text disagrees with this change's code by design (it lands later). This is prose that could mislead a reviewer, not a code defect.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Land app-library-filters.md with the change that implements it, or note in this review that its revisions are not yet in force."
+    }
+  ],
+  "specification_compliance": [
+    "The touch-point list mostly matches the diff. useTagShelves.ts was renamed to useGroupedShelves.ts, which serves as the planned 'hook for the folder/month shelves'. VideoPagedGrid.tsx falls under VideoShelfPage's 'なし grid it shares'.",
+    "Listed touch points that the diff does not change: readingapp/shelfLinks.ts, clipsapp/useShelfData.ts, notesapp/useNotesTarget.ts, e2e-layout/video-app.spec.ts, e2e-components/notes-library-desktop.spec.ts, fixtures/clipsData.ts, readingapp/__tests__/ReadingShelfPage.test.tsx, clipsHome/clipsCovers/NoteSearchScope tests. This is over-declared scope, not an unplanned reach.",
+    "Unplanned reaches: frontend/src/components/ToolbarMenu.tsx (shared, affects all callers), e2e-layout/fixtures/toolbar-menu.html, the e2e-components harness registration files, a ja See all wording change, and a second spec document."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "Quiet sort menus on the Video/Reading shelf pages no longer truncate their value (ToolbarMenu.tsx:231).",
+    "Clips Home's See all text changes in ja (すべて見る).",
+    "Every outlined ToolbarMenu app-wide now keeps its icon from shrinking and lets a labelled value shrink to 0."
+  ],
+  "regression_risks": [
+    "The ToolbarMenu class changes reach every outlined/quiet ToolbarMenu caller outside the four apps (OverflowMenu, PdfPreview, ArchiveToolbar, folder FilterMenu, RegenerateWithMenu). Those callers have no layout re-measurement in this change apart from toolbar-menu.html.",
+    "The e2e-layout video-app.html fixture models the quiet sort value as truncating, so the e2e-layout suite cannot catch a shelf-header overflow caused by the non-truncating real value."
+  ],
+  "test_coverage": [
+    "app-header.spec.ts covers the quiet sort menu on shelf pages at 375px in en only (page scrollWidth and right edge); it has no ja case and no narrower case for the non-truncating value.",
+    "toolbarMenuHome.test.ts pins the importer list, which ViewMenus.tsx joins; no unit test pins the new quiet+truncateValue class.",
+    "The new view-menus e2e specs cover the Library control rows at 390/1024/1280/1440 in both locales."
+  ],
+  "not_verified": [
+    "I could not run any test or e2e suite, so I did not check whether the quiet shelf-page sort actually overflows at any width.",
+    "I did not open every ToolbarMenu caller outside the four apps to judge the visual effect of `[&>svg]:flex-shrink-0` / `min-w-0`.",
+    "I did not verify the base-branch content of ToolbarMenu.tsx beyond what the diff shows.",
+    "I read most changed product files only through the supplied diff hunks, not in the repository."
+  ],
+  "coverage": [
+    {
+      "path": "addons/knowledge/frontend/NotesPage.tsx",
+      "read": "partial",
+      "reason": "changed hunks in the supplied diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/clipsapp/Library.tsx",
+      "read": "partial",
+      "reason": "changed hunks in the supplied diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/clipsapp/ShelfPage.tsx",
+      "read": "partial",
+      "reason": "changed hunks in the supplied diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/clipsapp/clipsUrl.ts",
+      "read": "partial",
+      "reason": "changed hunks in the supplied diff (most of the file)"
+    },
+    {
+      "path": "addons/knowledge/frontend/clipsapp/requests.ts",
+      "read": "partial",
+      "reason": "changed hunks in the supplied diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/clipsapp/useGroupedShelves.ts",
+      "read": "partial",
+      "reason": "rename diff hunks"
+    },
+    {
+      "path": "addons/knowledge/frontend/library/LibraryList.tsx",
+      "read": "partial",
+      "reason": "changed hunks in the supplied diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/library/LibraryRail.tsx",
+      "read": "partial",
+      "reason": "changed hunks in the supplied diff; grep line 131"
+    },
+    {
+      "path": "addons/knowledge/frontend/library/NotesLibrary.tsx",
+      "read": "partial",
+      "reason": "changed hunks in the supplied diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/library/libraryUrl.ts",
+      "read": "partial",
+      "reason": "changed hunks in the supplied diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/messages/en.json",
+      "read": "partial",
+      "reason": "changed hunks; grep lines 410-411"
+    },
+    {
+      "path": "addons/knowledge/frontend/messages/ja.json",
+      "read": "partial",
+      "reason": "changed hunks; grep lines 410-411"
+    },
+    {
+      "path": "addons/knowledge/frontend/notesapp/RecentlyUpdatedSection.tsx",
+      "read": "partial",
+      "reason": "changed hunk"
+    },
+    {
+      "path": "addons/knowledge/frontend/pages/clips.tsx",
+      "read": "partial",
+      "reason": "changed hunks in the supplied diff"
+    },
+    {
+      "path": "frontend/e2e-components/app-header-desktop.spec.ts",
+      "read": "partial",
+      "reason": "changed hunk"
+    },
+    {
+      "path": "frontend/e2e-components/app-header.measure.ts",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "frontend/e2e-components/app-header.spec.ts",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "frontend/e2e-components/clips-primary-action-desktop.spec.ts",
+      "read": "partial",
+      "reason": "changed hunk"
+    },
+    {
+      "path": "frontend/e2e-components/clips-primary-action.spec.ts",
+      "read": "partial",
+      "reason": "changed hunk"
+    },
+    {
+      "path": "frontend/e2e-components/clips-view-menus-desktop.spec.ts",
+      "read": "full",
+      "reason": "new file, whole content in diff"
+    },
+    {
+      "path": "frontend/e2e-components/clips-view-menus.spec.ts",
+      "read": "full",
+      "reason": "new file, whole content in diff"
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/appHeader.tsx",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/clipsPage.tsx",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/notesLibrary.tsx",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/videoCardSpacing.tsx",
+      "read": "partial",
+      "reason": "changed hunk"
+    },
+    {
+      "path": "frontend/e2e-components/notes-view-menus-desktop.spec.ts",
+      "read": "full",
+      "reason": "new file, whole content in diff"
+    },
+    {
+      "path": "frontend/e2e-components/notes-view-menus.spec.ts",
+      "read": "full",
+      "reason": "new file, whole content in diff"
+    },
+    {
+      "path": "frontend/e2e-components/projects.ts",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "frontend/e2e-components/spec-viewport.spec.ts",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "frontend/e2e-components/view-menus-desktop.spec.ts",
+      "read": "full",
+      "reason": "new file, whole content in diff"
+    },
+    {
+      "path": "frontend/e2e-components/view-menus.spec.ts",
+      "read": "full",
+      "reason": "new file, whole content in diff"
+    },
+    {
+      "path": "frontend/e2e-layout/fixtures/reading-video-faces.html",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "frontend/e2e-layout/fixtures/toolbar-menu.html",
+      "read": "partial",
+      "reason": "changed hunk"
+    },
+    {
+      "path": "frontend/e2e-layout/fixtures/video-app.html",
+      "read": "partial",
+      "reason": "changed hunks; grep lines 29-35, 98"
+    },
+    {
+      "path": "frontend/e2e-layout/reading-video-faces.spec.ts",
+      "read": "partial",
+      "reason": "changed hunk"
+    },
+    {
+      "path": "frontend/src/components/ToolbarMenu.tsx",
+      "read": "partial",
+      "reason": "read lines 130-269 covering all changed hunks"
+    },
+    {
+      "path": "frontend/src/components/appshell/ViewMenus.tsx",
+      "read": "full",
+      "reason": "new file, whole content in diff"
+    },
+    {
+      "path": "frontend/src/components/readingapp/LibraryControls.tsx",
+      "read": "partial",
+      "reason": "changed hunks; grep quiet/truncateValue"
+    },
+    {
+      "path": "frontend/src/components/readingapp/LibraryFace.tsx",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "frontend/src/components/readingapp/ReadingApp.tsx",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "frontend/src/components/readingapp/ReadingShelfPage.tsx",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "frontend/src/components/readingapp/labels.ts",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "frontend/src/components/readingapp/useReadingApp.ts",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "frontend/src/components/videoapp/LibraryControls.tsx",
+      "read": "partial",
+      "reason": "changed hunks; grep lines 13-29"
+    },
+    {
+      "path": "frontend/src/components/videoapp/LibraryFace.tsx",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "frontend/src/components/videoapp/VideoApp.tsx",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "frontend/src/components/videoapp/VideoPagedGrid.tsx",
+      "read": "full",
+      "reason": "new file, whole content in diff"
+    },
+    {
+      "path": "frontend/src/components/videoapp/VideoShelfPage.tsx",
+      "read": "partial",
+      "reason": "read lines 95-211 plus diff hunks"
+    },
+    {
+      "path": "frontend/src/components/videoapp/labels.ts",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "frontend/src/components/videoapp/useVideoApp.ts",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "frontend/src/lib/appPrefs.ts",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "frontend/src/lib/formatMonth.ts",
+      "read": "full",
+      "reason": "new file, whole content in diff"
+    },
+    {
+      "path": "frontend/src/messages-core/en.json",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "frontend/src/messages-core/ja.json",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/clipsAppHarness.tsx",
+      "read": "partial",
+      "reason": "changed hunk"
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/clipsFrame.test.tsx",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/clipsLibrary.test.tsx",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/clipsPage.test.tsx",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/clipsViewPerTarget.test.tsx",
+      "read": "partial",
+      "reason": "new file in diff, skimmed"
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/notesApp.home.test.tsx",
+      "read": "partial",
+      "reason": "changed hunk"
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/notesFrame.test.tsx",
+      "read": "partial",
+      "reason": "changed hunk"
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/notesLibrary.test.tsx",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/notesViewPerTarget.test.tsx",
+      "read": "partial",
+      "reason": "new file in diff, skimmed"
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/viewMenusJa.test.tsx",
+      "read": "partial",
+      "reason": "new file in diff, skimmed"
+    },
+    {
+      "path": "addons/knowledge/frontend/clipsapp/__tests__/clipsUrl.test.ts",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "addons/knowledge/frontend/clipsapp/__tests__/requests.test.ts",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "addons/knowledge/frontend/library/__tests__/NotesLibrary.test.tsx",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "addons/knowledge/frontend/library/__tests__/libraryUrl.test.ts",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "frontend/src/components/__tests__/readingVideoLayoutFixtureParity.test.tsx",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "frontend/src/components/__tests__/toolbarMenuHome.test.ts",
+      "read": "partial",
+      "reason": "changed hunk"
+    },
+    {
+      "path": "frontend/src/components/__tests__/viewMenus.wording.test.tsx",
+      "read": "partial",
+      "reason": "new file in diff, skimmed"
+    },
+    {
+      "path": "frontend/src/components/readingapp/__tests__/ReadingApp.library.test.tsx",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "frontend/src/components/readingapp/__tests__/ReadingApp.targetView.test.tsx",
+      "read": "partial",
+      "reason": "new file in diff, skimmed"
+    },
+    {
+      "path": "frontend/src/components/readingapp/__tests__/ReadingShelfPage.continueOrder.test.tsx",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoApp.states.test.tsx",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoApp.targetView.test.tsx",
+      "read": "partial",
+      "reason": "new file in diff, skimmed"
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoApp.test.tsx",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoApp.viewResolution.test.tsx",
+      "read": "partial",
+      "reason": "new file in diff, skimmed"
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoShelfPage.continueOrder.test.tsx",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "frontend/src/lib/__tests__/appPrefs.targetView.test.ts",
+      "read": "partial",
+      "reason": "new file in diff, skimmed"
+    },
+    {
+      "path": "frontend/src/lib/__tests__/appPrefs.test.ts",
+      "read": "partial",
+      "reason": "changed hunks"
+    }
+  ],
+  "confidence": 75
+}

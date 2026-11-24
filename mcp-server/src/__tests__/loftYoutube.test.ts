@@ -54,9 +54,9 @@ function streamOf(text: string): (call: RecordedRawCall) => Promise<LitloftRawRe
 }
 
 const scenes = [
-  { start: 12.5, end: 40, transcript_excerpt: "first" },
-  { start: 40, end: 75.25, transcript_excerpt: null },
-  { start: 75.25, end: 100, transcript_excerpt: "third" },
+  { start: 12.5, end: 40, frame_time: 15.5, transcript_excerpt: "first" },
+  { start: 40, end: 75.25, frame_time: 45, transcript_excerpt: null },
+  { start: 75.25, end: 100, frame_time: 80, transcript_excerpt: "third" },
 ];
 
 function youtubeClient(
@@ -189,9 +189,9 @@ describe("SPEC-CORE-058: list_video_scenes on a YouTube .loft", () => {
     expect(summary.scene_count).toBe(3);
     const images = content.filter((b) => b.type === "image");
     expect(images.map((b) => Buffer.from(b.data!, "base64").toString("utf8"))).toEqual([
-      "frame@12.5/small",
-      "frame@40/small",
-      "frame@75.25/small",
+      "frame@15.5/small",
+      "frame@45/small",
+      "frame@80/small",
     ]);
     expect(client.bytesCalls).toHaveLength(3);
     for (const call of client.bytesCalls) {
@@ -223,7 +223,7 @@ describe("SPEC-CORE-058: list_video_scenes on a YouTube .loft", () => {
   it("SPEC-CORE-058: the list is still returned when some small frames fail", async () => {
     const client = youtubeClient({
       bytesImpl: async (call) => {
-        if (requestedUrl(call).searchParams.get("t") === "40") {
+        if (requestedUrl(call).searchParams.get("t") === "45") {
           throw new LitloftApiError(504, { detail: "Frame extraction timed out" });
         }
         return frameBytesFor(call);

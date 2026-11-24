@@ -35,7 +35,6 @@ function applyTheme(resolved: Resolved) {
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<Theme>("system");
-  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     const stored = readStored(STORAGE_KEY) as Theme | null;
@@ -44,7 +43,6 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       : "system";
     setThemeState(initial);
     applyTheme(resolveTheme(initial));
-    setMounted(true);
   }, []);
 
   useEffect(() => {
@@ -61,10 +59,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     applyTheme(resolveTheme(next));
   }, []);
 
-  if (!mounted) {
-    return <>{children}</>;
-  }
-
+  // `children` must keep the same parent element in every render: serving
+  // them bare until the stored theme has been read would remount the whole
+  // page subtree when the provider appears.
   return (
     <ThemeContext value={{ theme, setTheme }}>
       {children}

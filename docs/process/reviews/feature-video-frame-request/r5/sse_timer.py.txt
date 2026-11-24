@@ -1,0 +1,47 @@
+"""POST a file question and print the arrival time of every received chunk.
+
+usage: sse_timer.py BASE_URL FILE_ID DRIVE PROFILE QUESTION [POSITION]
+BASE_URL is e.g. http://127.0.0.1:3101/api/addons/intelligence (frontend) or
+http://127.0.0.1:8100 (inside the addon container).
+"""
+import http.client, json, sys, time, urllib.parse
+
+base, file_id, drive, profile, question = sys.argv[1:6]
+position = float(sys.argv[6]) if len(sys.argv) > 6 else None
+u = urllib.parse.urlsplit(base)
+body = {"question": question, "profile": profile or None, "history": []}
+if position is not None:
+    body["position_seconds"] = position
+c = http.client.HTTPConnection(u.hostname, u.port, timeout=900)
+t0 = time.time()
+c.request("POST", f"{u.path}/files/{file_id}/ask", body=json.dumps(body).encode(),
+          headers={"Content-Type": "application/json", "Accept": "text/event-stream",
+                   "X-Lit-Drive": urllib.parse.quote(drive),
+                   "Host": u.hostname if u.port is None else f"{u.hostname}:{u.port}"})
+r = c.getresponse()
+print(f"{time.time()-t0:7.2f} status {r.status}", flush=True)
+last = time.time()
+maxgap = 0.0
+before_answer = True
+raw = b""
+while True:
+    b = r.read1(65536)
+    now = time.time()
+    if not b:
+        break
+    gap = now - last
+    if before_answer:
+        maxgap = max(maxgap, gap)
+    last = now
+    raw += b
+    s = b.decode("utf-8", "replace")
+    if "answer_chunk" in s:
+        before_answer = False
+    print(f"{now-t0:7.2f} +{gap:5.2f} {s[:90]!r}", flush=True)
+print(f"end {time.time()-t0:.2f}s, max gap before first answer_chunk {maxgap:.2f}s")
+text = raw.decode("utf-8", "replace")
+answer = "".join(json.loads(l[5:])["delta"] for l in text.splitlines() if l.startswith("data:") and '"delta"' in l)
+print("ANSWER:", answer)
+for l in text.splitlines():
+    if l.startswith("data:") and '"delta"' not in l:
+        print(l)

@@ -1,0 +1,148 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "R1",
+      "origin": "reviewer",
+      "claim": "The new test pins `releaseGridFocus` in `onFocusIn` and in `dispose`, but two other parts of the arrow gate still have no test: the focus-probe path in `officeGridOwnsArrows`, and the ownership guard in `releaseOfficeGrid`.",
+      "impact": "Two regressions would pass CI. (1) Make `officeGridOwnsArrows` ignore the probe (`return active`). Then a click on a non-focusable spot outside the grid, such as header text or empty canvas margin, no longer releases the arrows, and ← / → stop changing file even though the grid is not active (an I8 failure). (2) Make `releaseOfficeGrid` clear the probe and the active flag unconditionally. Then a stale Excel viewer that is disposed after a newer one has been clicked resets the newer viewer's gate, and ← / → change file while that grid is active (an I8 failure).",
+      "evidence": "frontend/src/components/__tests__/FilePreview.officeArrowKeys.test.tsx:164-175: the only 'click outside' test clicks a focusable `<button>`. `clickOn` (:136-143) focuses that button, so `onFocusIn` (excelAdapter.ts:64-70) clears `active`. The mock's window click listener (:38-40) also sets `focusing=false`. Each path alone is enough to make the test pass, so neither path is isolated. No test clicks a non-focusable element outside the grid. No test mounts two Excel viewers. A grep finds `releaseOfficeGrid` only in excelAdapter.ts:91 and officeGridActive.ts. The new test (:188-205) asserts only on `sheet.focusing`. It does not check the module's `active` flag or the probe.",
+      "repro": "Mutations, by reading. (a) officeGridActive.ts `officeGridOwnsArrows` → `return active;`: every test in the listed files still passes, because the outside click goes through focusin. (b) `releaseOfficeGrid` → `focusProbe = null; active = false;` unconditionally: no listed test mounts a second Excel viewer, so it survives. Killed by the new test: deleting `releaseGridFocus()` at excelAdapter.ts:69 (fails at :199) and at :93 (fails at :204).",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "The code as written holds I8. This is a remaining gap in the safety net around the r1 fix, and part of r2's R1 is still unaddressed."
+      },
+      "severity": "LOW",
+      "proposed_fix": "In FilePreview.officeArrowKeys.test.tsx, add a click on a non-focusable outside element (for example a `<p>` in `Page`), then → should call onNavigate. Also add a case where a held Excel load for file A is replaced by file B: B is clicked, then A's late dispose runs, and → should not navigate."
+    }
+  ],
+  "specification_compliance": [
+    "Commit 28cfd1a68 changes only FilePreview.officeArrowKeys.test.tsx. No product file differs from the r2 state, so the touch-point compliance from r2 still holds. The FilePreview branch (FilePreview.tsx:268-277) comes before the fallback. officeViewerFor shares OFFICE_PREVIEW_MAX_BYTES. useFileNav leaves PAGED_MIMES unchanged and does not import @/lib/officeFiles. messages-core has file.officeViewer in en and ja.",
+    "The new Excel mock exposes `xs.sheet.focusing` and sets it from a window click, as the library does. This answers part of r2's R1: the release in `onFocusIn` (excelAdapter.ts:69) and in `dispose` (:93) is now asserted (test :194-204).",
+    "With `xs` present in the mock, `setOfficeGridFocusProbe` is now installed in the arrow-key tests (excelAdapter.ts:74), so the existing I8 tests now run with a live probe."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "r2's R2 is still open and this round does not address it: pressing the grid to dismiss a DismissScrim menu selects a cell (on mousedown), the click is swallowed, and the grid does not become active."
+  ],
+  "regression_risks": [
+    "The probe path in officeGridOwnsArrows and the ownership guard in releaseOfficeGrid can still regress with CI green (R1).",
+    "The test mock adds a `window` click listener on every `init` and never removes it, which mirrors the library. Listeners pile up across tests in the file. They write only to old sheet objects, so they are harmless today, but a later test that reads `sheets[0]` after several mounts would depend on this.",
+    "The test's `focusing` semantics come from the mock, not from the real x-data-spreadsheet. If a library upgrade renamed `xs.sheet.focusing`, the adapter's writes would do nothing and this test would still pass."
+  ],
+  "test_coverage": [
+    "New: the test at FilePreview.officeArrowKeys.test.tsx:188-205 asserts that `focusing` is cleared when focus moves to a field outside the frame and when the viewer unmounts. It kills the mutations that delete `releaseGridFocus()` from onFocusIn or from dispose. The unmount assertion does not depend on focusin, because jsdom fires no focusin when an element is removed, and the comment input stays focused through the second grid click.",
+    "Still untested: a click outside the grid on a non-focusable element (the probe path), and two Excel viewers overlapping (the ownership guard in releaseOfficeGrid).",
+    "Not changed this round: I1–I8, I11 and I14 coverage in FilePreview.office.test.tsx and the lazy-load test. No test covers I3 for a library or stylesheet load failure, the modified_at identity change, the Excel half of I5, or I7 after a failure."
+  ],
+  "not_verified": [
+    "Whether the tests pass (I could not run commands)",
+    "Whether the real x-data-spreadsheet behaves like the mock (focusing is set only by a window click, and is not changed by overlayer mousedown)",
+    "Browser behaviour of the DismissScrim interaction (r2 R2)",
+    "Addon frontend code outside frontend/src"
+  ],
+  "coverage": [
+    {
+      "path": "frontend/package.json",
+      "read": "full",
+      "reason": "The changed hunk in the diff."
+    },
+    {
+      "path": "frontend/pnpm-lock.yaml",
+      "read": "full",
+      "reason": "All changed hunks in the diff."
+    },
+    {
+      "path": "frontend/src/components/FilePreview.tsx",
+      "read": "partial",
+      "reason": "The diff hunks, and lines 225-297 of the current file (the new branch and the fallback)."
+    },
+    {
+      "path": "frontend/src/components/office/OfficePreview.tsx",
+      "read": "full",
+      "reason": "A new file, read whole in the diff."
+    },
+    {
+      "path": "frontend/src/components/office/excelAdapter.ts",
+      "read": "full",
+      "reason": "The whole current file, read with the Read tool."
+    },
+    {
+      "path": "frontend/src/components/office/excelContainment.css",
+      "read": "full",
+      "reason": "A new file, read whole in the diff."
+    },
+    {
+      "path": "frontend/src/components/office/officeGridActive.ts",
+      "read": "full",
+      "reason": "A new file, read whole in the diff."
+    },
+    {
+      "path": "frontend/src/components/office/wordAdapter.ts",
+      "read": "full",
+      "reason": "A new file, read whole in the diff."
+    },
+    {
+      "path": "frontend/src/hooks/useFileNav.ts",
+      "read": "full",
+      "reason": "The changed hunk with its enclosing useShortcuts call, in the diff."
+    },
+    {
+      "path": "frontend/src/lib/officeFiles.ts",
+      "read": "full",
+      "reason": "All changed hunks and the new function in the diff."
+    },
+    {
+      "path": "frontend/src/messages-core/en.json",
+      "read": "full",
+      "reason": "The changed hunk in the diff."
+    },
+    {
+      "path": "frontend/src/messages-core/ja.json",
+      "read": "full",
+      "reason": "The changed hunk in the diff."
+    },
+    {
+      "path": "frontend/src/__tests__/helpers/officeLazyLoadCases.ts",
+      "read": "full",
+      "reason": "A new file in the diff."
+    },
+    {
+      "path": "frontend/src/__tests__/helpers/officeViewer.ts",
+      "read": "full",
+      "reason": "A new file in the diff."
+    },
+    {
+      "path": "frontend/src/__tests__/officeMimes.test.ts",
+      "read": "partial",
+      "reason": "Only the changed hunk around lines 88-96."
+    },
+    {
+      "path": "frontend/src/components/__tests__/FilePreview.office.test.tsx",
+      "read": "full",
+      "reason": "A new file in the diff."
+    },
+    {
+      "path": "frontend/src/components/__tests__/FilePreview.officeArrowKeys.test.tsx",
+      "read": "full",
+      "reason": "The whole current file, read with the Read tool, plus the fix diff."
+    },
+    {
+      "path": "frontend/src/components/__tests__/FilePreview.officeLazyLoad.word.test.tsx",
+      "read": "full",
+      "reason": "A new file in the diff."
+    },
+    {
+      "path": "frontend/src/components/__tests__/FilePreview.test.tsx",
+      "read": "partial",
+      "reason": "Only the changed hunk around lines 425-440."
+    }
+  ],
+  "confidence": 80,
+  "trajectory": "The only round since r2 (28cfd1a68) is test-only. It adds no product branch, state or prediction. It gives the Excel mock an `xs.sheet.focusing` flag and pins the release of that flag on focus leaving the grid and on unmount, which answers part of r2's R1. Earlier rounds: r1→r2 removed one mechanism (the synthetic body click) and added one ownership guard. The `isolate` prediction was added and then reverted. No round adds a branch or state that the round before it also added, so the design is not being patched repeatedly. Still open: the probe path and the ownership guard have no test (R1 here), and r2's R2 (pressing the grid to dismiss a menu) is not addressed."
+}

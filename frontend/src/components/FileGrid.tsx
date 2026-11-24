@@ -3,9 +3,11 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import type { FileItem, FileItemWithMatch } from "@/types";
 import { useContextMenu } from "@/hooks/useContextMenu";
+import type { ExtraMenuItems } from "@/hooks/useFileMenuItems";
 import { useJustifiedFlip } from "@/hooks/useJustifiedFlip";
 import { useJustifiedHold } from "@/hooks/useJustifiedHold";
 import { cardGridTemplate, useCardColumns } from "@/lib/cardGrid";
+import { fileLinkHref } from "@/lib/canonicalFileUrl";
 import { deriveListMeta } from "@/lib/listMeta";
 import { FileCard } from "./FileCard";
 import { JustifiedFileCell } from "./JustifiedFileCell";
@@ -23,10 +25,12 @@ export function FileGrid({
   onMetaSelect,
   onShiftSelect,
   sortQuery,
+  appCardMenu = false,
   draggable,
   draggedIds,
   onDragStart,
   onDragEnd,
+  extraMenuItems,
 }: {
   files: FileItemWithMatch[];
   /** Whether a later page may still be appended to `files`. */
@@ -45,11 +49,18 @@ export function FileGrid({
   onMetaSelect?: (id: string) => void;
   onShiftSelect?: (id: string) => void;
   sortQuery?: string;
+  /**
+   * The app card menu, as on the Video and Reading cards: Open in new tab,
+   * rows that act in the click, and no text selection on a card.
+   */
+  appCardMenu?: boolean;
   draggable?: boolean;
   /** Same reasoning as `selectedIds` — a `string[]` would defeat memo. */
   draggedIds?: ReadonlySet<string>;
   onDragStart?: (e: React.DragEvent, fileId: string) => void;
   onDragEnd?: () => void;
+  /** Rows a caller draws above the shared file menu's own rows. */
+  extraMenuItems?: ExtraMenuItems;
 }) {
   const { menuState, close, handlers } = useContextMenu();
   const [target, setTarget] = useState<FileItem | null>(null);
@@ -93,6 +104,13 @@ export function FileGrid({
     [onDragStart],
   );
 
+  const openInNewTab =
+    appCardMenu && target !== null
+      ? () => {
+          window.open(fileLinkHref(target, sortQuery), "_blank");
+        }
+      : undefined;
+
   const cardProps = (file: FileItemWithMatch) => ({
     file,
     onFavoriteToggle,
@@ -106,6 +124,7 @@ export function FileGrid({
     onMetaSelect,
     onShiftSelect,
     sortQuery,
+    appCardMenu,
     draggable,
     isDragging: draggedIds?.has(file.id),
     onDragStart: onDragStart ? handleDragStart : undefined,
@@ -136,6 +155,9 @@ export function FileGrid({
           target={target}
           onClose={close}
           onUpdate={onRefresh}
+          extraMenuItems={extraMenuItems}
+          onOpenInNewTab={openInNewTab}
+          immediateRows={appCardMenu}
         />
       </>
     );
@@ -168,6 +190,9 @@ export function FileGrid({
         target={target}
         onClose={close}
         onUpdate={onRefresh}
+        extraMenuItems={extraMenuItems}
+        onOpenInNewTab={openInNewTab}
+        immediateRows={appCardMenu}
       />
     </>
   );

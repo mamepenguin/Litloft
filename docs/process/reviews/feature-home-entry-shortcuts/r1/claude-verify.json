@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "CRITICAL",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R1-claude-read-1",
+      "status": "confirmed",
+      "note": "backend/app/routers/collections.py:76 sets on_home in _to_detail. That function is also returned at :242 (the POST .../items handler at :197) and :303 (the reorder PUT at :274). mcp-server/src/tools/collections.ts:67/76 spreads ...rest, so get_collection outputs on_home. mcp-server/src/tools/write.ts:269-275 returns the raw POST .../items response, so add_to_collection outputs on_home too. Spec §7 (docs/specs/home-entry-shortcuts.md:177-179) names only get_collection. The touch-point list (:236-252) has no mcp-server entry."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "TP-1",
+      "status": "confirmed",
+      "note": "DESIGN.md:696 ('Home shortcuts come after the addon entries and before the Inbox') and :700 ('Every tile's label follows one rule') are in the Home entry row section. Both describe this feature's behaviour, so the change added them. The spec's touch points (docs/specs/home-entry-shortcuts.md:252) list DESIGN.md only under 'Rules passed through', not as an edited file. I could not run git to view the hunk header itself."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "TP-2",
+      "status": "confirmed",
+      "note": "Grep finds getHomeShortcuts mocks in the 8 files at the stated lines (DriveHome.test.tsx:95, accent-budget.test.tsx:114, driveHomeFailureState.test.tsx:52, driveHomeSectionOrder.test.tsx:44, driveHomeTreeClosable.test.tsx:27, uploadZoneHosts.test.tsx:40, DriveHome.driveChange.test.tsx:15, DriveHome.icons.test.tsx:8). homeAppEntries.test.tsx:74, homeResumeRows.test.tsx:68 and homeContinueDesk.test.tsx:54 use importOriginal and render DriveHome without overriding getHomeShortcuts, so they call the real one. DriveHome.tsx:154 calls getHomeShortcuts at the start of loadPage, before any await, and its .then(...,()=>[]) swallows failures. None of these test files is in the touch-point list."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "TP-3",
+      "status": "confirmed",
+      "note": "frontend/src/components/__tests__/CollectionDetail.test.tsx:388 selects menuitem by name 'Delete collection', and :407 asserts getAllByRole('menuitem') has length 2, which matches the added Home row. Only CollectionDetail.tsx is a touch point. I could not see the earlier form of these lines without git."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "TP-4",
+      "status": "confirmed",
+      "note": "mcp-server/src/tools/collections.ts:67 destructures { items, ...rest } and :76 spreads ...rest into the output. collections.py:76 adds on_home to the detail, so the get_collection output gains on_home. Spec §7 (home-entry-shortcuts.md:177-179) accepts this in prose. mcp-server/ is not in the touch points."
+    }
+  ],
+  "specification_compliance": [
+    "Spec §7 explicitly accepts the get_collection on_home pass-through but does not mention add_to_collection, which also passes on_home through via the raw POST /items response."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "MCP add_to_collection output now includes on_home; not described in spec §7 or the touch points."
+  ],
+  "regression_risks": [
+    "Three vitest files (homeAppEntries, homeResumeRows, homeContinueDesk) render DriveHome with the real getHomeShortcuts. The failure is swallowed to [] (DriveHome.tsx:154-157), so they likely pass, but they depend on a real fetch environment."
+  ],
+  "test_coverage": [
+    "The verification did not assess test coverage of invariants I1-I13; it covered only the touch-point findings."
+  ],
+  "not_verified": [
+    "I could not view git diffs, so I did not confirm the exact prior content of DESIGN.md or CollectionDetail.test.tsx.",
+    "I did not run any tests to see whether the importOriginal test files actually issue network requests or log errors.",
+    "I did not check invariants I1-I13 against the implementation."
+  ],
+  "confidence": 88
+}

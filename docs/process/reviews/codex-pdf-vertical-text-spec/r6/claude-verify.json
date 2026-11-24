@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "MEDIUM",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1-i10-test-covers-mixed-path-only",
+      "status": "confirmed",
+      "note": "test_pdf_vertical_acceptance.py:339-366 puts NESTEDVERTICALWORD (18 non-space chars, rotate=270) and NESTEDHORIZONTALWORD (20 chars) on one source page, and the source page is embedded as a form on both pages. Page 1 adds 'H', giving 21 horizontal characters. Page 2 adds two long horizontal lines. Vertical characters never outnumber horizontal ones, so 'counts[0] > counts[1]' at pdf.py:117 is false on both pages. Only the mixed-page append branch (pdf.py:124-134) runs. The whole-page replacement branch (pdf.py:117-123) is never run on text nested in an LTFigure. The recursion in text_boxes (pdf.py:85-90) is shared by both branches, so the code appears correct, but the test does not cover the predominantly vertical case that I10 also requires. I read the code and test only. Nothing was run."
+    }
+  ],
+  "specification_compliance": [
+    "I10 is implemented: text_boxes (pdf.py:85-90) recurses into LTFigure at any depth, and both the predominant-vertical and mixed-page branches use it.",
+    "The (0,1) and (1,0) direction counts use the 0.01 tolerance and ignore other directions (pdf.py:112-115), as the r4 revision requires."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "The predominant-vertical branch with nested figure text has no test, so a regression there would not be caught."
+  ],
+  "test_coverage": [
+    "The nested-form test covers only the mixed-page path. It would need a page where vertical characters outnumber horizontal ones inside a form XObject."
+  ],
+  "not_verified": [
+    "I did not run the tests.",
+    "I did not verify that PyMuPDF counts form-XObject text in get_text('dict').",
+    "I did not check the other invariants (I1 to I9) in depth."
+  ],
+  "confidence": 85
+}

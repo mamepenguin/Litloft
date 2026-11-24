@@ -18,6 +18,7 @@ import {
   type MarkdownViewMode,
 } from "@/lib/markdownChromeContext";
 import { FileDetailShell } from "../FileDetailShell";
+import type { SheetPeek } from "../MobileInspectorSheet";
 import { FindButton } from "../FileDetail/find/FindButton";
 import { MarkdownViewModeToggle } from "../MarkdownViewModeToggle";
 import { EditableTitle } from "./EditableTitle";
@@ -32,7 +33,7 @@ interface MarkdownDocumentLayoutProps {
   onBack?: () => void;
   inspector: ReactNode;
   mobileSheet?: ReactNode;
-  sheetPeek?: ReactNode;
+  sheetPeek?: SheetPeek;
   children: ReactNode;
   onScrollRootChange?: (node: HTMLElement | null) => void;
   resetKey?: string;
@@ -76,12 +77,14 @@ export function MarkdownDocumentLayout({
   const [saveState, setSaveState] = useState<MarkdownSaveState>({
     status: "idle",
   });
+  const [renaming, setRenaming] = useState(false);
 
   // Reset transient UI on file change so the previous note's view-mode
   // doesn't bleed into the next one when the host re-uses one mounted
   // layout.
   useEffect(() => {
     setSaveState({ status: "idle" });
+    setRenaming(false);
     setViewMode(searchParams?.get("edit") === "1" ? "edit" : "preview");
     // Intentionally only re-runs on resetKey: search-params changes
     // unrelated to file navigation (e.g. ?sort, ?page) must not snap
@@ -103,9 +106,23 @@ export function MarkdownDocumentLayout({
       setViewMode,
       publishSaveState: setSaveState,
       isMobile,
+      renaming,
+      setRenaming,
     }),
-    [viewMode, setViewMode, isMobile],
+    [viewMode, setViewMode, isMobile, renaming],
   );
+
+  const titleNode =
+    onRename && !previewOnly ? (
+      <>
+        <EditableTitle
+          title={title}
+          onRename={onRename}
+          fixedSuffix={plainText ? title.slice(-4) : undefined}
+        />
+        {isMobile && !renaming && <SaveDot state={saveState} />}
+      </>
+    ) : undefined;
 
   return (
     <MarkdownChromeProvider value={chromeValue}>
@@ -115,26 +132,19 @@ export function MarkdownDocumentLayout({
         title={title}
         fileId={fileId}
         onBack={onBack}
-        titleNode={
-          onRename && !previewOnly ? (
-            <EditableTitle
-              title={title}
-              onRename={onRename}
-              fixedSuffix={plainText ? title.slice(-4) : undefined}
-            />
-          ) : undefined
-        }
+        titleNode={titleNode}
         chromeControls={
           previewOnly ? (
             findEnabled ? <FindButton /> : undefined
           ) : (
             <>
               {findEnabled && <FindButton />}
-              <SaveDot state={saveState} />
+              {!isMobile && <SaveDot state={saveState} />}
               <MarkdownViewModeToggle
                 mode={viewMode}
                 onChange={setViewMode}
-                hideSplit={isMobile || plainText}
+                single={isMobile}
+                hideSplit={plainText}
               />
             </>
           )

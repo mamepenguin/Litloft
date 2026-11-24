@@ -71,7 +71,7 @@ These are HTTP POSTs to addon services, not browser events. Listeners are regist
 | `files.missing` | `{file_ids}` | A scan found active files gone from disk. |
 | `files.recovered` | `{file_ids}` | A Missing file came back: a scan found it again, an upload landed at its path, or a text-file create reused its row. |
 | `files.moved` | `{file_ids}` | Files were renamed or moved (single, batch or pattern rename), a folder was renamed or moved, or a scan detected a move. |
-| `files.purged` | `{file_ids}` | Files were deleted permanently: purge, batch purge, empty trash, purge all Missing, or the 30-day trash auto-purge. One event per operation. |
+| `files.purged` | `{file_ids}` | Files were deleted permanently: purge, batch purge, empty trash, purge all Missing, or the 30-day trash auto-purge. One event per request; a batch purge of more than 100 files from the selection bar is sent as several requests, so it emits one event per request. |
 | `folders.created` | `{drive, path}` | A folder was created. |
 | `folders.moved` | `{drive, old_path, new_path}` | A folder was renamed or moved, including an empty one. |
 | `folders.deleted` | `{drive, path}` | A folder was deleted. |

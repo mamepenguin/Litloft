@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-1",
+      "status": "confirmed",
+      "note": "frontend/e2e-components/fixtures/app.tsx:110 imports FolderRowsArrangement, and app.tsx:2854 registers \"folder-rows\". spec-viewport.spec.ts:42 lists folder-rows.spec.ts. componentFixtureParity.test.tsx:340 lists \"folder-rows\". folderRows.tsx:45 defines the arrangement. The touch-point list names only the e2e-layout spec and fixture. decisions.md:3 cites e2e-components/folder-rows.spec.ts as the measurement of the crumbs-with-chips states, so the addition is recorded, but it is still outside the declared touch points."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-2",
+      "status": "confirmed",
+      "note": "VideoApp.states.test.tsx:320-322 uses findAllByRole(retry) and then clicks retries.at(-1). VideoApp.test.tsx:376 uses shelfCalls({by:'folder', per_shelf: 5}), and VideoApp.test.tsx:493 filters per_shelf !== 1. navigation.test.tsx:161 and menuScopes.test.tsx:554 wait for headings. All of these adapt to the extra by=folder chip request (per_shelf=1) and the chip Retry. The chip row sits above the shelves in the DOM, so at(-1) picks the shelves' Retry when both are present. If only the chip Retry were present, the test would fail rather than pass silently. I did not inspect the diff hunks directly; I checked the current file contents at HEAD."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-3",
+      "status": "confirmed",
+      "note": "section-rows.test.tsx:80-93: the overflow-x-auto allowlist contains frontend/src/components/appshell/FolderPositionRows.tsx and no readingapp/LibraryFace.tsx. FolderPositionRows.tsx:59 and :106 carry pointer-coarse:overflow-x-auto. This file is not in the touch points."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-4",
+      "status": "confirmed",
+      "note": "useFolderPositionUrl.ts:9-66 holds useRouter/usePathname, router.push (chooseFolder, :44), router.replace (replaceQuery, :28), the invalid-value cleanup effect (:33-36) and the droppedAt state. video/page.tsx:12 only destructures {position, chooseFolder, dropTargetAndFolder, dropFolder} and passes them on. folderPosition.ts:14-73 holds readFolderPosition and folderCrumbs. The touch points place the URL reading and the router in the route pages."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-5",
+      "status": "confirmed",
+      "note": "appFolderPositionExtra.test.tsx:259-277: describe.each(APPS) \"$id a member target's requests\" renders <Library ... position=\"Videos/Study\"> directly, with no route page or router. The touch points say position tests drive the app through the page's URL wiring. This one case checks the POST bodies and does not drive the app through the URL."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "I8-TOP",
+      "status": "confirmed",
+      "note": "FolderPositionRows.tsx:61-75 renders the home crumb as an <a> whenever position !== null. It has no equivalent of the sameFolders/narrowFolders check that folderPosition.ts:70 applies to segment crumbs. appFolderPosition.test.tsx:643-652 asserts expectCrumbLinks([\"Top\"]) under sf-math at Videos/Study, where every Library request carries folder [Videos/Study/Math], the same as at the top. Spec §1.5 (app-folder-position.md:100-101) says the home crumb 'is plain when there is no folder already', and the state table at :137 has at(f) -> home crumb -> top pushed, so the spec sanctions this. Read literally, I8 ('every crumb link goes to a strict ancestor ... whose view differs from the current one') conflicts with that spec text. The shelves are the same, but the crumbs drawn do differ (top draws them from base), so whether the 'view' is the same is a matter of interpretation."
+    }
+  ],
+  "specification_compliance": [
+    "The home crumb follows spec §1.5 and the §3 state table (a link whenever folder is present). This is in tension with a literal reading of I8.",
+    "URL handling (push on choosing a position, replace on an invalid value or a target change, one replace that drops target and folder together) is implemented in useFolderPositionUrl.ts as the implementation notes describe, though in appshell rather than in the route pages."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "decisions.md:7 records that choosing another target at a position first sends one round of requests carrying the new target and the old folder. useFolderPositionUrl.ts:16-21 (droppedAt) appears to address this, but I did not confirm in the app that the stale round no longer happens."
+  ],
+  "regression_risks": [
+    "VideoApp.states.test.tsx:320 depends on DOM order (the chip Retry comes before the shelves' Retry). If the chip Retry is the only one present when findAll resolves, the test may flake, but it does not pass falsely."
+  ],
+  "test_coverage": [
+    "appFolderPosition.test.tsx:643 covers the Top-crumb case under a target narrower than the position.",
+    "appFolderPositionExtra.test.tsx:259 covers member-target POST bodies by rendering LibraryFace directly, not through the URL wiring."
+  ],
+  "not_verified": [
+    "I did not run any test, e2e spec or the app; I made no runtime reproduction.",
+    "I did not read the raw diff of the four VideoApp test files; I checked the current contents at HEAD only.",
+    "I did not verify that HEAD of the worktree equals c020d3e beyond the git status snapshot.",
+    "I did not check the full contents of folderRows.tsx or folder-rows.spec.ts beyond grep hits."
+  ],
+  "confidence": 85
+}

@@ -1,10 +1,12 @@
-import { getShelves, type ShelfItem } from "@/lib/api";
+import type { ShelfItem } from "@/lib/api";
+import type { AppRequests } from "@/lib/memberTarget";
 import type { VideoTargetParams } from "@/lib/videoAppTarget";
 import { isViewerRequired } from "./useVideoApp";
 
 export const RESTRICT_SHELF_SIZE = 60;
 
 export function createRestrict({
+  requests,
   drive,
   target,
   watch,
@@ -12,6 +14,7 @@ export function createRestrict({
   isCurrent,
   onViewerRejected,
 }: {
+  requests: AppRequests;
   drive: string;
   target: VideoTargetParams;
   watch?: "unwatched";
@@ -26,7 +29,7 @@ export function createRestrict({
       const chunk = ids.slice(offset, offset + RESTRICT_SHELF_SIZE);
       let response;
       try {
-        response = await getShelves(drive, {
+        response = await requests.shelves(drive, {
           ...target,
           by: "all",
           key: "all",

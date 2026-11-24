@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-1",
+      "status": "confirmed",
+      "note": "frontend/e2e-components/ contains scenes-scroll-list.cases.ts, scenes-scroll-list.spec.ts, scenes-scroll-list-desktop.spec.ts and scenes-scroll-list-scrollbar-desktop.spec.ts. All four appear in docs/process/reviews/feature-scenes-scroll-list/r6/product-files.txt:17-20 as changed files. They are registered in projects.ts:29-30 and spec-viewport.spec.ts:74,115-116. None of them matches the touch-point glob `scenes-section*.ts`, and no other touch-point entry names them."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-2",
+      "status": "confirmed",
+      "note": "usePlaybackClock.ts:40-50 calls the controller getters directly, and its catch returns IDLE_PLAYBACK ({time:0,duration:0,paused:true}, defined at :11). Lines :96-101 run a private setInterval(update, 250). The file imports nothing from @/lib/mediaClock. mediaClock.ts:4-7 says to poll once per controller, and mediaClock.ts:115-125 keeps the last good snapshot when a getter throws. The file is listed as changed in r6/product-files.txt:4. An earlier review (feature-scene-timeline r8 claude-read) described usePlaybackClock as fed by mediaClock, so this change most likely comes from this branch. I could not confirm that with a git diff. SPEC-ADDON-089 I2 as revised (scenes-scroll-list.md:354) still says the marker and the outline follow 'the shared media clock'."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F-1",
+      "status": "confirmed",
+      "note": "ScenesSectionPresenter.tsx:371-381 renders the cardBoxRef div whenever view === 'expanded'. In flow form it has the classes `sticky ... pt-3.5 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] bg-bg-card` (ground() at :109-111), whatever its children. When awaitingVisual is false and visual?.scene is null (:382, :401), the box is empty, but its padding still gives it a height of 22 px or more. sceneList.ts:43-47 sets bottom = card.top whenever card.height > 0. useSceneList.ts:182, :245, :352 and :421 all use this viewport. With no card and no placeholder drawn, the visible area therefore ends at the empty box's top, not at the scroller's bottom. Revised invariant I11 (acceptance) requires the scroller's bottom."
+    }
+  ],
+  "specification_compliance": [
+    "I11 (acceptance), flow-form clause: not met when the card box is empty but padded (F-1).",
+    "SPEC-ADDON-089 I2 (revised) 'follow the shared media clock': the section no longer reads the shared clock (TP-2).",
+    "Touch points: four new e2e files fall outside the declared `scenes-section*.ts` glob (TP-1)."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "When a controller getter throws (for example YouTube during a media swap), usePlaybackClock reports time 0. The playing tile and the ruler marker can briefly jump to the start."
+  ],
+  "regression_risks": [
+    "A private 250 ms poll per Scenes section adds a second timer for each controller, beside the shared mediaClock, which other consumers still use (TranscriptSection)."
+  ],
+  "test_coverage": [
+    "The flow e2e fixture always serves a visual index that has a scene, so the case with an empty card box (F-1) does not appear to be exercised. This comes from the reader's evidence; I did not check it independently."
+  ],
+  "not_verified": [
+    "I did not run git diff against origin/develop to prove that usePlaybackClock dropped mediaClock in this branch and not earlier; the conclusion rests on product-files.txt and an earlier review's description.",
+    "I did not run any test or e2e spec.",
+    "I did not check the visual effect of the empty sticky box, or whether view === 'expanded' happens with the policy off."
+  ],
+  "confidence": 85
+}

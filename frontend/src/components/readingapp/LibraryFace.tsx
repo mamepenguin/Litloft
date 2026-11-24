@@ -1,29 +1,42 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { BookOpen } from "lucide-react";
+import { useCallback, useMemo, useRef, type ReactNode } from "react";
+import { BookOpen, Search } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 
 import { EmptyState } from "@/components/EmptyState";
+import { fetchAlignedPage, useCardFileLists } from "@/components/appshell/CardFileMenu";
+import { FilterMenus } from "@/components/appshell/FilterMenus";
+import { FolderPositionRows } from "@/components/appshell/FolderPositionRows";
+import { mergeLibraryTags, useLibraryFilters } from "@/components/appshell/libraryFilters";
 import { RetryButton } from "@/components/appshell/RetryButton";
 import { ShelfBlock } from "@/components/appshell/ShelfBlock";
 import { useNearEnd } from "@/components/appshell/useNearEnd";
 import { usePaged } from "@/components/appshell/usePaged";
-import { getShelves, type Shelf, type ShelfItem, type ShelfWatchState } from "@/lib/api";
-import type { ReadingGroup } from "@/lib/appPrefs";
+import { GroupMenu, LibraryControlRow, SortMenu } from "@/components/appshell/ViewMenus";
+import { type Shelf, type ShelfItem, type ShelfWatchState } from "@/lib/api";
+import type { AppRequests } from "@/lib/memberTarget";
 import type { ReadingTargetParams } from "@/lib/readingAppTarget";
-import { folderLabel, shelfTitle, sortChoiceOf, type SortChoice } from "./labels";
-import { GroupMenu, ReadingSortMenu, StateMenu, TagMenu, type ReadingState } from "./LibraryControls";
+import {
+  READING_GROUPS,
+  SORT_CHOICES,
+  shelfTitle,
+  sortChoiceOf,
+  type ReadingGroup,
+  type SortId,
+} from "./labels";
 import { ReadingCard } from "./ReadingCard";
 import { ReadingGrid } from "./ReadingGrid";
-import { narrowFolders, normalizeFolder } from "./folders";
+import { narrowFolders, normalizeFolder } from "@/components/appshell/folders";
 import { readingShelfHref } from "./shelfLinks";
-import { useFolderChips } from "./useFolderChips";
+import { useFolderChips } from "@/components/appshell/useFolderChips";
 import { isViewerRequired } from "./useReadingApp";
 
 export const LIBRARY_PAGE_SIZE = 60;
 export const LIBRARY_TAG_ITEMS = 12;
 export const LIBRARY_TAG_SHELVES_PER_PAGE = 12;
+
+const noop = () => {};
 
 type LibraryParams = ReadingTargetParams & { watch?: ShelfWatchState };
 
@@ -31,29 +44,28 @@ function listOf(value: string | readonly string[] | undefined): string[] {
   return value === undefined ? [] : ([value].flat() as string[]);
 }
 
-function mergeTags(base: readonly string[], added: readonly string[]): string[] {
-  const merged = [...base];
-  for (const tag of added) {
-    if (!merged.some((held) => held.toLowerCase() === tag.toLowerCase())) merged.push(tag);
-  }
-  return merged;
-}
-
-/** The chips of the target alone, never the face's own conditions. */
-export function useLibraryChips(drive: string, params: ReadingTargetParams | null) {
+/** The chips of the target under the position, never the face's own conditions. */
+export function useLibraryChips(
+  drive: string,
+  params: ReadingTargetParams | null,
+  folders: readonly string[],
+  enabled: boolean,
+  requests: AppRequests,
+) {
   const loadPage = useMemo(
     () =>
-      params === null
+      params === null || !enabled
         ? null
         : (offset: number) =>
-            getShelves(drive, {
+            requests.shelves(drive, {
               ...params,
+              ...(folders.length > 0 ? { folder: folders } : {}),
               by: "folder",
               per_shelf: 1,
               shelf_limit: 24,
               ...(offset > 0 ? { offset } : {}),
             }),
-    [drive, params],
+    [drive, params, folders, enabled, requests],
   );
   return useFolderChips(loadPage);
 }
@@ -61,181 +73,230 @@ export function useLibraryChips(drive: string, params: ReadingTargetParams | nul
 export function LibraryFace({
   drive,
   params,
+  requests,
   empty,
   hasProfile,
+  position = null,
   group,
   sortId,
+  libraryPath = `/drive/${encodeURIComponent(drive)}/apps/reading`,
+  onChooseFolder = noop,
   onGroup,
   onSort,
   onViewerRejected,
 }: {
   drive: string;
   params: ReadingTargetParams | null;
+  requests: AppRequests;
   /** The target intersects no book kind. */
   empty: boolean;
   hasProfile: boolean;
+  /** The folder the URL holds; `null` at the top of the target. */
+  position?: string | null;
   group: ReadingGroup;
-  sortId: SortChoice["id"];
+  sortId: SortId;
+  /** The Library's own URL, without a query. */
+  libraryPath?: string;
+  onChooseFolder?: (folder: string | null) => void;
   onGroup: (value: ReadingGroup) => void;
-  onSort: (value: SortChoice["id"]) => void;
+  onSort: (value: SortId) => void;
   onViewerRejected: () => void;
 }) {
   const t = useTranslations("readingApp");
+  const tFilters = useTranslations("appFilters");
   const locale = useLocale();
   const number = useMemo(() => new Intl.NumberFormat(locale), [locale]);
   const sort = sortChoiceOf(sortId);
-  const [chip, setChip] = useState<string>("all");
-  const [tags, setTags] = useState<string[]>([]);
-  const [state, setState] = useState<ReadingState>("all");
+  const filters = useLibraryFilters("reading", drive, hasProfile);
+  const name = filters.name;
 
-  // A chip lasts only for the target it was chosen under.
-  useEffect(() => {
-    setChip("all");
-  }, [params]);
+  const targetFolders = useMemo(
+    () => listOf(params?.folder).map(normalizeFolder),
+    [params],
+  );
+  const folders = useMemo(
+    () =>
+      params === null
+        ? []
+        : position === null
+          ? targetFolders
+          : narrowFolders(targetFolders, position),
+    [params, position, targetFolders],
+  );
 
-  // Watch state reads the viewer's rows, so losing the profile loses it.
-  useEffect(() => {
-    if (!hasProfile) setState("all");
-  }, [hasProfile]);
+  const blocked = empty || (position !== null && folders.length === 0);
+  const chips = useLibraryChips(drive, params, folders, !empty && !blocked, requests);
+  const chipsBase = blocked ? "" : chips.state.base;
 
-  const chips = useLibraryChips(drive, params);
-
-  const folders = useMemo(() => {
-    if (params === null) return undefined;
-    if (chip === "all") return listOf(params.folder).map(normalizeFolder);
-    return narrowFolders(listOf(params.folder), chip);
-  }, [params, chip]);
-
-  const watch = hasProfile && state !== "all" ? state : undefined;
+  const watch =
+    hasProfile && filters.state !== "all" ? (filters.state as ShelfWatchState) : undefined;
 
   const query = useMemo<LibraryParams | null>(() => {
     if (params === null) return null;
     const next: LibraryParams = { ...params };
-    if (folders !== undefined) next.folder = folders;
-    const merged = mergeTags(listOf(params.tag), tags);
+    if (folders.length > 0) next.folder = [...folders];
+    const merged = mergeLibraryTags(listOf(params.tag), filters.tags);
     if (merged.length > 0) next.tag = merged;
     if (watch) next.watch = watch;
+    if (name) next.search = name;
     return next;
-  }, [params, folders, tags, watch]);
+  }, [params, folders, filters.tags, name, watch]);
+  const excludedTags = useMemo(() => listOf(params?.tag), [params]);
+  const conditionsKey = useMemo(() => JSON.stringify(query ?? null), [query]);
+  const loadCandidates = useCallback(
+    (signal: AbortSignal) =>
+      query === null || blocked
+        ? Promise.resolve([])
+        : requests.tagCounts(drive, query, { signal }),
+    [drive, query, requests, blocked],
+  );
+  const filtersActive = filters.tags.length > 0 || watch !== undefined || name !== "";
 
-  const blocked = empty || (chip !== "all" && folders !== undefined && folders.length === 0);
+  const lists = useCardFileLists();
+  const removedBefore = useRef(0);
 
   const fetchFlat = useMemo(
     () =>
       query === null || blocked
         ? null
         : (page: number) =>
-            getShelves(drive, {
-              ...query,
-              by: "all",
-              key: "all",
-              sort: sort.sort,
-              order: sort.order,
-              per_shelf: LIBRARY_PAGE_SIZE,
-              page,
-            }).then(
-              (response) => {
-                const shelf = response.shelves[0];
-                return { items: shelf?.items ?? [], total: shelf?.count ?? 0 };
-              },
-              (error: unknown) => {
-                if (isViewerRequired(error)) onViewerRejected();
-                throw error;
-              },
+            fetchAlignedPage<ShelfItem>(page, removedBefore.current, LIBRARY_PAGE_SIZE, (n) =>
+              requests
+                .shelves(drive, {
+                  ...query,
+                  by: "all",
+                  key: "all",
+                  sort: sort.sort,
+                  order: sort.order,
+                  per_shelf: LIBRARY_PAGE_SIZE,
+                  page: n,
+                })
+                .then(
+                  (response) => {
+                    const shelf = response.shelves[0];
+                    return { items: shelf?.items ?? [], total: shelf?.count ?? 0 };
+                  },
+                  (error: unknown) => {
+                    if (isViewerRequired(error)) onViewerRejected();
+                    throw error;
+                  },
+                ),
             ),
-    [drive, query, blocked, sort.sort, sort.order, onViewerRejected],
+    [drive, query, requests, blocked, sort.sort, sort.order, onViewerRejected],
   );
+
+  const groupedBy = group === "none" ? null : group;
 
   const fetchGrouped = useMemo(
     () =>
-      query === null || blocked
+      query === null || blocked || groupedBy === null
         ? null
         : (page: number) =>
-            getShelves(drive, {
-              ...query,
-              by: "tag",
-              sort: sort.sort,
-              order: sort.order,
-              per_shelf: LIBRARY_TAG_ITEMS,
-              shelf_limit: LIBRARY_TAG_SHELVES_PER_PAGE,
-              ...(page > 1 ? { offset: (page - 1) * LIBRARY_TAG_SHELVES_PER_PAGE } : {}),
-            }).then(
-              (response) => ({ items: response.shelves, total: response.total_shelves }),
-              (error: unknown) => {
-                if (isViewerRequired(error)) onViewerRejected();
-                throw error;
-              },
-            ),
-    [drive, query, blocked, sort.sort, sort.order, onViewerRejected],
+            requests
+              .shelves(drive, {
+                ...query,
+                by: groupedBy,
+                sort: sort.sort,
+                order: sort.order,
+                per_shelf: LIBRARY_TAG_ITEMS,
+                shelf_limit: LIBRARY_TAG_SHELVES_PER_PAGE,
+                ...(page > 1 ? { offset: (page - 1) * LIBRARY_TAG_SHELVES_PER_PAGE } : {}),
+              })
+              .then(
+                (response) => ({ items: response.shelves, total: response.total_shelves }),
+                (error: unknown) => {
+                  if (isViewerRequired(error)) onViewerRejected();
+                  throw error;
+                },
+              ),
+    [drive, query, requests, blocked, groupedBy, sort.sort, sort.order, onViewerRejected],
   );
 
-  const flat = usePaged<ShelfItem>(group === "none" ? fetchFlat : null);
-  const grouped = usePaged<Shelf>(group === "tag" ? fetchGrouped : null);
+  const flat = usePaged<ShelfItem>(groupedBy === null ? fetchFlat : null, lists.version);
+  removedBefore.current = lists.removedCount("grid", flat.items);
+  const flatItems = lists.filter("grid", flat.items);
+  const grouped = usePaged<Shelf>(groupedBy === null ? null : fetchGrouped, lists.version);
   const flatSentinel = useNearEnd(flat.hasMore && flat.more === "idle", flat.loadMore);
   const groupedSentinel = useNearEnd(
     grouped.hasMore && grouped.more === "idle",
     grouped.loadMore,
   );
 
-  const toggleTag = (tag: string) =>
-    setTags((held) => (held.includes(tag) ? held.filter((name) => name !== tag) : [...held, tag]));
-
   if (empty) {
     return <EmptyState icon={BookOpen} title={t("targetUnusable")} />;
   }
 
   const conditions = {
-    ...(folders !== undefined && folders.length > 0 ? { folder: folders } : {}),
-    ...(tags.length > 0 ? { tag: tags } : {}),
+    ...(position !== null && folders.length > 0 ? { folder: folders } : {}),
+    ...(position !== null ? { fromFolder: position } : {}),
+    ...(filters.tags.length > 0 ? { tag: filters.tags } : {}),
     ...(watch ? { watch } : {}),
+    ...(name ? { name } : {}),
   };
+  const filteredEmpty = <EmptyState icon={Search} title={tFilters("filterEmpty")} />;
 
-  const chipRow = (
-    <div
-      data-testid="reading-chips"
-      className="flex flex-wrap gap-2 pb-1 max-h-[8rem] overflow-y-auto pointer-coarse:max-h-none pointer-coarse:flex-nowrap pointer-coarse:overflow-x-auto"
-    >
-      <ChipButton label={t("all")} selected={chip === "all"} onSelect={() => setChip("all")} />
-      {chips.state.chips.map((folder) => (
-        <ChipButton
-          key={folder.key}
-          label={folder.label || folderLabel(folder.key, drive)}
-          selected={chip === normalizeFolder(folder.key)}
-          onSelect={() => setChip(normalizeFolder(folder.key))}
-        />
-      ))}
-      {(chips.state.status === "failed" || chips.state.error) && (
-        <div className="flex flex-shrink-0 items-center">
-          <RetryButton onRetry={chips.retry} />
-        </div>
-      )}
-    </div>
-  );
+  const groupOptions = READING_GROUPS.map((candidate) => ({
+    value: candidate,
+    label: t(`group.${candidate}`),
+  }));
+  const sortOptions = SORT_CHOICES.map((choice) => ({
+    value: choice.id,
+    label: t(choice.labelKey),
+  }));
+
+  const stateOptions = [
+    { value: "all", label: t("state.all") },
+    ...(["unwatched", "in_progress", "finished"] as const).map((value) => ({
+      value,
+      label: t(`state.${value}`),
+    })),
+  ];
 
   const controls = (
-    <div className="flex flex-wrap items-center gap-2">
-      <TagMenu drive={drive} selected={tags} onToggle={toggleTag} />
-      {hasProfile && <StateMenu value={state} onChange={setState} />}
-      <GroupMenu value={group} onChange={onGroup} />
-      <ReadingSortMenu value={sortId} onChange={onSort} filled />
-    </div>
+    <LibraryControlRow
+      filters={
+        <FilterMenus
+          tags={filters.tags}
+          onToggle={filters.toggleTag}
+          onClear={filters.clearTags}
+          loadCandidates={loadCandidates}
+          conditionsKey={conditionsKey}
+          excludeTags={excludedTags}
+          state={
+            hasProfile
+              ? { options: stateOptions, value: filters.state, onChange: filters.setState }
+              : null
+          }
+          onViewerRejected={onViewerRejected}
+        />
+      }
+    >
+      <GroupMenu options={groupOptions} value={group} onChange={onGroup} />
+      <SortMenu options={sortOptions} value={sortId} onChange={onSort} />
+    </LibraryControlRow>
   );
 
   let body: ReactNode;
   if (blocked) {
     body = <EmptyState icon={BookOpen} title={t("noBooks")} />;
-  } else if (group === "none") {
+  } else if (groupedBy === null) {
     if (flat.phase === "failed") {
       body = <RetryButton onRetry={flat.retry} />;
     } else if (flat.phase === "ready") {
       body =
-        flat.items.length === 0 ? (
-          <EmptyState icon={BookOpen} title={t("noBooks")} />
+        flatItems.length === 0 ? (
+          filtersActive ? (
+            filteredEmpty
+          ) : (
+            <EmptyState icon={BookOpen} title={t("noBooks")} />
+          )
         ) : (
           <>
             <ReadingGrid
-              items={flat.items}
-              renderItem={(item) => <ReadingCard item={item} drive={drive} />}
+              items={flatItems}
+              renderItem={(item) => (
+                <ReadingCard item={item} drive={drive} fileMenu={{ listKey: "grid" }} />
+              )}
             />
             <div ref={flatSentinel} aria-hidden="true" className="h-px" />
             {flat.more === "loading" && (
@@ -272,20 +333,22 @@ export function LibraryFace({
   } else if (grouped.phase === "ready") {
     body =
       grouped.items.length === 0 ? (
-        <EmptyState icon={BookOpen} title={t("noBooks")} />
+        filtersActive ? (
+          filteredEmpty
+        ) : (
+          <EmptyState icon={BookOpen} title={t("noBooks")} />
+        )
       ) : (
         <>
           <div className="space-y-10">
             {grouped.items.map((shelf) => (
-              <ShelfBlock
+              <ReadingGroupShelf
                 key={shelf.key}
-                title={shelfTitle({ by: "tag", key: shelf.key, drive, t: (key) => t(key) })}
-                count={number.format(shelf.count)}
-                seeAllHref={readingShelfHref(drive, "tag", shelf.key, sortId, conditions, "library")}
-                view={{ status: "loaded", items: shelf.items }}
+                shelf={shelf}
+                title={shelfTitle({ by: groupedBy, key: shelf.key, drive, locale, t: (key) => t(key) })}
+                seeAllHref={readingShelfHref(drive, groupedBy, shelf.key, sortId, conditions, "library")}
                 onRetry={grouped.retry}
-                book
-                renderItem={(item) => <ReadingCard item={item} drive={drive} />}
+                formatCount={number.format}
               />
             ))}
           </div>
@@ -320,36 +383,60 @@ export function LibraryFace({
     );
   }
 
+  const libraryHref = (folder: string | null) =>
+    folder === null ? libraryPath : `${libraryPath}?folder=${encodeURIComponent(folder)}`;
+
   return (
     <div>
-      {chipRow}
+      <div className="space-y-3 pointer-coarse:space-y-1">
+        <FolderPositionRows
+          position={position}
+          targetFolders={targetFolders}
+          base={chipsBase}
+          chips={chips.state.chips}
+          chipsStatus={chips.state.status}
+          chipsError={chips.state.error}
+          onRetry={chips.retry}
+          href={libraryHref}
+          onChoose={onChooseFolder}
+        />
+      </div>
       <div className="mt-3">{controls}</div>
       <div className="mt-6">{body}</div>
     </div>
   );
 }
 
-function ChipButton({
-  label,
-  selected,
-  onSelect,
+function ReadingGroupShelf({
+  shelf,
+  title,
+  seeAllHref,
+  onRetry,
+  formatCount,
 }: {
-  label: string;
-  selected: boolean;
-  onSelect: () => void;
+  shelf: Shelf;
+  title: string;
+  seeAllHref: string;
+  onRetry: () => void;
+  formatCount: (value: number) => string;
 }) {
+  const lists = useCardFileLists();
+  const listKey = `group:${shelf.key}`;
+  const items = lists.filter(listKey, shelf.items);
+  if (items.length === 0) return null;
+  const count = shelf.count - lists.removedCount(listKey, shelf.items);
+
   return (
-    <button
-      type="button"
-      aria-pressed={selected}
-      onClick={onSelect}
-      className={`flex-shrink-0 whitespace-nowrap rounded-full border px-3 py-1.5 text-sm transition-colors pointer-coarse:min-h-11 bg-bg-elevated ${
-        selected
-          ? "border-accent font-semibold text-text-primary"
-          : "border-transparent text-text-muted hover:text-text-primary"
-      }`}
-    >
-      {label}
-    </button>
+    <ShelfBlock
+      title={title}
+      count={formatCount(count)}
+      seeAllHref={seeAllHref}
+      view={{ status: "loaded", items }}
+      onRetry={onRetry}
+      book
+      renderItem={(item) => (
+        <ReadingCard item={item} drive={item.drive} fileMenu={{ listKey }} />
+      )}
+    />
   );
 }

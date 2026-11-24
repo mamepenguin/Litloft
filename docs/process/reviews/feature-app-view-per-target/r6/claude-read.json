@@ -1,0 +1,479 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "trajectory": "This round (b533c0999, knowledge cac96f1→f7bdf38) adds no new state. It does add conditions to the same URL-snapshot prediction that r4 introduced and r5 kept, the `switchedFrom` / `switchPending` check that 'the router has not yet shown the replaced URL'. In both Clips (clips.tsx:207) and Notes (NotesPage.tsx:173) the eager replace and the snapshot are now guarded by `next.toString() !== current`, so the prediction is only made when the URL will actually change. In Notes, `switchPending` is now also carried into the `latest` ref (NotesPage.tsx:53-56), and the older note-drop effect consults it (`&& !chosen`, NotesPage.tsx:68). That is one more consumer of the prediction, not a removal. The test harness gains a deferred-navigation mode (`deferNavigation`) that models the transition ordering r5's R3 asked for. The transient-flag design has now been adjusted in r2, r3, r4, r5 and r6. This round narrows it with guards and does not replace it, so the design is still being patched. The guards are small, and I could not find a new defect they introduce.",
+  "findings": [
+    {
+      "id": "R1",
+      "origin": "reviewer",
+      "claim": "The new deferred-navigation harness mode is used by only one Notes test, so no test exercises a Clips Target change, or Notes' no-op-replace path, under transition-like router ordering.",
+      "impact": "The Clips Target-change path (r4 R1/V1, fixed in r5) depends on the same ordering assumption that broke Notes in r5, and a regression there would not fail vitest. Notes' new `next !== current` guard is also tested only indirectly.",
+      "evidence": "clipsTargetChangeOnHome.test.tsx imports `deferNavigation` but only calls `deferNavigation(false)` in afterEach; no Clips test calls `deferNavigation(true)`. notesTargetChangeWhileEditing.test.tsx has the single deferred case (switching to All notes with `note` and `sort` in the URL). No Notes test chooses a Target from a Library URL with neither `sort` nor `note`, which is the r5 R2 path for Notes.",
+      "repro": "Mutation by reading: in clips.tsx, make `switchPending` false while the URL is still the snapshot, for example by clearing `switchedFrom` right after `router.replace` as r4 did. Under the synchronous harness every Clips test still passes, because the URL change and the flag change land in the same render. Second mutation: remove the `next.toString() !== current.toString()` guard in NotesPage.tsx:173. No Notes test starts from a URL without `sort`/`note`, so nothing fails.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is a test-coverage gap. I found no invariant that the current code breaks on these paths.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Run the Clips Library Target-change test (clipsViewPerTarget I4) and a request-capturing variant under `deferNavigation(true)`, asserting that no shelves request carries the previous Target's group/sort. Add a Notes case that chooses a Target from `?view=all` after an empty Target."
+    }
+  ],
+  "specification_compliance": [
+    "r5 R1 (Notes, note-drop replace carrying the old sort under the real router): fixed. In the urgent commit `switchedFrom` equals the still-old search, so `switchPending` is true. The `latest` effect (NotesPage.tsx:54-56) is declared before the Target effect and runs first, so the Target effect sees `chosen === true` and skips the second replace (:68). If the Target goes through lookingUp, the effect returns at :58 until ready. By then the URL has no `note`, so the branch is not taken. The new deferred test kills a revert: the old branch would log a replace with `sort=created`.",
+    "r5 R2 (no-op replace leaving `switchedFrom` pending forever): fixed in both pages. When the stripped URL equals the current one, neither the snapshot nor the replace happens. In Clips, `readClipsView` then takes the absent group/sort from the new Target's resolved view, and `fillHref` (clips.tsx:255-258) writes it once the body is drawn (I11, I13 r4). In Notes, `ignoreUrlSort` stays false, NotesLibrary resolves the sort from the new Target's held view, and its fill-in writes it. The new Clips test 'fills in the view when a Target is chosen while the saved one is still being evaluated' would fail without the guard.",
+    "r5 R3 (no transition-ordering test): partly addressed by `deferNavigation` in notesAppHarness, re-exported through clipsAppHarness, and one Notes test (see R1).",
+    "The r5 potential issue (a Clips fixed shelf page leaving `switchedFrom` set) is gone too: on unread/recent/new/unverified pages there is no group/sort to strip, so the guard skips the snapshot."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "In Notes, a NotesLibrary note replacement (`setNote` through `navigate`) issued in the switch window would build its URL from the old search params (`latest.current`) with the new sort. Under transition ordering it could land after the eager replace and put `note`/old selection back. I believe the list request is asynchronous, so this does not happen in practice, but I did not trace it."
+  ],
+  "regression_risks": [
+    "Target-change correctness in Clips and Notes still relies on React committing urgent updates before the router transition, and on string equality of `searchParams.toString()` with the snapshot. Only one Notes test models that ordering.",
+    "Any future effect that writes the URL on a Target change must also consult `switchPending`, as the Notes note-drop effect now does. Nothing enforces this."
+  ],
+  "test_coverage": [
+    "notesTargetChangeWhileEditing.test.tsx: new deferred-router case for switching Target with `note` and `sort` in the URL; it kills a revert of the `!chosen` guard.",
+    "clipsTargetChangeOnHome.test.tsx: new case for a Target chosen on `?view=all` while the saved member Target is still evaluating; it kills a revert of the `next !== search` guard.",
+    "No Clips test runs under `deferNavigation(true)`, and no Notes test covers the no-op replace path (R1)."
+  ],
+  "not_verified": [
+    "I ran no tests or browsers. Every conclusion is traced by reading the code.",
+    "I did not confirm that `useEffect` callbacks in one component run in declaration order within a commit in this React version. The `!chosen` fix depends on the `latest` effect running before the Target effect.",
+    "I did not trace NotesLibrary's note-replacement effects under deferred navigation during a Target switch.",
+    "I did not confirm that the deferred harness's setTimeout ordering matches Next 16's action-queue ordering for two back-to-back replaces.",
+    "Most product files were read only through the supplied diff hunks."
+  ],
+  "coverage": [
+    {
+      "path": "addons/knowledge/frontend/NotesPage.tsx",
+      "read": "full",
+      "reason": "read whole file in repository"
+    },
+    {
+      "path": "addons/knowledge/frontend/clipsapp/Library.tsx",
+      "read": "partial",
+      "reason": "changed hunks in the supplied diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/clipsapp/ShelfPage.tsx",
+      "read": "partial",
+      "reason": "changed hunks in the supplied diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/clipsapp/clipsUrl.ts",
+      "read": "partial",
+      "reason": "changed hunks in the supplied diff (most of the file)"
+    },
+    {
+      "path": "addons/knowledge/frontend/clipsapp/requests.ts",
+      "read": "partial",
+      "reason": "changed hunks in the supplied diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/clipsapp/useGroupedShelves.ts",
+      "read": "partial",
+      "reason": "rename diff hunks"
+    },
+    {
+      "path": "addons/knowledge/frontend/library/LibraryList.tsx",
+      "read": "partial",
+      "reason": "changed hunks in the supplied diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/library/LibraryRail.tsx",
+      "read": "partial",
+      "reason": "changed hunks in the supplied diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/library/NotesLibrary.tsx",
+      "read": "partial",
+      "reason": "changed hunks in the supplied diff (sort resolution, fill-in, navigate, saveView)"
+    },
+    {
+      "path": "addons/knowledge/frontend/library/libraryUrl.ts",
+      "read": "partial",
+      "reason": "changed hunks in the supplied diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/messages/en.json",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "addons/knowledge/frontend/messages/ja.json",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "addons/knowledge/frontend/notesapp/RecentlyUpdatedSection.tsx",
+      "read": "partial",
+      "reason": "changed hunk"
+    },
+    {
+      "path": "addons/knowledge/frontend/pages/clips.tsx",
+      "read": "partial",
+      "reason": "lines 120-269 in repository plus all diff hunks"
+    },
+    {
+      "path": "frontend/e2e-components/app-header-desktop.spec.ts",
+      "read": "partial",
+      "reason": "changed hunk"
+    },
+    {
+      "path": "frontend/e2e-components/app-header.measure.ts",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "frontend/e2e-components/app-header.spec.ts",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "frontend/e2e-components/clips-primary-action-desktop.spec.ts",
+      "read": "partial",
+      "reason": "changed hunk"
+    },
+    {
+      "path": "frontend/e2e-components/clips-primary-action.spec.ts",
+      "read": "partial",
+      "reason": "changed hunk"
+    },
+    {
+      "path": "frontend/e2e-components/clips-view-menus-desktop.spec.ts",
+      "read": "full",
+      "reason": "new file, whole content in diff"
+    },
+    {
+      "path": "frontend/e2e-components/clips-view-menus.spec.ts",
+      "read": "full",
+      "reason": "new file, whole content in diff"
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/appHeader.tsx",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/clipsPage.tsx",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/notesLibrary.tsx",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/videoCardSpacing.tsx",
+      "read": "partial",
+      "reason": "changed hunk"
+    },
+    {
+      "path": "frontend/e2e-components/notes-view-menus-desktop.spec.ts",
+      "read": "full",
+      "reason": "new file, whole content in diff"
+    },
+    {
+      "path": "frontend/e2e-components/notes-view-menus.spec.ts",
+      "read": "full",
+      "reason": "new file, whole content in diff"
+    },
+    {
+      "path": "frontend/e2e-components/projects.ts",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "frontend/e2e-components/spec-viewport.spec.ts",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "frontend/e2e-components/view-menus-desktop.spec.ts",
+      "read": "full",
+      "reason": "new file, whole content in diff"
+    },
+    {
+      "path": "frontend/e2e-components/view-menus.spec.ts",
+      "read": "full",
+      "reason": "new file, whole content in diff"
+    },
+    {
+      "path": "frontend/e2e-layout/fixtures/reading-video-faces.html",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "frontend/e2e-layout/fixtures/toolbar-menu.html",
+      "read": "partial",
+      "reason": "changed hunk"
+    },
+    {
+      "path": "frontend/e2e-layout/fixtures/video-app.html",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "frontend/e2e-layout/reading-video-faces.spec.ts",
+      "read": "partial",
+      "reason": "changed hunk"
+    },
+    {
+      "path": "frontend/src/components/ToolbarMenu.tsx",
+      "read": "partial",
+      "reason": "changed hunks in the supplied diff"
+    },
+    {
+      "path": "frontend/src/components/appshell/ViewMenus.tsx",
+      "read": "full",
+      "reason": "new file, whole content in diff"
+    },
+    {
+      "path": "frontend/src/components/readingapp/LibraryControls.tsx",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "frontend/src/components/readingapp/LibraryFace.tsx",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "frontend/src/components/readingapp/ReadingApp.tsx",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "frontend/src/components/readingapp/ReadingShelfPage.tsx",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "frontend/src/components/readingapp/labels.ts",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "frontend/src/components/readingapp/useReadingApp.ts",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "frontend/src/components/videoapp/LibraryControls.tsx",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "frontend/src/components/videoapp/LibraryFace.tsx",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "frontend/src/components/videoapp/VideoApp.tsx",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "frontend/src/components/videoapp/VideoPagedGrid.tsx",
+      "read": "full",
+      "reason": "new file, whole content in diff"
+    },
+    {
+      "path": "frontend/src/components/videoapp/VideoShelfPage.tsx",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "frontend/src/components/videoapp/labels.ts",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "frontend/src/components/videoapp/useVideoApp.ts",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "frontend/src/lib/appPrefs.ts",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "frontend/src/lib/formatMonth.ts",
+      "read": "full",
+      "reason": "new file, whole content in diff"
+    },
+    {
+      "path": "frontend/src/messages-core/en.json",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "frontend/src/messages-core/ja.json",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/clipsAppHarness.tsx",
+      "read": "partial",
+      "reason": "changed hunks including the deferNavigation re-export"
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/clipsFrame.test.tsx",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/clipsLibrary.test.tsx",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/clipsPage.test.tsx",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/clipsTargetChangeOnHome.test.tsx",
+      "read": "full",
+      "reason": "whole content in diff, including this round's new case"
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/clipsViewPerTarget.test.tsx",
+      "read": "partial",
+      "reason": "new file in diff, read Target-change cases"
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/notesApp.home.test.tsx",
+      "read": "partial",
+      "reason": "changed hunk"
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/notesAppHarness.tsx",
+      "read": "partial",
+      "reason": "changed hunks (deferNavigation)"
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/notesFrame.test.tsx",
+      "read": "partial",
+      "reason": "changed hunk"
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/notesLibrary.test.tsx",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/notesTargetChangeWhileEditing.test.tsx",
+      "read": "full",
+      "reason": "whole content in diff, including this round's deferred case"
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/notesViewPerTarget.test.tsx",
+      "read": "partial",
+      "reason": "new file in diff, read Target-change cases"
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/viewMenusJa.test.tsx",
+      "read": "partial",
+      "reason": "new file in diff, skimmed"
+    },
+    {
+      "path": "addons/knowledge/frontend/clipsapp/__tests__/clipsUrl.test.ts",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "addons/knowledge/frontend/clipsapp/__tests__/requests.test.ts",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "addons/knowledge/frontend/library/__tests__/NotesLibrary.test.tsx",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "addons/knowledge/frontend/library/__tests__/libraryUrl.test.ts",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "frontend/src/components/__tests__/ToolbarMenu.test.tsx",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "frontend/src/components/__tests__/readingVideoLayoutFixtureParity.test.tsx",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "frontend/src/components/__tests__/toolbarMenuHome.test.ts",
+      "read": "partial",
+      "reason": "changed hunk"
+    },
+    {
+      "path": "frontend/src/components/__tests__/viewMenus.wording.test.tsx",
+      "read": "partial",
+      "reason": "new file in diff, skimmed"
+    },
+    {
+      "path": "frontend/src/components/readingapp/__tests__/ReadingApp.library.test.tsx",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "frontend/src/components/readingapp/__tests__/ReadingApp.targetView.test.tsx",
+      "read": "partial",
+      "reason": "new file in diff, skimmed"
+    },
+    {
+      "path": "frontend/src/components/readingapp/__tests__/ReadingShelfPage.continueOrder.test.tsx",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoApp.states.test.tsx",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoApp.targetView.test.tsx",
+      "read": "partial",
+      "reason": "new file in diff, skimmed"
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoApp.test.tsx",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoApp.viewResolution.test.tsx",
+      "read": "partial",
+      "reason": "new file in diff, skimmed"
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoShelfPage.continueOrder.test.tsx",
+      "read": "partial",
+      "reason": "changed hunks"
+    },
+    {
+      "path": "frontend/src/lib/__tests__/appPrefs.targetView.test.ts",
+      "read": "partial",
+      "reason": "new file in diff, skimmed"
+    },
+    {
+      "path": "frontend/src/lib/__tests__/appPrefs.test.ts",
+      "read": "partial",
+      "reason": "changed hunks"
+    }
+  ],
+  "confidence": 74
+}

@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [],
+  "specification_compliance": [
+    "Touch-point answer: the diff reaches no file outside the declared touch-point list except implicit ones. Files in the diff that are not named by path are covered by a listed bullet: frontend/e2e-components/projects.ts, spec-viewport.spec.ts and the target-menu-rows*.ts files fall under the e2e-components bullet; new test files (TargetMenu.collections.test.tsx, appTarget.collection.test.ts, the *.collectionTarget*.test.tsx files) sit under the test-harness bullet; docs/specs/app-target-collections.md and docs/specs/INDEX.md are implicit. So the list was complete for the diff as shown.",
+    "I1: TargetMenu.tsx targetRows() orders collections and Smart Collections by Intl.Collator(locale,{numeric:true}) on name, collection first on a tie, then by targetId; collection rows are usable:true; the default row has no icon (MenuRadioGroup renders an icon only when opt.icon !== undefined).",
+    "I2/I4: useVideoApp.ts and useReadingApp.ts parse the saved id with parseAppTargetId, wait only for the list the kind needs in lookingUp, and fall back to default without rewriting the saved id.",
+    "I6: TargetMenu with collections undefined yields NO_COLLECTIONS, so no collection row is listed.",
+    "I7: ManageTargetsDialog disables every toggle while pending and shows RetryButton when failed; onRetry calls only the failed list's retry.",
+    "I9: MenuRadioGroup change is additive; the icon span renders only when icon is defined.",
+    "I8: parseAppTargetId and collectionTargetId are as specified; resolveCollectionTarget calls assertBaseKinds, which throws on an empty base or one holding document."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The Manage dialog shows checked state for rows of a loaded list while the other list is pending, with the toggles disabled; the spec states this behaviour, so it is noted only."
+  ],
+  "regression_risks": [
+    "TargetMenu now passes rows, not folders, to Rows; any caller relying on the old prop shape breaks at compile time only.",
+    "Same-name, same-kind rows fall back to a plain string comparison of targetId, not a locale-aware one; this matches the spec's wording."
+  ],
+  "test_coverage": [
+    "New unit tests cover ordering, icons, shown-set rules, pending and failed lists, collection targets in Video and Reading requests (I3, I4, I6), the Discover cache under a collection target, and the appTarget helpers.",
+    "Real-browser cases exist only for the Video app (target-menu-rows.cases.ts runs on the Video fixture at 375px and 1280px); none for Reading's Target menu with icon rows, so Reading's icon row is verified only by reading the code.",
+    "Member-target tests (VideoApp.memberTarget*, ReadingApp.memberTarget) were not edited; they rely on installWireFetch's fallback returning [] for /collections, so they pass by default rather than by an explicit answer."
+  ],
+  "not_verified": [
+    "No test, typecheck, lint or e2e build was run; every statement comes from reading the diff and the listed files.",
+    "backend/app/routers/drives.py was not read, so the 10,000 cap and the file_ids behaviour the docs describe are unchecked.",
+    "The ToolbarMenu icon rendering in the DOM and the export of Library and ListFilter in the installed lucide-react version were not checked.",
+    "The claim that Smart Collection and collection ids are 12-character nanoids with no colon was not checked."
+  ],
+  "confidence": 62
+}

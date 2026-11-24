@@ -81,7 +81,7 @@ beforeEach(() => {
 });
 
 describe("SPEC-CORE-047 menu 1 the first level's order", () => {
-  it("offers Tag, Type, Folder, Collection, Size, Length, Favorites in that order", () => {
+  it("offers Tag, Type, Folder, Collection, Size, Length, Modified, Favorites and the two exclusions in that order", () => {
     renderHeader();
     openRoot();
 
@@ -92,7 +92,10 @@ describe("SPEC-CORE-047 menu 1 the first level's order", () => {
       "Collection",
       "Size",
       "Length",
+      "Modified",
       "Favorites",
+      "Untagged",
+      "In no collection",
     ]);
   });
 });

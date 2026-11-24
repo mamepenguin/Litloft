@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1",
+      "status": "confirmed",
+      "note": "Reproduced by reading the code at HEAD. useSceneList.ts:163-165 builds resetKey as `${fileId}|${shown?1:0}|${starts}`. useSceneList.ts:348 returns while !shown, so placedKeyRef (set only at 377/403) keeps 'f|1|starts' across a hide. Nothing clears placedKeyRef or sets openingRef back to true except 355-357, and those lines run only when the key differs. For a .loft, collapse (ScenesSectionContainer.tsx:317) and host hide (ScenesSectionContainer.tsx:296) both return before setRows(null), so the rows, and with them the starts, are unchanged. On re-show resetKey therefore equals placedKeyRef, and 351-353 only calls syncVisible. There is no setOpening(true), setFollowing(true) or placement. ready (useSceneList.ts:605) is true at once. useScenePictures.ts:98-103 clears requested on the resetKey/active change, and 105-112 calls read() with opening still false if the reader had ended opening before hiding. Every near tile then waits D, which breaks I1 for a show start event. Native video is unaffected because loadNative (ScenesSectionContainer.tsx:249) and native collapse (320) set rows to null, so the key changes. I could not check the base version's dependency list ([shown, fileId, rows]) because I have no git access. The I6 re-show test (ScenesSectionPictureTiming.test.tsx:470-494) seems to cover only the native path."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F2",
+      "status": "confirmed",
+      "note": "docs/process/reviews/feature-scenes-picture-timing/r6/test-files.txt:1 lists addons/intelligence/frontend/ScenesSection/__tests__/ScenesSectionPictureTiming.test.tsx, and the file exists with SPEC-ADDON-155 tests (for example lines 208-677). The touch points do not name it. test-files.txt lists only PictureTiming, Requests, ScrollList and scrollListLayout, so OneList and LoftVisualIndex are not changed."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F3",
+      "status": "confirmed",
+      "note": "__tests__/scrollListLayout.tsx:12 has `export let ROW = 88;`, line 287 has `export function setRowStep(px: number)` and line 292 has `ROW = 88` (the reset). r6/test-files.txt:4 lists this file as changed, and the touch points do not list it."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F4",
+      "status": "confirmed",
+      "note": "ScenesSectionContainer.tsx:450-451 computes awaitingVisual = shown && !isLoft && !visualLoaded && policy.enabled, and line 458 passes layoutSettled: !awaitingVisual. useSceneList.ts:86/121 declares the input. At 374-375 a placement made while !layoutSettled defers placedKey, and 399 keeps deferring while !layoutSettled && opening. useScenePictures.ts:63 does nothing while !ready, so the opening reading waits for the native Visual Index answer. The touch points do not describe this wait."
+    }
+  ],
+  "specification_compliance": [
+    "F1: a .loft hidden and shown again with unchanged frames, after the reader ended opening, gets no new opening. Its near tiles wait D instead of being asked for at once, which goes against I1 and the revised SPEC-ADDON-152 I6 ('the opening that follows a show')."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "The start reading of a native video waits for the Visual Index answer (layoutSettled). This wait is not in the spec or the touch points.",
+    "A .loft re-show skips the start placement (no following reset and no placement at the playing row)."
+  ],
+  "regression_risks": [
+    "A .loft re-show no longer runs the start placement or resets following. Before this change, the dependency list of the placement effect may have re-placed on every show (not verified without git)."
+  ],
+  "test_coverage": [
+    "The I6 re-show test (ScenesSectionPictureTiming.test.tsx:470) seems to use a native controller only. I found no .loft hide/show test that ends opening before hiding."
+  ],
+  "not_verified": [
+    "The base (origin/develop) version of useSceneList's placement effect and its dependency list: I had no git access.",
+    "I did not run any tests. All four findings were checked by reading the code only.",
+    "Whether view === 'expanded' maps exactly to shown for every host mode of a .loft."
+  ],
+  "confidence": 80
+}

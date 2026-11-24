@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R1",
+      "status": "confirmed",
+      "note": "Reproduced by reading. docs/process/reviews/feature-ask-ocr-line-dedupe/r6/test-files.txt:2 lists addons/intelligence/tests/test_spec_addon_136_frame_hit_lines.py as changed by the diff. The touch points name only `addons/intelligence/tests/` as 'acceptance tests for this spec' (docs/specs/ask-ocr-line-dedupe.md:208). SPEC-ADDON-136 appears in no Revises entry, and the review directory does not mention it anywhere else (a grep for '136' finds only test-files.txt). At the commit, test lines 599-610 seed segment 0 at 10-20 s with LINES, which include the whole line 'warehouse moved to Osaka' (lines 51-55), and segment 1 at 90-100 s with the same single line, then assert rows[90.0]. With the old start of 30.0, frame_text_lines.py:103-107 would mark the line repeated because 30 - 20 = 10 <= OCR_REPEAT_WINDOW_SECONDS (60.0, line 19). file_find.py:134-137 then skips the occurrence, so rows[30.0] would raise KeyError. The test edit was needed because the new rule changes how another spec's test behaves, and that spec is neither revised nor named in the touch points. I could not read the pre-change test text directly. The old 30.0/40.0 values come from the finding and were not checked against a git diff."
+    }
+  ],
+  "specification_compliance": [
+    "The repeat test in frame_text_lines.py:92-112 matches I1: it uses the latest end among earlier segments, a window of at most 60 s, and does not compare segments with an equal start against each other.",
+    "file_find.py:134-137 skips an occurrence whose line is repeated, as SPEC-ADDON-172/I5 states."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The SPEC-ADDON-136 find behaviour now depends on the repeat rule. A video whose segments show the same line within 60 s loses its `scene` rows, and their boxes, for the later segment. SPEC-ADDON-136 is not listed among the Revises entries."
+  ],
+  "regression_risks": [
+    "Other spec tests that seed identical frame lines within 60 s of each other could change behaviour without being named. Only the 136 test file was checked."
+  ],
+  "test_coverage": [
+    "The edited 136 failure-2 test moves the second segment out of the 60 s window, so it no longer covers SPEC-ADDON-136 failure 2 when the line also repeats."
+  ],
+  "not_verified": [
+    "I did not run the tests and could not see the git diff, so the old values (30.0, 40.0) are taken from the finding.",
+    "I did not check whether any other non-171/172/173 test files changed their behaviour without being edited."
+  ],
+  "confidence": 88
+}

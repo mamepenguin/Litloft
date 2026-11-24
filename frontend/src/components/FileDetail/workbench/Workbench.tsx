@@ -1,0 +1,210 @@
+"use client";
+
+import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useTranslations } from "next-intl";
+import { Columns2, PanelTopClose, X } from "lucide-react";
+
+import { WORKBENCH_COLUMNS_MIN_REM } from "@/lib/layoutSizes";
+import { isRowBeside } from "@/lib/workbenchBeside";
+import type { WorkbenchPanelItem } from "./panels";
+
+interface WorkbenchProps {
+  items: WorkbenchPanelItem[];
+  stored: readonly string[];
+  onToggle: (id: string) => void;
+  onClose: (id: string) => void;
+  actions?: ReactNode;
+  /** Whether the player and the panels are two columns. */
+  split?: boolean;
+  /**
+   * Present only where the page is split-eligible, so its presence is what
+   * draws the button and widens the beside-row budget.
+   */
+  splitButton?: {
+    pressed: boolean;
+    onToggle: () => void;
+  };
+  playerFocus?: {
+    pressed: boolean;
+    onToggle: () => void;
+    visibleHeight: number | null;
+  };
+}
+
+export function shownPanelIds(
+  items: WorkbenchPanelItem[],
+  stored: readonly string[],
+): string[] {
+  return items
+    .filter((item) => item.available && stored.includes(item.id))
+    .map((item) => item.id);
+}
+
+export function Workbench({
+  items,
+  stored,
+  onToggle,
+  onClose,
+  actions,
+  split = false,
+  splitButton,
+  playerFocus,
+}: WorkbenchProps) {
+  const t = useTranslations("workbench");
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const [measured, setMeasured] = useState<{
+    width: number;
+    rootFontSize: number;
+  } | null>(null);
+
+  // Measured, not a container query: the panels can hold a <video> and a
+  // cross-origin iframe, and a containment context around either renders the
+  // subtree rotated on iOS Safari.
+  useLayoutEffect(() => {
+    const node = rootRef.current;
+    if (!node) return;
+    const measure = () => {
+      const rootFontSize =
+        Number.parseFloat(getComputedStyle(document.documentElement).fontSize) ||
+        16;
+      const width = node.clientWidth;
+      setMeasured((previous) =>
+        previous != null &&
+        previous.width === width &&
+        previous.rootFontSize === rootFontSize
+          ? previous
+          : { width, rootFontSize },
+      );
+    };
+    measure();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
+  const wide =
+    !split &&
+    measured != null &&
+    measured.width >= WORKBENCH_COLUMNS_MIN_REM * measured.rootFontSize;
+
+  const available = items.filter((item) => item.available);
+  const shown = shownPanelIds(items, stored);
+
+  const beside =
+    !split &&
+    playerFocus?.pressed === true &&
+    shown.length > 0 &&
+    measured != null &&
+    isRowBeside(
+      measured.width,
+      playerFocus.visibleHeight,
+      measured.rootFontSize,
+      splitButton != null,
+    );
+
+  return (
+    <div
+      ref={rootRef}
+      data-workbench-width={wide ? "wide" : "narrow"}
+      data-row-beside={beside ? "on" : undefined}
+      className="media-detail-workbench"
+    >
+      {(available.length > 0 || actions != null) && (
+        <div className="media-detail-workbench-row">
+          <div
+            role="group"
+            aria-label={t("panels")}
+            className="media-detail-workbench-toggles"
+          >
+            {available.map((item) => {
+              const pressed = stored.includes(item.id);
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  aria-pressed={pressed}
+                  onClick={() => onToggle(item.id)}
+                  className={`workbench-toggle${pressed ? " is-on" : ""}`}
+                >
+                  {item.label}
+                </button>
+              );
+            })}
+          </div>
+          <div className="media-detail-workbench-trailing">
+            {splitButton != null && (
+              <button
+                type="button"
+                aria-pressed={splitButton.pressed}
+                aria-label={t("splitPanels")}
+                title={t("splitPanels")}
+                onClick={splitButton.onToggle}
+                className={`workbench-toggle workbench-toggle-icon${splitButton.pressed ? " is-on" : ""}`}
+              >
+                <Columns2 size={16} aria-hidden />
+              </button>
+            )}
+            {!split && playerFocus != null && shown.length > 0 && (
+              <button
+                type="button"
+                aria-pressed={playerFocus.pressed}
+                aria-label={t("enlargePanels")}
+                title={t("enlargePanels")}
+                onClick={playerFocus.onToggle}
+                className={`workbench-toggle workbench-toggle-icon${playerFocus.pressed ? " is-on" : ""}`}
+              >
+                <PanelTopClose size={16} aria-hidden />
+              </button>
+            )}
+            {actions != null && (
+              <div
+                data-preview-actions="true"
+                className="media-detail-workbench-actions empty:hidden"
+              >
+                {actions}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      <div
+        className="media-detail-workbench-grid"
+        hidden={shown.length === 0}
+      >
+        {items.map((item) => {
+          const itemShown = item.available && stored.includes(item.id);
+          const headingId = `workbench-panel-${item.id}`;
+          return (
+            <section
+              key={item.id}
+              hidden={!itemShown}
+              aria-labelledby={itemShown ? headingId : undefined}
+              className="media-detail-workbench-panel"
+            >
+              {itemShown && (
+                <div className="media-detail-workbench-panel-header">
+                  <h2 id={headingId} className="text-[0.8125rem] font-semibold">
+                    {item.label}
+                  </h2>
+                  <button
+                    type="button"
+                    aria-label={t("close", { label: item.label })}
+                    onClick={() => onClose(item.id)}
+                    className="media-detail-workbench-close"
+                  >
+                    <X size={16} aria-hidden />
+                  </button>
+                </div>
+              )}
+              <div className="media-detail-workbench-body">
+                {item.render(itemShown)}
+              </div>
+            </section>
+          );
+        })}
+      </div>
+    </div>
+  );
+}

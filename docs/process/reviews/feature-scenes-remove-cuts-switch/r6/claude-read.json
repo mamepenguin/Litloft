@@ -1,0 +1,141 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "CR-1",
+      "origin": "reviewer",
+      "claim": "The container's ruler key handler now runs Enter before the empty-list guard, so Enter seeks the browse point on a section with no frames; the touch-point entry for ScenesSectionContainer.tsx ('no change list, no mode') does not name this keyboard behavior change.",
+      "impact": "Only a .loft that has no candidate frames and is drawn through its Visual Index can reach it. There, Enter after a hover or click now seeks the player to the browse point, where it used to do nothing. This is the behavior spec §9 describes and the new tests pin, so the user sees nothing wrong. The gap is that the touch-point list leaves it out.",
+      "evidence": "addons/intelligence/frontend/ScenesSection/ScenesSectionContainer.tsx:482-486. The `if (list.length === 0) return;` line moved from before the Enter branch to after it. Native videos cannot reach this: their list is never empty while the view is 'expanded', and useRulerKeys is enabled only when expanded (line 636). Covered by ScenesSectionOneList.test.tsx 'hover sets the browse point, the arrows and Home/End move nothing, Enter seeks the browse point'.",
+      "repro": "not_reproduced. Mutation in my head: move the empty-list guard back above the Enter branch. The OneList I4 Enter case would then fail, because seek is never called.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No declared invariant breaks, and spec §9 states this behavior. It is a behavior change inside a listed file that the touch-point summary for that file does not mention.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Add 'Enter seeks the browse point with no frames' to the ScenesSectionContainer.tsx touch-point entry."
+    }
+  ],
+  "specification_compliance": [
+    "Every path in the diff maps to a touch point: the addon gitlink, schemas.py, files.py, api.ts, ScenesSectionContainer.tsx, ScenesSectionPresenter.tsx, scenesModel.ts, en.json/ja.json, the deleted ScenesSectionChangePoints.test.tsx and test_spec_addon_124_clip_change_list.py, the new ScenesSectionOneList.test.tsx and test_spec_addon_129_clip_timestamps.py, the e2e-components fixtures (app.tsx, scenesSection.tsx, scenesSectionData.ts), scenes-section.cases.ts, scenes-section.spec.ts, scenes-section-desktop.spec.ts, docs/addons/intelligence.md, docs/user-guide/video.md and docs/specs/INDEX.md. scenes-one-frame-list.md is implicit.",
+    "No file outside the list is reached: a grep for scenesFrames*, frameListFor, trackLength, ScenesMode, 'Frames shown', SCENES_CHANGE*, scenesChangesCases, frameSwitch and onFrameModeChange finds no remaining user outside the changed files. The only grep hits are unrelated: scenesFrames() in the e2e data and __scenesFrames in scenes-section-rows.cases.ts.",
+    "I3: get_clip_timestamps (files.py:1336-1367) queries only embedding_type == 'clip', ordered ascending, and returns file_id, drive and timestamps. ClipTimestampsResponse has no changes field.",
+    "I4/§3: length is 0 while rows === null; positiveDuration(D) when rows is empty; rulerLength(list, D) otherwise (Container:191-199). rulerLength itself is unchanged."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The Enter key now seeks the browse point when the frame list is empty (Container:482-486). Spec §9 specifies this, but the touch-point entry does not list it."
+  ],
+  "regression_risks": [
+    "A .loft with no candidates now gets a non-zero ruler length from the player's duration. Its scene marks, playhead and click-to-seek now draw against D, where before the frame-switch change L was 0.",
+    "Older cached frontends reading `changes` would see the field absent. The api.ts type was optional, so no runtime break is expected."
+  ],
+  "test_coverage": [
+    "ScenesSectionOneList.test.tsx covers I1 (switch traces in en and ja, while loading, with and without changes, a .loft with only changes), I2 (with and without a changes array across four arrangements), I4 (valuemax round(D), marks, playhead clamp, click fraction, keys, in-flight 0), the §3 transitions, I5 (keys absent) and the kept cases.",
+    "test_spec_addon_129_clip_timestamps.py covers I3: the exact key set with and without clip_change rows, ascending order from out-of-order storage, a neighbour file's rows excluded, a file with only change rows, 400 without X-Lit-Drive, 404 on the wrong drive."
+  ],
+  "not_verified": [
+    "I did not run any test (vitest, pytest or Playwright e2e-components).",
+    "I did not confirm that the submodule diff shown is the full content of the gitlink range 5b7997ea..767bc4e2.",
+    "I did not read ScenesSectionPresenter.tsx beyond the diff hunks, and did not read the test helpers (helpers.ts) these tests use.",
+    "I did not check the core's addon proxy for any response filtering on clip-timestamps beyond the manifest route entry."
+  ],
+  "confidence": 82,
+  "coverage": [
+    {
+      "path": "addons/intelligence/app/routers/files.py",
+      "read": "partial",
+      "reason": "Read get_clip_timestamps in full (lines 1336-1367) and the diff hunk."
+    },
+    {
+      "path": "addons/intelligence/app/schemas.py",
+      "read": "partial",
+      "reason": "Only the diff hunk for ClipTimestampsResponse."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/ScenesSectionContainer.tsx",
+      "read": "partial",
+      "reason": "Lines 100-740, plus the import hunk from the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/ScenesSectionPresenter.tsx",
+      "read": "partial",
+      "reason": "Only the diff hunks (props, the removed frameChipClass and the switch row)."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/scenesModel.ts",
+      "read": "partial",
+      "reason": "Lines 1-90, which include rulerLength and frameIndexAt, and the diff hunks."
+    },
+    {
+      "path": "addons/intelligence/frontend/api.ts",
+      "read": "partial",
+      "reason": "Only the diff hunk for ClipTimestampsResponse."
+    },
+    {
+      "path": "addons/intelligence/frontend/messages/en.json",
+      "read": "partial",
+      "reason": "Only the diff hunk."
+    },
+    {
+      "path": "addons/intelligence/frontend/messages/ja.json",
+      "read": "partial",
+      "reason": "Only the diff hunk."
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/app.tsx",
+      "read": "partial",
+      "reason": "Only the diff hunk."
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/scenesSection.tsx",
+      "read": "partial",
+      "reason": "Only the diff hunks."
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/scenesSectionData.ts",
+      "read": "partial",
+      "reason": "Only the diff hunk."
+    },
+    {
+      "path": "frontend/e2e-components/scenes-section-desktop.spec.ts",
+      "read": "full",
+      "reason": "The diff covers almost the whole small file."
+    },
+    {
+      "path": "frontend/e2e-components/scenes-section.cases.ts",
+      "read": "partial",
+      "reason": "Only the diff hunks (imports, open(), the removed switch cases)."
+    },
+    {
+      "path": "frontend/e2e-components/scenes-section.spec.ts",
+      "read": "full",
+      "reason": "The diff covers almost the whole small file."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/__tests__/ScenesSectionChangePoints.test.tsx",
+      "read": "full",
+      "reason": "Deleted file, read in full in the diff."
+    },
+    {
+      "path": "addons/intelligence/frontend/ScenesSection/__tests__/ScenesSectionOneList.test.tsx",
+      "read": "full",
+      "reason": "New file, read in full in the diff."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_124_clip_change_list.py",
+      "read": "full",
+      "reason": "Deleted file, read in full in the diff."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_129_clip_timestamps.py",
+      "read": "full",
+      "reason": "New file, read in full in the diff."
+    }
+  ]
+}

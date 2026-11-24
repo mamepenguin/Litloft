@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "F1",
+      "origin": "reviewer",
+      "claim": "The diff edits two e2e registry files, frontend/e2e-components/projects.ts and spec-viewport.spec.ts, which the touch-point list does not name.",
+      "impact": "None at runtime. A reader checking the diff against the touch-point list finds two files outside it. The edits only register the new target-menu-rows specs for the desktop project and the 375px/1280px width check.",
+      "evidence": "frontend/e2e-components/projects.ts:41 adds target-menu-rows-desktop.spec.ts to DESKTOP_ONLY; frontend/e2e-components/spec-viewport.spec.ts:82 adds target-menu-rows.spec.ts to AT_THE_PHONE_WIDTH and :119 adds target-menu-rows-desktop.spec.ts to AT_THE_DESKTOP_WIDTH. The touch-point list names only 'Real-browser cases in frontend/e2e-components/' and three fixtures.",
+      "repro": "Compare the file list of the commit's diff with the Touch points section; the two registry files are absent from it. Not run.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Required to run the new cases at the stated widths; it breaks no declared invariant and reads as an omission in the list only.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Add the two registry files to the touch-point list, or accept them as part of registering the new e2e cases."
+    },
+    {
+      "id": "F2",
+      "origin": "reviewer",
+      "claim": "The diff adds six new test files that the touch-point list does not name.",
+      "impact": "None at runtime. The new files are TargetMenu.collections.test.tsx, VideoApp.collectionTarget.test.tsx, VideoApp.collectionTargetDiscoverCache.test.tsx, ReadingApp.collectionTarget.test.tsx, videoapp/__tests__/ShelfPage.collectionTarget.test.tsx and lib/__tests__/appTarget.collection.test.ts. The list covers only edits to existing harnesses.",
+      "evidence": "Each path appears as a new file (diff header 'new file mode') under frontend/src/components/appshell/__tests__, frontend/src/components/videoapp/__tests__, frontend/src/components/readingapp/__tests__ and frontend/src/lib/__tests__.",
+      "repro": "Compare the diff's new-file list with the Touch points section. Not run.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "New tests for the new behaviour are the expected form of the change; the omission is only in the list.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Name the new test files in the touch-point list, or treat them as implicit test coverage of the listed components."
+    }
+  ],
+  "specification_compliance": [
+    "Every changed file was matched against the Touch points list. Changed files outside the list are the two e2e registry files (F1) and the new test files (F2). The e2e fixtures, ADDON-DEVELOPMENT.md, the user guides, ToolbarMenu, TargetMenu, ManageTargetsDialog, the appTarget/videoAppTarget/readingAppTarget helpers, useVideoApp/useReadingApp, both Header components, the existing test harnesses and the two messages files are all in the list. backend/app/routers/drives.py and the addon submodules are not in the diff.",
+    "I1: TargetMenu.targetRows sorts with Intl.Collator(locale,{numeric:true}) on name, collection first on a tie, then by id; collection rows are never disabled; the current target is listed at its place when usable (TargetMenu.tsx listed memo).",
+    "I2: parseAppTargetId and collectionTargetId are used, and a collection that is missing or failed falls back to default with the saved id kept (useVideoApp.ts:102-130, lookingUp gate at :143-146).",
+    "I3: resolveCollectionTarget and resolveVideoCollectionTarget return only type and collection; requests use the params path (useVideoApp.ts:154-165).",
+    "I4: lookingUp waits only for the list the saved id's kind needs; default waits for neither.",
+    "I5: Manage and the menu share the rows model; a toggle writes only that app's and drive's key; ids outside the loaded lists are dropped.",
+    "I6: default and Smart Collection paths keep their previous resolution; the only new request is the collection list.",
+    "I7: pending disables toggles; failed shows RetryButton, and onRetry calls only the failed list's retry (ManageTargetsDialog.tsx, TargetMenu.tsx onRetry).",
+    "I8: parseAppTargetId, collectionTargetId and resolveCollectionTarget match the stated behaviour, and assertBaseKinds throws as before. The tests cover round-trip and throw cases.",
+    "I9: MenuRadioGroup renders icon only when opt.icon !== undefined (ToolbarMenu.tsx:330).",
+    "Documented names in ADDON-DEVELOPMENT.md were checked against the source: getCollections, CollectionSummary, MEMBER_ID_LIMIT, useMemberTarget, RetryButton, EmptyState (variant no-files exists), resolveMemberTarget, evaluateMemberTarget, appRequests. All exist at the import paths given."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "ManageTargetsDialog changes the row alignment from items-center to items-start and adds mt-0.5 to the checkbox. Every Manage row now carries an icon, so this only matters for the icon rows, but a Manage row without an icon would be aligned differently.",
+    "resolveVideoCollectionTarget passes the module-level VIDEO_ONLY array by reference into params.type, while resolveCollectionTarget copies its base kinds. A caller that mutated the params would change VIDEO_ONLY. No such caller was found."
+  ],
+  "regression_risks": [
+    "Tests that assert row order or the appended current target are not in the diff. TargetMenu.addonKey.test.tsx renders TargetMenu without collections and was not checked for order assertions.",
+    "The e2e fixtures appHeader.tsx, app.tsx and videoCardSpacing.tsx each answer /smart-folders and now also /collections, so no mounted app in the fixtures reaches the failed-list state."
+  ],
+  "test_coverage": [
+    "The new unit tests cover the menu order and icons, the shown set, the failed and loading states of both lists, Manage toggles and retry, the request shape under a collection target (Discover, Library, shelf pages, provider restriction), the Discover cache key and the appTarget helpers.",
+    "The e2e cases cover icon placement at 375px and 1280px, with a long name and both kinds listed.",
+    "Not covered: a rename of a collection while the app is open is accepted in the spec, and no test checks the request order when collections load after a Smart Collection."
+  ],
+  "not_verified": [
+    "Did not run unit tests, typecheck or the Playwright e2e cases; the review is by reading only.",
+    "The commit 9bae0b3f0 alone was not isolated; the diff provided is the branch against origin/develop, so the file comparison (F1, F2) is against that diff.",
+    "The backend route behaviour for the collection parameter on /files and /shelves was not read; only drives.py's filtered_drive_files file_ids path was checked.",
+    "Lucide exports (Library, ListFilter) and the rendered class names (lucide-library) were assumed, not checked against the installed package.",
+    "Fixture names and the e2e measure expectations were checked against the fixture source by grep only, not by running them."
+  ],
+  "confidence": 80
+}

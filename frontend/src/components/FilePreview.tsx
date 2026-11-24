@@ -14,8 +14,11 @@ import { HtmlPreview } from "./HtmlPreview";
 import { ArchivePreview } from "./ArchivePreview";
 import { EmptyState } from "@/components/EmptyState";
 import { OfficeExcerpt } from "./OfficeExcerpt";
+import { OfficePreview } from "./office/OfficePreview";
+import { officeViewerFor } from "@/lib/officeFiles";
 import LoftPlayer from "./loft/LoftPlayer";
 import { MiniPlayerContainer } from "./MiniPlayerContainer";
+import { useInspectorForm } from "@/hooks/useInspectorForm";
 import { formatFileSize } from "@/lib/format";
 import { getStreamUrl, getThumbnailUrl } from "@/lib/api";
 import { playerKind } from "@/lib/playerKind";
@@ -81,6 +84,8 @@ interface FilePreviewProps {
    * scroll container here; document-scroll hosts can omit it.
    */
   miniPlayerRoot?: Element | null;
+  /** The viewer takes the file page's canvas height. */
+  fillCanvas?: boolean;
 }
 
 export function FilePreview({
@@ -100,6 +105,7 @@ export function FilePreview({
   markdownReloadKey,
   onMarkdownTagsSaved,
   miniPlayerRoot,
+  fillCanvas,
 }: FilePreviewProps) {
   const t = useTranslations("file");
   const tc = useTranslations("common");
@@ -112,13 +118,18 @@ export function FilePreview({
     [onMediaController],
   );
 
+  const { stacked: stackedLayout } = useInspectorForm(file.id);
   const kind = playerKind(file);
   const posterUrl = file.has_thumbnail ? getThumbnailUrl(file.id) : undefined;
 
   if (kind === "loft") {
     return (
       <div className="-mx-4 -mt-4 bg-black md:mx-0 md:mt-0">
-        <MiniPlayerContainer mc={localMc} root={miniPlayerRoot}>
+        <MiniPlayerContainer
+          mc={localMc}
+          root={miniPlayerRoot}
+          stacked={stackedLayout}
+        >
           <LoftPlayer
             fileId={file.id}
             onMediaController={relayMc}
@@ -140,7 +151,11 @@ export function FilePreview({
   if (kind === "video") {
     return (
       <div className="-mx-4 -mt-4 bg-black md:mx-0 md:mt-0">
-        <MiniPlayerContainer mc={localMc} root={miniPlayerRoot}>
+        <MiniPlayerContainer
+          mc={localMc}
+          root={miniPlayerRoot}
+          stacked={stackedLayout}
+        >
           <VideoPlayer
             ref={videoRef}
             videoId={file.id}
@@ -205,6 +220,7 @@ export function FilePreview({
         onDocumentCaptureController={onDocumentCaptureController}
         onPdfController={onPdfController}
         onDocumentController={onDocumentController}
+        fillCanvas={fillCanvas}
         documentSlotProps={{
           fileId: file.id,
           drive: file.drive,
@@ -232,6 +248,7 @@ export function FilePreview({
       <ArchivePreview
         fileId={file.id}
         onArchiveController={onArchiveController}
+        fillCanvas={fillCanvas}
       />
     );
   }
@@ -244,6 +261,17 @@ export function FilePreview({
         filename={file.filename}
         highlight={highlight}
         onDocumentCaptureController={onDocumentCaptureController}
+      />
+    );
+  }
+
+  const officeViewer = officeViewerFor(file);
+  if (officeViewer) {
+    return (
+      <OfficePreview
+        file={file}
+        viewer={officeViewer}
+        fillCanvas={fillCanvas}
       />
     );
   }

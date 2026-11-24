@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, ChevronUp, Music, Repeat, Trash2, Video } from "lucide-react";
 
 import { useTranslations } from "next-intl";
@@ -12,12 +12,13 @@ import {
   reorderCollectionItems,
 } from "@/lib/api";
 import { formatDuration } from "@/lib/format";
+import type { SmartQueue } from "@/lib/smartQueue";
 import type { FileItem, FileType, SortField, SortOrder } from "@/types";
 
 const LOOP_KEY = "collection-loop";
 const LEGACY_LOOP_KEY = "playlist-loop";
 
-function getLoop(): boolean {
+function getStoredLoop(): boolean | null {
   try {
     const v = localStorage.getItem(LOOP_KEY);
     if (v !== null) return v === "1";
@@ -28,10 +29,14 @@ function getLoop(): boolean {
       localStorage.removeItem(LEGACY_LOOP_KEY);
       return legacy === "1";
     }
-    return false;
+    return null;
   } catch {
-    return false;
+    return null;
   }
+}
+
+function getLoop(): boolean {
+  return getStoredLoop() ?? false;
 }
 
 function setLoopStorage(v: boolean): void {
@@ -54,9 +59,16 @@ interface CollectionPanelProps {
   onNavigate: (fileId: string) => void;
 }
 
+interface TrackView {
+  id: string;
+  title: string;
+  file_type: FileType;
+  duration: number | null;
+}
+
 interface TrackEntry {
   itemId?: number;
-  file: FileItem;
+  file: TrackView;
 }
 
 export function CollectionPanel({
@@ -287,6 +299,132 @@ function CollectionEndedHandler({ onEnded }: { onEnded: () => void }) {
   return null;
 }
 
+function ignore() {}
+
+interface SmartQueuePanelProps {
+  phase: "loading" | "failed" | "ready";
+  queue: SmartQueue | null;
+  currentFileId: string;
+  currentFileType: FileType;
+  onNavigate: (fileId: string) => void;
+}
+
+export function SmartQueuePanel({
+  phase,
+  queue,
+  currentFileId,
+  currentFileType,
+  onNavigate,
+}: SmartQueuePanelProps) {
+  const t = useTranslations("playback");
+  const [loop, setLoop] = useState(getLoop);
+  const activeRef = useRef<HTMLDivElement>(null);
+
+  const tracks = useMemo<TrackEntry[]>(
+    () => (queue ? queue.files.map((file) => ({ file })) : []),
+    [queue],
+  );
+  const currentIndex = tracks.findIndex((track) => track.file.id === currentFileId);
+  const totalTracks = tracks.length;
+
+  useEffect(() => {
+    if (activeRef.current) {
+      activeRef.current.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    }
+  }, [currentFileId, queue]);
+
+  const toggleLoop = useCallback(() => {
+    setLoop((prev) => {
+      const next = !prev;
+      setLoopStorage(next);
+      return next;
+    });
+  }, []);
+
+  const handleEnded = useCallback(() => {
+    if (tracks.length === 0) return;
+    const idx = tracks.findIndex((track) => track.file.id === currentFileId);
+    if (idx < 0) return;
+    if (idx < tracks.length - 1) {
+      onNavigate(tracks[idx + 1].file.id);
+      return;
+    }
+    if (loop) onNavigate(tracks[0].file.id);
+  }, [tracks, currentFileId, loop, onNavigate]);
+
+  const isVideoLayout = currentFileType === "video";
+
+  return (
+    <>
+      {queue && <CollectionEndedHandler onEnded={handleEnded} />}
+
+      <div className={`${
+        isVideoLayout
+          ? "mt-4 w-full"
+          : "mt-0 w-full md:w-[360px] md:flex-shrink-0"
+      }`}>
+        <div className="rounded-2xl border border-bg-border bg-bg-card p-4">
+          {queue ? (
+            <>
+              <div className="mb-3 flex items-center justify-between">
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-base font-semibold text-text-primary">
+                    {queue.name}
+                  </div>
+                  <div className="text-sm text-text-muted">
+                    {t("tracks", {
+                      current: currentIndex >= 0 ? currentIndex + 1 : "–",
+                      total: totalTracks,
+                    })}
+                  </div>
+                </div>
+                <button
+                  onClick={toggleLoop}
+                  className={`rounded-lg p-2 transition-colors ${
+                    loop
+                      ? "bg-accent/20 text-accent"
+                      : "text-text-muted hover:bg-bg-elevated hover:text-text-primary"
+                  }`}
+                  aria-label={loop ? t("loopOff") : t("loopOn")}
+                >
+                  <Repeat size={18} />
+                </button>
+              </div>
+
+              {isVideoLayout ? (
+                <VideoTrackList
+                  tracks={tracks}
+                  currentFileId={currentFileId}
+                  isUserCollection={false}
+                  onNavigate={onNavigate}
+                  onMoveUp={ignore}
+                  onMoveDown={ignore}
+                  onRemove={ignore}
+                />
+              ) : (
+                <AudioTrackList
+                  tracks={tracks}
+                  currentFileId={currentFileId}
+                  isUserCollection={false}
+                  activeRef={activeRef}
+                  onNavigate={onNavigate}
+                  onMoveUp={ignore}
+                  onMoveDown={ignore}
+                  onRemove={ignore}
+                />
+              )}
+            </>
+          ) : (
+            <div className="text-sm text-text-muted">
+              {phase === "loading" ? t("queueLoading") : t("queueFailed")}
+            </div>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
 export function getCollectionOnEnded(): (() => void) | undefined {
   return (window as unknown as Record<string, unknown>).__collectionOnEnded as (() => void) | undefined;
 }
@@ -308,6 +446,7 @@ function VideoTrackList({
   onMoveDown: (index: number) => void;
   onRemove: (index: number) => void;
 }) {
+  const t = useTranslations("playback");
   return (
     <div className="flex flex-wrap gap-3 pb-2 mouse:max-h-[19.25rem] sm:mouse:max-h-[20.375rem] mouse:overflow-y-auto pointer-coarse:flex-nowrap pointer-coarse:overflow-x-auto">
       {tracks.map((track, index) => {
@@ -353,16 +492,16 @@ function VideoTrackList({
             {isUserCollection && (
               <div className="absolute top-1 right-1 hidden gap-1 group-hover:flex">
                 {index > 0 && (
-                  <button onClick={(e) => { e.stopPropagation(); onMoveUp(index); }} className="rounded-lg bg-black/60 p-1 text-white hover:bg-black/80">
+                  <button aria-label={t("moveUp")} onClick={(e) => { e.stopPropagation(); onMoveUp(index); }} className="rounded-lg bg-black/60 p-1 text-white hover:bg-black/80">
                     <ChevronUp size={14} />
                   </button>
                 )}
                 {index < tracks.length - 1 && (
-                  <button onClick={(e) => { e.stopPropagation(); onMoveDown(index); }} className="rounded-lg bg-black/60 p-1 text-white hover:bg-black/80">
+                  <button aria-label={t("moveDown")} onClick={(e) => { e.stopPropagation(); onMoveDown(index); }} className="rounded-lg bg-black/60 p-1 text-white hover:bg-black/80">
                     <ChevronDown size={14} />
                   </button>
                 )}
-                <button onClick={(e) => { e.stopPropagation(); onRemove(index); }} className="rounded-lg bg-black/60 p-1 text-danger hover:bg-black/80">
+                <button aria-label={t("removeFromCollection")} onClick={(e) => { e.stopPropagation(); onRemove(index); }} className="rounded-lg bg-black/60 p-1 text-danger hover:bg-black/80">
                   <Trash2 size={14} />
                 </button>
               </div>
@@ -393,6 +532,7 @@ function AudioTrackList({
   onMoveDown: (index: number) => void;
   onRemove: (index: number) => void;
 }) {
+  const t = useTranslations("playback");
   return (
     <div className="flex max-h-[60dvh] flex-col gap-1 overflow-y-auto">
       {tracks.map((track, index) => {
@@ -429,16 +569,16 @@ function AudioTrackList({
             {isUserCollection && (
               <div className="hidden flex-shrink-0 items-center gap-1 group-hover:flex">
                 {index > 0 && (
-                  <button onClick={() => onMoveUp(index)} className="rounded-lg p-1.5 text-text-muted hover:bg-bg-elevated hover:text-text-primary">
+                  <button aria-label={t("moveUp")} onClick={() => onMoveUp(index)} className="rounded-lg p-1.5 text-text-muted hover:bg-bg-elevated hover:text-text-primary">
                     <ChevronUp size={16} />
                   </button>
                 )}
                 {index < tracks.length - 1 && (
-                  <button onClick={() => onMoveDown(index)} className="rounded-lg p-1.5 text-text-muted hover:bg-bg-elevated hover:text-text-primary">
+                  <button aria-label={t("moveDown")} onClick={() => onMoveDown(index)} className="rounded-lg p-1.5 text-text-muted hover:bg-bg-elevated hover:text-text-primary">
                     <ChevronDown size={16} />
                   </button>
                 )}
-                <button onClick={() => onRemove(index)} className="rounded-lg p-1.5 text-danger hover:bg-danger/10 hover:text-danger">
+                <button aria-label={t("removeFromCollection")} onClick={() => onRemove(index)} className="rounded-lg p-1.5 text-danger hover:bg-danger/10 hover:text-danger">
                   <Trash2 size={16} />
                 </button>
               </div>

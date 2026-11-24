@@ -159,6 +159,19 @@ def test_drive_scope_forwards_header_on_accessible_drive(
     assert lowered.get("x-lit-drive") == "test-drive"
 
 
+def test_undeclared_route_is_404_without_calling_upstream(client, drive_scope_addon):
+    """SPEC-ADDON-158 I3: a route the manifest stops declaring is closed by
+    the proxy itself, whatever the addon still serves."""
+    c, _s, _d, _dat = client
+    r = c.post(
+        "/api/addons/_test/find",
+        headers={"X-Lit-Drive": "test-drive"},
+        json={"question": "anything"},
+    )
+    assert r.status_code == 404
+    assert _CapturingClient.last_request == {}
+
+
 def test_global_scope_does_not_require_header(client, global_scope_addon):
     c, _s, _d, _dat = client
     r = c.get("/api/addons/_testg/ping")

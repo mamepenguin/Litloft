@@ -1,33 +1,86 @@
 "use client";
 
-import { useState } from "react";
+import { Film } from "lucide-react";
 import { useTranslations } from "next-intl";
 
+import {
+  CardFileMenuProvider,
+  discoverListKey,
+  useCardFileMenu,
+} from "@/components/appshell/CardFileMenu";
 import { AppTabs } from "@/components/appshell/AppTabs";
+import { NameFilter } from "@/components/appshell/NameFilter";
+import { useLibraryFilters } from "@/components/appshell/libraryFilters";
+import { RetryButton } from "@/components/appshell/RetryButton";
 import { ShelfBlock } from "@/components/appshell/ShelfBlock";
+import { EmptyState } from "@/components/EmptyState";
 import { PageFrame } from "@/components/PageFrame";
+import { builtinApps } from "@/lib/builtinApps";
 import { DiscoverFace } from "./DiscoverFace";
+import { removeCachedItem, stableJson } from "./discoverCache";
 import { LibraryFace } from "./LibraryFace";
-import type { SortChoice } from "./labels";
 import { useDiscover } from "./useDiscover";
 import { useVideoApp } from "./useVideoApp";
 import { VideoAppHeader } from "./VideoAppHeader";
 
 const PANEL_ID = "video-app-panel";
 
-export function VideoApp({ drive }: { drive: string }) {
+const noop = () => {};
+
+export function VideoApp({
+  drive,
+  target = null,
+  homeEntry,
+  position = null,
+  onTargetHandled,
+  onTargetChosen,
+  onChooseFolder = noop,
+}: {
+  drive: string;
+  /** The `?target=` value on the root route; absent on every other route. */
+  target?: string | null;
+  /** The key of this app's Home entry. */
+  homeEntry?: string;
+  /** The folder the URL holds; `null` at the top of the target. */
+  position?: string | null;
+  /** Called once the `?target=` has been applied or ignored, to drop it from the URL. */
+  onTargetHandled?: () => void;
+  /** Called when the target menu picks another target, to drop the position. */
+  onTargetChosen?: () => void;
+  /** Navigate to a folder of the Library; `null` is its top. */
+  onChooseFolder?: (folder: string | null) => void;
+}) {
   const t = useTranslations("videoApp");
-  const state = useVideoApp(drive);
-  const [sortId, setSortId] = useState<SortChoice["id"]>("newest");
+  const state = useVideoApp(drive, target, onTargetHandled, onTargetChosen);
   const face = state.prefs?.face;
+  const filters = useLibraryFilters("video", drive, state.hasProfile);
+  const showName =
+    face === "library" && state.ready && !state.empty && state.count !== 0;
 
   const discover = useDiscover({
     drive,
     params: state.params,
+    requests: state.requests,
     hasProfile: state.hasProfile,
     nickname: state.nickname,
     wanted: state.ready && face === "discover",
     onViewerRejected: state.rejectViewer,
+  });
+
+  const cardMenu = useCardFileMenu({
+    scope: stableJson([
+      drive,
+      state.requests.key,
+      state.targetId,
+      state.nickname,
+      state.hasProfile,
+      state.params,
+    ]),
+    hasProfile: state.hasProfile,
+    continueListKeys: [discoverListKey("continue")],
+    onTrashed: (id) => {
+      for (const key of discover.cacheKeys) removeCachedItem(key, id);
+    },
   });
 
   const tabs = (
@@ -39,46 +92,70 @@ export function VideoApp({ drive }: { drive: string }) {
       libraryLabel={t("library")}
       panelId={PANEL_ID}
       idPrefix="video-app"
+      trailing={
+        showName ? (
+          <NameFilter
+            value={filters.name}
+            onApply={filters.setName}
+            onLeavePending={filters.setName}
+          />
+        ) : undefined
+      }
     />
   );
 
   return (
-    <PageFrame width="wide" header={<VideoAppHeader drive={drive} state={state} tabs={tabs} />}>
-      <div
-        id={PANEL_ID}
-        role="tabpanel"
-        aria-labelledby={`video-app-tab-${face ?? "discover"}`}
-        className="px-4 pb-6 pt-4 sm:pb-8"
+    <CardFileMenuProvider value={cardMenu.context}>
+      <PageFrame
+        width="wide"
+        header={<VideoAppHeader drive={drive} state={state} tabs={tabs} homeEntry={homeEntry} />}
       >
-        {!state.ready ? (
-          <ShelfBlock
-            title=""
-            view={{ status: "loading" }}
-            onRetry={() => {}}
-            renderItem={() => null}
-          />
-        ) : face === "library" ? (
-          <LibraryFace
-            drive={drive}
-            params={state.params}
-            empty={state.empty}
-            savedClassification={state.prefs!.classification}
-            hasProfile={state.hasProfile}
-            sortId={sortId}
-            onClassification={(classification) => state.updatePrefs({ classification })}
-            onSort={setSortId}
-            onViewerRejected={state.rejectViewer}
-          />
-        ) : (
-          <DiscoverFace
-            drive={drive}
-            empty={state.empty || discover.empty}
-            hasProfile={state.hasProfile}
-            shelves={discover.shelves}
-            pending={discover.pending}
-          />
-        )}
-      </div>
-    </PageFrame>
+        <div
+          id={PANEL_ID}
+          role="tabpanel"
+          aria-labelledby={`video-app-tab-${face ?? "discover"}`}
+          className="px-4 pb-6 pt-4 sm:pb-8"
+        >
+          {state.targetFailed ? (
+            <RetryButton onRetry={state.retryTarget} />
+          ) : state.targetUnusable ? (
+            <EmptyState icon={Film} title={t("targetUnusable")} />
+          ) : !state.ready ? (
+            <ShelfBlock
+              title=""
+              view={{ status: "loading" }}
+              onRetry={() => {}}
+              renderItem={() => null}
+            />
+          ) : face === "library" ? (
+            <LibraryFace
+              drive={drive}
+              params={state.params}
+              requests={state.requests}
+              empty={state.empty}
+              group={state.view.group}
+              hasProfile={state.hasProfile}
+              position={position}
+              sortId={state.view.sort}
+              libraryPath={builtinApps.find((app) => app.id === "video")!.route(drive)}
+              onChooseFolder={onChooseFolder}
+              onGroup={state.setGroup}
+              onSort={state.setSort}
+              onViewerRejected={state.rejectViewer}
+            />
+          ) : (
+            <DiscoverFace
+              drive={drive}
+              empty={state.empty || discover.empty}
+              hasProfile={state.hasProfile}
+              shelves={discover.shelves}
+              pending={discover.pending}
+              viewer={state.nickname}
+            />
+          )}
+        </div>
+      </PageFrame>
+      {cardMenu.menu}
+    </CardFileMenuProvider>
   );
 }

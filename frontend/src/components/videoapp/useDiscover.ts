@@ -3,15 +3,18 @@
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 
-import { getDriveFiles, getShelves, type ShelfItem } from "@/lib/api";
+import type { ShelfItem } from "@/lib/api";
 import {
+  loadSlotItemActions,
   loadSlotPageProvider,
   loadSlotProvider,
   sortSlotEntries,
+  type ShelfItemAction,
   type ShelfPageProvider,
   type ShelfProvider,
   type SlotEntry,
 } from "@/lib/addons";
+import type { AppRequests } from "@/lib/memberTarget";
 import { slotEntryLabel } from "@/lib/slotLabel";
 import type { VideoTargetParams } from "@/lib/videoAppTarget";
 import type { ShelfView } from "@/components/appshell/ShelfBlock";
@@ -23,6 +26,7 @@ import {
   localDate,
   readCachedItems,
   stableJson,
+  withoutRemovedItems,
   writeCachedItems,
   type CachedItem,
 } from "./discoverCache";
@@ -43,6 +47,10 @@ export interface DrawnShelf {
   href?: string;
   state: ShelfView<ShelfItem>;
   bylines?: ReadonlyMap<string, string>;
+  /** Rows an item action adds to the cards of a `video-discover-recommended` shelf. */
+  itemActions?: ShelfItemAction[];
+  /** The cache key the shelf's stored ids live under; Recommended only. */
+  cacheKey?: string;
   retry: () => void;
 }
 
@@ -95,6 +103,8 @@ interface ProviderRuntime {
   status: ProviderStatus;
   items: ShelfItem[];
   bylines: Map<string, string>;
+  itemActions: ShelfItemAction[];
+  cacheKey: string;
 }
 
 interface VisitEntries {
@@ -105,6 +115,8 @@ interface VisitEntries {
 interface Visit {
   key: string;
   drive: string;
+  /** The target's identity, part of every cache key so no target borrows another's entry. */
+  requestKey: string;
   params: VideoTargetParams;
   hasProfile: boolean;
   nickname: string | null;
@@ -113,6 +125,8 @@ interface Visit {
   entries: VisitEntries | null;
   /** Entries whose addon exports a page provider, so See all opens the core page. */
   pageEntries: Set<string>;
+  /** Recommended's See all, once the chosen entry's page provider lookup settles. */
+  recommendedHref: string | null;
   addonsVisible: boolean;
   states: Map<string, ProviderRuntime>;
   continueSettled: boolean;
@@ -139,6 +153,7 @@ function viewOf(state: LoadState<ShelfItem[]>): ShelfView<ShelfItem> {
 function recommendedCacheKey(visit: Visit, entries: readonly SlotEntry[]): string {
   return discoverCacheKey({
     drive: visit.drive,
+    requestKey: visit.requestKey,
     params: visit.params,
     slot: RECOMMENDED_SLOT,
     date: visit.date,
@@ -150,6 +165,7 @@ function recommendedCacheKey(visit: Visit, entries: readonly SlotEntry[]): strin
 function addonCacheKey(visit: Visit, entry: SlotEntry, locale: string): string {
   return discoverCacheKey({
     drive: visit.drive,
+    requestKey: visit.requestKey,
     params: visit.params,
     slot: SHELVES_SLOT,
     date: visit.date,
@@ -167,6 +183,7 @@ function addonCacheKey(visit: Visit, entry: SlotEntry, locale: string): string {
 export function useDiscover({
   drive,
   params,
+  requests,
   hasProfile,
   nickname,
   wanted,
@@ -174,6 +191,7 @@ export function useDiscover({
 }: {
   drive: string;
   params: VideoTargetParams | null;
+  requests: AppRequests;
   hasProfile: boolean;
   nickname: string | null;
   /** Discover is the face on screen. Once true, it stays asked for. */
@@ -191,8 +209,8 @@ export function useDiscover({
   const catalogueReady = !catalogueLoading && catalogueDrive === drive;
 
   const visitKey = useMemo(
-    () => stableJson([drive, params ?? null, hasProfile, nickname ?? null]),
-    [drive, params, hasProfile, nickname],
+    () => stableJson([drive, requests.key, params ?? null, hasProfile, nickname ?? null]),
+    [drive, requests.key, params, hasProfile, nickname],
   );
 
   const [visit, setVisit] = useState<Visit | null>(null);
@@ -201,12 +219,14 @@ export function useDiscover({
     current = {
       key: visitKey,
       drive,
+      requestKey: requests.key,
       params: params!,
       hasProfile,
       nickname,
       date: "",
       entries: null,
       pageEntries: new Set(),
+      recommendedHref: null,
       addonsVisible: true,
       states: new Map(),
       continueSettled: false,
@@ -224,6 +244,8 @@ export function useDiscover({
   liveVisit.current = current;
   const onRejected = useRef(onViewerRejected);
   onRejected.current = onViewerRejected;
+  const tGlobalRef = useRef(tGlobal);
+  tGlobalRef.current = tGlobal;
   const mounted = useRef(true);
   useEffect(() => {
     mounted.current = true;
@@ -237,33 +259,37 @@ export function useDiscover({
     const visitParams = current.params;
     const visitDrive = current.drive;
     return () =>
-      getShelves(visitDrive, {
-        ...visitParams,
-        by: "watch",
-        key: "continue",
-        sort: "last_played",
-        per_shelf: DISCOVER_SHELF_SIZE,
-      }).then(
-        (response) => response.shelves[0]?.items ?? [],
-        (error: unknown) => {
-          if (isViewerRequired(error)) onRejected.current();
-          throw error;
-        },
-      );
-  }, [active, hasProfile, current]);
+      requests
+        .shelves(visitDrive, {
+          ...visitParams,
+          by: "watch",
+          key: "continue",
+          sort: "last_played",
+          per_shelf: DISCOVER_SHELF_SIZE,
+        })
+        .then(
+          (response) => response.shelves[0]?.items ?? [],
+          (error: unknown) => {
+            if (isViewerRequired(error)) onRejected.current();
+            throw error;
+          },
+        );
+  }, [active, hasProfile, current, requests]);
 
   const loadNew = useMemo(() => {
     if (!active || current === null) return null;
     const visitParams = current.params;
     const visitDrive = current.drive;
     return () =>
-      getDriveFiles(visitDrive, {
-        ...visitParams,
-        sort: "created_at",
-        order: "desc",
-        limit: DISCOVER_SHELF_SIZE,
-      }).then((page) => page.data as ShelfItem[]);
-  }, [active, current]);
+      requests
+        .files(visitDrive, {
+          ...visitParams,
+          sort: "created_at",
+          order: "desc",
+          limit: DISCOVER_SHELF_SIZE,
+        })
+        .then((page) => page.data as ShelfItem[]);
+  }, [active, current, requests]);
 
   const { state: continueState, retry: retryContinue } = useLoad(loadContinue);
   const { state: newState, retry: retryNew } = useLoad(loadNew);
@@ -317,11 +343,17 @@ export function useDiscover({
       id: string,
       entries: readonly SlotEntry[],
       cacheKey: string,
-      options: { watch?: "unwatched"; preferPageProvider?: boolean } = {},
+      options: { preferPageProvider?: boolean; recommended?: boolean } = {},
     ) => {
       if (entries.length === 0) {
         commit(() => {
-          visit.states.set(id, { status: "absent", items: [], bylines: new Map() });
+          visit.states.set(id, {
+            status: "absent",
+            items: [],
+            bylines: new Map(),
+            itemActions: [],
+            cacheKey,
+          });
         });
         return;
       }
@@ -329,14 +361,16 @@ export function useDiscover({
         status: visit.deadline ? "dropped" : "loading",
         items: [],
         bylines: new Map(),
+        itemActions: [],
+        cacheKey,
       };
       visit.states.set(id, runtime);
       const settled = () => runtime.status !== "loading";
       const accepted = new Map<string, ShelfItem>();
       const restrict = createRestrict({
+        requests,
         drive: visit.drive,
         target: visit.params,
-        watch: options.watch,
         accepted,
         isCurrent: () => live() && !settled(),
         onViewerRejected: () => onRejected.current(),
@@ -361,10 +395,14 @@ export function useDiscover({
           }
         }
         let provider: ShelfProvider | null = null;
+        let providerEntry: SlotEntry | null = null;
         if (!pageProvider) {
           for (const entry of sortSlotEntries(entries)) {
             provider = await loadSlotProvider(entry);
-            if (provider) break;
+            if (provider) {
+              providerEntry = entry;
+              break;
+            }
           }
         }
         if (!pageProvider && !provider) {
@@ -375,12 +413,41 @@ export function useDiscover({
           return;
         }
 
-        const stored = readCachedItems(cacheKey);
+        if (options.recommended && providerEntry) {
+          const chosen = providerEntry;
+          void (async () => {
+            const page = await loadSlotPageProvider(chosen);
+            if (!page) return;
+            commit(() => {
+              visit.recommendedHref = providerShelfHref(visit.drive, chosen.id, "recommended");
+            });
+          })();
+        }
+
+        if (options.recommended) {
+          const chosen = providerEntry ?? pageEntry;
+          if (chosen) {
+            void (async () => {
+              const actions = await loadSlotItemActions(chosen, {
+                drive: visit.drive,
+                locale,
+                t: tGlobalRef.current,
+              });
+              commit(() => {
+                runtime.itemActions = actions;
+              });
+            })();
+          }
+        }
+
+        const stored =
+          requests.fileIds === null ? readCachedItems(cacheKey) : undefined;
         if (stored !== undefined && stored.length > 0) {
+          const kept = withoutRemovedItems(cacheKey, stored);
           void (async () => {
             try {
-              await restrict(stored.map((item) => item.id));
-              const rebuilt = buildShelf(stored, accepted, DISCOVER_SHELF_SIZE);
+              await restrict(kept.map((item) => item.id));
+              const rebuilt = buildShelf(kept, accepted, DISCOVER_SHELF_SIZE);
               if (rebuilt.items.length === 0) return;
               commit(() => {
                 if (settled()) return;
@@ -427,7 +494,9 @@ export function useDiscover({
             const byline = drawn.bylines.get(item.id);
             return byline === undefined ? { id: item.id } : { id: item.id, byline };
           });
-          writeCachedItems(cacheKey, cached);
+          if (requests.fileIds === null) {
+            writeCachedItems(cacheKey, withoutRemovedItems(cacheKey, cached));
+          }
           commit(() => {
             if (settled()) return;
             runtime.status = "loaded";
@@ -448,7 +517,7 @@ export function useDiscover({
         "recommended",
         visit.entries.recommended,
         recommendedCacheKey(visit, visit.entries.recommended),
-        { watch: "unwatched" },
+        { recommended: true },
       );
     }
     for (const entry of sortSlotEntries(visit.entries.addons)) {
@@ -458,12 +527,17 @@ export function useDiscover({
     }
 
     rerender();
-  }, [current, catalogueReady, slots, locale]);
+  }, [current, catalogueReady, slots, locale, requests]);
 
   const positions: Position[] = [];
   if (current !== null) {
     positions.push({ id: "continue", kind: "core", shelf: "continue" });
-    positions.push({ id: "recommended", kind: "provider", title: t("recommended") });
+    positions.push({
+      id: "recommended",
+      kind: "provider",
+      title: t("recommended"),
+      ...(current.recommendedHref ? { href: current.recommendedHref } : {}),
+    });
     if (current.addonsVisible) {
       if (current.entries === null) {
         positions.push({ id: "addons", kind: "placeholder" });
@@ -527,6 +601,9 @@ export function useDiscover({
       title: position.title,
       ...(position.href ? { href: position.href } : {}),
       ...(runtime.bylines.size > 0 ? { bylines: runtime.bylines } : {}),
+      ...(position.id === "recommended" && runtime.itemActions.length > 0
+        ? { itemActions: runtime.itemActions, cacheKey: runtime.cacheKey }
+        : {}),
       state: { status: "loaded", items: runtime.items },
       retry: noRetry,
     });
@@ -540,8 +617,18 @@ export function useDiscover({
       state.status === "idle" || (state.status === "loaded" && state.data.length === 0),
   );
 
+  const cacheKeys =
+    current === null
+      ? []
+      : [
+          ...new Set(
+            [...current.states.values()].map((runtime) => runtime.cacheKey),
+          ),
+        ];
+
   return {
     shelves,
+    cacheKeys,
     pending: positions.length > 0 && drawn < positions.length,
     empty: active && coreSettled && coreEmpty,
   };

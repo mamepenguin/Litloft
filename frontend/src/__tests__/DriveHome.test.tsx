@@ -92,6 +92,7 @@ const mockInitUpload = vi.fn();
 vi.mock("@/lib/api", () => ({
   getDriveFiles: (...args: unknown[]) => mockGetDriveFiles(...args),
   getWatchHistory: (...args: unknown[]) => mockGetWatchHistory(...args),
+  getHomeShortcuts: vi.fn().mockResolvedValue([]),
   // The real `UploadZone` runs here, so an upload started on this page
   // goes all the way through `useUpload` and out the far side as
   // `onUploadComplete`.
@@ -136,6 +137,7 @@ const makeWatchHistoryItem = (id: string): WatchHistoryItem => ({
   trust_reviewed_at: null,
   created_at: "2026-01-01T00:00:00",
   updated_at: "2026-01-01T00:00:00",
+  modified_at: null,
   watch_progress: { position: 60, duration: 300 },
 });
 
@@ -322,10 +324,14 @@ describe("the drive home's content rows", () => {
     trust_reviewed_at: null,
     created_at: "2026-01-01T00:00:00",
     updated_at: "2026-01-01T00:00:00",
+    modified_at: null,
   });
 
   beforeEach(() => {
     vi.clearAllMocks();
+    // `clearAllMocks` keeps queued `…Once` answers, and one left unread
+    // here answers the next case's first row.
+    mockGetDriveFiles.mockReset();
     slotIsRegistered.current = false;
     mockProfile.nickname = null;
     mockGetWatchHistory.mockResolvedValue([]);
@@ -348,15 +354,14 @@ describe("the drive home's content rows", () => {
   });
 
   it("gives each row its own total, and drops a row whose fetch failed", async () => {
-    // The three rows are one `allSettled`, so a single shared total would
-    // pass a test that resolves all three the same way. Recently added
-    // resolves with 619; Favourites and Liked reject, and a row with
-    // nothing in it does not render at all — which is also why "a failed
-    // section shows no count" is not assertable here and is asserted
-    // against `CarouselSection` directly in `section-rows.test.tsx`.
+    // The two rows are one `allSettled`, so a single shared total would
+    // pass a test that resolves both the same way. Recently added
+    // resolves with 619; Favourites rejects, and a row with nothing in it
+    // does not render at all — which is also why "a failed section shows
+    // no count" is not assertable here and is asserted against
+    // `CarouselSection` directly in `section-rows.test.tsx`.
     mockGetDriveFiles
       .mockResolvedValueOnce({ data: [oneFile()], meta: { total: 619, page: 1, limit: 12 } })
-      .mockRejectedValueOnce(new Error("network"))
       .mockRejectedValueOnce(new Error("network"));
 
     render(<DriveHome driveName="media" />);
@@ -681,7 +686,7 @@ describe("the drive root's header", () => {
     render(<DriveHome driveName="media" />);
     fireEvent.click(await screen.findByRole("button", { name: "Add" }));
     const rows = screen.getAllByRole("menuitem").map((item) => item.textContent?.trim());
-    expect(rows).toEqual(["Files", "Folder"]);
+    expect(rows).toEqual(["Upload files", "Upload folder"]);
   });
 
   it.each(["media", "books"])("offers addon rows below its own, writing to the root of %s", async (driveName) => {
@@ -690,7 +695,7 @@ describe("the drive root's header", () => {
     render(<DriveHome driveName={driveName} />);
     fireEvent.click(await screen.findByRole("button", { name: "Add" }));
     const rows = screen.getAllByRole("menuitem").map((item) => item.textContent?.trim());
-    expect(rows).toEqual(["Files", "Folder", "Addon row"]);
+    expect(rows).toEqual(["Upload files", "Upload folder", "Addon row"]);
 
     const { onRequestClose, onDialogOpenChange, ...context } = addMenuSlotProps[0];
     expect(context).toEqual({ drive: driveName, path: "", surface: "home", fileIds: [] });

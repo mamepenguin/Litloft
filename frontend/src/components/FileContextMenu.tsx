@@ -5,10 +5,10 @@ import { useTranslations } from "next-intl";
 
 import { deleteFile, moveFile, renameFile } from "@/lib/api";
 import { copyText } from "@/lib/copyText";
-import { useFileMenuItems } from "@/hooks/useFileMenuItems";
+import { useFileMenuItems, type ExtraMenuItems } from "@/hooks/useFileMenuItems";
 import type { FileItem } from "@/types";
 import { ConfirmDialog } from "./ConfirmDialog";
-import { ContextMenu } from "./ContextMenu";
+import { ContextMenu, type MenuDivider, type MenuEntry } from "./ContextMenu";
 import { CopyIdDialog } from "./CopyIdDialog";
 import { MoveDialog } from "./MoveDialog";
 import { CollectionPicker } from "./CollectionPicker";
@@ -25,7 +25,24 @@ interface FileContextMenuProps {
   onRemoveFromContinue?: () => Promise<void>;
   onOpenInNewTab?: () => void;
   onStartInlineRename?: () => void;
+  /** Rows a caller draws above the shared rows, then one divider. */
+  extraMenuItems?: ExtraMenuItems;
+  /** Run a row's handler in the click itself rather than on the next frame. */
+  immediateRows?: boolean;
+  /** Called once the trash request succeeds, before `onUpdate`. */
+  onTrashed?: (file: FileItem) => void;
+  /** Called once the rename request succeeds, before `onUpdate`. */
+  onRenamed?: (file: FileItem) => void;
+  /** Called once the move request succeeds, before `onUpdate`. */
+  onMoved?: (file: FileItem) => void;
+  /**
+   * Runs when the rename, move or trash dialog is confirmed; the request is
+   * sent only when it calls `run`.
+   */
+  beforeChange?: (run: () => void) => void;
 }
+
+const DIVIDER: MenuDivider = { divider: true };
 
 export function FileContextMenu({
   open,
@@ -37,6 +54,12 @@ export function FileContextMenu({
   onRemoveFromContinue,
   onOpenInNewTab,
   onStartInlineRename,
+  extraMenuItems,
+  immediateRows = false,
+  onTrashed,
+  onRenamed,
+  onMoved,
+  beforeChange,
 }: FileContextMenuProps) {
   const tt = useTranslations("trash");
   const tf = useTranslations("file");
@@ -57,18 +80,30 @@ export function FileContextMenu({
     }
   }, [target]);
 
+  const gated = useCallback(
+    (send: () => Promise<void>) => {
+      const run = () => {
+        void send();
+      };
+      if (beforeChange) beforeChange(run);
+      else run();
+    },
+    [beforeChange],
+  );
+
   const handleRename = useCallback(
     async (newName: string) => {
       if (!target) return;
       try {
         await renameFile(target.id, newName);
         setRenameOpen(false);
+        onRenamed?.(target);
         onUpdate?.();
       } catch {
         // dialog stays open on error
       }
     },
-    [target, onUpdate],
+    [target, onUpdate, onRenamed],
   );
 
   const handleMove = useCallback(
@@ -77,12 +112,13 @@ export function FileContextMenu({
       try {
         await moveFile(target.id, path);
         setMoveOpen(false);
+        onMoved?.(target);
         onUpdate?.();
       } catch {
         // dialog stays open on error
       }
     },
-    [target, onUpdate],
+    [target, onUpdate, onMoved],
   );
 
   const handleDelete = useCallback(async () => {
@@ -90,11 +126,12 @@ export function FileContextMenu({
     try {
       await deleteFile(target.id);
       setDeleteOpen(false);
+      onTrashed?.(target);
       onUpdate?.();
     } catch {
       // dialog stays open on error
     }
-  }, [target, onUpdate]);
+  }, [target, onUpdate, onTrashed]);
 
   const handleCopyId = useCallback(async () => {
     if (!target) return;
@@ -127,6 +164,7 @@ export function FileContextMenu({
     }
   }, [onRemoveFromContinue, onClose]);
 
+  const extra = target && extraMenuItems ? extraMenuItems(target) : [];
   const items = useFileMenuItems(target, {
     onOpenInNewTab,
     onAddToCollection: () => setCollectionPickerOpen(true),
@@ -147,7 +185,13 @@ export function FileContextMenu({
         }
       : undefined,
     onTrash: () => setDeleteOpen(true),
-  });
+  }, extra);
+
+  const rows = immediateRows ? items.map((item) => ({ ...item, immediate: true })) : items;
+  const entries: MenuEntry[] =
+    extra.length > 0
+      ? [...rows.slice(0, extra.length), DIVIDER, ...rows.slice(extra.length)]
+      : rows;
 
   if (!target) return null;
 
@@ -156,20 +200,20 @@ export function FileContextMenu({
       <ContextMenu
         open={open}
         position={position}
-        items={items}
+        items={entries}
         onClose={onClose}
       />
       <RenameDialog
         open={renameOpen}
         currentName={target.filename}
-        onRename={handleRename}
+        onRename={(name) => gated(() => handleRename(name))}
         onCancel={() => setRenameOpen(false)}
       />
       <MoveDialog
         open={moveOpen}
         drive={target.drive}
         currentPath={target.folder_path}
-        onMove={handleMove}
+        onMove={(path) => gated(() => handleMove(path))}
         onCancel={() => setMoveOpen(false)}
       />
       <CollectionPicker
@@ -189,7 +233,7 @@ export function FileContextMenu({
         message={tt("confirmMoveToTrash", { name: target.filename })}
         confirmLabel={tt("moveToTrash")}
         note={tt("autoDelete")}
-        onConfirm={handleDelete}
+        onConfirm={() => gated(handleDelete)}
         onCancel={() => setDeleteOpen(false)}
       />
     </>

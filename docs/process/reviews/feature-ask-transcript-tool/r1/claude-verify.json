@@ -1,0 +1,102 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R1",
+      "status": "confirmed",
+      "note": "file_question.py:1012-1022 citations() now builds {index: chunk.position for index in 1..len(chunks)} and delegates to citations_from (file_question.py:1025-1041), which drops a number when `number not in positions`. Callers outside the cut-material path are rag.py:695, rag.py:862 and rag.py:982; rag.py:1200 uses citations_from directly. For those callers the key set is exactly 1..len(chunks), so the membership test behaves the same as a range check. The pre-change code could not be viewed without git, so the old `1 <= number <= len(chunks)` form is taken from the reader's claim."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R2",
+      "status": "confirmed",
+      "note": "rag.py:1593-1606 defines _call_times, which parses the arguments inline. rag.py:1620-1628 defines _call_times again on top of _call_arguments (rag.py:1609-1617). At import, the module-level name is bound to the later def, so the first is dead code. The two behave the same: the same name check, JSON parse, dict check and times-list check."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R3",
+      "status": "confirmed",
+      "note": "Reproduced by arithmetic. rag.py:733 sets _TRANSCRIPT_STOP_CHARS = len(stop note with an 8-char time) = 70. rag.py:1912-1913 accepts a group while len('\\n'.join(lines+group)) + 70 <= 3000. On stop, rag.py:1914 appends the stop note as a further list element and rag.py:1930 joins with '\\n', so the result length is accepted_len + 1 + len(stop). An accepted group ends with '' (rag.py:1906/1911), so the joined text ends with '\\n' and the join then adds another. prompt.py:266-273 format_position writes 'H:MM:SS' with unpadded hours, so the time is 8 chars (note = 70) for a stop row starting at 10 h to 99 h. With accepted_len exactly 2930, the result is 3001 chars and breaks I3's 3,000-character bound. Up to 9:59:59 the note is at most 69 chars and the +1 is absorbed. Not executed."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R4",
+      "status": "confirmed",
+      "note": "rag.py:1376-1404: the try/except around cut_task closes at 1404. The transcript loop at rag.py:1410-1427 calls _serve_transcript outside any try that routes to fallback(). The only enclosing block is the try at rag.py:1229 with a bare finally at rag.py:1502-1514 (sets cancelled, logs), with no except. An exception raised inside _serve_transcript therefore propagates out of the generator rather than reaching fallback(). Frame result building at rag.py:1428-1493 is likewise unguarded. I did not check whether a caller further up catches the exception."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R5",
+      "status": "confirmed",
+      "note": "rag.py:1900 gates the supplement on `first and sent_as == \"filtered\"`. In test_spec_addon_174_transcript_results.py:321-346 (FRAME_ROWS at :50-58), the first call sends [12] as the supplement of row [3], which adds 'HEADER' to sent_parts (rag.py:1923), and sends [13] and [14] with their stored text. In the second call, the mutant would compute a supplement for [13]/[14] from removed=['HEADER'], which is already in sent_parts, so it is empty and the output is unchanged. The other multi-call tests (test_spec_addon_174_transcript_limits.py, _offer.py) seed transcript-only rows (CUT_ROWS, frame_request_doubles.py:136-145). ask_frame_chunk appears only in _results.py, test_spec_addon_171_file_ask.py and frame_repeat_doubles.py, so no other test makes `first` true across two calls. Reasoned, not run."
+    }
+  ],
+  "unspecified_scores": [
+    {
+      "source_reviewer": "claude-read",
+      "index": 0,
+      "frequency": 1,
+      "impact": 4,
+      "reason": "Only a single stored row of about 2,930 characters or more triggers it (chunking defaults such as max_chunk_size=400 make that rare); a call over that range returns only the stop note, and the model sees nothing for that range."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "index": 1,
+      "frequency": 2,
+      "impact": 2,
+      "reason": "Videos with a repeated on-screen line and several overlapping transcript calls trigger it; a sent first-segment row is named without its own copy of a removed line the model already received under another number, so it can cite that number instead, a minor citation-precision difference."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "index": 2,
+      "frequency": 2,
+      "impact": 2,
+      "reason": "A repeated frame-text line first sent inside a row's stored text and later due as another row's supplement triggers it; the model receives the same line twice under a new number, which costs a few characters of the call's budget and does no harm."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "index": 3,
+      "frequency": 1,
+      "impact": 3,
+      "reason": "Cut material with no timed row (partial true but no row has a span, rag.py:1128) triggers it; the user gets the SPEC-ADDON-116 frame-only behaviour, which is reasonable because no transcript span could be served anyway."
+    }
+  ],
+  "specification_compliance": [
+    "I3 3,000-character bound can be exceeded by one character when the stop row starts at 10 h or later and the accepted text exactly fills the reserved budget (R3).",
+    "I6 fallback covers model and cut failures; an internal exception while building a transcript result is not routed to the fallback (R4), though I6 speaks of failures of the request itself.",
+    "I1 tool list: cut = material.partial and bool(material.rows) at rag.py:1128 offers both tools only when rows with spans exist.",
+    "I9 counting of frame_calls/transcript_calls only when cut and plan.spends (rag.py:1430-1437) matches the invariant text."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    {
+      "behavior": "For a stop row starting at 100 h or later, format_position gives a 9-character time, so the stop note is longer than the 'longest' reserved by _TRANSCRIPT_STOP_CHARS and the result can exceed 3,000 by two characters.",
+      "frequency": 0,
+      "impact": 1,
+      "reason": "Only videos over 100 hours trigger it, which personal use does not produce; the model would get a result two characters over the limit."
+    }
+  ],
+  "regression_risks": [
+    "citations() now delegates to citations_from for every file question (rag.py:695/862/982); behaviour matches for keys 1..len(chunks), but the shared helper widens the change surface.",
+    "Duplicate _call_times definitions (rag.py:1593, 1620) leave dead code that a future edit could change without effect."
+  ],
+  "test_coverage": [
+    "No test covers a stop note whose clock time has 8 characters together with an exact-boundary fill; test_the_limit_keeps_room_for_the_longest_stop_note uses times under an hour.",
+    "No test re-requests a first-segment row that was sent with its stored text while its removed parts are not yet in sent_parts, so dropping `sent_as == \"filtered\"` survives.",
+    "No test injects an exception into _serve_transcript to check fallback behaviour."
+  ],
+  "not_verified": [
+    "The pre-change citations() code; only the new code was read, with no git history.",
+    "Nothing was executed: the mutant survival and the 3,001-character result are reasoned from the code, not run.",
+    "Whether the addons/intelligence working tree matches the gitlink commit recorded at 3518f8c28.",
+    "Whether a caller above the frames-path generator catches an exception from _serve_transcript.",
+    "file_question_system.jinja2, the GET_TRANSCRIPT_TOOL description text in prompt.py, and the docs files were not opened.",
+    "Whether video transcript/frame-text rows are capped by max_chunk_size."
+  ],
+  "confidence": 85
+}

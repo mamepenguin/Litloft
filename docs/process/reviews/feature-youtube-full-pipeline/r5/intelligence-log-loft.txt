@@ -1,0 +1,161 @@
+intelligence-1  | 2026-11-16T04:13:17.725459915Z 2026-11-16 04:13:17,725 [INFO] app.main: Litloft database connected (read-only)
+intelligence-1  | 2026-11-16T04:13:18.565671363Z 2026-11-16 04:13:18,565 [INFO] app.main: Video visual index worker started (mode=manual)
+intelligence-1  | 2026-11-16T04:13:18.577165067Z 2026-11-16 04:13:18,577 [INFO] app.indexer: Reopened 504 unclassified loft(s) for fetching
+intelligence-1  | 2026-11-16T04:13:18.577314526Z 2026-11-16 04:13:18,577 [INFO] app.indexer: Starting reconciliation with Litloft DB
+intelligence-1  | 2026-11-16T04:13:27.059765553Z 2026-11-16 04:13:27,059 [INFO] app.indexer: Queue paused
+intelligence-1  | 2026-11-16T04:16:27.531473992Z 2026-11-16 04:16:27,531 [INFO] app.indexer: Queue resumed
+intelligence-1  | 2026-11-16T04:17:37.151882792Z 2026-11-16 04:17:37,151 [INFO] app.indexer: Starting reconciliation with Litloft DB
+intelligence-1  | 2026-11-16T04:17:37.588265788Z 2026-11-16 04:17:37,588 [INFO] app.workers.whisper: No adjacent VTT for loft ref _3_ovFrTI-yg, marking as indexed
+intelligence-1  | 2026-11-16T04:17:55.950343313Z 2026-11-16 04:17:55,950 [INFO] app.workers.clip: youtube storyboard indexed: file=_3_ovFrTI-yg class=rows sheets=9 tiles=77
+intelligence-1  | 2026-11-16T04:18:50.448781353Z 2026-11-16 04:18:50,448 [INFO] app.main: Litloft database connected (read-only)
+intelligence-1  | 2026-11-16T04:18:51.482402145Z 2026-11-16 04:18:51,482 [INFO] app.main: Video visual index worker started (mode=manual)
+intelligence-1  | 2026-11-16T04:18:51.486334458Z 2026-11-16 04:18:51,486 [INFO] app.indexer: Removed 1 leftover loft download(s)
+intelligence-1  | 2026-11-16T04:18:51.493283497Z 2026-11-16 04:18:51,493 [INFO] app.indexer: Reopened 503 unclassified loft(s) for fetching
+intelligence-1  | 2026-11-16T04:18:51.493324289Z 2026-11-16 04:18:51,493 [INFO] app.indexer: Starting reconciliation with Litloft DB
+intelligence-1  | 2026-11-16T04:18:51.570471635Z 2026-11-16 04:18:51,570 [INFO] app.indexer: Queue paused
+intelligence-1  | 2026-11-16T04:19:20.857170055Z INFO:     192.168.147.2:52708 - "GET /files/_3_ovFrTI-yg/visual-index HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:19:20.910909271Z INFO:     192.168.147.2:52738 - "GET /files/_3_ovFrTI-yg/visual_description HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:19:49.169254138Z INFO:     192.168.147.2:51048 - "GET /files/_3_ovFrTI-yg/visual-index HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:19:49.213597801Z INFO:     192.168.147.2:51130 - "GET /files/_3_ovFrTI-yg/visual_description HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:20:09.921934501Z INFO:     192.168.147.2:36618 - "GET /files/_3_ovFrTI-yg/visual-index HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:20:09.964306028Z INFO:     192.168.147.2:36692 - "GET /files/_3_ovFrTI-yg/visual_description HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:20:30.416519669Z INFO:     192.168.147.2:58338 - "GET /files/_3_ovFrTI-yg/visual-index HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:20:30.738790011Z INFO:     192.168.147.2:58390 - "GET /files/_3_ovFrTI-yg/visual_description HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:21:17.611273909Z 2026-11-16 04:21:17,610 [INFO] app.indexer: Queue resumed
+intelligence-1  | 2026-11-16T04:21:38.394986199Z 2026-11-16 04:21:38,394 [INFO] app.workers.clip: youtube storyboard indexed: file=_3_ovFrTI-yg class=rows sheets=9 tiles=77
+intelligence-1  | 2026-11-16T04:27:38.627018682Z INFO:     192.168.147.2:60870 - "GET /files/_3_ovFrTI-yg/visual-index HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:27:38.936729365Z INFO:     192.168.147.2:60926 - "GET /files/_3_ovFrTI-yg/visual_description HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:27:58.556794218Z INFO:     192.168.147.2:42342 - "GET /files/_3_ovFrTI-yg/visual-index HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:27:58.618725355Z INFO:     192.168.147.2:42376 - "GET /files/_3_ovFrTI-yg/visual_description HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:28:42.625314899Z INFO:     192.168.147.2:43058 - "GET /files/_3_ovFrTI-yg/visual-index HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:28:42.962233400Z INFO:     192.168.147.2:43126 - "GET /files/_3_ovFrTI-yg/visual_description HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:28:52.998132251Z 2026-11-16 04:28:52,997 [INFO] app.rag.file_question: frames_dropped: chosen=8 dropped=0 (file _3_ovFrTI-yg)
+intelligence-1  | 2026-11-16T04:29:09.136738857Z 2026-11-16 04:29:09,135 [INFO] app.routers.rag: frame requests: 2 calls, 8 frames (file _3_ovFrTI-yg)
+intelligence-1  | 2026-11-16T04:34:03.086507062Z INFO:     192.168.147.2:36634 - "GET /files/_3_ovFrTI-yg/visual-index HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:34:03.133992243Z INFO:     192.168.147.2:36680 - "GET /files/_3_ovFrTI-yg/visual_description HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:34:11.092461704Z 2026-11-16 04:34:11,092 [INFO] app.rag.file_question: frames_dropped: chosen=8 dropped=0 (file _3_ovFrTI-yg)
+intelligence-1  | 2026-11-16T04:34:29.925306702Z 2026-11-16 04:34:29,924 [INFO] app.routers.rag: frame requests: 2 calls, 8 frames (file _3_ovFrTI-yg)
+intelligence-1  | 2026-11-16T04:35:25.599627440Z INFO:     192.168.147.2:34936 - "GET /files/_3_ovFrTI-yg/visual-index HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:35:25.949730640Z INFO:     192.168.147.2:35026 - "GET /files/_3_ovFrTI-yg/visual_description HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:35:47.163153693Z INFO:     192.168.147.2:40556 - "GET /files/_3_ovFrTI-yg/visual-index HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:35:47.224995871Z INFO:     192.168.147.2:40644 - "GET /files/_3_ovFrTI-yg/visual_description HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:35:58.149973733Z INFO:     192.168.147.2:45604 - "POST /files/_3_ovFrTI-yg/visual-index/generate HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:35:58.163976228Z INFO:     192.168.147.2:45608 - "GET /files/_3_ovFrTI-yg/visual-index HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:36:02.881320757Z INFO:     192.168.147.2:45640 - "GET /files/_3_ovFrTI-yg/visual-index HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:36:04.387291022Z INFO:     192.168.147.2:45650 - "GET /files/_3_ovFrTI-yg/visual-index HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:36:05.404492689Z INFO:     192.168.147.2:45670 - "GET /files/_3_ovFrTI-yg/visual-index HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:36:07.191565353Z INFO:     192.168.147.2:48534 - "GET /files/_3_ovFrTI-yg/visual-index HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:36:08.514807808Z INFO:     192.168.147.2:48548 - "GET /files/_3_ovFrTI-yg/visual-index HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:36:09.942918638Z INFO:     192.168.147.2:48558 - "GET /files/_3_ovFrTI-yg/visual-index HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:36:11.424181099Z INFO:     192.168.147.2:48574 - "GET /files/_3_ovFrTI-yg/visual-index HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:36:12.858301838Z INFO:     192.168.147.2:48594 - "GET /files/_3_ovFrTI-yg/visual-index HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:36:12.887468167Z INFO:     192.168.147.2:48604 - "GET /files/_3_ovFrTI-yg/visual-index HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:36:17.657337156Z INFO:     192.168.147.2:37676 - "GET /files/_3_ovFrTI-yg/visual-index HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:36:48.658816737Z INFO:     192.168.147.2:39492 - "GET /files/_3_ovFrTI-yg/visual-index HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:37:13.642053083Z INFO:     192.168.147.2:33038 - "GET /files/_3_ovFrTI-yg/visual-index HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:37:40.718323627Z INFO:     192.168.147.2:54636 - "GET /files/kLe852pwBh6B/visual-index HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:37:48.287349665Z INFO:     192.168.147.2:45100 - "GET /files/kLe852pwBh6B/visual-index HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:37:48.336453981Z INFO:     192.168.147.2:45120 - "GET /files/kLe852pwBh6B/visual_description HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:38:06.568792254Z INFO:     192.168.147.2:55746 - "GET /files/kLe852pwBh6B/visual-index HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:38:06.893810981Z INFO:     192.168.147.2:55766 - "GET /files/kLe852pwBh6B/visual_description HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:38:17.555131620Z INFO:     192.168.147.2:58800 - "POST /files/kLe852pwBh6B/visual-index/generate HTTP/1.1" 409 Conflict
+intelligence-1  | 2026-11-16T04:40:05.276406916Z INFO:     192.168.147.2:53170 - "GET /files/geN7fGnZhYxb/visual_description HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:40:10.264662290Z INFO:     192.168.147.2:56712 - "GET /files/geN7fGnZhYxb/visual-index HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:40:28.156255676Z INFO:     192.168.147.2:57504 - "GET /files/_3_ovFrTI-yg/visual-index HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:40:38.065604841Z INFO:     192.168.147.2:36050 - "GET /files/_3_ovFrTI-yg/visual-index HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:40:38.107862868Z INFO:     192.168.147.2:36124 - "GET /files/_3_ovFrTI-yg/visual_description HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:41:03.367804055Z INFO:     192.168.147.2:36736 - "GET /files/_3_ovFrTI-yg/visual-index HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:41:03.503482728Z INFO:     192.168.147.2:36742 - "GET /files/geN7fGnZhYxb/visual-index HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:41:16.576789520Z INFO:     192.168.147.2:38610 - "GET /files/geN7fGnZhYxb/visual_description HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:41:21.561831501Z INFO:     192.168.147.2:42460 - "GET /files/geN7fGnZhYxb/visual-index HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:41:27.515997714Z INFO:     192.168.147.2:50538 - "POST /files/geN7fGnZhYxb/visual-index/generate HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:41:27.876873058Z INFO:     192.168.147.2:50542 - "GET /files/geN7fGnZhYxb/visual-index HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:41:31.074414581Z INFO:     192.168.147.2:50568 - "GET /files/geN7fGnZhYxb/visual-index HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:41:32.162741227Z INFO:     192.168.147.2:50570 - "GET /files/geN7fGnZhYxb/visual-index HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:41:33.235455829Z INFO:     192.168.147.2:50588 - "GET /files/geN7fGnZhYxb/visual-index HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:41:34.317456815Z INFO:     192.168.147.2:50602 - "GET /files/geN7fGnZhYxb/visual-index HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:41:35.301511006Z INFO:     192.168.147.2:50626 - "GET /files/geN7fGnZhYxb/visual-index HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:41:36.234668121Z INFO:     192.168.147.2:50638 - "GET /files/geN7fGnZhYxb/visual-index HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:41:37.369440818Z INFO:     192.168.147.2:48938 - "GET /files/geN7fGnZhYxb/visual-index HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:41:38.448953666Z INFO:     192.168.147.2:48940 - "GET /files/geN7fGnZhYxb/visual-index HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:41:38.646160598Z INFO:     192.168.147.2:48946 - "GET /files/geN7fGnZhYxb/visual-index HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:41:46.598609818Z INFO:     192.168.147.2:48996 - "GET /files/geN7fGnZhYxb/visual-index HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:42:17.598869553Z INFO:     192.168.147.2:52352 - "GET /files/geN7fGnZhYxb/visual-index HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:42:27.761889960Z INFO:     192.168.147.2:59706 - "GET /files/geN7fGnZhYxb/visual-index HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:42:33.298765305Z INFO:     192.168.147.2:59792 - "GET /files/geN7fGnZhYxb/visual_description HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:42:38.308632713Z INFO:     192.168.147.2:50954 - "GET /files/geN7fGnZhYxb/visual-index HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:43:03.259313040Z 2026-11-16 04:43:03,259 [INFO] app.indexer: Queue paused
+intelligence-1  | 2026-11-16T04:43:04.778399044Z INFO:     192.168.147.2:32794 - "GET /files/vb74YwPHV6jx/visual_description HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:43:21.188121791Z INFO:     192.168.147.2:37534 - "GET /files/vb74YwPHV6jx/visual_description HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:43:54.513019379Z 2026-11-16 04:43:54,512 [INFO] app.main: Litloft database connected (read-only)
+intelligence-1  | 2026-11-16T04:43:55.386632731Z 2026-11-16 04:43:55,386 [INFO] app.main: Video visual index worker started (mode=manual)
+intelligence-1  | 2026-11-16T04:43:55.392044840Z 2026-11-16 04:43:55,391 [INFO] app.indexer: Removed 1 leftover loft download(s)
+intelligence-1  | 2026-11-16T04:43:55.398268365Z 2026-11-16 04:43:55,398 [INFO] app.indexer: Reopened 502 unclassified loft(s) for fetching
+intelligence-1  | 2026-11-16T04:43:55.398279365Z 2026-11-16 04:43:55,398 [INFO] app.indexer: Starting reconciliation with Litloft DB
+intelligence-1  | 2026-11-16T04:45:22.967110577Z 2026-11-16 04:45:22,967 [INFO] app.indexer: Starting reconciliation with Litloft DB
+intelligence-1  | 2026-11-16T04:46:09.927217322Z 2026-11-16 04:46:09,927 [INFO] app.indexer: Starting reconciliation with Litloft DB
+intelligence-1  | 2026-11-16T04:46:10.503613265Z 2026-11-16 04:46:10,503 [INFO] app.workers.whisper: No adjacent VTT for loft ref OesNlQ_bOTvE, marking as indexed
+intelligence-1  | 2026-11-16T04:47:09.689253597Z INFO:     192.168.147.2:50952 - "GET /files/KvqnWhr0kXaH/visual-index HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:47:10.017381600Z INFO:     192.168.147.2:51004 - "GET /files/KvqnWhr0kXaH/visual_description HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:47:27.496384565Z INFO:     192.168.147.2:48482 - "GET /files/x3Z5F-1zGklE/visual-index HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:47:27.839187530Z INFO:     192.168.147.2:48536 - "GET /files/x3Z5F-1zGklE/visual_description HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:47:39.639406837Z 2026-11-16 04:47:39,639 [INFO] app.workers.clip: youtube storyboard indexed: file=KvqnWhr0kXaH class=rows sheets=9 tiles=75
+intelligence-1  | 2026-11-16T04:47:44.109190844Z INFO:     192.168.147.2:52054 - "GET /files/x3Z5F-1zGklE/visual-index HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:47:44.463595312Z INFO:     192.168.147.2:52116 - "GET /files/x3Z5F-1zGklE/visual_description HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:48:04.365920298Z INFO:     192.168.147.2:44434 - "GET /files/x3Z5F-1zGklE/visual-index HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:48:04.728407026Z INFO:     192.168.147.2:44516 - "GET /files/x3Z5F-1zGklE/visual_description HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:48:38.479026411Z 2026-11-16 04:48:38,478 [INFO] app.workers.clip: youtube storyboard indexed: file=x3Z5F-1zGklE class=rows sheets=11 tiles=92
+intelligence-1  | 2026-11-16T04:56:40.553206425Z 2026-11-16 04:56:40,553 [INFO] app.indexer: Starting reconciliation with Litloft DB
+intelligence-1  | 2026-11-16T04:56:40.790582681Z 2026-11-16 04:56:40,790 [INFO] app.workers.whisper: No adjacent VTT for loft ref ceyaHesF7dwz, marking as indexed
+intelligence-1  | 2026-11-16T04:56:41.770309861Z 2026-11-16 04:56:41,770 [WARNING] app.workers.clip: youtube storyboard failed: file=ceyaHesF7dwz class=lookup_failed sheets=0 tiles=0
+intelligence-1  | 2026-11-16T04:57:05.299797345Z INFO:     192.168.147.2:53976 - "GET /files/ceyaHesF7dwz/visual-index HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:57:05.606181964Z INFO:     192.168.147.2:54036 - "GET /files/ceyaHesF7dwz/visual_description HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:57:18.414182713Z 2026-11-16 04:57:18,413 [WARNING] app.workers.clip: youtube storyboard failed: file=ceyaHesF7dwz class=lookup_failed sheets=0 tiles=0
+intelligence-1  | 2026-11-16T04:57:20.890626670Z INFO:     192.168.147.2:35286 - "GET /files/OesNlQ_bOTvE/visual-index HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:57:20.975169302Z INFO:     192.168.147.2:35330 - "GET /files/OesNlQ_bOTvE/visual_description HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:57:33.672787498Z INFO:     192.168.147.2:33154 - "GET /files/OesNlQ_bOTvE/visual-index HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:57:33.700404803Z INFO:     192.168.147.2:33166 - "POST /files/OesNlQ_bOTvE/visual-index/generate HTTP/1.1" 404 Not Found
+intelligence-1  | 2026-11-16T04:57:43.336645110Z INFO:     192.168.147.2:40978 - "GET /files/_3_ovFrTI-yg/visual-index HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:57:43.341094091Z INFO:     192.168.147.2:41012 - "GET /files/_3_ovFrTI-yg/visual_description HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:58:05.939794130Z INFO:     192.168.147.2:34612 - "GET /files/_3_ovFrTI-yg/visual-index HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:58:05.980559543Z INFO:     192.168.147.2:34704 - "GET /files/_3_ovFrTI-yg/visual_description HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:58:28.298431174Z INFO:     192.168.147.2:42950 - "GET /files/_3_ovFrTI-yg/visual-index HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:58:28.327501028Z INFO:     192.168.147.2:42992 - "GET /files/_3_ovFrTI-yg/visual_description HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:59:02.671253262Z INFO:     192.168.147.2:35122 - "GET /files/2Kz2-Hq4X7sB/visual_description HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T04:59:52.877162657Z 2026-11-16 04:59:52,877 [INFO] app.main: Litloft database connected (read-only)
+intelligence-1  | 2026-11-16T04:59:53.689084981Z 2026-11-16 04:59:53,689 [INFO] app.main: Video visual index worker started (mode=manual)
+intelligence-1  | 2026-11-16T04:59:53.693476461Z 2026-11-16 04:59:53,693 [INFO] app.indexer: Removed 1 leftover loft download(s)
+intelligence-1  | 2026-11-16T04:59:53.698270444Z 2026-11-16 04:59:53,698 [INFO] app.indexer: Reopened 499 unclassified loft(s) for fetching
+intelligence-1  | 2026-11-16T04:59:53.698482320Z 2026-11-16 04:59:53,698 [INFO] app.indexer: Starting reconciliation with Litloft DB
+intelligence-1  | 2026-11-16T04:59:53.887001099Z 2026-11-16 04:59:53,886 [INFO] app.indexer: Queue paused
+intelligence-1  | 2026-11-16T05:00:03.993162896Z INFO:     192.168.147.2:55252 - "GET /files/ceyaHesF7dwz/visual-index HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T05:00:04.321923587Z INFO:     192.168.147.2:55320 - "GET /files/ceyaHesF7dwz/visual_description HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T05:00:18.933900578Z INFO:     192.168.147.2:42868 - "GET /files/_3_ovFrTI-yg/visual-index HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T05:00:19.272287442Z INFO:     192.168.147.2:42916 - "GET /files/_3_ovFrTI-yg/visual_description HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T05:00:39.360556705Z 2026-11-16 05:00:39,360 [INFO] app.indexer: Queue resumed
+intelligence-1  | 2026-11-16T05:00:39.969058133Z 2026-11-16 05:00:39,968 [WARNING] app.workers.clip: youtube storyboard failed: file=ceyaHesF7dwz class=lookup_failed sheets=0 tiles=0
+intelligence-1  | 2026-11-16T05:00:59.277695303Z INFO:     192.168.147.2:50644 - "GET /files/ceyaHesF7dwz/visual-index HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T05:00:59.603948897Z INFO:     192.168.147.2:50734 - "GET /files/ceyaHesF7dwz/visual_description HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T05:01:11.023003858Z 2026-11-16 05:01:11,022 [WARNING] app.workers.clip: youtube storyboard failed: file=ceyaHesF7dwz class=lookup_failed sheets=0 tiles=0
+intelligence-1  | 2026-11-16T05:01:35.308728369Z 2026-11-16 05:01:35,308 [INFO] app.main: Litloft database connected (read-only)
+intelligence-1  | 2026-11-16T05:01:36.116121959Z 2026-11-16 05:01:36,116 [INFO] app.main: Video visual index worker started (mode=manual)
+intelligence-1  | 2026-11-16T05:01:36.120147354Z 2026-11-16 05:01:36,120 [INFO] app.indexer: Removed 1 leftover loft download(s)
+intelligence-1  | 2026-11-16T05:01:36.128021685Z 2026-11-16 05:01:36,127 [INFO] app.indexer: Reopened 499 unclassified loft(s) for fetching
+intelligence-1  | 2026-11-16T05:01:36.128049810Z 2026-11-16 05:01:36,128 [INFO] app.indexer: Starting reconciliation with Litloft DB
+intelligence-1  | 2026-11-16T05:01:36.283994759Z 2026-11-16 05:01:36,283 [INFO] app.indexer: Queue paused
+intelligence-1  | 2026-11-16T05:01:36.339296120Z 2026-11-16 05:01:36,339 [INFO] app.indexer: Queue resumed
+intelligence-1  | 2026-11-16T05:01:38.713905692Z 2026-11-16 05:01:38,713 [WARNING] app.workers.clip: youtube storyboard failed: file=ceyaHesF7dwz class=lookup_failed sheets=0 tiles=0
+intelligence-1  | 2026-11-16T05:01:44.870101516Z 2026-11-16 05:01:44,869 [WARNING] app.workers.loft_media: loft_media lookup failed (file ceyaHesF7dwz)
+intelligence-1  | 2026-11-16T05:02:10.387087659Z 2026-11-16 05:02:10,386 [INFO] app.main: Litloft database connected (read-only)
+intelligence-1  | 2026-11-16T05:02:11.184386573Z 2026-11-16 05:02:11,184 [INFO] app.main: Video visual index worker started (mode=manual)
+intelligence-1  | 2026-11-16T05:02:11.188154883Z 2026-11-16 05:02:11,188 [INFO] app.indexer: Removed 1 leftover loft download(s)
+intelligence-1  | 2026-11-16T05:02:11.193184325Z 2026-11-16 05:02:11,193 [INFO] app.indexer: Reopened 498 unclassified loft(s) for fetching
+intelligence-1  | 2026-11-16T05:02:11.193536369Z 2026-11-16 05:02:11,193 [INFO] app.indexer: Starting reconciliation with Litloft DB
+intelligence-1  | 2026-11-16T05:02:11.392579075Z 2026-11-16 05:02:11,392 [INFO] app.indexer: Queue paused
+intelligence-1  | 2026-11-16T05:02:12.398299992Z INFO:     192.168.147.2:38538 - "GET /files/_3_ovFrTI-yg/visual-index HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T05:02:12.738526115Z INFO:     192.168.147.2:38582 - "GET /files/_3_ovFrTI-yg/visual_description HTTP/1.1" 200 OK
+intelligence-1  | 2026-11-16T05:02:27.074602033Z 2026-11-16 05:02:27,074 [INFO] app.indexer: Queue resumed
+intelligence-1  | 2026-11-16T05:02:27.646514276Z 2026-11-16 05:02:27,646 [WARNING] app.workers.clip: youtube storyboard failed: file=ceyaHesF7dwz class=lookup_failed sheets=0 tiles=0
+intelligence-1  | 2026-11-16T05:02:39.371879438Z 2026-11-16 05:02:39,370 [WARNING] app.workers.loft_media: loft_media lookup failed (file ceyaHesF7dwz)
+intelligence-1  | 2026-11-16T05:02:45.953403186Z 2026-11-16 05:02:45,953 [INFO] app.workers.clip: youtube storyboard indexed: file=_3_ovFrTI-yg class=rows sheets=9 tiles=77
+intelligence-1  | 2026-11-16T05:02:52.046147650Z INFO:     192.168.147.2:53296 - "GET /files/vb74YwPHV6jx/visual_description HTTP/1.1" 200 OK

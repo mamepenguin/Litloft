@@ -17,11 +17,13 @@ vi.mock("@/components/ProfileProvider", () => ({
 
 const getShelves = vi.fn();
 const getSmartFolders = vi.fn();
+const getCollections = vi.fn();
 
 vi.mock("@/lib/api", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/api")>()),
   getShelves: (...args: unknown[]) => getShelves(...args),
   getSmartFolders: (...args: unknown[]) => getSmartFolders(...args),
+  getCollections: (...args: unknown[]) => getCollections(...args),
 }));
 
 type Params = Record<string, unknown>;
@@ -122,6 +124,7 @@ beforeEach(() => {
   vi.stubGlobal("IntersectionObserver", FakeObserver);
   getShelves.mockReset().mockImplementation(async (d, p) => shelves(d, p));
   getSmartFolders.mockReset().mockResolvedValue([]);
+  getCollections.mockReset().mockResolvedValue([]);
 });
 
 afterEach(() => {
@@ -183,6 +186,44 @@ describe("I21 the shelf page", () => {
         .filter((params) => params.by === "tag" && params.key === "Trip" && params.folder);
       expect(calls.length).toBeGreaterThan(0);
     });
+  });
+
+  it("SPEC-CORE-147 I5 re-choosing the Target in force keeps the URL's tag, state and folder", async () => {
+    const onTargetChosen = vi.fn();
+    render(
+      <ReadingShelfPage drive={DRIVE} by="tag" shelfKey="Trip" tags={["SF"]} watch="finished" folders={["Comics"]} onTargetChosen={onTargetChosen} />,
+    );
+    await screen.findByText("Shelf page 1");
+    const before = getShelves.mock.calls.length;
+
+    fireEvent.click(screen.getByRole("button", { name: /Target/ }));
+    fireEvent.click(await screen.findByRole("menuitemradio", { name: /All books/ }));
+
+    await new Promise((r) => setTimeout(r, 50));
+    expect(onTargetChosen).not.toHaveBeenCalled();
+    expect(getShelves.mock.calls.length).toBe(before);
+  });
+
+  it("SPEC-CORE-147 I5 after another Target is chosen no request carries the URL's tag, state or folder", async () => {
+    getSmartFolders.mockResolvedValue([smartFolder("sf-x", "Picked", "tag:picked")]);
+    const onTargetChosen = vi.fn();
+    render(
+      <ReadingShelfPage drive={DRIVE} by="tag" shelfKey="Trip" tags={["SF"]} watch="finished" folders={["Comics"]} onTargetChosen={onTargetChosen} />,
+    );
+    await screen.findByText("Shelf page 1");
+    const before = getShelves.mock.calls.length;
+
+    fireEvent.click(screen.getByRole("button", { name: /Target/ }));
+    fireEvent.click(await screen.findByRole("menuitemradio", { name: "Picked" }));
+
+    await waitFor(() => expect(getShelves.mock.calls.length).toBeGreaterThan(before));
+    expect(onTargetChosen).toHaveBeenCalledTimes(1);
+    for (const [, params] of getShelves.mock.calls.slice(before)) {
+      const p = params as Params;
+      expect([p.tag ?? []].flat()).not.toContain("SF");
+      expect(p.watch).toBeUndefined();
+      expect(p.folder).toBeUndefined();
+    }
   });
 
   it("shows No books for a key that names nothing", async () => {

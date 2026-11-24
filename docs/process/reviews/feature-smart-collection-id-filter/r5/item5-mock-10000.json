@@ -1,0 +1,20 @@
+{
+ "text": "検索: \"in:\"Cats\" 子ザメ\" | コレクション Cats | × | ＋ | 条件 | ファイル | 箇所 | 0件 | グリッド表示 | 関連度順 | 一致するファイルが見つかりません | 検索条件を変更してください。",
+ "alert": [
+  ""
+ ],
+ "retry": 0,
+ "reqs": [
+  "GET /api/addons/intelligence/search/by-image/available ids=null 200",
+  "GET /api/addons/intelligence/search?q=猫&limit=1000&passages=true ids=null 404",
+  "POST /api/drives/動画/files/query?search=子ザメ&sort=created_at&order=desc&page=1&limit=30 ids=10000 200",
+  "POST /api/addons/intelligence/search?q=子ザメ&limit=1000&passages=true&filter={} ids=10000 200"
+ ],
+ "evalPages": 21,
+ "window": {
+  "reqs": [
+   "GET /api/addons/intelligence/search?q=猫&limit=1000&passages=true ids=null",
+   "POST /api/drives/動画/files/query?limit=8 ids=10000"
+  ]
+ }
+}

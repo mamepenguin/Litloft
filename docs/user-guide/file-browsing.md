@@ -10,8 +10,12 @@ A drive has two starting points in the sidebar:
 The sidebar is the same on every screen of a drive.
 
 - At the top: Home, Library, and six views of the whole drive: **Continue**, **Favorites**, **Liked**, **Recently Viewed**, **Recently Added** and **All Files** (every file in the drive, with no folders). Addons can add pages here, such as *Ask* or *Notes*.
-- In the middle, the sections you build yourself: **Collections**, **Pins**, **Smart Folders** and **Tags**. You can collapse these sections and drag them into the order you like.
+- In the middle, the sections you build yourself: **Collections** (collections and Smart Collections), **Pins** and **Tags**. You can collapse these sections and drag them into the order you like.
 - At the bottom: **Trash**, **Missing Files** (only when the drive has some), and **Dashboard** for an administrator.
+
+To keep a Smart Collection, a pinned folder or a collection at hand, open it and choose **Put on Home** in its `…` menu (on a folder, the row appears under **Unpin this folder**); its tile then sits after the addons' entries on Home. Choose **Remove from Home** the same way.
+
+To keep an app already narrowed to one of its targets at hand, open that target in the app and choose **Put on Home** in the target menu, after the separator and before **Manage…**. The tile uses the app's icon and the label `<app>・<target>`, and opening it lands in the app on that target. **Remove from Home** in the same menu puts it away.
 
 ## The breadcrumb trail
 
@@ -19,7 +23,7 @@ The row above a listing shows where you are. Every part of it is a link back to 
 
 ## Folders
 
-- A folder card shows how many files it holds, counting its subfolders too, and the main kinds: *138 items · Video 135 · Document 3*.
+- A folder card shows how many files it holds, counting its subfolders too: *138 items*.
 - Click a folder to open it.
 - Right-click it, or long-press it on a touch screen, for **Open**, **Pin / Unpin**, **Rename**, **Move** and **Delete**. In the folder tree the same menu also offers **New file here** and **New folder here**.
 - Empty folders are listed too, with a count of 0.
@@ -98,6 +102,8 @@ The tree button at the top left opens a folder tree beside the listing. It lists
 
 While the tree is open, the sidebar steps aside. Close the tree and the sidebar returns.
 
+On a narrow window the tree steps aside while a video's inspector is open, and the tree button brings it back.
+
 ## Trusted sources and the review queue
 
 Each file is either **Verified** or **Unverified**. The shield button on the file page switches between them. Files already in your drive start as verified.
@@ -124,9 +130,9 @@ Above them sit the app destinations: **Library**, the built-in apps, any addon a
 
 Right-click a folder and choose **Pin**, or use `…` → **Pin this folder** inside it. Pins appear in the sidebar and are shared by everyone who uses the drive.
 
-## Smart folders (saved searches)
+## Smart Collections (saved searches)
 
-Run a search, open `…` in the results bar and choose **Save as Smart Folder** to keep it as a Smart Folder in the sidebar. Smart folders are shared by everyone who uses the drive.
+Run a search, open `…` in the results bar and choose **Save as Smart Collection** to keep it. It appears in the sidebar's **Collections** section, and Smart Collections are shared by everyone who uses the drive.
 
 ## Real-time updates
 

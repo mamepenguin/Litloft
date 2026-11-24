@@ -179,7 +179,7 @@ export function CommentSection({ fileId }: CommentSectionProps) {
           placeholder={t("placeholder")}
           rows={2}
           maxLength={1000}
-          className="flex-1 resize-none rounded-2xl border border-bg-border bg-bg-card px-3 py-2 text-sm text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-focus-ring"
+          className="flex-1 resize-none rounded-2xl border border-bg-border bg-bg-card px-3 py-2 text-base text-text-primary placeholder:text-text-muted outline-none focus:ring-2 focus:ring-focus-ring"
         />
         <Button
           variant="primary"
@@ -248,7 +248,7 @@ export function CommentSection({ fileId }: CommentSectionProps) {
                     rows={2}
                     maxLength={1000}
                     autoFocus
-                    className="w-full resize-none rounded-2xl border border-bg-border bg-bg-card px-3 py-2 text-sm text-text-primary outline-none focus:ring-2 focus:ring-focus-ring"
+                    className="w-full resize-none rounded-2xl border border-bg-border bg-bg-card px-3 py-2 text-base text-text-primary outline-none focus:ring-2 focus:ring-focus-ring"
                   />
                   <div className="mt-2 flex gap-2">
                     <Button
@@ -268,7 +268,7 @@ export function CommentSection({ fileId }: CommentSectionProps) {
                   </div>
                 </div>
               ) : (
-                <p className="mt-1 text-sm text-text-primary whitespace-pre-wrap">
+                <p className="mt-1 text-base leading-relaxed text-text-primary whitespace-pre-wrap">
                   {comment.body}
                 </p>
               )}

@@ -6,7 +6,7 @@ export const SCENES_FRAMES = 60;
 
 export const SCENES_SHORT_LABEL = "Opening shot of the harbour";
 export const SCENES_LONG_LABEL =
-  "Two people talk across a table while the camera pushes in slowly and the light behind them shifts from blue to amber";
+  "Two people talk across a table while the camera pushes in slowly and the light behind them shifts from blue to amber, then the shot cuts to the street outside where a bus passes in the rain and a dog waits under the awning of a closed shop, its owner nowhere in sight, while across the road a woman with a red umbrella reads the timetable at the stop, checks her phone twice, and finally walks away toward the station as the bus pulls off without her";
 export const SCENES_LONG_TEXT =
   "The subtitle reads: we should have left before the rain started.";
 
@@ -90,14 +90,43 @@ export const SCENES_LONG_VISUAL_INDEX = {
   active_run: {
     run_id: "run-long",
     status: "succeeded",
-    selected_count: 0,
-    completed_count: 0,
-    succeeded_count: 0,
+    selected_count: 1,
+    completed_count: 1,
+    succeeded_count: 1,
     failed_count: 0,
     created_at: "2026-01-01T00:00:00Z",
     completed_at: "2026-01-01T00:01:00Z",
   },
-  scenes: [],
+  scenes: [
+    {
+      ordering: 0,
+      start_time: 0,
+      end_time: 30,
+      status: "succeeded",
+      scene_type: "dialogue",
+      scene_label: SCENES_LONG_LABEL,
+      visible_text: SCENES_LONG_TEXT,
+      transcript_excerpt: null,
+    },
+  ],
   staged_run: null,
   stale: false,
 };
+
+/** `count` frames 12 s apart, for the Scenes section on the file page. */
+export function scenesFrames(
+  count: number,
+): { start: number; content_preview: string }[] {
+  return Array.from({ length: count }, (_, index) => ({
+    start: index * SCENES_FRAME_STEP,
+    content_preview: `frame ${index}`,
+  }));
+}
+
+/** `SCENES_VISUAL_INDEX` for another file, optionally out of date. */
+export function scenesVisualIndex(
+  fileId: string,
+  stale: boolean,
+): typeof SCENES_VISUAL_INDEX {
+  return { ...SCENES_VISUAL_INDEX, file_id: fileId, stale };
+}

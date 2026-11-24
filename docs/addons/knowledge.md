@@ -4,13 +4,15 @@ The `knowledge` addon adds Markdown notes to Litloft: an editor, version history
 
 ## What it provides
 
-- **Notes** in the sidebar lists and searches the drive's Markdown and text files. See [Notes](../user-guide/notes.md).
+- **Notes** in the sidebar has a Home and a Library for the drive's Markdown and text files, with the chosen note shown and editable beside the list. See [Notes](../user-guide/notes.md).
+- **Clips** in the sidebar, right after Notes, gathers the web pages you clipped, apart from the notes you wrote.
+- Every note and clip card and row opens the core file menu on right-click or a 500 ms press: the Notes Home sections, the Notes Library, the Clips Home shelves, its unverified rows, and the Clips Library and shelf pages. **Remove from history** appears only in Notes' Continue writing and Clips' Recently opened, and only with a profile.
 - A Markdown editor with live preview, autosave, `[[wiki links]]`, and image upload by drag and drop or paste.
 - A version history where you browse and restore earlier versions of a note.
 - A capture basket that collects quotes and timestamps from anywhere in Litloft so you can add them to a note.
 - Web clipping, which saves a web page as a Markdown note.
 - **Create note**, which starts a note that cites the file you are looking at.
-- A file can show a note chosen as its summary note.
+- A file can show a note chosen as its summary note, in the **Note** panel under a player or in the file page's sections.
 - A connections graph of how notes and files refer to each other.
 - **New note** and **Clip web page** in the **Add** menu on Home and in Library folders.
 
@@ -147,9 +149,71 @@ Saving adds the items to a note under a `## Captures` heading. Each item has a l
 - **Append to {filename}** adds to your usual note. By default this is `Captures/Inbox.md`. You can instead choose a daily note named `YYYY-MM-DD.md`, and a different folder. This setting is kept per drive in the browser.
 - **Other save methods** offers **New note** or **Existing note**.
 
+## Clips
+
+**Clips** is at `/drive/{drive}/addons/knowledge/clips`, below Notes in the sidebar. It lists only files whose frontmatter has `origin: webclip`, so a clip stays a clip when you move it or write in it, and it becomes a note again when you delete that line.
+
+- **Clip a web page**, at the top right, opens a form for a URL or pasted HTML: destination folder, duplicate check and bookmarklet. A clip made there appears on the page without a reload.
+- The header has a **Target** menu, **Clip a web page** and the tabs **Home** and **Library**. **Home** has the shelves **Unread** (no history row for you), **Recently opened** (latest opening first) and **Unverified** (still waiting for **Trust as a source**), each with **See all** to a page of that shelf. Without a [profile](../user-guide/profile-preferences.md), **Unread** becomes **New clips** and **Recently opened** is not drawn; **Unverified** stays.
+- **Library** is `?view=all`. It groups by tag (`group=tags`, the default), folder
+  (`group=folder`), date added (`group=month`) or not at all (`group=none`), and sorts by
+  `sort=newest` (the default), `oldest` or `title`. The Folder and Date Added groupings ask
+  the core `shelves` route for `by=folder` and `by=month` under the target's conditions.
+- Unread, Recently opened, New clips and the tag shelves are cover cards. **Unverified** is a list of rows, each with **Mark as verified**, which writes the clip's trust tier through the core's `PUT /api/files/{id}/trust-tier`.
+- A card shows the clip's first Markdown image, its title, its site and a reading time of `max(1, round(bytes / 1500))` minutes. A red dot marks a clip you have not opened. Opening a card goes to the file page and counts as opening it.
+- A drive with no clips shows one empty state, and the page keeps its header and its **Clip a web page** action.
+
+### Library URLs
+
+The Clips Library names its view in the URL, so Back after a menu choice returns to the
+previous one:
+
+- **Library**: `?view=all&group=<tags|folder|month|none>&sort=<newest|oldest|title>`.
+- **Shelf page**: `?view=shelf&shelf=<id>&sort=<sort>`, where `<id>` is `unread`, `recent`,
+  `new`, `unverified`, `tag:<name>`, `untagged`, `folder:<key>` or `month:<YYYY-MM>`. A
+  folder key is the server's key verbatim: a trailing `/` names the files directly in that
+  folder, no trailing slash names its subtree, and the empty key is the drive root. A
+  `month:` key is `YYYY-MM`; any other key is unknown, and the page opens Home.
+
+A `group` or `sort` the URL leaves out, or states unreadably, opens on the choice
+remembered for the target in force (else the app default), and the page replaces the URL
+with it once the Library is drawn, without a history entry. A `tag:`, `untagged`, `folder:`
+or `month:` shelf page fills in `sort` the same way, and its back link is
+`?view=all&group=<tags|folder|month>&sort=<sort>`. The Notes Library's URLs always carry
+`sort` (`updated`, `title` or `created`) for the same reason; its rail segment is not a URL
+parameter, and `folder` or `tag` in the URL selects an entry and implies the segment.
+
+The Library's filters are in the URL too: `tag` (repeated; a clip must carry every one)
+and `trust` (`unverified` or `verified`), and `q`, the name filter (title or folder path
+contains it; trimmed and cut to 200 characters, rewritten by replace when it is not). A filter change replaces the URL without a
+history entry. Every grouping, every `tag:`, `untagged`, `folder:` and `month:` shelf page
+and that page's back link carry them; Home and its shelf kinds (`unread`, `recent`, `new`,
+`unverified`) ignore them. The Home and Library tab links carry none, a Target choice drops
+them (as does a Home-shortcut landing on another Target), and any other `trust` value is removed from the URL by replace. The tag menu's
+candidates come from the core `tag-counts` route under every condition in force.
+
+### Opening Notes or Clips on a Target
+
+Notes on any view (`/drive/{drive}/addons/knowledge`) and Clips on any view
+(`/drive/{drive}/addons/knowledge/clips`) read `target` from the URL: a Smart Collection
+id, or `collection:<collection id>`. The page holds every listing, shelf and count until
+the list that resolves the id answers, then saves that Target as the one the menu would
+choose and removes `target` from the URL without a history entry. An id that is not in the
+drive, `default` or an empty value leaves the saved Target in force, writes nothing and is
+removed the same way.
+
+### Covers and sites
+
+The cover and site of a card are read from the start of each clip (the first 4096 bytes); nothing is stored.
+
+- The cover is the first Markdown image `![alt](target)` after the frontmatter. A `loft://<file id>` target is used when that file is an active image of the same drive, and is drawn through the core's thumbnail route. An absolute `http(s)` URL is drawn directly by the browser from its host, with `referrerpolicy="no-referrer"`, so the clip's source site (or the image's host) sees the request. HTML `<img>` is not read. A cover that is missing or fails to load leaves a plain block.
+- The site is the host of the frontmatter `url` when it is an `http(s)` URL, else of the first `http(s)` link after the frontmatter that is not an image. It is lower-cased, without a port and without a leading `www.`.
+
+The bookmarklet on the Clips page opens `/drive/{drive}/addons/knowledge/clips?prefill=…&title=…&autosubmit=1`, so a bookmarklet clip is made and shown on Clips. A bookmarklet installed earlier still opens Notes, which passes the same parameters on to Clips.
+
 ## Web clipping
 
-Clip a web page from **Web clip** at the bottom of the Notes page, from **Clip web page** in the **Add** menu, or with the bookmarklet offered on the Notes page.
+Clip a web page from **Clip a web page** on the Clips page, from **Clip web page** in the **Add** menu, or with the bookmarklet offered on the Clips page.
 
 Litloft creates the note at once and fetches the page in the background. It keeps the article, removes scripts and page furniture, converts it to Markdown, and renames the note after the article's title. If you edit the note before the fetch finishes, your edit is kept and the fetched text is discarded.
 
@@ -183,11 +247,11 @@ To keep a clip URL from reaching inside your network, Litloft refuses:
 
 **Create note** in any file's `...` menu creates a note whose frontmatter already cites that file, and opens it.
 
-A file's **Summary note** section shows the note chosen as the summary of that file, with **Edit in Knowledge**. With the [intelligence addon](intelligence.md), **Save as file** on an AI detailed summary saves it as a note and makes it that file's summary note.
+A file's summary note is the **Note** panel under the player on a video, audio or `.loft` file, the last block of **Info** before the comments on a file without a player (in the sheet's **Info** on a phone), and a **Summary note** section under the text on a Markdown note or a plain-text document. Every form shows the note chosen as the summary of that file, with **Edit in Knowledge**. With the [intelligence addon](intelligence.md), **Save as file** on an AI detailed summary saves it as a note and makes it that file's summary note.
 
 ## Connections graph
 
-The graph shows the drive's notes and files as points and their connections as lines. It is at `/drive/{drive}/addons/knowledge/connections`. Open it from **Note & file connections** on the Notes page, or from **See connections as a graph** in the **Related** tab of a Markdown or text file.
+The graph shows the drive's notes and files as points and their connections as lines. It is at `/drive/{drive}/addons/knowledge/connections`. Open it from **See this note in the graph** under a note in the Notes Library, or from **See connections as a graph** in the **Related** tab of a Markdown or text file.
 
 - A line is a [file relation](../user-guide/tags-and-relations.md#file-relations), or a note citing a file in `source_file_ids`.
 - Colour points by file type, tag or folder, or use one colour.
@@ -232,17 +296,53 @@ The addon's routes are reached through the backend at `/api/addons/knowledge/...
 | `GET /clips?url=` | Your earlier clips of a URL in this drive. *profile* |
 | `POST /clips` | Clip a URL. Answers `202` and finishes in the background; the result arrives as the WebSocket event `knowledge.clip.ready` or `knowledge.clip.failed`. *profile* |
 | `POST /clips/pasted` | Clip pasted HTML. Answers `201` when done. *profile* |
+| `POST /clip-covers` | The cover and site of the given clips, for cards. See [POST /clip-covers](#post-clip-covers). |
 | `POST /captures/commit` | Save capture basket items into a note. *profile* |
 | `POST /notes` | Create a note with a given folder, filename and content. *profile* |
 | `POST /note-from-file` | Create a note citing a file. *profile* |
 | `POST /distill` | Save a summary as a note and make it the file's summary note. *profile* |
 | `GET /notes/by_source_file/<id>` | Notes that cite a file. |
 | `POST /note-openings` | The first lines of the given notes, for lists. |
+| `GET /notes/with-sources` | Ids of the drive's notes that cite at least one source file. |
+| `POST /notes/sources` | The source files of the given notes, in citation order. |
 | `GET /search?q=` | Search the text of the drive's notes. |
 | `GET /connections-graph` | The drive's connections graph. |
 | `POST /resync-tags/<file_id>` | Copy a note's frontmatter tags into Litloft's tag list. |
 | `POST /file_active_summary`, `GET` / `DELETE /file_active_summary/<file_id>` | A file's summary note. |
 | `GET /file_active_summary/<file_id>/note` | The summary note to show on a file page. |
+
+### POST /clip-covers
+
+Request: `{"file_ids": ["<id>", ...]}`, at most 60 ids. Needs `X-Lit-Drive`; no profile is needed.
+
+Response: `{"covers": {"<id>": {"image_id": string|null, "image_url": string|null, "site": string|null}}}`. Only active text files of the request's drive that the caller may read get an entry; any other id is absent, so a locked or other drive's file is not revealed. `image_id` is the id of an image file in the drive, `image_url` an external image URL; at most one is set. A file whose start cannot be read, or whose cover and site are not found, answers all three as `null`. If the check of the `loft://` image ids fails, every `image_id` is `null` and the rest of the answer stands. Nothing is stored. The rules for the cover and the site are under [Covers and sites](#covers-and-sites).
+
+| Status | When |
+|---|---|
+| `400` | `X-Lit-Drive` is missing. |
+| `422` | More than 60 ids. |
+| `502` | The backend's access check or file lookup failed. |
+
+### Notes that cite sources
+
+Both routes need `X-Lit-Drive` and no profile, and answer only for notes the addon has indexed in that drive.
+
+`GET /notes/with-sources` answers `{ "ids": ["<note id>", ...] }`, sorted, for every indexed note of the drive that cites at least one source file in `source_file_ids`.
+
+`POST /notes/sources` takes `{ "file_ids": ["<note id>", ...] }`, 1 to 60 ids (anything else is `422`; repeated ids are read once), and answers:
+
+```json
+{ "notes": { "<note id>": [
+  { "source_file_id": "...", "title": "...", "filename": "...", "folder_path": "...",
+    "mime_type": "...", "has_thumbnail": true, "locator": { "t": 83 } }
+] } }
+```
+
+- A note that is not indexed in the drive is absent from `notes`; a note with no resolvable source has an empty list.
+- Sources are in the order of `source_file_ids`. A source that does not exist, or is in another drive, is left out.
+- `locator` is the position of the note's first `loft://<source id>?t=<seconds>` or `?page=<n>` link to that source in the body, as `{ "t": seconds }` or `{ "page": n }`, and `null` when the body has none.
+- The note texts are read through the backend. When a note cannot be read, its sources come from the index, in id order, and its locators are `null`.
+- `503` means the addon's index (`Knowledge index unavailable`) or the backend's file lookup (`File lookup unavailable`) could not be reached.
 
 Version history is part of Litloft itself: `GET /api/files/<id>/versions?limit=&offset=`, `GET /api/files/<id>/versions/<version_id>`, and `GET /api/files/<id>/versions/<version_id>/diff`.
 

@@ -37,6 +37,7 @@ vi.mock("@/lib/api", () => ({
   getFolders: vi.fn().mockResolvedValue([]),
   getPins: vi.fn().mockResolvedValue([]),
   getWatchHistory: vi.fn().mockResolvedValue([]),
+  getHomeShortcuts: vi.fn().mockResolvedValue([]),
   createFolder: vi.fn(),
   scanDrive: vi.fn(),
   getThumbnailUrl: (id: string) => `/api/files/${id}/thumbnail`,

@@ -4,9 +4,10 @@
 # 2 HUMAN_REVIEW_REQUIRED, 64 usage error.
 #
 # Inputs in <run-dir>: expected.txt (one reviewer id per line), classification.json,
-# fingerprint.json ({"start","end"}), and <id>.json for each id. Nothing else is read: not
-# Markdown, not a reviewer's own `overall`, not an artifact outside expected.txt.
-# The verdict follows the Verdict table of the design document; no severity is written.
+# fingerprint.json ({"start","end"}), and <id>.json for each id, plus product-files.txt and
+# unspecified-stop.txt when review.sh wrote them. Nothing else is read: not Markdown, not a reviewer's own `overall`,
+# not an artifact outside expected.txt. The verdict follows the Verdict table of the design
+# document; no severity is written.
 
 set -u
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -38,11 +39,29 @@ done
 
 [ -f "$run/expected.txt" ] || die_usage "$run/expected.txt is missing"
 
+# review.sh writes the product files it took from the diff; a run without the list (an
+# older run, or a direct call) is not checked for coverage.
+products='[]'
+if [ -f "$run/product-files.txt" ]; then
+  products="$(jq -R -s 'split("\n") | map(select(length > 0))' "$run/product-files.txt")" \
+    || die_usage "cannot read $run/product-files.txt"
+fi
+
+# unspecified-stop.txt holds the `unspecified_stop` row of process.conf. Without it every
+# unspecified-behavior entry stops the change.
+stop=null
+if [ -f "$run/unspecified-stop.txt" ]; then
+  stop="$(tr -d '\r' <"$run/unspecified-stop.txt" | sed -n 's/^[[:space:]]*product:\([0-9]\{1,3\}\)[[:space:]][[:space:]]*impact:\([0-9]\{1,2\}\)[[:space:]]*$/{"product":\1,"impact":\2}/p' | head -n 1)"
+  [ -n "$stop" ] || stop=invalid
+fi
+
 tmp="$(mktemp -d)" || die_usage "cannot create a temporary directory"
 trap 'rm -rf "$tmp"' EXIT
 
 : >"$tmp/pre"      # failure reasons found before the table is applied, one per line
 : >"$tmp/arts"     # one {"id","a"} object per artifact the validator accepted
+
+[ "$stop" != invalid ] || { echo "unspecified-stop.txt is not 'product:N impact:M'" >>"$tmp/pre"; stop=null; }
 
 ids="$(sed -e 's/[[:space:]]*$//' -e '/^$/d' "$run/expected.txt" | awk '!seen[$0]++')"
 [ -n "$ids" ] || echo "the expected set is empty" >>"$tmp/pre"
@@ -84,6 +103,7 @@ else
 fi
 
 PROGRAM='
+def over: $stop == null or .frequency * .impact >= $stop.product or (.frequency >= 1 and .impact >= $stop.impact);
 def hc: .bucket_proposal.bucket == "A" or .bucket_proposal.bucket == "C" or .severity == "BLOCKER";
 $cls as $c
 | ($c.risk // null) as $risk
@@ -94,11 +114,38 @@ $cls as $c
         (if .a.risk != $risk then "artifact of \(.id) has risk \(.a.risk), the classifier says \($risk)" else empty end),
         (if .a.confidence < 70 then "artifact of \(.id) has confidence \(.a.confidence), below 70" else empty end),
         (if .a.role == "mutate" and (.a.mutation.status == "INVALID" or .a.mutation.baseline_green != true) then "artifact of \(.id) is a mutate run with status INVALID or a baseline that is not green" else empty end) ] as $why
-    | $i + {why: $why} ] as $all
+    | $i + {why: $why} ] as $all0
+| [ $all0[] | select((.why | length) == 0 and .a.role != "verify") ] as $sources
+| [ $all0[] | if $stop != null and .a.role == "verify" and (.why | length) == 0 then
+      . as $v
+      | .why = [ $sources[] | .id as $rid | .a.potential_unspecified_behavior | to_entries[]
+                 | select(.value | type == "object") | .key as $k
+                 | select([ $v.a.unspecified_scores[]? | select(.source_reviewer == $rid and .index == $k) ] | length == 0)
+                 | "artifact of \($v.id) has no score for \($rid) unspecified entry \($k)" ]
+    else . end ] as $all
 | [ $all[] | select(.why | length > 0) | .why[] ] as $bad
 | (if [ $all[] | select(.a.role == "read" or .a.role == "mutate") ] | length == 0 then ["no read or mutate reviewer in the expected set"] else [] end) as $noreader
 | [ $all[] | select(.why | length == 0) ] as $valid
+| [ $valid[] | select(.a.role == "read") ] as $readers
+| [ $products[] | . as $p
+    | ([ $readers[] | .a.coverage[]? | select(.path == $p) ]) as $entries
+    | if ($entries | length) == 0 then {path: $p, status: "missing"}
+      elif any($entries[]; .read == "not_read") then {path: $p, status: "not_read"}
+      else empty end ] as $incomplete
 | [ $valid[] | select(.a.role == "verify") ] as $verifiers
+| [ $valid[] | . as $r | .a.potential_unspecified_behavior | to_entries[] | .key as $k | .value as $e
+    | if ($e | type) == "string" then
+        {reviewer: $r.id, index: $k, behavior: $e, scores: [], counted: null, stops: $r.a.unspecified_behavior_found}
+      else
+        ([{by: $r.id, frequency: $e.frequency, impact: $e.impact, reason: $e.reason}]
+         + (if $r.a.role == "verify" then []
+            else [ $verifiers[] | .id as $vid | .a.unspecified_scores[]? | select(.source_reviewer == $r.id and .index == $k)
+                   | {by: $vid, frequency, impact, reason} ] end)) as $sc
+        | ($sc | map(select(over))) as $over
+        | {reviewer: $r.id, index: $k, behavior: $e.behavior, scores: $sc,
+           counted: (if ($over | length) > 0 then $over else $sc end | max_by([.frequency * .impact, .impact])),
+           stops: (if $stop == null then $r.a.unspecified_behavior_found else ($over | length) > 0 end)}
+      end ] as $unspec
 | [ $all[] | (.why | length == 0) as $ok | .id as $rid | .a.role as $role | .a.findings[]
     | . as $f
     | { reviewer: $rid, id: $f.id, f: $f, ok: $ok,
@@ -113,25 +160,36 @@ $cls as $c
       | {kind: "open_c", ref: {reviewer: .reviewer, finding_id: .id}, note: .f.claim, paths: []} ]
   + [ $verifiers[] | .a.verification[] | select(.status == "needs_human")
       | {kind: "needs_human_record", ref: {reviewer: .source_reviewer, finding_id: .source_finding_id}, note: .note, paths: []} ]
-  + [ $valid[] | select(.a.unspecified_behavior_found == true)
-      | {kind: "unspecified_behavior", ref: null, note: (.a.potential_unspecified_behavior | join("; ")), paths: []} ]
+  + [ $valid[] | .id as $rid
+      | [ $unspec[] | select(.reviewer == $rid and .stops) ] as $s
+      | select(if $stop == null then .a.unspecified_behavior_found == true else ($s | length) > 0 end)
+      | {kind: "unspecified_behavior", ref: null, note: ([$s[].behavior] | join("; ")), paths: [], reviewer: $rid} ]
   + [ $fs[] | select(.ok and .state == "rejected" and (.f | hc))
       | {kind: "rejected_high_consequence", ref: {reviewer: .reviewer, finding_id: .id}, note: .f.claim, paths: []} ]
   + (if ($zones | length) > 0 then [{kind: "human_zone", ref: null, note: "the change touches a human zone", paths: $zones}] else [] end)
   + (if ($prot | length) > 0 then [{kind: "protected_path", ref: null, note: "the change touches a protected path", paths: $prot}] else [] end)
+  + (if ($incomplete | length) > 0 then
+       [{kind: "incomplete_read", ref: null,
+         note: ([$incomplete[] | "\(.path) (\(.status))"] | join(", ")),
+         paths: [$incomplete[].path]}]
+     else [] end)
   ) as $human
 | ($pre + $bad + $noreader + $openfail) as $failreasons
 | (if ($failreasons | length) > 0 then "FAIL" elif ($human | length) > 0 then "HUMAN_REVIEW_REQUIRED" else "PASS" end) as $v
 | { verdict: $v,
     reasons: (if $v == "FAIL" then $failreasons
-              elif $v == "HUMAN_REVIEW_REQUIRED" then [$human[] | "\(.kind)" + (if .ref then " \(.ref.reviewer):\(.ref.finding_id)" else "" end)]
+              elif $v == "HUMAN_REVIEW_REQUIRED" then
+                [$human[] | if .kind == "incomplete_read" then "incomplete_read: \(.note)"
+                            else "\(.kind)" + (if .ref then " \(.ref.reviewer):\(.ref.finding_id)" else "" end) end]
               else [] end),
     findings: [ $fs[] | {reviewer, id, state} ],
-    needs_human: $human }
+    needs_human: $human,
+    unspecified: $unspec,
+    unspecified_stop: $stop }
 '
 
-jq -n -c --slurpfile arts "$tmp/arts" --argjson cls "$cls" \
-  --argjson pre "$(jq -R . "$tmp/pre" | jq -s .)" "$PROGRAM" >"$tmp/verdict.json" \
+jq -n -c --slurpfile arts "$tmp/arts" --argjson cls "$cls" --argjson stop "$stop" \
+  --argjson pre "$(jq -R . "$tmp/pre" | jq -s .)" --argjson products "$products" "$PROGRAM" >"$tmp/verdict.json" \
   || { echo "merge-reviews: internal error" >&2; exit 1; }
 
 mv "$tmp/verdict.json" "$run/verdict.json" || die_usage "cannot write $run/verdict.json"

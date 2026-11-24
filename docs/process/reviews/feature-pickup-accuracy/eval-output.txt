@@ -1,0 +1,112 @@
+== checksums BEFORE ==
+/intelligence-data/search.db md5=9ec2f57a25eed56d0672a1084a3003b1 size=1122656256
+/data/data.db md5=3665800f7740893548c9607645444120 size=7958528
+-rw-r--r-- 1 root root 7958528 Nov 11 18:50 /data/data.db
+-rw-r--r-- 1 root root 32768 Nov 11 19:02 /data/data.db-shm
+-rw-r--r-- 1 root root 280192 Nov 11 19:02 /data/data.db-wal
+-rw-r--r-- 1 root root 1122656256 Nov 11 18:50 /intelligence-data/search.db
+-rw-r--r-- 1 root root 32768 Nov 11 19:03 /intelligence-data/search.db-shm
+-rw-r--r-- 1 root root 1231912 Nov 11 19:02 /intelligence-data/search.db-wal
+
+== replay ==
+2026-11-11T19:04:05Z
+viewer 02bb286b0179327f
+candidate videos: 199 .. 212
+
+| config | cuts | skipped | targets | recall@12 | recall@40 | hit@40 |
+| --- | --- | --- | --- | --- | --- | --- |
+| before | 41 | 19 | 548 | 0.064 | 0.467 | 0.927 |
+| depth | 41 | 19 | 548 | 0.190 | 0.522 | 0.951 |
+| video | 41 | 19 | 548 | 0.103 | 0.511 | 0.878 |
+| after | 41 | 19 | 548 | 0.130 | 0.461 | 0.878 |
+| random | 41 | 19 | 548 | 0.076 | 0.222 | 0.561 |
+| newest | 41 | 19 | 548 | 0.095 | 0.171 | 0.488 |
+
+viewer 53bf8651e06eb241
+candidate videos: - .. -
+
+| config | cuts | skipped | targets | recall@12 | recall@40 | hit@40 |
+| --- | --- | --- | --- | --- | --- | --- |
+| before | 0 | 60 | 0 | - | - | - |
+| depth | 0 | 60 | 0 | - | - | - |
+| video | 0 | 60 | 0 | - | - | - |
+| after | 0 | 60 | 0 | - | - | - |
+| random | 0 | 60 | 0 | - | - | - |
+| newest | 0 | 60 | 0 | - | - | - |
+
+viewer 7424f0c842873587
+candidate videos: 356 .. 357
+
+| config | cuts | skipped | targets | recall@12 | recall@40 | hit@40 |
+| --- | --- | --- | --- | --- | --- | --- |
+| before | 3 | 57 | 7 | 0.000 | 0.000 | 0.000 |
+| depth | 3 | 57 | 7 | 0.000 | 0.000 | 0.000 |
+| video | 3 | 57 | 7 | 0.000 | 0.000 | 0.000 |
+| after | 3 | 57 | 7 | 0.000 | 0.000 | 0.000 |
+| random | 3 | 57 | 7 | 0.000 | 0.167 | 0.333 |
+| newest | 3 | 57 | 7 | 0.556 | 0.556 | 1.000 |
+
+viewer 88e96f181c1ac7fe
+candidate videos: - .. -
+
+| config | cuts | skipped | targets | recall@12 | recall@40 | hit@40 |
+| --- | --- | --- | --- | --- | --- | --- |
+| before | 0 | 60 | 0 | - | - | - |
+| depth | 0 | 60 | 0 | - | - | - |
+| video | 0 | 60 | 0 | - | - | - |
+| after | 0 | 60 | 0 | - | - | - |
+| random | 0 | 60 | 0 | - | - | - |
+| newest | 0 | 60 | 0 | - | - | - |
+replay exit=0 elapsed=3s
+2026-11-11T19:04:08Z
+
+== checksums AFTER replay ==
+/intelligence-data/search.db md5=9ec2f57a25eed56d0672a1084a3003b1 size=1122656256
+/data/data.db md5=3665800f7740893548c9607645444120 size=7958528
+-rw-r--r-- 1 root root 7958528 Nov 11 18:50 /data/data.db
+-rw-r--r-- 1 root root 32768 Nov 11 19:02 /data/data.db-shm
+-rw-r--r-- 1 root root 280192 Nov 11 19:02 /data/data.db-wal
+-rw-r--r-- 1 root root 1122656256 Nov 11 18:50 /intelligence-data/search.db
+-rw-r--r-- 1 root root 32768 Nov 11 19:03 /intelligence-data/search.db-shm
+-rw-r--r-- 1 root root 1231912 Nov 11 19:02 /intelligence-data/search.db-wal
+
+== online ==
+viewer 02bb286b0179327f
+
+| week | targets | unscored | recall@12 | recall@40 | versions |
+| --- | --- | --- | --- | --- | --- |
+| 2026-W42 | 0 | 2 | - | - | - |
+| 2026-W44 | 0 | 1 | - | - | - |
+| 2026-W45 | 0 | 2 | - | - | - |
+| 2026-W46 | 0 | 3 | - | - | - |
+| total | 0 | 8 | - | - | - |
+
+viewer 53bf8651e06eb241
+
+| week | targets | unscored | recall@12 | recall@40 | versions |
+| --- | --- | --- | --- | --- | --- |
+| total | 0 | 0 | - | - | - |
+
+viewer 7424f0c842873587
+
+| week | targets | unscored | recall@12 | recall@40 | versions |
+| --- | --- | --- | --- | --- | --- |
+| total | 0 | 0 | - | - | - |
+
+viewer 88e96f181c1ac7fe
+
+| week | targets | unscored | recall@12 | recall@40 | versions |
+| --- | --- | --- | --- | --- | --- |
+| 2026-W46 | 1 | 1 | 0.000 | 0.000 | 3 |
+| total | 1 | 1 | 0.000 | 0.000 | 3 |
+online exit=0
+
+== checksums AFTER online ==
+/intelligence-data/search.db md5=9ec2f57a25eed56d0672a1084a3003b1 size=1122656256
+/data/data.db md5=3665800f7740893548c9607645444120 size=7958528
+-rw-r--r-- 1 root root 7958528 Nov 11 18:50 /data/data.db
+-rw-r--r-- 1 root root 32768 Nov 11 19:02 /data/data.db-shm
+-rw-r--r-- 1 root root 280192 Nov 11 19:02 /data/data.db-wal
+-rw-r--r-- 1 root root 1122656256 Nov 11 18:50 /intelligence-data/search.db
+-rw-r--r-- 1 root root 32768 Nov 11 19:03 /intelligence-data/search.db-shm
+-rw-r--r-- 1 root root 1231912 Nov 11 19:02 /intelligence-data/search.db-wal

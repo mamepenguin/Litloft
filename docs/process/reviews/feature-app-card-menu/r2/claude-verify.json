@@ -1,0 +1,69 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R2-1",
+      "status": "confirmed",
+      "note": "Traced in code; nothing was run. usePagedClips.ts:89-93 sets pages=1 whenever `cap` is set (Home: useShelfData.ts:77 `cap: paged ? undefined : size`) or one page or less is drawn (ShelfPage, paged=true). On refresh, usePagedClips.ts:108-110 keeps every held item that the fresh answer omits (`pages === 1 || saving`). A file trashed through the menu is not in goneIds, because PageFileMenu.handleTrashed (PageFileMenu.tsx:160-169) adds it to `trashed` and never calls `remove`. So it stays in data.items, while line 119 sets `count: page.count`, the server count without it. Home.tsx:77 (`data.count - lists.removedCount(listKey, data.items)`) and ShelfPage.tsx:127 then subtract it a second time, since `trashed` lives until the scope changes. Refresh is bumped by refreshClips at pages/clips.tsx:89-109 (the knowledge.clip.ready WebSocket event and ClipSection onClipAdded). Narrowing: on a capped Home shelf the stale id survives only while fresh items plus leftovers fit under the cap (usePagedClips.ts:118). On a shelf page it survives only while one page or less is drawn. It never happens on `recent`, which uses replaceOnRefresh and hides its count. Only the Unread shelf (withCount) and the non-recent shelf page draw the wrong count."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R2-2",
+      "status": "confirmed",
+      "note": "frontend/e2e-components/app-card-menu.spec.ts:57 asserts only when the value is non-empty: `if (styles.callout !== \"\") expect(styles.callout).toBe(\"none\")`. frontend/playwright-components.config.ts:31-45 defines only `chromium` (Pixel 5) and `chromium-desktop`. The one config with a WebKit project, playwright-epub.config.ts:8,16, uses testDir ./e2e-epub, so it does not run this spec. Spec docs/specs/app-card-menu.md:245 says the callout is measured in a WebKit browser in e2e. Whether Chromium computes `-webkit-touch-callout` to the empty string, which makes the assertion vacuous, rests on Blink not supporting the property; I did not run a browser to observe it."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R2-3",
+      "status": "confirmed",
+      "note": "PageFileMenu.tsx:136-145 `filter` replaces every incoming item whose id is in `overrides` with mergeAnswer(item, answer). mergeAnswer (lines 79-87) spreads the stored snapshot over everything and keeps only the drawn watch_progress/watched_ranges. `overrides` is set by reRead (lines 188-191) and reset only by freshPage when the scope changes (line 111). The scope at NotesPage.tsx:50-51 is [drive, target, nickname, hasProfile], and a save does not change it. NotesLibrary.tsx:103 onSaved bumps `refresh`, and line 109 passes the refetched rows through `lists.filter(\"list\", list.rows)`. So after a menu rename and a later pane save, the row draws the stale snapshot (name/updated_at/size) instead of the refetched one. Core CardFileMenu.tsx:265-274 has the same shape. Spec docs/specs/app-card-menu.md:115: 'A list fetched from the server again shows what the server returns.'"
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R2-4",
+      "status": "confirmed",
+      "note": "Traced by hand: size=10, held page 1 = A0..A9, A0 trashed (removedBefore=1). Page 2: start=9, first=1, pages 1-2 are fetched, sliced from 9, giving A10..A20 (11 items). Held is now 21 items, with 20 non-removed, so the correct next server offset is 20. Page 3: CardFileMenu.tsx:71 gives start=(3-1)*10-1=19, first=2, pages 2-3 are fetched and sliced from 9, giving A20..A30. A20 is already held and dropped by usePaged.ts:107-108 withoutRepeats. Every later page has the same overlap, equal to the removals already aligned, and starts a page early whenever start crosses a boundary, so it fetches two server pages instead of one. No item is skipped or drawn twice on screen; the cost is redundant requests. Call sites: videoapp/LibraryFace.tsx:131,156; readingapp/LibraryFace.tsx:146,199; VideoShelfPage.tsx:169,196; ReadingShelfPage.tsx:179,219."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R2-5",
+      "status": "rejected_with_evidence",
+      "note": "The intelligence addon is linked in this checkout. Read on frontend/src/addons/intelligence returns EISDIR (the directory exists), and Read on frontend/src/addons/intelligence/Page.tsx returns file content, so the directory is not empty. The empty Glob comes from .gitignore:33 `/frontend/src/addons/`, because Glob and Grep skip ignored paths; frontend/src/addons/knowledge/clipsapp/Home.tsx is likewise readable but invisible to Glob. The guard at VideoApp.cardMenu.test.tsx:151-155 (SRC = `../../..` from __tests__, i.e. frontend/src; `existsSync(dir) && readdirSync(dir).length > 0`) is therefore true here, and the runIf cases are not skipped in this checkout. They still skip in any checkout without the link."
+    }
+  ],
+  "specification_compliance": [
+    "I3 (a drawn count drops by one per card that leaves): the Clips Home Unread and non-recent shelf-page counts can drop twice for one trashed card after a refresh (R2-1).",
+    "I3 ('an emptied grid or Discover shows its empty state'): a grouped Library whose every shelf was emptied through the menu draws a blank body in Video, Reading and Clips (R2-6). The spec text names grids and Discover only, so grouped Library is arguably unspecified.",
+    "I2 (computed -webkit-touch-callout is none in a real browser): the only e2e check runs on Chromium and is guarded so it cannot fail (R2-2).",
+    "Spec body line 115 ('A list fetched from the server again shows what the server returns'): re-read overrides persist across refetches for the whole scope (R2-3).",
+    "I4 (paged lists neither skip nor repeat): holds on screen through usePaged's dedupe, but aligned page requests overlap and over-fetch after the first realigned page (R2-4)."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "Whether a grouped Library emptied entirely through the menu must show its empty state is not stated explicitly; I3 names grids and Discover only.",
+    "Whether a menu-trashed card that a Clips refresh retains in the held items (pages === 1) should be dropped from the hook's items is not stated."
+  ],
+  "regression_risks": [
+    "The double-subtracted Clips count (R2-1) appears in normal use whenever a clip finishes processing after a trash on a small shelf.",
+    "A stale snapshot from a re-read overrides later saves in the Notes Library rows (R2-3) until the scope changes.",
+    "Redundant two-page fetches on every Library/See all page load after a removal (R2-4)."
+  ],
+  "test_coverage": [
+    "The I2 callout e2e assertion is vacuous under the configured Chromium-only projects; no WebKit run covers it.",
+    "The intelligence-gated I7 and Recommended ordering tests run in this checkout (the addon is linked under the gitignored frontend/src/addons/) but skip silently in any checkout without the link.",
+    "No test was found that refreshes Clips after a menu trash and checks the drawn count (R2-1), refetches Notes Library rows after a menu rename (R2-3), or empties every grouped Library shelf (R2-6). I did not search exhaustively."
+  ],
+  "not_verified": [
+    "Did not run vitest, Playwright or any browser; all traces are by reading code.",
+    "Did not observe Chromium's computed value of -webkit-touch-callout directly (R2-2 relies on Blink not supporting the property).",
+    "Did not verify that the server's Clips shelf count and items exclude trashed files, though it is the expected behaviour.",
+    "Did not confirm that the files in the worktree exactly match commit 498a426 (assumed HEAD is unmodified apart from the untracked review dir).",
+    "Did not check Reading LibraryFace's grouped branch beyond lines 337-341 and 413-416."
+  ],
+  "confidence": 82
+}

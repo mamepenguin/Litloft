@@ -65,3 +65,17 @@ test_images/
 # because a stored judgement about code that has moved is the exact artefact
 # this linter exists to find.
 /.jev-lint/
+
+# A worktree's own copy of data/ for a parallel stack (scripts/dev/r5_stack.py)
+/.r5-stack/
+
+# Review screenshots stay local: nothing reads them after the review that took them.
+# The agreed design under design/ stays tracked, because reviewers compare against it.
+/docs/process/reviews/**/*.png
+/docs/process/reviews/**/*.jpg
+/docs/process/reviews/**/*.jpeg
+/docs/process/reviews/**/*.webp
+/docs/process/reviews/**/*.gif
+/docs/process/reviews/**/*.mp4
+/docs/process/reviews/**/*.webm
+!/docs/process/reviews/*/design/**

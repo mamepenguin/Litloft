@@ -1,31 +1,34 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Search, X } from "lucide-react";
+import { Library, ListFilter, Search, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { useShortcuts } from "@/hooks/useShortcuts";
-import type { LoadState } from "./useLoad";
-import type { SmartFolder } from "@/types/smartFolder";
+import type { TargetRow } from "./TargetMenu";
 import { RetryButton } from "./RetryButton";
 
 interface ManageTargetsDialogProps {
   open: boolean;
-  folders: LoadState<SmartFolder[]>;
+  /** The rows of every list that loaded, in the menu's order. */
+  rows: readonly TargetRow[];
   saved: string[] | null;
-  isUsable: (folder: SmartFolder) => boolean;
+  /** A list is still loading, so no toggle may write a partial set. */
+  pending: boolean;
+  failed: boolean;
   onShownChange: (ids: string[]) => void;
-  onRetryFolders: () => void;
+  onRetry: () => void;
   onClose: () => void;
 }
 
 export function ManageTargetsDialog({
   open,
-  folders,
+  rows,
   saved,
-  isUsable,
+  pending,
+  failed,
   onShownChange,
-  onRetryFolders,
+  onRetry,
   onClose,
 }: ManageTargetsDialogProps) {
   const t = useTranslations("appShell");
@@ -46,26 +49,25 @@ export function ManageTargetsDialog({
     open,
   );
 
-  const list = folders.status === "loaded" ? folders.data : [];
   const checked = useMemo(() => {
-    const usableIds = list.filter(isUsable).map((folder) => folder.id);
+    const usableIds = rows.filter((row) => row.usable).map((row) => row.targetId);
     const usableSet = new Set(usableIds);
     const base = saved === null ? usableIds : saved.filter((id) => usableSet.has(id));
     return new Set(base);
-  }, [list, saved, isUsable]);
+  }, [rows, saved]);
 
   if (!open) return null;
 
   const needle = query.trim().toLocaleLowerCase();
   const visible = needle
-    ? list.filter((folder) => folder.name.toLocaleLowerCase().includes(needle))
-    : list;
+    ? rows.filter((row) => row.name.toLocaleLowerCase().includes(needle))
+    : rows;
 
-  function toggle(folder: SmartFolder) {
-    if (!isUsable(folder)) return;
+  function toggle(row: TargetRow) {
+    if (!row.usable || pending) return;
     const next = new Set(checked);
-    if (next.has(folder.id)) next.delete(folder.id);
-    else next.add(folder.id);
+    if (next.has(row.targetId)) next.delete(row.targetId);
+    else next.add(row.targetId);
     onShownChange([...next]);
   }
 
@@ -112,24 +114,29 @@ export function ManageTargetsDialog({
           />
         </div>
 
-        {folders.status === "failed" ? (
-          <RetryButton onRetry={onRetryFolders} />
+        {failed ? (
+          <RetryButton onRetry={onRetry} />
         ) : (
           <ul className="min-h-0 flex-1 overflow-y-auto">
-            {visible.map((folder) => {
-              const usable = isUsable(folder);
+            {visible.map((row) => {
+              const Icon = row.kind === "collection" ? Library : ListFilter;
               return (
-                <li key={folder.id}>
-                  <label className="flex items-center gap-2 rounded-xl px-2 py-2 text-sm text-text-primary hover:bg-bg-elevated">
+                <li key={row.targetId}>
+                  <label className="flex items-start gap-2 rounded-xl px-2 py-2 text-sm text-text-primary hover:bg-bg-elevated">
                     <input
                       type="checkbox"
-                      checked={usable && checked.has(folder.id)}
-                      disabled={!usable}
-                      onChange={() => toggle(folder)}
-                      className="h-4 w-4 accent-accent disabled:cursor-not-allowed"
+                      checked={row.usable && checked.has(row.targetId)}
+                      disabled={pending || !row.usable}
+                      onChange={() => toggle(row)}
+                      className="mt-0.5 h-4 w-4 flex-shrink-0 accent-accent disabled:cursor-not-allowed"
                     />
-                    <span className={usable ? undefined : "text-warm-silver"}>
-                      {folder.name}
+                    <Icon
+                      size={14}
+                      aria-hidden="true"
+                      className="mt-0.5 flex-shrink-0 self-start text-text-muted"
+                    />
+                    <span className={row.usable ? undefined : "text-warm-silver"}>
+                      {row.name}
                     </span>
                   </label>
                 </li>

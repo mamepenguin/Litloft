@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [],
+  "specification_compliance": [
+    "I1: addons/intelligence/app/pickup/profile.py:417-432 watch_state: liked/favourite -> 1 first, then dismissed forces 0, otherwise a watched non-legacy row gets 1 and any other row gets 0. Position is used only in the short-video branch and segment replays are counted once per index, so this matches.",
+    "I2: profile.py:354-375 playback_coverage skips segments with played <= 0 and segments with 5n >= D, adds min(5, D-5n), and returns 0 when D is None or <= 0. profile.py:421-425 uses 2*p >= D when D < 20 and 2*C >= D otherwise. This matches.",
+    "I3: profile.py:415 treats a row as legacy when played_at is None (unparseable) or earlier than RECORDING_START. Such a row is watched (excluded) and gets _version_4_engagement, which is the v4 rule. Liked/favourite returns 1 in both v4 and the new code. This matches.",
+    "I4: addons/intelligence/app/routers/pickup.py:88-113 reads the stored ranks in order and removes watched_file_ids at request time. It slices offset:offset+limit, or for window=daily takes the first min(40, len) and shuffles with the existing seed before cutting to limit. total = len(kept). This matches.",
+    "I5: _stale_work (workers/pickup.py:279-282) and watched_file_ids (profile.py:604-614) both use signature_exclusions(watch_signature(...)), and the router calls watched_file_ids, so all three share one exclusion set. PROFILE_VERSION = 5 (profile.py:57) and is hashed into _checkpoint (workers/pickup.py:472-478).",
+    "I6: useDiscover.ts:351-358 and useProviderShelfPage.ts:230 call createRestrict without watch. No createRestrict call in frontend/src passes watch: \"unwatched\" any more. useProviderShelfPage.ts:220 returns absent for Recommended without a profile.",
+    "SPEC-ADDON-098 I9: evaluate.py:256-268 _excluded_before excludes non-video files and watched videos with played_at < t or unparseable. _opened_before (241-253) covers every opened or unparseable row. _targets (271-285) requires engagement > 0 and played_at in [t, t+horizon). This matches the revised text."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "Discover's rebuild of Recommended from cached stored ids (useDiscover.ts:408-426) now restricts by target only. A video the viewer watched after the cache was written can appear on the shelf briefly, until the provider's answer replaces the shelf. I6 specifies this, and the provider answer overrides it, so it is not reported as a defect.",
+    "The checkpoint signature rounds coverage, duration, position and played_seconds to one decimal. A reported-duration change smaller than 0.05 s, or a trailing partial segment that adds less than 0.05 s of coverage, without a watched flip, does not trigger a rebuild. This is negligible in practice and does not change watched-ness, because the watched flag is carried separately."
+  ],
+  "regression_risks": [
+    "Ordering: the core frontend drops watch=unwatched for Recommended and relies on the addon's serving filter. If the core ships before the addon submodule bump, already-watched videos can show on Recommended. I did not check this deploy ordering at the commit level.",
+    "watch_signature now joins played_segments per row, so each sweep and each /pickup request reads one row per played segment. For heavy histories this costs more per request, because the serving filter recomputes the full signature on every feed read."
+  ],
+  "test_coverage": [
+    "I did not read the addon tests for coverage/short-video/legacy boundaries or the updated core frontend tests (VideoShelfPage.recommended, VideoApp.discoverProviders, VideoApp.discoverCache), so I make no claim about how well they cover the invariants."
+  ],
+  "not_verified": [
+    "Did not run any tests (no command execution available).",
+    "Did not read the addon or core test files that pin v4 exclusion/engagement or the Recommended restrict.",
+    "Did not verify docs changes (docs/addons/intelligence.md, docs/user-guide/video.md, docs/ADDON-DEVELOPMENT.md) or ja.json/en.json pickup.description.",
+    "Did not verify the submodule pointer value or the PR ordering between the addon and the core bump.",
+    "Did not verify _rank_configs in evaluate.py ranks `after` exactly as the worker builds the feed, or build_lanes engagement weighting (SPEC-ADDON-095 I1).",
+    "Did not verify that RECORDING_START matches the actual date the core began recording played_segments."
+  ],
+  "confidence": 78,
+  "coverage": [
+    {
+      "path": "addons/intelligence/app/pickup/profile.py",
+      "read": "partial",
+      "reason": "Read the constants, watch_state, the coverage code, the signature, the exclusions and profile_history. Did not read build_lanes."
+    },
+    {
+      "path": "addons/intelligence/app/workers/pickup.py",
+      "read": "partial",
+      "reason": "Read _stale_work, _compute_for_viewer, _store and _checkpoint."
+    },
+    {
+      "path": "addons/intelligence/app/routers/pickup.py",
+      "read": "full",
+      "reason": "Serving filter (I4)."
+    },
+    {
+      "path": "addons/intelligence/app/pickup/evaluate.py",
+      "read": "partial",
+      "reason": "Read _HISTORY_SQL, _read_history, _opened_before, _excluded_before and _targets."
+    },
+    {
+      "path": "frontend/src/components/videoapp/useDiscover.ts",
+      "read": "partial",
+      "reason": "Read the provider call and the rebuild from stored ids."
+    },
+    {
+      "path": "frontend/src/components/videoapp/useProviderShelfPage.ts",
+      "read": "partial",
+      "reason": "Read the Recommended load and the restrict creation."
+    }
+  ]
+}

@@ -4,41 +4,50 @@ Opening a file shows its page. Every kind of file uses the same page: the path a
 
 ## The page row
 
-The row at the top shows the path from the drive down to the file. Every step above the file is a link, so this is how you go back up. On a phone the path shrinks to `‹ folder name`.
+The row at the top is the app's own top row, and it shows the path from the drive down to the file. Every step above the file is a link, so this is how you go back up. On a phone the folder's name, with `‹`, sits on the first line and the file's name under it.
 
-Controls for the kind of file sit to its right (a Markdown note puts its save indicator and **Edit / Split / Preview** switch there). The inspector toggle is last.
+Controls for the kind of file sit to its right (a Markdown note puts its save indicator and **Edit / Split / Preview** switch there; on a phone that switch is one button showing the mode it changes to). On a wide window the inspector toggle sits at the right end of the header. On a phone there is no inspector toggle; the sheet is raised from its resting strip ([On a phone](#on-a-phone)), and the row has no quick-note button and no avatar.
 
 During collection playback the row also keeps a way back to the collection you were playing.
 
+On a file page at 768 px or wider, the **Focus mode** button at the right end of the header (or `T`) hides the header, the sidebar and the folder tree so the file and its panes get the room. The header comes back when you move the pointer to the top edge of the window; on a touch screen, tap the handle at the top centre. Press the button in the revealed header, or `T`, to leave focus mode. It also ends when you leave the file for a folder or another screen.
+
 ## The inspector
 
-The top of the inspector stays in place while the rest scrolls. It holds the title, one fact about the file (see [the table in *Browsing files*](file-browsing.md#file-grid-and-list-modes)), the like, favourite, **AI** and `⋮` buttons, and the tags.
+The tab strip is the top of the inspector. The first tab, **Info**, starts with the file's title, one fact about the file (see [the table in *Browsing files*](file-browsing.md#file-grid-and-list-modes)), the like, favourite, **AI** and `⋮` buttons, and the tags; all of it scrolls away with the rest of Info.
 
-Below it are tabs, shown only when there is more than one:
+The tabs are the inspector's first row, shown only when there is more than one:
 
-- **Info**: EXIF where the file has it, comments, and addon sections such as AI summaries.
+- **Info**: the description, cut to three lines until **Show more**; EXIF where the file has it; comments; and addon sections such as AI summaries. On a file without a player (a PDF, an EPUB, an archive, an image, a text preview or a file Litloft cannot show), the file's summary note, when it has one, is the last block before the comments.
 - **Related**: the file's relations, and similar files with the intelligence addon.
 - **Chapters**: on media with chapters.
-- **Transcript**: on media that has one (intelligence addon).
 - **Pages**: the contents and page thumbnails of a PDF, or an index of an archive.
+- **Detailed summary**: on a file without a player, once intelligence has generated one. While it is selected beside the page the inspector widens, so the summary reads at a comfortable line length; it narrows again when you pick another tab. Its citations move the PDF or EPUB to the cited page or chapter without leaving the page.
 - **検索**: the places found by [finding in this file](#finding-in-this-file), while the find bar is open.
+
+On a player file in a narrow window or on a phone, the [panels under the player](#panels-under-the-player) — Transcript, Scenes, Detailed summary and Note — are tabs here instead, after Chapters. A file without a player draws its addon tabs after **Pages**.
 
 A tab appears only when it has something in it, so a video that was never transcribed has no Transcript tab.
 
-**Correcting a transcript.** In the **Transcript** tab, the **分割テキスト** (Text chunks) view offers **修正** (Edit) on each line. Enter or **保存** saves, Escape or **キャンセル** cancels, and an emptied line disappears. A corrected line is marked **修正済み** (Edited). **元の結果に戻す** (Restore original) in the same header puts the whole transcript back to what the machine produced before the first correction. A corrected file is not transcribed again by automatic indexing; only **Index details** → **再生成** replaces it, after a confirmation. The player's subtitles show a correction the next time the file's page is opened.
+**Correcting a transcript.** In the **Transcript** panel (or tab, in a narrow window), the **分割テキスト** (Text chunks) view offers **修正** (Edit) on each line. Enter or **保存** saves, Escape or **キャンセル** cancels, and an emptied line disappears. On a touch screen, tap a line to show **修正** and **引用** (Quote) under it, and **修正** opens a dialog that saves only with **保存**. A corrected line is marked **修正済み** (Edited). **元の結果に戻す** (Restore original) in the same header puts the whole transcript back to what the machine produced before the first correction. A corrected file is not transcribed again by automatic indexing; only **Index details** → **再生成** replaces it, after a confirmation. The player's subtitles show a correction the next time the file's page is opened.
 
 AI sections (intelligence addon) appear once they have been generated. To generate one, use the **AI** menu in the inspector.
 
-Open and close the inspector with the toggle at the end of the page row, or `Cmd/Ctrl+\`. When the window is too narrow for both, it covers the right side of the page.
+On a wide window, open and close the inspector with the toggle at the right end of the header, or `Cmd/Ctrl+\`. A video, audio or `.loft` file starts with the inspector open unless you closed it before; every other kind starts the way it always has.
+
+When the window is too narrow for the inspector beside the page, it changes places instead of narrowing:
+
+- For a video, audio or `.loft` file it moves **under the player**, which shrinks to at most half of the page's height and stays centred, so nothing covers the picture. The toggle then shows a bottom-panel icon, and the panels under the player become tabs in the inspector.
+- For every other kind it covers the right side of the page.
 
 ### On a phone
 
-The inspector is a bottom sheet. While it rests, a strip along the bottom shows the file's name with like, favourite and `⋮`. Raise the sheet with the toggle or by dragging its handle; the full set of buttons is at the top of the sheet.
+The inspector is a bottom sheet. While it rests, a strip along the bottom shows the file's name with like, favourite and `⋮`. Press the name, or drag the sheet's handle, to raise it; the full set of buttons is at the top of the **Info** tab.
 
 - Dragging anywhere else in the sheet scrolls it. Once you are at the top of the sheet, pull down or press `Esc` to send it back to the strip.
 - The page above stays usable while the sheet is up: you can pause and seek the video.
 - On a video, the sheet first rises only to the bottom of the player, so the whole picture stays visible.
-- The tab strip sticks to the top of the sheet once you scroll down to it.
+- The tab strip is the top of the sheet from the start and stays there while the tab scrolls under it.
 - The video player sticks to the top of the page as you scroll.
 
 ## Finding in this file
@@ -58,20 +67,26 @@ Only what the addon has already read is found. A file that has not been indexed 
 
 `Cmd/Ctrl+F` a second time, while the find bar has focus, opens the browser's own find. `Esc` closes the bar and puts the inspector back as it was.
 
-## Chapters and the transcript, beside or below
+## Panels under the player
 
-On video, audio and `.loft` files, a button in the page row decides where the chapters and the transcript go:
+On video, audio and `.loft` files, the things you use for a while as you watch sit under the player. A row of buttons there turns each panel on and off: **Transcript**, **Scenes**, **Detailed summary** and **Note**. A panel that has nothing for the file has no button — no transcript, no scenes, no summary, no note.
 
-- **Beside** (the default): as tabs in the inspector, next to the player. Choosing it opens the inspector. If the window starts with the inspector closed, the panels are in there; open it to see them.
-- **Below**: under the description, with the chapter list beside the transcript.
+- Up to two panels are shown at once. Turning a third on closes the one you turned on first, unless that one has nothing on this file.
+- Each panel has a close button. With every panel off, nothing is drawn under the row and the player is at its full size.
+- The choice is remembered on this device and applies to every file you play. Nothing is on until you turn it on.
+- On a wide window the panels sit side by side, and a video takes half of the page's height so they reach the bottom; **Enlarge panels** in that row makes the player smaller, about a third of the height, so the panels are taller. With less room they sit one above the other, and each panel scrolls inside itself.
+- On a wide window the row also has **Show panels beside the player**, which puts the panels in a column to the right of the player at full height. It needs room for both columns; closing the inspector makes room, and below that the panels stay under the player.
+- In a narrow window the inspector moves under the player and the panels become tabs in it. On a phone they are tabs in the bottom sheet.
 
-The button appears only when the file has chapters or a transcript. On a phone both always go into the bottom sheet. The choice is remembered on the device.
+Transcript and Scenes come from the [intelligence addon](../addons/intelligence.md), and the Note from the [knowledge addon](../addons/knowledge.md).
 
 ## Chapters
 
 Click a chapter to jump to it. The chapter you are in is highlighted, and collapsing the list leaves just its name.
 
 Chapters come from the file itself, from a `.loft` import ([media_import addon](../addons/media-import.md)), or from **AI chapter candidates** in the intelligence addon, which you approve or dismiss. Once you approve a set, a rescan does not replace it. There is no chapter editor.
+
+During collection playback, Chapters is a panel under the player, next to the other panels.
 
 ## Timestamps in a description
 
@@ -83,7 +98,7 @@ On a video or audio file, timestamps in the description you wrote (`⋮` → **E
 
 Litloft draws its own control bar over the video. It looks different with a mouse and on a touch screen.
 
-- Gestures: on touch, tap to show the controls, double-tap the left or right half to skip 10 s (keep tapping to skip further), press and hold to play at 2x, and swipe up or down or pinch for full screen. With a mouse, click to play or pause and double-click for full screen. See [keyboard shortcuts and gestures](keyboard-shortcuts.md).
+- Gestures: on touch, tap to show the controls, double-tap the left or right half to skip 10 s (keep tapping to skip further; the seek bar comes up with it), press and hold to play at 2x, and swipe up or down or pinch for full screen. With a mouse, click to play or pause and double-click for full screen. See [keyboard shortcuts and gestures](keyboard-shortcuts.md).
 - **Settings**: subtitles and playback speed, plus **Picture-in-Picture**, **Autoplay** (off by default), a subtitle track picker when there is more than one, and **Browser controls**. On an iPhone there is also **Open in the iOS player**.
 - **Browser controls** hands the video to the browser's own bar, which is where AirPlay lives. **Use Litloft controls**, under the player, switches back.
 - **Subtitles**: put `movie.srt` or `movie.vtt` next to `movie.mp4`, or `movie.en.srt`, `movie.ja.vtt` and so on for several languages. They load automatically, for `.loft` files too, and do not appear in the file list. Renaming or moving the video in Litloft takes them along. Without one, the intelligence addon's generated track is offered.
@@ -153,7 +168,11 @@ A note longer than two screens reopens where you left it, and one you read nearl
 
 ## Office files (DOCX / XLSX / PPTX)
 
-There is no viewer for Office files. The page offers **Download** and **Open in new tab**, and shows the first lines of the document's text so you can tell similar files apart. Files over 20 MB and the old `.doc` / `.xls` / `.ppt` formats show no text. The text also makes the file findable in search.
+A `.docx` opens as pages in the page, and a `.xlsx` as a spreadsheet grid with row and column headings and sheet tabs along the bottom. Both are read-only: cells can be selected but not changed, and a row or column edge can be dragged as a view change that lasts while the page is open. On a phone the drawing scrolls inside its frame. Web links in a Word document open in a new tab. A large workbook takes a few seconds to appear.
+
+What the viewers draw is what their libraries draw. A cell's text runs on into empty cells to its right, as in Excel, unless it is centred or right-aligned, or the cell or a neighbour has a border or a fill; then it is cut at its own cell. Shapes and charts in a workbook are not shown, and a Word document can lay out differently from Word. Dates and numbers follow the library's formatting.
+
+**PowerPoint** (`.pptx`) and the old `.doc` / `.xls` / `.ppt` formats have no viewer: the page offers **Download** and **Open in new tab**, and for `.pptx` shows the first lines of the document's text, which also makes the file findable in search. Files over 20 MB and files missing from the drive keep that panel.
 
 ## ZIP archives
 
@@ -180,7 +199,7 @@ Markdown notes can be edited in the app (see above), and so can a `.txt` file up
 
 A `.loft` file from the [media_import addon](../addons/media-import.md) plays the original:
 
-- **YouTube**: in Litloft's own player, with the channel and caption details below it. The **Player** setting switches between **Litloft** and **YouTube** controls. During an ad, Litloft's controls step aside. If the owner does not allow embedding, you get **Watch on YouTube** instead.
+- **YouTube**: in Litloft's own player, with the channel, publication date, description and caption status in the **Info** tab. The channel name opens that channel's videos in this drive. The **Player** setting switches between **Litloft** and **YouTube** controls. During an ad, Litloft's controls step aside. If the owner does not allow embedding, you get **Watch on YouTube** instead.
 - **Vimeo**: in Vimeo's player.
 - **Other sites**: a link to the original.
 

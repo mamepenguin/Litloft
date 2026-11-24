@@ -45,6 +45,11 @@ vi.mock("@/components/folder/RightPaneFile", () => ({
   ),
 }));
 
+vi.mock("@/lib/api", () => ({
+  getDriveSummary: vi.fn().mockResolvedValue({ name: "work", trash_count: 0, missing_count: 0 }),
+  getAuthStatus: vi.fn().mockResolvedValue({ unlocked_groups: [], has_protected_drives: false, is_admin: false }),
+}));
+
 import DriveLayout from "../layout";
 
 beforeEach(() => {

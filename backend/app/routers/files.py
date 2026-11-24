@@ -92,6 +92,7 @@ from app.services.diskpath import resolve_on_disk
 from app.services.heic import HEIC_MIME_TYPES, convert_heic_to_jpeg
 from app.services.subtitle import convert_srt_to_vtt, detect_subtitles
 from app.services.tagops import cleanup_orphan_tags, load_tag_index, replace_file_tags
+from app.services.origin import project_frontmatter_origin
 from app.services.zip_names import decode_zip_filename
 
 logger = logging.getLogger(__name__)
@@ -793,6 +794,8 @@ async def _write_md_tags(db: Session, file: File, tags: list[str], *, merge: boo
             db.rollback()
             logger.exception("tags: projection failed for %s", file.id)
             raise HTTPException(status_code=500, detail="Tag projection failed")
+        project_frontmatter_origin(db, file, new_text)
+        db.commit()
         return closed
 
 
@@ -1695,6 +1698,23 @@ async def put_file_content(
                 db.rollback()
                 logger.exception(
                     "put_content: md_aliases projection failed for %s", file_id
+                )
+
+            # The frontmatter ``origin`` marker → ``File.md_origin``. Isolated
+            # like the other projections: the bytes are already durable.
+            try:
+                project_frontmatter_origin(db, file, body.decode("utf-8"))
+                db.commit()
+            except UnicodeDecodeError:
+                db.rollback()
+                logger.warning(
+                    "put_content: %s is not valid UTF-8; skipping origin projection",
+                    file_id,
+                )
+            except Exception:
+                db.rollback()
+                logger.exception(
+                    "put_content: origin projection failed for %s", file_id
                 )
 
             # Sync loft:// + wiki-link relations → file_relations. Same

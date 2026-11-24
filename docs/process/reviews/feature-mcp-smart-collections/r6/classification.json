@@ -1,0 +1,108 @@
+{
+  "risk": "HIGH",
+  "score": 7,
+  "base": 3,
+  "zone_max": "MEDIUM",
+  "modifiers": [],
+  "promotions": [],
+  "zones_touched": [
+    {
+      "path": "docs/reference/api.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/reference/env-variables.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/INDEX.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/mcp-smart-collections.md",
+      "level": "LOW"
+    },
+    {
+      "path": "frontend/src/app/app-api/__tests__/smartCollectionMembers.test.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/app/app-api/smart-collection-members/route.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/__tests__/api.listingError.test.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/addonStatusRequest.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/addons.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/api.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/listingRequest.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/semanticSearch.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/semanticSearchRequest.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/smartCollectionServerIo.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "mcp-server/README.md",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "mcp-server/src/__tests__/askScope.test.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "mcp-server/src/__tests__/client.test.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "mcp-server/src/__tests__/collections.test.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "mcp-server/src/__tests__/smartCollections.test.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "mcp-server/src/client.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "mcp-server/src/server.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "mcp-server/src/tools/ask.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "mcp-server/src/tools/collections.ts",
+      "level": "MEDIUM"
+    }
+  ],
+  "human_zones_touched": [],
+  "protected_paths_touched": [],
+  "docs_only": false,
+  "reasons": [
+    "highest zone MEDIUM (4 points)"
+  ]
+}

@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R1",
+      "status": "confirmed",
+      "note": "Glob finds six new files: frontend/src/components/__tests__/peakJump.shortcuts.test.tsx, player/__tests__/peakJump.shell.test.tsx, and MediaControls/__tests__/peakJump.{controls,order}.test.tsx, peakJump.strings.test.ts and peakJumpHarness.tsx. componentFixtureParity.test.tsx:331 contains \"peak-jump\". The declared touch points name only frontend/e2e-components/ for tests. docs/process/spec-and-design.md:41-43 defines touch points as 'where the change is planned to reach' and does not exempt tests. The finding is accurate as stated, but it is a process and documentation gap, not a behaviour defect."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R2",
+      "status": "confirmed",
+      "note": "MediaControlsContainer.tsx:96 gates jumpAvailable on `interactive`, and :142 publishes false in the effect cleanup. No peakJump unit test or e2e spec passes interactive=false to MediaControlsContainer: a Grep for 'interactive' in the peakJump tests and the peak-jump e2e specs finds nothing. The ad-break test (peakJump.controls.test.tsx:159) drives state.interrupted, which is a separate term at :95. In real use the gate matters: YouTubeEmbed.tsx:487 sets interactive = !adActive && !ended, so on the end screen (ended, not interrupted) only `interactive` hides the button and stops P. The remount test (peakJump.order.test.tsx:318-330) presses P only after remounting, and peakJump.shortcuts.test.tsx:199 tests the 'not consumed' path only through nickname=null. No test presses P while the controls are unmounted, so dropping the cleanup would leave P consumed with no effect and the suite would still pass."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R3",
+      "status": "confirmed",
+      "note": "GestureOverlay.tsx:73-102 renders boost-pill, then the mostWatched status, in one flex-col container. Grep: no peakJump test or e2e spec mentions boost or the speed pill. GestureOverlay.test.tsx tests boost-pill only, never mostWatched. So nothing covers the I5 'below the speed pill' order."
+    }
+  ],
+  "specification_compliance": [
+    "I4 interactive gate is implemented at MediaControlsContainer.tsx:96 and the label is additionally gated at GestureOverlay.tsx:73, consistent with I4 'interactive controls'.",
+    "I5 label ordering below the speed pill is implemented by DOM order in GestureOverlay.tsx:75-101."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "The YouTube end screen (ended && !adActive) relies only on the untested `interactive` term to hide the jump button and release P."
+  ],
+  "test_coverage": [
+    "No test covers interactive=false for jump availability (R2).",
+    "No test covers P after the MediaControls unmount (R2).",
+    "No test covers the boost pill and jump label together (R3)."
+  ],
+  "not_verified": [
+    "Did not run the test suite or apply mutations; the claims that a mutation would survive are based on reading the code.",
+    "Did not check the e2e .build bundle or the fixtures in detail for indirect coverage of interactive=false."
+  ],
+  "confidence": 85
+}

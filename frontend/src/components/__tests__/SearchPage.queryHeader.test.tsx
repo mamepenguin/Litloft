@@ -36,6 +36,7 @@ vi.mock("@/components/SmartFolderSaveButton", () => ({
     return <>{children}</>;
   },
   SmartFolderMenuItems: () => null,
+  SmartFolderOverwriteButton: () => null,
 }));
 
 vi.mock("@/components/AddonSlot", () => ({
@@ -49,7 +50,7 @@ vi.mock("@/components/TreeRefreshContext", () => ({ useTreeRefresh: () => vi.fn(
 vi.mock("@/hooks/useShortcuts", () => ({ useShortcuts: vi.fn() }));
 vi.mock("@/hooks/useSelectedFile", () => ({ useSelectedFile: () => ({ fileId: null }) }));
 vi.mock("@/hooks/useTreeVisible", () => ({
-  useTreeVisible: () => ({ visible: false, beside: false, toggle: vi.fn() }),
+  useTreeVisible: () => ({ visible: false, beside: false, toggle: vi.fn(), yielded: false }),
 }));
 vi.mock("@/hooks/useFolderViewMode", () => ({
   useFolderSort: () => ({ sort: "title", order: "asc", setSort: vi.fn() }),
@@ -67,7 +68,7 @@ vi.mock("@/lib/listSnapshot", () => ({
   saveListSnapshot: vi.fn(),
 }));
 vi.mock("@/components/folder/usePinnedFolders", () => ({
-  usePinnedFolders: () => ({ pinnedPaths: new Set<string>(), togglePin: vi.fn() }),
+  usePinnedFolders: () => ({ pinnedPaths: new Set<string>(), homePaths: new Set<string>(), togglePin: vi.fn(), handleToggleHome: vi.fn() }),
 }));
 vi.mock("@/components/folder/useDriveScan", () => ({
   useDriveScan: () => ({ scanning: false, handleScan: vi.fn() }),

@@ -1,0 +1,1 @@
+{"verdict":"PASS","reasons":[],"findings":[{"reviewer":"claude-read","id":"F-1 frame_cache.py is modified outside the touch list","state":"open"},{"reviewer":"claude-read","id":"F-2 new test files are not in the touch-point list","state":"open"}],"needs_human":[]}

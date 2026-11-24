@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "MEDIUM",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R1-unlisted-sidebar-spacer",
+      "status": "confirmed",
+      "note": "Reproduced by reading the code. ChromeButtons.tsx:58 sets top to calc(env(safe-area-inset-top, 0px) + 8px). behavior.md:12 records the old value as top: 12px. The sidebar is `fixed top-0` (Sidebar.tsx:327). Its nav has p-3 (Sidebar.tsx:157), and the spacer `mb-2 h-10 shrink-0` (SidebarLibrarySection.tsx:49-51) is still at y=12..52, which was the old 12..52 button box. Neither Sidebar.tsx nor SidebarLibrarySection.tsx appears in the spec's touch points (file-detail-single-header.md:257-305). The effect is small. The buttons now sit at y=8..48, still inside the nav's padding plus the spacer, so they do not overlap sidebar content (the drive switcher starts at y=60). What changes is the gap above the switcher, which grows from 8px to 12px, and the spacer no longer lines up with the buttons it reserves room for. The comment and the spacer's size are stale, not broken."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R1-stale-spec-D2",
+      "status": "confirmed",
+      "note": "docs/specs/file-detail-single-header.md:47-53 still says the trail starts at whichever is further right of '12px past the right edge of the menu/tree buttons, or the left edge of the box that holds the file's content'. I2 (:314-316) points to 'the edge D2 defines'. The code is different. Header.tsx:87-89 uses align.left + max(16, paddingLeft), and Header.tsx:95 uses max(16, wanted - frame.left), which adds a header-left+16 floor. The tree-open case shows the gap: under the spec text the trail would be at x=280, but decisions.md (Second run, state C) measures 296. The revised rule appears only in behavior.md:17-23 and DESIGN.md:578-588."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R1-weak-unit-assertion",
+      "status": "confirmed",
+      "note": "frontend/src/components/__tests__/MenuButton.test.tsx:97-98 only checks that row.style.top contains 'safe-area-inset-top' and contains '8px'. Values like '18px', '28px', '48px' or '108px' also contain '8px', so changing the offset to any of them would still pass. The comment on line 96 says jsdom reorders the calc, which is why the full string is not compared. That explains the choice but does not make the check stricter. behavior.md:31-35 lists e2e specs that measure the centre line, and those may catch such a change. I did not run them."
+    }
+  ],
+  "specification_compliance": [
+    "The spec's D2 and I2 (docs/specs/file-detail-single-header.md:47-53, 314-316) were not updated to the revised trail rule that Header.tsx:84-95 implements. The revised rule is written only in behavior.md and DESIGN.md §Page Header.",
+    "Moving the fixed buttons to safe-area top + 8px (ChromeButtons.tsx:58) puts their centre on the 56px header's centre line, as behavior.md:25-27 states."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The sidebar's button-row spacer (SidebarLibrarySection.tsx:51) still reserves y=12..52 for buttons that now sit at y=8..48, so the gap between the buttons and the drive switcher grew from 8px to 12px. Nothing specifies this gap."
+  ],
+  "regression_risks": [
+    "If the fixed-button offset changes again, MenuButton.test.tsx would not catch it, because its substring check on '8px' also matches 18/28/48px.",
+    "Spec-driven checks or future reviewers working from D2 as written would expect the trail at the tree's border (x=280), not 16px inside it (x=296)."
+  ],
+  "test_coverage": [
+    "MenuButton.test.tsx:97-98 checks the top offset with a loose substring test.",
+    "SidebarLibrarySection.test.tsx reportedly checks only the spacer's class names. I did not open it."
+  ],
+  "not_verified": [
+    "Did not run any tests or e2e specs (file-header-row-desktop.spec.ts, file-header-row.spec.ts).",
+    "Did not open SidebarLibrarySection.test.tsx to confirm what it asserts.",
+    "Did not diff against origin/develop; the old top: 12px value is taken from behavior.md:12.",
+    "Did not check behaviour with a non-zero safe-area-inset-top: the sidebar is fixed top-0 with no safe-area padding, while the buttons add the inset."
+  ],
+  "confidence": 88
+}

@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R1",
+      "status": "confirmed",
+      "note": "Traced at HEAD 6665d0c01. useNotesTarget.ts:128,137 returns {status:'lookingUp'} while a member Target's evaluation is null, and selectedId (163-166) already equals the chosen folder id. In clips.tsx, chooseTarget (195-203) sets switchTo. switchHref (205-208) and switchSettled (209-210) both require target.status==='ready', so the effect at 211-219 does nothing and switchTo stays set. In that window effectiveParams (151-158) deletes group/sort, so readClipsView (159) shows the resolved stored view instead of the URL's readable values. When the Target becomes ready on a non-Home view, targetId===switchTo, so switchHref = clipsHref(pathname, view) and router.replace (217) overwrites the URL's group/sort. This goes against I3/I4 (history entries keep their own URL values) and I13. clipsTargetChangeOnHome.test.tsx:93-105 uses smart folder 'tag:work' and navigates only after settle(), so the in-flight window is not covered. Reaching it in normal use takes a Back or link press during the member evaluation request. That window is narrow but real."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R2",
+      "status": "confirmed",
+      "note": "`fullValue` is passed only at videoapp/LibraryControls.tsx:30 and readingapp/LibraryControls.tsx:155 (`fullValue={quiet}`), and ToolbarMenu.tsx:234 maps it to whitespace-nowrap vs truncate. The only jsdom test is ToolbarMenu.test.tsx:136-149, which tests the prop directly. No shelf-page jsdom test checks the class: a grep for whitespace-nowrap/truncate in component __tests__ finds none for VideoShelfPage/ReadingShelfPage. Among the e2e checks, app-header-desktop.spec.ts:101-105 (APP_PAGES includes video-shelf and reading-shelf, en only, 640px) asserts the value span's scrollWidth <= clientWidth. app-header.spec.ts:207 checks only the text content, which an ellipsis does not change. So the claim holds."
+    }
+  ],
+  "specification_compliance": [
+    "I13/I4 (Clips): the Target-change rewrite can overwrite a readable URL group/sort that is reached while a member Target is being evaluated (R1 confirmed).",
+    "I20 (r2): the shelf-page quiet sort menus pass fullValue. Only a desktop e2e check (640px, en) pins it on the shelf pages."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "Clips: navigating to a Library/shelf URL while a member Target chosen on Home is still evaluating has its group/sort replaced by the new Target's stored view."
+  ],
+  "test_coverage": [
+    "No test covers the member-Target evaluation window in clipsTargetChangeOnHome.test.tsx.",
+    "No jsdom test asserts that the shelf-page sort value span is non-truncating. Only app-header-desktop.spec.ts:101-105 (en, 640px) checks it."
+  ],
+  "not_verified": [
+    "Did not run any test or browser suite; both findings were verified by reading the code only.",
+    "Did not confirm that resolveMemberTarget returns null for the 'tag:work' smart folder used in the test (accepted the reader's statement that it is a non-member).",
+    "Did not check how long member evaluation takes in useMemberTarget, i.e. how wide the R1 window is in practice."
+  ],
+  "confidence": 85
+}

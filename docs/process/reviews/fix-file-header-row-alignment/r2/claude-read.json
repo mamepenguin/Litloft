@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "MEDIUM",
+  "findings": [
+    {
+      "id": "R2-spec-D2-still-stale",
+      "origin": "reviewer",
+      "claim": "docs/specs/file-detail-single-header.md still describes the trail's left term as the content box's left edge (D2) and still says screens other than file pages see no change (§7), but the code now insets the trail by at least 16px and moves the fixed buttons on every screen.",
+      "impact": "No user can hit this. A later reader who checks I2 against the spec could treat Header.tsx's `Math.max(16, …)` terms as a bug and revert them, which would bring back the home crumb sitting flush against the sidebar's or tree's border. The human decision says behavior.md supersedes D2 and §7, but that is recorded only in decisions.md:3, not in the spec.",
+      "evidence": "docs/specs/file-detail-single-header.md:48 ('or the left edge of the box'), :185 ('than file pages see no change'); frontend/src/components/Header.tsx:89 and :95 use Math.max(16, …); docs/process/reviews/fix-file-header-row-alignment/decisions.md:3 records 'the spec's D2 and §7 are superseded by behavior.md for this fix'.",
+      "repro": "not_reproduced. Found by reading the spec next to Header.tsx.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Prose disagrees with the code and could prompt a wrong revert. No declared invariant is broken, and a human has already ruled on scope.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Delete the 'left edge of the box' wording in D2 and the 'see no change' sentence in §7, or replace them with a pointer to behavior.md's revised D2."
+    }
+  ],
+  "specification_compliance": [
+    "No invariants file exists, so bucket A does not apply.",
+    "R1-unlisted-sidebar-spacer is fixed. The nav has p-3 (Sidebar.tsx:157), so the spacer's -mt-1 starts it at y=8, and h-10 ends it at y=48. Those match the buttons at top 8px with 40px height (ChromeButtons.tsx:58). The bottom is now 8 + 40 + 12 (mb-3) + 4 (gap-1) = 64, the same as before (12 + 40 + 8 + 4 = 64), so the first sidebar row does not move.",
+    "R1-weak-unit-assertion is fixed. /(^|[^\\d.])8px/ rejects 18px, 28px, 48px and 0.8px, and accepts both orders of the calc that jsdom can produce.",
+    "R1-stale-spec-D2 is not fixed in the spec file. decisions.md:3 records the human's choice that behavior.md supersedes it."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The -4px top margin on the spacer reaches into the scrolling nav's 12px padding. A negative top overflow cannot be scrolled, so nothing is clipped. The spacer only holds space and draws nothing."
+  ],
+  "regression_risks": [
+    "In an iOS PWA with a non-zero safe-area-inset-top, the buttons sit at inset + 8px, but the sidebar is fixed top-0 and its spacer has no inset, so the two no-longer-line-up again. The same gap existed with the old 12px values, so this is not new to this fix.",
+    "SidebarLibrarySection.test.tsx:25-26 checks only h-10 and shrink-0. Dropping -mt-1 or changing mb-3 is caught only by the 1440px inline-sidebar e2e test, not by the unit test."
+  ],
+  "test_coverage": [
+    "file-header-row-desktop.spec.ts:265-270 checks that the spacer's top and bottom are within 0.5px of the buttons' top and bottom when the sidebar is open. Removing -mt-1 would fail this check (4px off). Changing mb-3 would not fail it, because no test checks the first sidebar row's position.",
+    "The overlay (narrow) sidebar's spacer is not checked against the buttons. It is the same component, so the inline check covers the geometry unless the overlay has different nav padding.",
+    "MenuButton.test.tsx:98 now pins the 8px term. It would fail on 12px or 18px."
+  ],
+  "not_verified": [
+    "I did not run any unit or e2e test.",
+    "I did not confirm that the overlay or mobile sidebar renders the same nav with the same p-3 padding.",
+    "I did not check a non-zero safe-area-inset-top.",
+    "I did not open behavior.md to confirm it states the revised D2 completely."
+  ],
+  "confidence": 82,
+  "trajectory": "There was one fix round after r1, in commit e44f989c1; 5221d9d1a only records the review. That round added no new branch, state or prediction to production code. It changed one constant set, the spacer's -mt-1 and mb-3, so the existing spacer lines up with the buttons' new 8px top. It also tightened one assertion. The only new conditional is in a test: an `if (sidebar === \"open\")` block that checks the spacer's geometry. No earlier round added the same kind of thing, so this does not look like patching the design. The spec's prose was left unchanged by the human's decision and was not edited."
+}

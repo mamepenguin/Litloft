@@ -171,41 +171,89 @@
           "tag": "div",
           "class": "space-y-10"
         },
-        "readingChips": {
-          "source": "ReadingLibraryFace",
+        "folderCrumbs": {
+          "source": "FolderPositionRows",
+          "tag": "nav",
+          "class": "flex flex-wrap items-center gap-1 whitespace-nowrap text-sm text-text-muted pointer-coarse:flex-nowrap pointer-coarse:overflow-x-auto",
+          "attrs": { "data-crumbs": "", "aria-label": "*" },
+          "children": [
+            { "ref": "crumbHomeLink" },
+            { "ref": "crumbSeparator" },
+            { "ref": "crumbLink" },
+            { "ref": "crumbSeparator" },
+            { "ref": "crumbCurrent" }
+          ]
+        },
+        "crumbHomeLink": {
+          "source": "FolderPositionRows",
+          "tag": "a",
+          "class": "inline-flex flex-shrink-0 items-center rounded-lg px-1 py-0.5 pointer-coarse:min-h-11 transition-colors hover:text-text-primary",
+          "attrs": { "data-crumb": "", "href": "*", "aria-label": "*" }
+        },
+        "crumbLink": {
+          "source": "FolderPositionRows",
+          "tag": "a",
+          "class": "inline-flex flex-shrink-0 items-center rounded-lg px-1 py-0.5 pointer-coarse:min-h-11 transition-colors hover:text-text-primary",
+          "attrs": { "data-crumb": "", "href": "*" }
+        },
+        "crumbCurrent": {
+          "source": "FolderPositionRows",
+          "tag": "span",
+          "class": "inline-flex flex-shrink-0 items-center px-1 py-0.5 pointer-coarse:min-h-11 font-medium text-text-primary",
+          "attrs": { "data-crumb": "", "aria-current": "page" }
+        },
+        "crumbSeparator": {
+          "source": "FolderPositionRows",
+          "tag": "svg",
+          "class": "lucide lucide-chevron-right flex-shrink-0",
+          "attrs": { "width": "14", "height": "14", "aria-hidden": "true" }
+        },
+        "folderChips": {
+          "source": "FolderPositionRows",
           "tag": "div",
           "class": "flex flex-wrap gap-2 pb-1 max-h-[8rem] overflow-y-auto pointer-coarse:max-h-none pointer-coarse:flex-nowrap pointer-coarse:overflow-x-auto",
-          "attrs": { "data-testid": "reading-chips" },
-          "children": [{ "ref": "readingChipSelected" }, { "ref": "readingChipIdle" }]
+          "attrs": { "data-chips": "", "data-testid": "folder-chips" },
+          "children": [{ "ref": "folderChip" }]
         },
-        "readingChipSelected": {
-          "source": "ReadingLibraryFace",
-          "tag": "button",
-          "class": "flex-shrink-0 whitespace-nowrap rounded-full border px-3 py-1.5 text-sm transition-colors pointer-coarse:min-h-11 bg-bg-elevated border-accent font-semibold text-text-primary",
-          "attrs": { "type": "button", "aria-pressed": "true" }
-        },
-        "readingChipIdle": {
-          "source": "ReadingLibraryFace",
-          "tag": "button",
-          "class": "flex-shrink-0 whitespace-nowrap rounded-full border px-3 py-1.5 text-sm transition-colors pointer-coarse:min-h-11 bg-bg-elevated border-transparent text-text-muted hover:text-text-primary",
-          "attrs": { "type": "button", "aria-pressed": "false" }
+        "folderChip": {
+          "source": "FolderPositionRows",
+          "tag": "a",
+          "class": "inline-flex flex-shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-bg-elevated px-3 py-1.5 text-sm text-text-primary transition-colors hover:bg-sand pointer-coarse:min-h-11",
+          "attrs": { "data-chip": "", "href": "*" }
         },
         "readingControls": {
           "source": "ReadingLibraryFace",
           "tag": "div",
-          "class": "flex flex-wrap items-center gap-2",
+          "class": "flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-5",
           "children": [
-            { "ref": "menuButtonFilled" },
-            { "ref": "menuButtonFilled" },
-            { "ref": "menuButtonFilledEnd" },
-            { "ref": "menuButtonFilled" }
+            {
+              "tag": "div",
+              "class": "grid grid-cols-2 items-center gap-2 sm:flex sm:shrink-0 sm:flex-nowrap",
+              "children": [{ "ref": "menuButton" }, { "ref": "menuButton" }]
+            },
+            {
+              "tag": "div",
+              "class": "grid grid-cols-2 items-center gap-2 sm:flex sm:shrink-0 sm:flex-nowrap",
+              "children": [{ "ref": "menuButton" }, { "ref": "menuButton" }]
+            }
           ]
         },
         "videoControls": {
           "source": "VideoLibraryFace",
           "tag": "div",
-          "class": "flex items-center gap-2",
-          "children": [{ "ref": "menuButton" }, { "ref": "menuButton" }]
+          "class": "flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-5",
+          "children": [
+            {
+              "tag": "div",
+              "class": "grid grid-cols-2 items-center gap-2 sm:flex sm:shrink-0 sm:flex-nowrap",
+              "children": [{ "ref": "menuButton" }, { "ref": "menuButton" }]
+            },
+            {
+              "tag": "div",
+              "class": "grid grid-cols-2 items-center gap-2 sm:flex sm:shrink-0 sm:flex-nowrap",
+              "children": [{ "ref": "menuButton" }, { "ref": "menuButton" }]
+            }
+          ]
         },
         "menuButton": {
           "source": "ToolbarMenu",
@@ -214,39 +262,7 @@
           "children": [
             {
               "tag": "button",
-              "class": "flex items-center gap-1.5 rounded-2xl border border-bg-border bg-bg-card px-3 py-2 text-sm text-text-muted transition-colors hover:text-text-primary pointer-coarse:min-h-11 max-w-full",
-              "attrs": {
-                "aria-haspopup": "menu",
-                "aria-expanded": "false",
-                "aria-label": "*"
-              }
-            }
-          ]
-        },
-        "menuButtonFilled": {
-          "source": "ToolbarMenu",
-          "tag": "div",
-          "class": "relative min-w-0",
-          "children": [
-            {
-              "tag": "button",
-              "class": "flex max-w-full items-center gap-1.5 rounded-2xl bg-sand px-4 py-2 text-sm text-text-muted transition-colors hover:bg-sand-hover pointer-coarse:min-h-11",
-              "attrs": {
-                "aria-haspopup": "menu",
-                "aria-expanded": "false",
-                "aria-label": "*"
-              }
-            }
-          ]
-        },
-        "menuButtonFilledEnd": {
-          "source": "ToolbarMenu",
-          "tag": "div",
-          "class": "relative min-w-0 ml-auto",
-          "children": [
-            {
-              "tag": "button",
-              "class": "flex max-w-full items-center gap-1.5 rounded-2xl bg-sand px-4 py-2 text-sm text-text-muted transition-colors hover:bg-sand-hover pointer-coarse:min-h-11",
+              "class": "flex items-center gap-1.5 [&>svg]:flex-shrink-0 rounded-2xl border border-bg-border bg-bg-card px-3 py-2 text-sm text-text-muted transition-colors hover:text-text-primary pointer-coarse:min-h-11 max-w-full w-full",
               "attrs": {
                 "aria-haspopup": "menu",
                 "aria-expanded": "false",
@@ -403,36 +419,60 @@
         return stack;
       };
 
-      const readingLibrary = () => {
-        const stack = document.createElement("div");
-        stack.className = "space-y-6";
+      const positionRows = () => {
+        const wrapper = document.createElement("div");
+        wrapper.className = "space-y-3 pointer-coarse:space-y-1";
 
-        const chips = build({ ref: "readingChips" });
-        chips.dataset.chips = "";
-        const [selected, idle] = chips.querySelectorAll("button");
-        selected.textContent = "All";
-        idle.textContent = "Novels";
+        const crumbs = build({ ref: "folderCrumbs" });
+        const home = crumbs.querySelector("[data-crumb]");
+        home.setAttribute("aria-label", "Top");
+        const current = crumbs.querySelector('[aria-current="page"]');
+        crumbs.querySelectorAll("a[data-crumb]")[1].textContent =
+          "A rather long folder name";
+        current.textContent = "The folder the viewer chose";
+        // Enough long ancestors that a fine pointer's row wraps at 320 px,
+        // and a coarse pointer's one line has to scroll sideways.
+        for (let i = 0; i < 4; i += 1) {
+          const separator = build({ ref: "crumbSeparator" });
+          const link = build({ ref: "crumbLink" });
+          link.textContent = "Another long folder name " + i;
+          crumbs.insertBefore(separator, current);
+          crumbs.insertBefore(link, current);
+        }
+
+        const chips = build({ ref: "folderChips" });
+        const first = chips.querySelector("[data-chip]");
+        first.innerHTML = "Comics<span>7</span>";
         // More chips than any width fits in one line, so the row has to wrap
         // or scroll rather than disappear behind the edge.
         for (let i = 0; i < 30; i += 1) {
-          const chip = build({ ref: "readingChipIdle" });
-          chip.textContent = "A folder with a very long name " + i;
+          const chip = build({ ref: "folderChip" });
+          chip.innerHTML = "A folder with a very long name " + i + "<span>12</span>";
           chips.append(chip);
         }
+
+        wrapper.append(crumbs, chips);
+        return wrapper;
+      };
+
+      const readingLibrary = () => {
+        const stack = document.createElement("div");
+        stack.className = "space-y-6";
 
         const controls = build({ ref: "readingControls" });
         controls.dataset.controls = "";
         const labels = [
           ["Tag", "Tag"],
           ["State", "In progress"],
-          ["Group", "By tag"],
-          ["Sort", "Added (newest first)"],
+          ["Group By", "Tag"],
+          ["Sort By", "Date Added (Newest First)"],
         ];
-        controls.querySelectorAll(":scope > div").forEach((wrapper, i) => {
-          menu(wrapper, labels[i][0], labels[i][1]);
+        controls.querySelectorAll("button").forEach((button, i) => {
+          button.setAttribute("aria-label", labels[i][0] + ": " + labels[i][1]);
+          button.textContent = labels[i][0] + " " + labels[i][1];
         });
 
-        stack.append(chips, controls, shelf("reading", "Novels", "34"));
+        stack.append(positionRows(), controls, shelf("reading", "Novels", "34"));
         return stack;
       };
 
@@ -442,15 +482,18 @@
 
         const controls = build({ ref: "videoControls" });
         controls.dataset.controls = "";
-        controls.querySelectorAll(":scope > div").forEach((wrapper, i) => {
-          menu(
-            wrapper,
-            i === 0 ? "Classification" : "Sort",
-            i === 0 ? "Folder" : "Added (newest first)",
-          );
+        const labels = [
+          ["Tag", "Tag"],
+          ["State", "In progress"],
+          ["Group By", "Folder"],
+          ["Sort By", "Date Added (Newest First)"],
+        ];
+        controls.querySelectorAll("button").forEach((button, i) => {
+          menu(button.parentElement, labels[i][0], labels[i][1]);
         });
 
         stack.append(
+          positionRows(),
           controls,
           shelf("video", "Movies", "1,200"),
           shelf("video", "A folder with a very long name that must truncate", "34"),
@@ -516,6 +559,8 @@
                 ...box(node),
                 scrollWidth: node.scrollWidth,
                 clientWidth: node.clientWidth,
+                scrollHeight: node.scrollHeight,
+                clientHeight: node.clientHeight,
               }
             : null;
 
@@ -540,6 +585,9 @@
             },
           ),
           chipRow: row(document.querySelector("[data-chips]")),
+          crumbRow: row(document.querySelector("[data-crumbs]")),
+          crumbItems: Array.from(document.querySelectorAll("[data-crumb]")).map(box),
+          chipItems: Array.from(document.querySelectorAll("[data-chip]")).map(box),
           controls: row(document.querySelector("[data-controls]")),
           shapes: Array.from(used).sort(),
         };

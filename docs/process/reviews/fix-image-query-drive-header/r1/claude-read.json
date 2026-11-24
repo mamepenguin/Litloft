@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "MEDIUM",
+  "findings": [
+    {
+      "id": "R1-scan-scope-mcp",
+      "origin": "reviewer",
+      "claim": "The new source scan, which its describe block says covers 'every X-Lit-Drive sender', reads only frontend/src and addons/*/frontend, so the MCP server's three raw-drive senders pass it.",
+      "impact": "An MCP client that calls `ask` (mcp-server/src/tools/ask.ts:60) or `clip_url`/`clip_pasted` (mcp-server/src/tools/write.ts:418, :446) with a drive whose name is not Latin-1 (e.g. 動画, which this repo's test data uses) fails in Node's fetch before the request is sent. This is the same failure the change fixes for the image query, and the new guard test stays green.",
+      "evidence": "frontend/src/__tests__/driveHeaderEncoding.test.ts:16-24 builds ROOTS from frontend/src and addons/<name>/frontend only. mcp-server/src/tools/ask.ts:60 and mcp-server/src/tools/write.ts:418,446 send `{ \"X-Lit-Drive\": drive }` without encodeURIComponent. mcp-server/src/client.ts:158-170 and :249-262 spread options.headers into fetch unchanged. Sibling MCP tools already encode (search.ts:23, video.ts:53, read.ts:337,372), and mcp-server/src/__tests__/readDocument.test.ts:125-130 asserts encoding for one of them, so the raw senders break the repository's own convention. The proxy decodes the header (addons/intelligence/app/drive_context.py unquote, per docs/process/reviews/feature-ingest-progress/r3/triage.md:47).",
+      "repro": "not_reproduced. Static reading: under the HEADER_VALUE regex, ask.ts:60 would be reported if mcp-server/src were in ROOTS. It is not, so `sends no raw drive name` passes.",
+      "introduced": "pre-existing",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariants are declared. The raw MCP senders predate this commit, and the new test's limited scope gives a false sense that every sender is covered. A person decides whether the fix belongs in this change.",
+        "invariant_ref": null
+      },
+      "severity": "MEDIUM",
+      "proposed_fix": "Encode the drive at mcp-server/src/tools/ask.ts:60 and write.ts:418,446, and add mcp-server/src to the scan's ROOTS. Alternatively, narrow the describe text to the browser senders."
+    }
+  ],
+  "specification_compliance": [
+    "Answer to the question: no invariants file exists for this change, so there is no declared touch-point list to compare against. Every place the diff reaches is outside the list only because no list exists, and none of them can be reported as an unplanned touch point. This review raises no touch-point finding.",
+    "Places the diff reaches: frontend/src/lib/imageQuery.ts (askImageAvailability at :121 and requestImageAnswer at :341), a new frontend/src/lib/__tests__/imageQuery.driveHeader.test.ts, and a new repo-wide source-scan test at frontend/src/__tests__/driveHeaderEncoding.test.ts. The scan test reads files in addons/*/frontend at test time, so it reaches outside frontend/ as a read-only dependency.",
+    "The production change matches the established browser convention: semanticSearch.ts:15, fileFind.ts:41, api.ts:389, AddonSlotsProvider.tsx:116 and the addon frontends all use encodeURIComponent(drive). The proxy decodes the header (unquote), so ASCII drive names reach the addon unchanged."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The scan regex only recognizes object-literal headers (`\"X-Lit-Drive\": value`). A future sender written as headers.set('X-Lit-Drive', drive) or headers['X-Lit-Drive'] = drive would pass undetected. No such non-test sender exists today.",
+    "The scan treats any value that starts with `encodeURIComponent(` as correct, including encodeURIComponent of the wrong variable; it checks the form, not the value."
+  ],
+  "regression_risks": [
+    "A drive name containing a literal '%' that a backend handler previously read raw would now be double-handled. The proxy already unquotes for every other browser sender, so the image endpoints now behave like the rest of the browser senders. Low risk.",
+    "The scan test depends on the directory layout (REPO_ROOT resolved as ../../.. from frontend/src/__tests__). If the frontend runs from a different checkout layout, ROOTS may shrink silently; the 'finds at least one sender' guard only catches an empty frontend/src."
+  ],
+  "test_coverage": [
+    "imageQuery.driveHeader.test.ts constructs `new Headers(init.headers)` inside the fetch stub, so reverting either encodeURIComponent call makes the 動画 case throw. The test also asserts the exact encoded value for both 動画 and an ASCII name, so both production lines are mutation-covered.",
+    "driveHeaderEncoding.test.ts would catch a raw sender reintroduced under frontend/src or addons/*/frontend, but not one in mcp-server/src or ios (see R1-scan-scope-mcp). The iOS sender at ios/LitloftShare/ShareAPIClient.swift:213 already encodes.",
+    "Paste and drop entry points were not exercised in the app run (per decisions.md). They call the same two functions, so the unit tests cover them."
+  ],
+  "not_verified": [
+    "I did not run any tests. The mutation-kill claims come from reading the code.",
+    "I did not confirm at runtime that Node's fetch in the MCP server throws on a non-Latin-1 header value. The finding relies on the WHATWG ByteString conversion that undici applies.",
+    "I did not read the backend addon proxy or drive_context.py source directly; I relied on the triage note that quotes its unquote behavior.",
+    "I did not check docs/specs/ for a SPEC-CORE-046 entry or its wording."
+  ],
+  "confidence": 80
+}

@@ -1,0 +1,1203 @@
+{
+ "sc-page-Cats": {
+  "q": "猫",
+  "count": "8",
+  "ids": [
+   "wJnOX7w4b-Or",
+   "vBuGQ4UAETm0",
+   "YwOS8eJjBiTH",
+   "XGPJ2WG7SqRn",
+   "3N8AIYqZ_oAB",
+   "oUoI_V4TWkZ3",
+   "Apq6ZrOo4qq7",
+   "_p2jkii4itW-"
+  ],
+  "reqs": [
+   {
+    "t": 1794739432410,
+    "method": "GET",
+    "url": "/api/addons/intelligence/search/by-image/available",
+    "bodyLen": 0,
+    "fileIds": null,
+    "status": 200
+   },
+   {
+    "t": 1794739432410,
+    "method": "GET",
+    "url": "/api/drives/動画/smart-folders",
+    "bodyLen": 0,
+    "fileIds": null,
+    "status": 200
+   },
+   {
+    "t": 1794739432410,
+    "method": "GET",
+    "url": "/api/drives/動画/files?search=猫&sort=created_at&order=desc&page=1&limit=30",
+    "bodyLen": 0,
+    "fileIds": null,
+    "status": 200
+   },
+   {
+    "t": 1794739432411,
+    "method": "GET",
+    "url": "/api/drives/動画/smart-folders",
+    "bodyLen": 0,
+    "fileIds": null,
+    "status": 200
+   },
+   {
+    "t": 1794739432411,
+    "method": "GET",
+    "url": "/api/drives/動画/collections",
+    "bodyLen": 0,
+    "fileIds": null,
+    "status": 200
+   },
+   {
+    "t": 1794739432418,
+    "method": "GET",
+    "url": "/api/addons/intelligence/search?q=猫&limit=1000&passages=true",
+    "bodyLen": 0,
+    "fileIds": null,
+    "status": 200
+   },
+   {
+    "t": 1794739432422,
+    "method": "GET",
+    "url": "/api/drives/動画/files?search=猫&sort=created_at&order=desc&page=1&limit=30",
+    "bodyLen": 0,
+    "fileIds": null,
+    "status": 200
+   }
+  ]
+ },
+ "in-Cats": {
+  "q": "in:\"Cats\"",
+  "count": "8",
+  "ids": [
+   "vBuGQ4UAETm0",
+   "wJnOX7w4b-Or",
+   "YwOS8eJjBiTH",
+   "3N8AIYqZ_oAB",
+   "Apq6ZrOo4qq7",
+   "XGPJ2WG7SqRn",
+   "_p2jkii4itW-",
+   "oUoI_V4TWkZ3"
+  ],
+  "reqs": [
+   {
+    "t": 1794739437551,
+    "method": "GET",
+    "url": "/api/addons/intelligence/search/by-image/available",
+    "bodyLen": 0,
+    "fileIds": null,
+    "status": 200
+   },
+   {
+    "t": 1794739437551,
+    "method": "GET",
+    "url": "/api/drives/動画/smart-folders",
+    "bodyLen": 0,
+    "fileIds": null,
+    "status": 200
+   },
+   {
+    "t": 1794739437551,
+    "method": "GET",
+    "url": "/api/drives/動画/collections",
+    "bodyLen": 0,
+    "fileIds": null,
+    "status": 200
+   },
+   {
+    "t": 1794739437552,
+    "method": "GET",
+    "url": "/api/drives/動画/smart-folders",
+    "bodyLen": 0,
+    "fileIds": null,
+    "status": 200
+   },
+   {
+    "t": 1794739437552,
+    "method": "GET",
+    "url": "/api/drives/動画/collections",
+    "bodyLen": 0,
+    "fileIds": null,
+    "status": 200
+   },
+   {
+    "t": 1794739437568,
+    "method": "GET",
+    "url": "/api/drives/動画/smart-folders",
+    "bodyLen": 0,
+    "fileIds": null,
+    "status": 200
+   },
+   {
+    "t": 1794739437646,
+    "method": "GET",
+    "url": "/api/drives/動画/files?search=猫&sort=created_at&order=desc&page=1&limit=500",
+    "bodyLen": 0,
+    "fileIds": null,
+    "status": 200
+   },
+   {
+    "t": 1794739437680,
+    "method": "GET",
+    "url": "/api/addons/intelligence/search?q=猫&limit=1000&passages=true",
+    "bodyLen": 0,
+    "fileIds": null,
+    "status": 200
+   },
+   {
+    "t": 1794739437760,
+    "method": "POST",
+    "url": "/api/drives/動画/files/query?sort=created_at&order=desc&page=1&limit=30",
+    "bodyLen": 134,
+    "fileIds": 8,
+    "status": 200
+   }
+  ]
+ },
+ "in-cats-lower": {
+  "q": "in:\"cats\"",
+  "count": "8",
+  "ids": [
+   "vBuGQ4UAETm0",
+   "wJnOX7w4b-Or",
+   "YwOS8eJjBiTH",
+   "3N8AIYqZ_oAB",
+   "Apq6ZrOo4qq7",
+   "XGPJ2WG7SqRn",
+   "_p2jkii4itW-",
+   "oUoI_V4TWkZ3"
+  ],
+  "reqs": [
+   {
+    "t": 1794739442676,
+    "method": "GET",
+    "url": "/api/addons/intelligence/search/by-image/available",
+    "bodyLen": 0,
+    "fileIds": null,
+    "status": 200
+   },
+   {
+    "t": 1794739442676,
+    "method": "GET",
+    "url": "/api/drives/動画/smart-folders",
+    "bodyLen": 0,
+    "fileIds": null,
+    "status": 200
+   },
+   {
+    "t": 1794739442676,
+    "method": "GET",
+    "url": "/api/drives/動画/collections",
+    "bodyLen": 0,
+    "fileIds": null,
+    "status": 200
+   },
+   {
+    "t": 1794739442676,
+    "method": "GET",
+    "url": "/api/drives/動画/smart-folders",
+    "bodyLen": 0,
+    "fileIds": null,
+    "status": 200
+   },
+   {
+    "t": 1794739442678,
+    "method": "GET",
+    "url": "/api/drives/動画/collections",
+    "bodyLen": 0,
+    "fileIds": null,
+    "status": 200
+   },
+   {
+    "t": 1794739442696,
+    "method": "GET",
+    "url": "/api/drives/動画/smart-folders",
+    "bodyLen": 0,
+    "fileIds": null,
+    "status": 200
+   },
+   {
+    "t": 1794739442729,
+    "method": "GET",
+    "url": "/api/drives/動画/files?search=猫&sort=created_at&order=desc&page=1&limit=500",
+    "bodyLen": 0,
+    "fileIds": null,
+    "status": 200
+   },
+   {
+    "t": 1794739442764,
+    "method": "GET",
+    "url": "/api/addons/intelligence/search?q=猫&limit=1000&passages=true",
+    "bodyLen": 0,
+    "fileIds": null,
+    "status": 200
+   },
+   {
+    "t": 1794739442857,
+    "method": "POST",
+    "url": "/api/drives/動画/files/query?sort=created_at&order=desc&page=1&limit=30",
+    "bodyLen": 134,
+    "fileIds": 8,
+    "status": 200
+   }
+  ]
+ },
+ "in-CATS-upper": {
+  "q": "in:CATS",
+  "count": "8",
+  "ids": [
+   "vBuGQ4UAETm0",
+   "wJnOX7w4b-Or",
+   "YwOS8eJjBiTH",
+   "3N8AIYqZ_oAB",
+   "Apq6ZrOo4qq7",
+   "XGPJ2WG7SqRn",
+   "_p2jkii4itW-",
+   "oUoI_V4TWkZ3"
+  ],
+  "reqs": [
+   {
+    "t": 1794739447801,
+    "method": "GET",
+    "url": "/api/addons/intelligence/search/by-image/available",
+    "bodyLen": 0,
+    "fileIds": null,
+    "status": 200
+   },
+   {
+    "t": 1794739447801,
+    "method": "GET",
+    "url": "/api/drives/動画/smart-folders",
+    "bodyLen": 0,
+    "fileIds": null,
+    "status": 200
+   },
+   {
+    "t": 1794739447801,
+    "method": "GET",
+    "url": "/api/drives/動画/collections",
+    "bodyLen": 0,
+    "fileIds": null,
+    "status": 200
+   },
+   {
+    "t": 1794739447802,
+    "method": "GET",
+    "url": "/api/drives/動画/smart-folders",
+    "bodyLen": 0,
+    "fileIds": null,
+    "status": 200
+   },
+   {
+    "t": 1794739447802,
+    "method": "GET",
+    "url": "/api/drives/動画/collections",
+    "bodyLen": 0,
+    "fileIds": null,
+    "status": 200
+   },
+   {
+    "t": 1794739447824,
+    "method": "GET",
+    "url": "/api/drives/動画/smart-folders",
+    "bodyLen": 0,
+    "fileIds": null,
+    "status": 200
+   },
+   {
+    "t": 1794739447858,
+    "method": "GET",
+    "url": "/api/drives/動画/files?search=猫&sort=created_at&order=desc&page=1&limit=500",
+    "bodyLen": 0,
+    "fileIds": null,
+    "status": 200
+   },
+   {
+    "t": 1794739447881,
+    "method": "GET",
+    "url": "/api/addons/intelligence/search?q=猫&limit=1000&passages=true",
+    "bodyLen": 0,
+    "fileIds": null,
+    "status": 200
+   },
+   {
+    "t": 1794739447951,
+    "method": "POST",
+    "url": "/api/drives/動画/files/query?sort=created_at&order=desc&page=1&limit=30",
+    "bodyLen": 134,
+    "fileIds": 8,
+    "status": 200
+   }
+  ]
+ },
+ "sc-page-Cats-video": {
+  "q": "猫 type:video",
+  "count": "57",
+  "ids": [
+   "wJnOX7w4b-Or",
+   "XGPJ2WG7SqRn",
+   "3N8AIYqZ_oAB",
+   "oUoI_V4TWkZ3",
+   "Apq6ZrOo4qq7",
+   "_p2jkii4itW-",
+   "slUp6AHi2Pn-",
+   "iw5eEstlXes2",
+   "iKORc6htJbeY",
+   "AlWSycNkuiHE",
+   "EfM1CterzoIa",
+   "4QTmJSilwKLE",
+   "kdq1ifeYBMl6",
+   "ptz_YvATIGs_",
+   "2TFPZlC7rAva",
+   "PbSmQeUhN2Ck",
+   "6ZGQI6Ub5WvW",
+   "GCy_eI_3NBAn",
+   "RmHD-Xu9IT0e",
+   "oCzlDvWPlrJO",
+   "iqXIFOtcIb_7",
+   "ovyxCYzu1g-x",
+   "nzM31CiFQFiK",
+   "26n_RDXe6Bvv",
+   "C5YGODnnLoeq",
+   "RDxqoxFart5T",
+   "aR3bI3tKavvh",
+   "z4hItdQwJKeQ",
+   "aAB-nfYt3-uw",
+   "xNokav7LGWMB",
+   "-iWOBYQ_nr7v",
+   "bbnOPLqBVDnG",
+   "rS9ID3uEswm_",
+   "A5X93nbNu71C",
+   "AtA_Y40ILzBx",
+   "75MuJjh73SKL",
+   "bZIOZrkiMcBe",
+   "MXatBYic7U1O",
+   "jFMwtFEXbIl5",
+   "ooDGPTLDobyL",
+   "S2m6DyxyyeTt",
+   "puqsf46R2vWh",
+   "tJ9B0V2qiDTO",
+   "9WPJkcvYs1H9",
+   "bKUjEcEihNu8",
+   "1q7kbabYZV2a",
+   "FfshBLGA_4BU",
+   "0Bdqkd-7jvPe",
+   "pGM09H89szqt",
+   "Kf9afNmytRwq",
+   "ZTho777xxR1U",
+   "FPSVUoZnX31D",
+   "HeYYhF8chLwe",
+   "mx8LRxBbr7BW",
+   "WVR3r5y-TPtK",
+   "72f8MMg6dFFu",
+   "hh_45I_sgMVC"
+  ],
+  "reqs": [
+   {
+    "t": 1794739452932,
+    "method": "GET",
+    "url": "/api/addons/intelligence/search/by-image/available",
+    "bodyLen": 0,
+    "fileIds": null,
+    "status": 200
+   },
+   {
+    "t": 1794739452932,
+    "method": "GET",
+    "url": "/api/drives/動画/smart-folders",
+    "bodyLen": 0,
+    "fileIds": null,
+    "status": 200
+   },
+   {
+    "t": 1794739452932,
+    "method": "GET",
+    "url": "/api/drives/動画/files?search=猫&type=video&sort=created_at&order=desc&page=1&limit=30",
+    "bodyLen": 0,
+    "fileIds": null,
+    "status": 200
+   },
+   {
+    "t": 1794739452933,
+    "method": "GET",
+    "url": "/api/drives/動画/smart-folders",
+    "bodyLen": 0,
+    "fileIds": null,
+    "status": 200
+   },
+   {
+    "t": 1794739452933,
+    "method": "GET",
+    "url": "/api/drives/動画/collections",
+    "bodyLen": 0,
+    "fileIds": null,
+    "status": 200
+   },
+   {
+    "t": 1794739452936,
+    "method": "GET",
+    "url": "/api/addons/intelligence/search?q=猫&limit=1000&passages=true&filter={\"kinds\":[\"video\"]}",
+    "bodyLen": 0,
+    "fileIds": null,
+    "status": 200
+   },
+   {
+    "t": 1794739452940,
+    "method": "GET",
+    "url": "/api/drives/動画/files?search=猫&type=video&sort=created_at&order=desc&page=1&limit=30",
+    "bodyLen": 0,
+    "fileIds": null,
+    "status": 200
+   }
+  ]
+ },
+ "in-Cats-type-video": {
+  "q": "in:\"Cats\" type:video",
+  "count": "6",
+  "ids": [
+   "wJnOX7w4b-Or",
+   "3N8AIYqZ_oAB",
+   "Apq6ZrOo4qq7",
+   "XGPJ2WG7SqRn",
+   "_p2jkii4itW-",
+   "oUoI_V4TWkZ3"
+  ],
+  "reqs": [
+   {
+    "t": 1794739458070,
+    "method": "GET",
+    "url": "/api/addons/intelligence/search/by-image/available",
+    "bodyLen": 0,
+    "fileIds": null,
+    "status": 200
+   },
+   {
+    "t": 1794739458070,
+    "method": "GET",
+    "url": "/api/drives/動画/smart-folders",
+    "bodyLen": 0,
+    "fileIds": null,
+    "status": 200
+   },
+   {
+    "t": 1794739458070,
+    "method": "GET",
+    "url": "/api/drives/動画/collections",
+    "bodyLen": 0,
+    "fileIds": null,
+    "status": 200
+   },
+   {
+    "t": 1794739458070,
+    "method": "GET",
+    "url": "/api/drives/動画/smart-folders",
+    "bodyLen": 0,
+    "fileIds": null,
+    "status": 200
+   },
+   {
+    "t": 1794739458070,
+    "method": "GET",
+    "url": "/api/drives/動画/collections",
+    "bodyLen": 0,
+    "fileIds": null,
+    "status": 200
+   },
+   {
+    "t": 1794739458092,
+    "method": "GET",
+    "url": "/api/drives/動画/smart-folders",
+    "bodyLen": 0,
+    "fileIds": null,
+    "status": 200
+   },
+   {
+    "t": 1794739458120,
+    "method": "GET",
+    "url": "/api/drives/動画/files?search=猫&sort=created_at&order=desc&page=1&limit=500",
+    "bodyLen": 0,
+    "fileIds": null,
+    "status": 200
+   },
+   {
+    "t": 1794739458151,
+    "method": "GET",
+    "url": "/api/addons/intelligence/search?q=猫&limit=1000&passages=true",
+    "bodyLen": 0,
+    "fileIds": null,
+    "status": 200
+   },
+   {
+    "t": 1794739458235,
+    "method": "POST",
+    "url": "/api/drives/動画/files/query?type=video&sort=created_at&order=desc&page=1&limit=30",
+    "bodyLen": 134,
+    "fileIds": 8,
+    "status": 200
+   }
+  ]
+ },
+ "in-Cats-text": {
+  "q": "in:\"Cats\" 子ザメ",
+  "count": "4",
+  "ids": [
+   "Apq6ZrOo4qq7",
+   "_p2jkii4itW-",
+   "oUoI_V4TWkZ3",
+   "XGPJ2WG7SqRn"
+  ],
+  "reqs": [
+   {
+    "t": 1794739463199,
+    "method": "GET",
+    "url": "/api/addons/intelligence/search/by-image/available",
+    "bodyLen": 0,
+    "fileIds": null,
+    "status": 200
+   },
+   {
+    "t": 1794739463199,
+    "method": "GET",
+    "url": "/api/drives/動画/smart-folders",
+    "bodyLen": 0,
+    "fileIds": null,
+    "status": 200
+   },
+   {
+    "t": 1794739463199,
+    "method": "GET",
+    "url": "/api/drives/動画/collections",
+    "bodyLen": 0,
+    "fileIds": null,
+    "status": 200
+   },
+   {
+    "t": 1794739463200,
+    "method": "GET",
+    "url": "/api/drives/動画/smart-folders",
+    "bodyLen": 0,
+    "fileIds": null,
+    "status": 200
+   },
+   {
+    "t": 1794739463200,
+    "method": "GET",
+    "url": "/api/drives/動画/collections",
+    "bodyLen": 0,
+    "fileIds": null,
+    "status": 200
+   },
+   {
+    "t": 1794739463219,
+    "method": "GET",
+    "url": "/api/drives/動画/smart-folders",
+    "bodyLen": 0,
+    "fileIds": null,
+    "status": 200
+   },
+   {
+    "t": 1794739463250,
+    "method": "GET",
+    "url": "/api/drives/動画/files?search=猫&sort=created_at&order=desc&page=1&limit=500",
+    "bodyLen": 0,
+    "fileIds": null,
+    "status": 200
+   },
+   {
+    "t": 1794739463269,
+    "method": "GET",
+    "url": "/api/addons/intelligence/search?q=猫&limit=1000&passages=true",
+    "bodyLen": 0,
+    "fileIds": null,
+    "status": 200
+   },
+   {
+    "t": 1794739463354,
+    "method": "POST",
+    "url": "/api/drives/動画/files/query?search=子ザメ&sort=created_at&order=desc&page=1&limit=30",
+    "bodyLen": 134,
+    "fileIds": 8,
+    "status": 200
+   },
+   {
+    "t": 1794739463354,
+    "method": "POST",
+    "url": "/api/addons/intelligence/search?q=子ザメ&limit=1000&passages=true&filter={}",
+    "bodyLen": 134,
+    "fileIds": 8,
+    "status": 200
+   }
+  ]
+ },
+ "in-Spirit": {
+  "q": "in:\"Spirit\"",
+  "count": "50",
+  "ids": [
+   "zg5HkV5jTw8c",
+   "xNyTlh63Xwzd",
+   "wq5c4fw2DKq2",
+   "wbyjPmSdncxj",
+   "vB4J6TC4nRa2",
+   "tkN-r7LDhXVc",
+   "r8N3HBkTHIUg",
+   "qOeP8GbJQ0qT",
+   "oUMGSmAvPM_E",
+   "ngDP1hiz_Jgo",
+   "msvvhYAk9mBq",
+   "jHwM5CS1yGe4",
+   "jH_ygt6tlfd6",
+   "j883lb4yPUJZ",
+   "gR6ISIwLTW_i",
+   "eniozBpL9C2b",
+   "egjNjn6yd9YB",
+   "eNQFYdf7VvlV",
+   "e1e1ZLBvadPd",
+   "dVCzH9ItqikR",
+   "cPaHnmMaDQZE",
+   "XurTWxWwYdNg",
+   "XhsGFrUCCmwS",
+   "XAA7eXM1X-h0",
+   "X4i-kwfE5vdt",
+   "V_0MtQofy1vV",
+   "VVizlG33BjuK",
+   "TOXerbCtqol-",
+   "S6m4fky2ntmD",
+   "RaYLouqbhE9L"
+  ],
+  "reqs": [
+   {
+    "t": 1794739468303,
+    "method": "GET",
+    "url": "/api/addons/intelligence/search/by-image/available",
+    "bodyLen": 0,
+    "fileIds": null,
+    "status": 200
+   },
+   {
+    "t": 1794739468304,
+    "method": "GET",
+    "url": "/api/drives/動画/smart-folders",
+    "bodyLen": 0,
+    "fileIds": null,
+    "status": 200
+   },
+   {
+    "t": 1794739468304,
+    "method": "GET",
+    "url": "/api/drives/動画/collections",
+    "bodyLen": 0,
+    "fileIds": null,
+    "status": 200
+   },
+   {
+    "t": 1794739468304,
+    "method": "GET",
+    "url": "/api/drives/動画/smart-folders",
+    "bodyLen": 0,
+    "fileIds": null,
+    "status": 200
+   },
+   {
+    "t": 1794739468304,
+    "method": "GET",
+    "url": "/api/drives/動画/collections",
+    "bodyLen": 0,
+    "fileIds": null,
+    "status": 200
+   },
+   {
+    "t": 1794739468323,
+    "method": "GET",
+    "url": "/api/drives/動画/files?collection=Spirit&sort=created_at&order=desc&page=1&limit=30",
+    "bodyLen": 0,
+    "fileIds": null,
+    "status": 200
+   }
+  ]
+ },
+ "in-spirit-lower": {
+  "q": "in:spirit",
+  "count": "50",
+  "ids": [
+   "zg5HkV5jTw8c",
+   "xNyTlh63Xwzd",
+   "wq5c4fw2DKq2",
+   "wbyjPmSdncxj",
+   "vB4J6TC4nRa2",
+   "tkN-r7LDhXVc",
+   "r8N3HBkTHIUg",
+   "qOeP8GbJQ0qT",
+   "oUMGSmAvPM_E",
+   "ngDP1hiz_Jgo",
+   "msvvhYAk9mBq",
+   "jHwM5CS1yGe4",
+   "jH_ygt6tlfd6",
+   "j883lb4yPUJZ",
+   "gR6ISIwLTW_i",
+   "eniozBpL9C2b",
+   "egjNjn6yd9YB",
+   "eNQFYdf7VvlV",
+   "e1e1ZLBvadPd",
+   "dVCzH9ItqikR",
+   "cPaHnmMaDQZE",
+   "XurTWxWwYdNg",
+   "XhsGFrUCCmwS",
+   "XAA7eXM1X-h0",
+   "X4i-kwfE5vdt",
+   "V_0MtQofy1vV",
+   "VVizlG33BjuK",
+   "TOXerbCtqol-",
+   "S6m4fky2ntmD",
+   "RaYLouqbhE9L"
+  ],
+  "reqs": [
+   {
+    "t": 1794739473392,
+    "method": "GET",
+    "url": "/api/addons/intelligence/search/by-image/available",
+    "bodyLen": 0,
+    "fileIds": null,
+    "status": 200
+   },
+   {
+    "t": 1794739473392,
+    "method": "GET",
+    "url": "/api/drives/動画/smart-folders",
+    "bodyLen": 0,
+    "fileIds": null,
+    "status": 200
+   },
+   {
+    "t": 1794739473392,
+    "method": "GET",
+    "url": "/api/drives/動画/collections",
+    "bodyLen": 0,
+    "fileIds": null,
+    "status": 200
+   },
+   {
+    "t": 1794739473392,
+    "method": "GET",
+    "url": "/api/drives/動画/smart-folders",
+    "bodyLen": 0,
+    "fileIds": null,
+    "status": 200
+   },
+   {
+    "t": 1794739473392,
+    "method": "GET",
+    "url": "/api/drives/動画/collections",
+    "bodyLen": 0,
+    "fileIds": null,
+    "status": 200
+   },
+   {
+    "t": 1794739473411,
+    "method": "GET",
+    "url": "/api/drives/動画/files?collection=spirit&sort=created_at&order=desc&page=1&limit=30",
+    "bodyLen": 0,
+    "fileIds": null,
+    "status": 200
+   }
+  ]
+ },
+ "in-neither": {
+  "q": "in:\"nothing_here\"",
+  "count": "0",
+  "ids": [],
+  "reqs": [
+   {
+    "t": 1794739478484,
+    "method": "GET",
+    "url": "/api/addons/intelligence/search/by-image/available",
+    "bodyLen": 0,
+    "fileIds": null,
+    "status": 200
+   },
+   {
+    "t": 1794739478484,
+    "method": "GET",
+    "url": "/api/drives/動画/smart-folders",
+    "bodyLen": 0,
+    "fileIds": null,
+    "status": 200
+   },
+   {
+    "t": 1794739478484,
+    "method": "GET",
+    "url": "/api/drives/動画/collections",
+    "bodyLen": 0,
+    "fileIds": null,
+    "status": 200
+   },
+   {
+    "t": 1794739478484,
+    "method": "GET",
+    "url": "/api/drives/動画/smart-folders",
+    "bodyLen": 0,
+    "fileIds": null,
+    "status": 200
+   },
+   {
+    "t": 1794739478485,
+    "method": "GET",
+    "url": "/api/drives/動画/collections",
+    "bodyLen": 0,
+    "fileIds": null,
+    "status": 200
+   },
+   {
+    "t": 1794739478505,
+    "method": "GET",
+    "url": "/api/drives/動画/smart-folders",
+    "bodyLen": 0,
+    "fileIds": null,
+    "status": 200
+   },
+   {
+    "t": 1794739478546,
+    "method": "GET",
+    "url": "/api/drives/動画/files?collection=nothing_here&sort=created_at&order=desc&page=1&limit=30",
+    "bodyLen": 0,
+    "fileIds": null,
+    "status": 200
+   }
+  ]
+ },
+ "in-Spirit-and-Cats": {
+  "q": "in:\"Spirit\" in:\"Cats\"",
+  "count": "58",
+  "ids": [
+   "vBuGQ4UAETm0",
+   "wJnOX7w4b-Or",
+   "YwOS8eJjBiTH",
+   "3N8AIYqZ_oAB",
+   "Apq6ZrOo4qq7",
+   "XGPJ2WG7SqRn",
+   "_p2jkii4itW-",
+   "oUoI_V4TWkZ3",
+   "zg5HkV5jTw8c",
+   "xNyTlh63Xwzd",
+   "wq5c4fw2DKq2",
+   "wbyjPmSdncxj",
+   "vB4J6TC4nRa2",
+   "tkN-r7LDhXVc",
+   "r8N3HBkTHIUg",
+   "qOeP8GbJQ0qT",
+   "oUMGSmAvPM_E",
+   "ngDP1hiz_Jgo",
+   "msvvhYAk9mBq",
+   "jHwM5CS1yGe4",
+   "jH_ygt6tlfd6",
+   "j883lb4yPUJZ",
+   "gR6ISIwLTW_i",
+   "eniozBpL9C2b",
+   "egjNjn6yd9YB",
+   "eNQFYdf7VvlV",
+   "e1e1ZLBvadPd",
+   "dVCzH9ItqikR",
+   "cPaHnmMaDQZE",
+   "XurTWxWwYdNg"
+  ],
+  "reqs": [
+   {
+    "t": 1794739483568,
+    "method": "GET",
+    "url": "/api/addons/intelligence/search/by-image/available",
+    "bodyLen": 0,
+    "fileIds": null,
+    "status": 200
+   },
+   {
+    "t": 1794739483568,
+    "method": "GET",
+    "url": "/api/drives/動画/smart-folders",
+    "bodyLen": 0,
+    "fileIds": null,
+    "status": 200
+   },
+   {
+    "t": 1794739483568,
+    "method": "GET",
+    "url": "/api/drives/動画/collections",
+    "bodyLen": 0,
+    "fileIds": null,
+    "status": 200
+   },
+   {
+    "t": 1794739483568,
+    "method": "GET",
+    "url": "/api/drives/動画/smart-folders",
+    "bodyLen": 0,
+    "fileIds": null,
+    "status": 200
+   },
+   {
+    "t": 1794739483569,
+    "method": "GET",
+    "url": "/api/drives/動画/collections",
+    "bodyLen": 0,
+    "fileIds": null,
+    "status": 200
+   },
+   {
+    "t": 1794739483588,
+    "method": "GET",
+    "url": "/api/drives/動画/smart-folders",
+    "bodyLen": 0,
+    "fileIds": null,
+    "status": 200
+   },
+   {
+    "t": 1794739483626,
+    "method": "GET",
+    "url": "/api/drives/動画/files?search=猫&sort=created_at&order=desc&page=1&limit=500",
+    "bodyLen": 0,
+    "fileIds": null,
+    "status": 200
+   },
+   {
+    "t": 1794739483650,
+    "method": "GET",
+    "url": "/api/addons/intelligence/search?q=猫&limit=1000&passages=true",
+    "bodyLen": 0,
+    "fileIds": null,
+    "status": 200
+   },
+   {
+    "t": 1794739483729,
+    "method": "POST",
+    "url": "/api/drives/動画/files/query?collection=Spirit&sort=created_at&order=desc&page=1&limit=30",
+    "bodyLen": 134,
+    "fileIds": 8,
+    "status": 200
+   }
+  ]
+ },
+ "viewMenu": [
+  "表示\n\nグリッド表示\nリスト表示"
+ ],
+ "changeReqs": [
+  {
+   "t": 1794739494058,
+   "method": "POST",
+   "url": "/api/drives/動画/files/query?search=子ザメ&sort=created_at&order=desc&page=1&limit=30",
+   "bodyLen": 134,
+   "fileIds": 8,
+   "status": 200
+  },
+  {
+   "t": 1794739494064,
+   "method": "POST",
+   "url": "/api/drives/動画/files/query?search=子ザメ&sort=created_at&order=desc&page=1&limit=30",
+   "bodyLen": 134,
+   "fileIds": 8,
+   "status": 200
+  },
+  {
+   "t": 1794739494283,
+   "method": "GET",
+   "url": "/api/files/oUoI_V4TWkZ3/stream",
+   "bodyLen": 0,
+   "fileIds": null,
+   "status": 206
+  },
+  {
+   "t": 1794739494321,
+   "method": "GET",
+   "url": "/api/files/oUoI_V4TWkZ3/stream",
+   "bodyLen": 0,
+   "fileIds": null,
+   "status": 206
+  },
+  {
+   "t": 1794739494356,
+   "method": "GET",
+   "url": "/api/files/oUoI_V4TWkZ3/stream",
+   "bodyLen": 0,
+   "fileIds": null,
+   "status": 206
+  },
+  {
+   "t": 1794739494391,
+   "method": "GET",
+   "url": "/api/files/oUoI_V4TWkZ3/stream",
+   "bodyLen": 0,
+   "fileIds": null,
+   "status": 206
+  },
+  {
+   "t": 1794739496864,
+   "method": "POST",
+   "url": "/api/drives/動画/files/query?search=子ザメ&sort=created_at&order=asc&page=1&limit=30",
+   "bodyLen": 134,
+   "fileIds": 8,
+   "status": 200
+  },
+  {
+   "t": 1794739496871,
+   "method": "POST",
+   "url": "/api/drives/動画/files/query?search=子ザメ&sort=created_at&order=asc&page=1&limit=30",
+   "bodyLen": 134,
+   "fileIds": 8,
+   "status": 200
+  },
+  {
+   "t": 1794739497088,
+   "method": "GET",
+   "url": "/api/files/Apq6ZrOo4qq7/stream",
+   "bodyLen": 0,
+   "fileIds": null,
+   "status": 206
+  },
+  {
+   "t": 1794739497123,
+   "method": "GET",
+   "url": "/api/files/Apq6ZrOo4qq7/stream",
+   "bodyLen": 0,
+   "fileIds": null,
+   "status": 206
+  },
+  {
+   "t": 1794739497157,
+   "method": "GET",
+   "url": "/api/files/Apq6ZrOo4qq7/stream",
+   "bodyLen": 0,
+   "fileIds": null,
+   "status": 206
+  },
+  {
+   "t": 1794739497191,
+   "method": "GET",
+   "url": "/api/files/Apq6ZrOo4qq7/stream",
+   "bodyLen": 0,
+   "fileIds": null,
+   "status": 206
+  },
+  {
+   "t": 1794739502761,
+   "method": "POST",
+   "url": "/api/drives/動画/files/query?search=ちいかわ&sort=created_at&order=asc&page=1&limit=30",
+   "bodyLen": 134,
+   "fileIds": 8,
+   "status": 200
+  },
+  {
+   "t": 1794739502762,
+   "method": "POST",
+   "url": "/api/drives/動画/files/query?search=ちいかわ&sort=created_at&order=asc&page=1&limit=30",
+   "bodyLen": 134,
+   "fileIds": 8,
+   "status": 200
+  },
+  {
+   "t": 1794739502762,
+   "method": "POST",
+   "url": "/api/addons/intelligence/search?q=ちいかわ&limit=1000&passages=true&filter={}",
+   "bodyLen": 134,
+   "fileIds": 8,
+   "status": 200
+  }
+ ],
+ "urlAfterChanges": "http://video-share-sc-idfilter.localhost:3105/drive/動画/search?q=in:\"Cats\"+ちいかわ&sort=created_at&order=asc",
+ "inChangeReqs": [
+  {
+   "t": 1794739506796,
+   "method": "GET",
+   "url": "/api/drives/動画/collections",
+   "bodyLen": 0,
+   "fileIds": null,
+   "status": 200
+  },
+  {
+   "t": 1794739506802,
+   "method": "GET",
+   "url": "/api/drives/動画/smart-folders",
+   "bodyLen": 0,
+   "fileIds": null,
+   "status": 200
+  },
+  {
+   "t": 1794739506806,
+   "method": "GET",
+   "url": "/api/drives/動画/files?search=海&sort=created_at&order=desc&page=1&limit=500",
+   "bodyLen": 0,
+   "fileIds": null,
+   "status": 200
+  },
+  {
+   "t": 1794739506813,
+   "method": "GET",
+   "url": "/api/addons/intelligence/search?q=海&limit=1000&passages=true",
+   "bodyLen": 0,
+   "fileIds": null,
+   "status": 200
+  },
+  {
+   "t": 1794739506875,
+   "method": "POST",
+   "url": "/api/drives/動画/files/query?search=ちいかわ&sort=created_at&order=asc&page=1&limit=30",
+   "bodyLen": 314,
+   "fileIds": 20,
+   "status": 200
+  },
+  {
+   "t": 1794739506875,
+   "method": "POST",
+   "url": "/api/addons/intelligence/search?q=ちいかわ&limit=1000&passages=true&filter={}",
+   "bodyLen": 314,
+   "fileIds": 20,
+   "status": 200
+  }
+ ],
+ "inChangeCount": "13",
+ "passagesReqs": [
+  {
+   "t": 1794739516915,
+   "method": "GET",
+   "url": "/api/addons/intelligence/files/Apq6ZrOo4qq7/frame?t=80",
+   "bodyLen": 0,
+   "fileIds": null,
+   "status": 200
+  },
+  {
+   "t": 1794739516915,
+   "method": "GET",
+   "url": "/api/addons/intelligence/files/oUoI_V4TWkZ3/frame?t=70",
+   "bodyLen": 0,
+   "fileIds": null,
+   "status": 200
+  },
+  {
+   "t": 1794739516915,
+   "method": "GET",
+   "url": "/api/addons/intelligence/files/_p2jkii4itW-/frame?t=70",
+   "bodyLen": 0,
+   "fileIds": null,
+   "status": 200
+  },
+  {
+   "t": 1794739516915,
+   "method": "GET",
+   "url": "/api/addons/intelligence/files/_p2jkii4itW-/frame?t=80",
+   "bodyLen": 0,
+   "fileIds": null,
+   "status": 200
+  },
+  {
+   "t": 1794739516915,
+   "method": "GET",
+   "url": "/api/addons/intelligence/files/XGPJ2WG7SqRn/frame?t=80",
+   "bodyLen": 0,
+   "fileIds": null,
+   "status": 200
+  }
+ ],
+ "passagesText": "検索: \"in:\"Cats\" 子ザメ\"\nコレクション Cats\n×\n＋\n条件\nファイル\n箇所\n4 ファイル・5 箇所\n1:20\n1:20\n画面内の文字\nアニメ『おでかけ子ザメ』第47話「落としもの」-後編-.mp4\n61 うたおう！ 原作 ペンギンポックス (「おでかけ子ザメ」KADOKAWA刊) O11 晴れの日でも\n1:10\n1:10\n画面内の文字\nアニメ『おでかけ子ザメ』第29話「冬のベーカリー」.mp4\n61 うたおう! 原作 ペンギンポックス (「おでかけ子ザメ」KADOKAWA刊） O11 晴れの日でも\n1:10\n1:10\n画面内の文字\nアニメ『おでかけ子ザメ』第43話「まねきねこ」.mp4\n61 うたおう! キャスト 子ザメ5书ん 花澤香菜 おばさん 渡辺優里奈 O11 お兄さん 渡部俊樹 あめ 雨の日でも\n1:20\n1:20\n画面内の文字\nアニメ『おでかけ子ザメ』第43話「まねきねこ」.mp4\n61 うたおう！ 「よりみち」 歌子ザ×ちゃん(CV：花澤香菜) 作詞 子ザメちやん 作曲·編曲 baker (KADOKAWA) 22 何処までも行こう\n1:20\n1:20\n画面内の文字\nアニメ『おでかけ子ザメ』第45話「羽つきぎょうざ」.mp4\n61 うたおう！ 「よりみち」 歌子ザ×ちゃん(CV：花澤香菜) 作詞 子ザメちゃん 作曲·編曲 baker O (KADOKAWA) さんぽみち いつもの散歩道も",
+ "collectionParamWithSmartName": []
+}

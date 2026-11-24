@@ -6,6 +6,7 @@ import { FILE_PAGE_CLOSED_EVENT } from "@/lib/addonEvents";
 import {
   loaded,
   makeFile,
+  raiseSheetFromStrip,
   relationMocks,
   setApiResponses,
   setViewport,
@@ -95,7 +96,6 @@ beforeEach(() => {
   slotMocks.occupied.clear();
   slotMocks.entries.clear();
   window.localStorage.clear();
-  document.documentElement.removeAttribute("data-media-layout");
   setViewport();
   usePolicyMock.mockReturnValue({ enabled: true, isLoading: false });
   closed.length = 0;
@@ -159,12 +159,11 @@ describe("SPEC-ADDON-056 I11 - the file page tells addons when the file it shows
     render(<FileDetailContent fileId="f1" drive="main" />);
     await shellLoaded();
 
-    const toggle = screen.getByTestId("inspector-toggle");
-    fireEvent.click(toggle);
+    raiseSheetFromStrip();
     await screen.findByTestId("mobile-inspector-sheet");
     expect(closed).toEqual([]);
 
-    fireEvent.click(toggle);
+    fireEvent.keyDown(document, { key: "Escape" });
     await waitFor(() =>
       expect(screen.queryByTestId("mobile-inspector-sheet")).toBeNull(),
     );

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { FolderContent } from "../FolderContent";
+import { FolderContent } from "./folderContentHarness";
 import type { FileItem, Folder } from "@/types";
 import { createRef } from "react";
 
@@ -94,6 +94,7 @@ const mockFile = (id: string): FileItem => ({
   trust_reviewed_at: null,
   created_at: "2026-01-01T00:00:00Z",
   updated_at: "2026-01-01T00:00:00Z",
+  modified_at: null,
 });
 
 const mockFolder = (name: string): Folder => ({

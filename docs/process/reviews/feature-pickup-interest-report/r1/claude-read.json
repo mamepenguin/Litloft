@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "R1",
+      "origin": "reviewer",
+      "claim": "evaluate.py now imports and calls `_not_interested_ids`, a private helper of `app/workers/pickup.py`. The touch-point list does not name this dependency: it says only that the worker is not edited and that the command calls 'the same profile and retrieval functions the worker calls'.",
+      "impact": "No user-visible defect today. The command now depends on a private worker symbol, so if that helper is renamed or changes semantics (for example, starts filtering marks), `interests` breaks or changes silently. A reader of the touch-point list would not know the worker module is part of what this change relies on.",
+      "evidence": "addons/intelligence/app/pickup/evaluate.py:59-63 adds `_not_interested_ids` to the `from app.workers.pickup import` list. evaluate.py:907 calls it and evaluate.py:948 uses its result in the exclusion set. app/workers/pickup.py:82-96 defines it with get_search_db_read (read-only, so I1 holds under init_readonly_databases at database.py:2394-2427). The worker builds its exclusions the same way at workers/pickup.py:305-306. app/workers/pickup.py itself is not in the diff.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "This is a read-only dependency, not an edit. It matches the spec's 'the exclusion set is the worker's' (item 1.8) and breaks no invariant. It only makes the touch-point list incomplete as a description of what the change reaches."
+      },
+      "severity": "INFO",
+      "proposed_fix": "Name `app/workers/pickup.py` (`_not_interested_ids`, `_CANDIDATES_PER_LANE`) in the touch points as read-only dependencies, or move the marks read into profile.py."
+    }
+  ],
+  "specification_compliance": [
+    "Every changed path is in the touch-point list or is an implicit touch point: evaluate.py, profile.py, the new tests/test_z_pickup_interests.py, docs/addons/intelligence.md, the submodule pointer, docs/specs/INDEX.md and the spec itself.",
+    "profile.py: `cluster_lanes` keeps the old `build_lanes` body, adds a members dict to each pending tuple, and sorts pairs by the same key (-weight, cluster_id). `build_lanes` passes key, now and vectors through, which is consistent with I3.",
+    "evaluate.py: `main` now dispatches `online` by name and sends anything else to `interests`. argparse requires a subcommand with fixed choices, so `replay` and `online` behave as before.",
+    "The exclusion set (watched_file_ids | all marks) matches the worker's signature_exclusions | marks at workers/pickup.py:305-306.",
+    "`_row_class` applies the filters (live, video, parseable, future tolerance, window) and then the class order exactly as spec item 1.6 lists them."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The command calls the private worker helper `_not_interested_ids`, which spec item 1.8 does not name. The spec only says the exclusion set is the worker's."
+  ],
+  "regression_risks": [
+    "`build_lanes` now builds one extra dict per lane (members to vectors) on every worker rebuild. The memory cost is small, and the returned lanes are unchanged.",
+    "evaluate.py depends on worker-private names (`_not_interested_ids`, `_CANDIDATES_PER_LANE`, `_FEED_DEPTH`), so refactoring the worker can break the evaluate commands."
+  ],
+  "test_coverage": [
+    "test_spec_addon_156_i2_cluster_lanes_lists_build_lanes_with_their_members and test_spec_addon_156_i3_build_lanes_and_cluster_lanes_use_the_vectors_passed check that `cluster_lanes` and `build_lanes` agree and that `vectors=` passes through. They do not compare against the pre-change implementation; that half of I3 relies on the existing worker and replay tests.",
+    "Row classes, filters, the cap line, attribution ties, per-type attribution, `- none`, `-` rate, failure exits and database immutability each have end-to-end subprocess tests."
+  ],
+  "not_verified": [
+    "I did not run any tests. I could not execute anything.",
+    "I did not check that the existing replay and online tests still pass after the `main` dispatch change.",
+    "I did not read tests/pickup_accuracy_rig.py or test_z_pickup_evaluate._fingerprint to confirm the fixtures behave as the new tests assume.",
+    "I did not check whether commit 7c3499304 on its own touches only docs. I reviewed the diff as provided."
+  ],
+  "coverage": [
+    {
+      "path": "addons/intelligence/app/pickup/evaluate.py",
+      "read": "partial",
+      "reason": "Read lines 1-240 (imports, helpers), 806-1050 (all of the interests code) and 1053-1169 (parser and main). Did not read replay and online internals (240-806), which this change leaves unchanged."
+    },
+    {
+      "path": "addons/intelligence/app/pickup/profile.py",
+      "read": "full",
+      "reason": "Read the changed hunk with its enclosing functions, cluster_lanes and build_lanes (lines 980-1145), plus the helpers the report uses (_known_duration, live_videos, watched_file_ids)."
+    },
+    {
+      "path": "addons/intelligence/tests/test_z_pickup_interests.py",
+      "read": "full",
+      "reason": "Read the whole new file in the provided diff."
+    }
+  ],
+  "confidence": 82
+}

@@ -9,6 +9,7 @@ vi.mock("@/components/AddonSlotsProvider", () => ({
 }));
 vi.mock("@/components/SmartFolderSaveButton", () => ({
   SmartFolderMenuItems: () => null,
+  SmartFolderOverwriteButton: () => null,
 }));
 
 const search: FolderToolbarSearch = {

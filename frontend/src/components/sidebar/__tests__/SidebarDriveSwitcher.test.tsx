@@ -210,6 +210,7 @@ describe("sidebar top — item 10", () => {
         sourceAddons={[
           {
             name: "media_import",
+            key: "media_import",
             href: "/drive/d/addons/media_import",
             navigation: { label: "YouTube & Feeds", placement: "sources", priority: 10 },
           },

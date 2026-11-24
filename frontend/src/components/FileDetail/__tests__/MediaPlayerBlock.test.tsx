@@ -13,10 +13,6 @@ vi.mock("../../AddonSlot", () => ({
   AddonSlot: ({ id }: { id: string }) => <div data-slot={id} />,
 }));
 
-vi.mock("../../MediaLayoutToggle", () => ({
-  MediaLayoutToggle: () => <button type="button">layout</button>,
-}));
-
 const filled = new Set<string>();
 
 vi.mock("../../AddonSlotsProvider", () => ({
@@ -49,6 +45,7 @@ function makeFile(overrides: Partial<FileItem> = {}): FileItem {
     trust_reviewed_at: null,
     created_at: "2026-01-01T00:00:00Z",
     updated_at: "2026-01-01T00:00:00Z",
+    modified_at: null,
     ...overrides,
   };
 }
@@ -72,7 +69,6 @@ function renderBlock(file: FileItem, slots: string[] = ["loft-metadata"]) {
       addonSlotProps={{}}
       playerWrapperRef={createRef<HTMLDivElement>()}
       framed
-      layoutToggle={null}
     />,
   );
   return {
@@ -102,8 +98,7 @@ describe("the player block", () => {
     expect(player.parentElement).toBe(container);
     expect(aside!.parentElement).toBe(container);
     expect(aside!.contains(player)).toBe(false);
-    // And it is the box `globals.css` gives a grid area of its own, so
-    // the legacy grid does not auto-place it into someone else's cell.
+    // And it carries the class the host's workbench flex rules target.
     expect(aside!.className).toContain("media-detail-player-aside");
   });
 

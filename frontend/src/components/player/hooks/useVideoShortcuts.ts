@@ -1,10 +1,11 @@
 "use client";
 
-import type { MutableRefObject } from "react";
+import { useRef, type MutableRefObject } from "react";
 import { useTranslations } from "next-intl";
 
 import { useShortcuts } from "@/hooks/useShortcuts";
 import type { MediaController } from "@/lib/mediaController";
+import { watchedRangesStore } from "@/lib/watchedRangesStore";
 
 /** `fullscreenToggle` is the frame's own toggle where it has one. */
 export function useVideoShortcuts(
@@ -12,6 +13,11 @@ export function useVideoShortcuts(
   fullscreenToggle: MutableRefObject<(() => void) | null>,
 ): void {
   const tShortcuts = useTranslations("shortcuts");
+  // `when` is captured when the context is pushed, and the controller
+  // usually arrives after that; reading it through a ref keeps the
+  // gate live without re-pushing every shortcut on each controller change.
+  const mcRef = useRef(mc);
+  mcRef.current = mc;
 
   useShortcuts("video-player", tShortcuts("videoPlayer"), [
     {
@@ -22,22 +28,47 @@ export function useVideoShortcuts(
     {
       key: "arrowleft",
       label: tShortcuts("seekBack10"),
-      handler: () => mc?.seek(mc.getCurrentTime() - 10),
+      handler: () => {
+        if (!mc) return;
+        mc.seek(mc.getCurrentTime() - 10);
+        watchedRangesStore.reportSkip(mc);
+      },
     },
     {
       key: "arrowright",
       label: tShortcuts("seekForward10"),
-      handler: () => mc?.seek(mc.getCurrentTime() + 10),
+      handler: () => {
+        if (!mc) return;
+        mc.seek(mc.getCurrentTime() + 10);
+        watchedRangesStore.reportSkip(mc);
+      },
     },
     {
       key: "arrowup",
       label: tShortcuts("seekForward60"),
-      handler: () => mc?.seek(mc.getCurrentTime() + 60),
+      handler: () => {
+        if (!mc) return;
+        mc.seek(mc.getCurrentTime() + 60);
+        watchedRangesStore.reportSkip(mc);
+      },
     },
     {
       key: "arrowdown",
       label: tShortcuts("seekBack60"),
-      handler: () => mc?.seek(mc.getCurrentTime() - 60),
+      handler: () => {
+        if (!mc) return;
+        mc.seek(mc.getCurrentTime() - 60);
+        watchedRangesStore.reportSkip(mc);
+      },
+    },
+    {
+      key: "p",
+      label: tShortcuts("jumpToMostWatched"),
+      when: () => mcRef.current !== null && watchedRangesStore.jumpAvailable(mcRef.current),
+      handler: () => {
+        const current = mcRef.current;
+        if (current) watchedRangesStore.requestJump(current);
+      },
     },
     {
       key: "m",

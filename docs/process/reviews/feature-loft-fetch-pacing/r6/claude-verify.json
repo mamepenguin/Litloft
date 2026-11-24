@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "MEDIUM",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1",
+      "status": "confirmed",
+      "note": "Factual claim holds. docs/specs/loft-fetch-pacing.md:113-124 (Touch points) does not list addons/intelligence/app/youtube_source.py. The file defines DownloadOutcome at youtube_source.py:303-312, changes download_rendition's return type to DownloadOutcome at :327, returns DownloadOutcome at :411-412, and lists DownloadOutcome in __all__ at :579. A grep of addons/intelligence finds one caller of download_rendition, workers/loft_media.py:433, which reads outcome.path and outcome.no_space (:440-447). The return-type change therefore stays inside the tree as far as the grep shows. The issue is a spec scope/documentation gap, not a behavioural defect; severity is left to the author."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F2",
+      "status": "confirmed",
+      "note": "Factual claim holds for the post-commit state. addons/intelligence/tests/test_spec_addon_117_loft_media_fetch.py contains many SPEC-ADDON-119 I2 docstrings and _succeed_once(...) preconditions (e.g. :62 definition, :393, :445, :467, :528-536, :602, :655, :705, :786, :873), and the file is a 117 test module. The spec Touch points line at docs/specs/loft-fetch-pacing.md:121 says 'Tests under addons/intelligence/tests/ for SPEC-ADDON-119', which does not name this 117 file. The before/after assertion change (failures == 1 to 0) could not be checked against the pre-commit version because git is unavailable to me; I only confirmed the current assertions (for example :282, :340, :554, :585, :643 assert 0 and :384, :431 assert 1). The scope observation is accurate; the change's correctness was not assessed."
+    }
+  ],
+  "specification_compliance": [
+    "Touch points in docs/specs/loft-fetch-pacing.md:113-124 do not name youtube_source.py or the SPEC-ADDON-117 test module, and the commit edits both. This is a scope/documentation mismatch only.",
+    "I2 counting logic as touched by the download path: a download failure directly after a YouTube success goes through _failed_result (loft_media.py:440-446), and a no-space stop returns FetchResult() without counting (loft_media.py:441-442, youtube_source.py:381-382, 411). This matches the 117 revision that disk-guard stops are never counted.",
+    "I1-I4 (gate, counting rule, backoff, log content) were not checked in this review; only the two listed findings were verified."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "Whether the 117 test module should be listed in the spec Touch points at all, or whether its edits belong in a separate commit, is not stated by the spec."
+  ],
+  "regression_risks": [
+    "No regression was reproduced. The return-type change from a path-or-None value to DownloadOutcome has one caller in the tree (loft_media.py:433), which was updated in the same commit."
+  ],
+  "test_coverage": [
+    "Test names and docstrings in the 117 module tie the edited assertions to SPEC-ADDON-119 I2, but tests were not executed (no shell available).",
+    "Coverage of the DownloadOutcome no_space branch by a test was not confirmed by reading the test files for that branch."
+  ],
+  "not_verified": [
+    "git diff of cecdd2591 against its parent: the pre-commit contents of both files were not compared, so the claimed assertion change (failures == 1 to 0) and the exact hunks were not checked.",
+    "Test execution: no commands could be run, so no test result is claimed.",
+    "Invariants I1, I3 and I4 and the indexer.py gate were not checked against the code.",
+    "docs/addons/intelligence.md and docs/specs/INDEX.md content was not read.",
+    "Whether other repositories or addons outside addons/intelligence call download_rendition was not searched."
+  ],
+  "confidence": 80
+}

@@ -1,6 +1,6 @@
 /**
  * SPEC-CORE-072: the Reading app's Continue shelf page opens in last-opened
- * order and offers Last opened in its sort menu; no other page does.
+ * order and offers Date Last Opened in its sort menu; no other page does.
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
@@ -27,12 +27,14 @@ vi.mock("@/components/ProfileProvider", () => ({
 const getShelves = vi.fn();
 const getDriveFiles = vi.fn();
 const getSmartFolders = vi.fn();
+const getCollections = vi.fn();
 
 vi.mock("@/lib/api", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/api")>()),
   getShelves: (...args: unknown[]) => getShelves(...args),
   getDriveFiles: (...args: unknown[]) => getDriveFiles(...args),
   getSmartFolders: (...args: unknown[]) => getSmartFolders(...args),
+  getCollections: (...args: unknown[]) => getCollections(...args),
 }));
 
 type Params = Record<string, unknown>;
@@ -111,13 +113,13 @@ function sortItems() {
     .map((el) => el.textContent?.trim());
 }
 
-const FIVE = ["Last opened", "Added (newest first)", "Added (oldest first)", "Title", "Size"];
+const FIVE = ["Date Last Opened", "Date Added (Newest First)", "Date Added (Oldest First)", "Title", "Size"];
 const FOUR = FIVE.slice(1);
 
 const PAIRS: [string, string, string, string][] = [
-  ["played", "Last opened", "last_played", "desc"],
-  ["newest", "Added (newest first)", "created_at", "desc"],
-  ["oldest", "Added (oldest first)", "created_at", "asc"],
+  ["played", "Date Last Opened", "last_played", "desc"],
+  ["newest", "Date Added (Newest First)", "created_at", "desc"],
+  ["oldest", "Date Added (Oldest First)", "created_at", "asc"],
   ["title", "Title", "title", "asc"],
   ["size", "Size", "file_size", "desc"],
 ];
@@ -138,6 +140,7 @@ beforeEach(() => {
   getShelves.mockReset().mockImplementation(async (d, p) => shelves(d, p));
   getDriveFiles.mockReset().mockImplementation(async () => files());
   getSmartFolders.mockReset().mockResolvedValue([]);
+  getCollections.mockReset().mockResolvedValue([]);
 });
 
 afterEach(() => {
@@ -145,7 +148,7 @@ afterEach(() => {
 });
 
 describe("SPEC-CORE-072 Reading's Continue shelf page opens in last-opened order", () => {
-  it("SPEC-CORE-072 I1 asks for last_played desc and shows Last opened as the sort", async () => {
+  it("SPEC-CORE-072 I1 asks for last_played desc and shows Date Last Opened as the sort", async () => {
     render(<ReadingShelfPage drive={DRIVE} by="watch" shelfKey="continue" from="discover" />);
     await screen.findByText("Shelf continue");
 
@@ -157,14 +160,14 @@ describe("SPEC-CORE-072 Reading's Continue shelf page opens in last-opened order
       page: 1,
       per_shelf: 60,
     });
-    expect(sortButton()).toHaveAccessibleName("Sort: Last opened");
-    expect(openSortMenu().getByRole("menuitemradio", { name: "Last opened" })).toHaveAttribute(
+    expect(sortButton()).toHaveAccessibleName("Sort By: Date Last Opened");
+    expect(openSortMenu().getByRole("menuitemradio", { name: "Date Last Opened" })).toHaveAttribute(
       "aria-checked",
       "true",
     );
   });
 
-  it("SPEC-CORE-072 I2 offers Last opened first, then the four existing choices", async () => {
+  it("SPEC-CORE-072 I2 offers Date Last Opened first, then the four existing choices", async () => {
     render(<ReadingShelfPage drive={DRIVE} by="watch" shelfKey="continue" />);
     await screen.findByText("Shelf continue");
 
@@ -176,38 +179,38 @@ describe("SPEC-CORE-072 Reading's Continue shelf page opens in last-opened order
     async (_id, label, sort, order) => {
       render(<ReadingShelfPage drive={DRIVE} by="watch" shelfKey="continue" />);
       await screen.findByText("Shelf continue");
-      expect(sortButton()).toHaveAccessibleName("Sort: Last opened");
+      expect(sortButton()).toHaveAccessibleName("Sort By: Date Last Opened");
 
       fireEvent.click(openSortMenu().getByRole("menuitemradio", { name: label }));
 
       await waitFor(() => expect(lastShelfCall()).toMatchObject({ sort, order, page: 1 }));
-      expect(sortButton()).toHaveAccessibleName(`Sort: ${label}`);
+      expect(sortButton()).toHaveAccessibleName(`Sort By: ${label}`);
     },
   );
 
-  it("SPEC-CORE-072 I2 choosing Last opened again restores last_played desc", async () => {
+  it("SPEC-CORE-072 I2 choosing Date Last Opened again restores last_played desc", async () => {
     render(<ReadingShelfPage drive={DRIVE} by="watch" shelfKey="continue" />);
     await screen.findByText("Shelf continue");
 
     fireEvent.click(openSortMenu().getByRole("menuitemradio", { name: "Title" }));
     await waitFor(() => expect(lastShelfCall()).toMatchObject({ sort: "title", order: "asc" }));
-    fireEvent.click(openSortMenu().getByRole("menuitemradio", { name: "Last opened" }));
+    fireEvent.click(openSortMenu().getByRole("menuitemradio", { name: "Date Last Opened" }));
 
     await waitFor(() =>
       expect(lastShelfCall()).toMatchObject({ sort: "last_played", order: "desc", page: 1 }),
     );
-    expect(sortButton()).toHaveAccessibleName("Sort: Last opened");
+    expect(sortButton()).toHaveAccessibleName("Sort By: Date Last Opened");
   });
 
   it.each([
-    ["newest", "Added (newest first)", "created_at", "desc"],
-    ["oldest", "Added (oldest first)", "created_at", "asc"],
+    ["newest", "Date Added (Newest First)", "created_at", "desc"],
+    ["oldest", "Date Added (Oldest First)", "created_at", "asc"],
     ["title", "Title", "title", "asc"],
     ["size", "Size", "file_size", "desc"],
-    ["played", "Last opened", "last_played", "desc"],
-    ["bogus", "Last opened", "last_played", "desc"],
-    ["", "Last opened", "last_played", "desc"],
-    [null, "Last opened", "last_played", "desc"],
+    ["played", "Date Last Opened", "last_played", "desc"],
+    ["bogus", "Date Last Opened", "last_played", "desc"],
+    ["", "Date Last Opened", "last_played", "desc"],
+    [null, "Date Last Opened", "last_played", "desc"],
   ])("SPEC-CORE-072 I3 sort=%s in the URL opens on %s", async (initialSort, label, sort, order) => {
     render(
       <ReadingShelfPage drive={DRIVE} by="watch" shelfKey="continue" initialSort={initialSort} />,
@@ -215,7 +218,7 @@ describe("SPEC-CORE-072 Reading's Continue shelf page opens in last-opened order
     await screen.findByText("Shelf continue");
 
     expect(shelfRequests()[0]).toMatchObject({ sort, order, page: 1 });
-    expect(sortButton()).toHaveAccessibleName(`Sort: ${label}`);
+    expect(sortButton()).toHaveAccessibleName(`Sort By: ${label}`);
     const menu = openSortMenu();
     expect(menu.getAllByRole("menuitemradio").map((el) => el.textContent?.trim())).toEqual(FIVE);
     expect(menu.getByRole("menuitemradio", { name: label })).toHaveAttribute("aria-checked", "true");
@@ -229,14 +232,14 @@ describe("SPEC-CORE-072 I4 every other Reading shelf page and Library keep four 
     ["folder", "Movies"],
     ["all", "all"],
   ] as const)(
-    "SPEC-CORE-072 I4 %s %s with sort=played opens on added newest and offers no Last opened",
+    "SPEC-CORE-072 I4 %s %s with sort=played opens on added newest and offers no Date Last Opened",
     async (by, key) => {
       render(<ReadingShelfPage drive={DRIVE} by={by} shelfKey={key} initialSort="played" />);
       await screen.findByText(`Shelf ${key}`);
 
       expect(shelfRequests()[0]).toMatchObject({ sort: "created_at", order: "desc" });
       expect(getShelves.mock.calls.every(([, p]) => (p as Params).sort !== "last_played")).toBe(true);
-      expect(sortButton()).toHaveAccessibleName("Sort: Added (newest first)");
+      expect(sortButton()).toHaveAccessibleName("Sort By: Date Added (Newest First)");
       expect(sortItems()).toEqual(FOUR);
     },
   );
@@ -246,13 +249,13 @@ describe("SPEC-CORE-072 I4 every other Reading shelf page and Library keep four 
     render(<ReadingApp drive={DRIVE} />);
     await waitFor(() => expect(sortButton()).toBeInTheDocument());
 
-    expect(sortButton()).toHaveAccessibleName("Sort: Added (newest first)");
+    expect(sortButton()).toHaveAccessibleName("Sort By: Date Added (Newest First)");
     expect(sortItems()).toEqual(FOUR);
   });
 });
 
 describe("SPEC-CORE-072 I6 Reading's shelf page follows a by/key change while mounted", () => {
-  it("SPEC-CORE-072 I6 leaving Continue for another shelf drops Last opened", async () => {
+  it("SPEC-CORE-072 I6 leaving Continue for another shelf drops Date Last Opened", async () => {
     const view = render(<ReadingShelfPage drive={DRIVE} by="watch" shelfKey="continue" />);
     await screen.findByText("Shelf continue");
     expect(lastShelfCall({ key: "continue" })).toMatchObject({ sort: "last_played", order: "desc" });
@@ -263,11 +266,11 @@ describe("SPEC-CORE-072 I6 Reading's shelf page follows a by/key change while mo
     const after = shelfRequests().filter((p) => p.key === "in_progress");
     expect(after.length).toBeGreaterThan(0);
     expect(after.every((p) => p.sort === "created_at" && p.order === "desc")).toBe(true);
-    expect(sortButton()).toHaveAccessibleName("Sort: Added (newest first)");
+    expect(sortButton()).toHaveAccessibleName("Sort By: Date Added (Newest First)");
     expect(sortItems()).toEqual(FOUR);
   });
 
-  it("SPEC-CORE-072 I6 arriving at Continue from another shelf opens on Last opened", async () => {
+  it("SPEC-CORE-072 I6 arriving at Continue from another shelf opens on Date Last Opened", async () => {
     const view = render(<ReadingShelfPage drive={DRIVE} by="folder" shelfKey="Movies" />);
     await screen.findByText("Shelf Movies");
 
@@ -277,7 +280,7 @@ describe("SPEC-CORE-072 I6 Reading's shelf page follows a by/key change while mo
     await waitFor(() =>
       expect(lastShelfCall({ key: "continue" })).toMatchObject({ sort: "last_played", order: "desc" }),
     );
-    expect(sortButton()).toHaveAccessibleName("Sort: Last opened");
+    expect(sortButton()).toHaveAccessibleName("Sort By: Date Last Opened");
     expect(sortItems()).toEqual(FIVE);
   });
 
@@ -286,7 +289,7 @@ describe("SPEC-CORE-072 I6 Reading's shelf page follows a by/key change while mo
       <ReadingShelfPage drive={DRIVE} by="watch" shelfKey="continue" initialSort={null} />,
     );
     await screen.findByText("Shelf continue");
-    expect(sortButton()).toHaveAccessibleName("Sort: Last opened");
+    expect(sortButton()).toHaveAccessibleName("Sort By: Date Last Opened");
 
     view.rerender(<ReadingShelfPage drive={DRIVE} by="folder" shelfKey="Movies" initialSort="title" />);
     await screen.findByText("Shelf Movies");
@@ -294,6 +297,6 @@ describe("SPEC-CORE-072 I6 Reading's shelf page follows a by/key change while mo
     await waitFor(() =>
       expect(lastShelfCall({ key: "Movies" })).toMatchObject({ sort: "title", order: "asc" }),
     );
-    expect(sortButton()).toHaveAccessibleName("Sort: Title");
+    expect(sortButton()).toHaveAccessibleName("Sort By: Title");
   });
 });

@@ -5,7 +5,9 @@ import {
   measure,
   nothingAboveTheField,
   oneOfEach,
+  measureOverwrite,
   open,
+  openChanged,
   overlapVertically,
   positionsHoldWithoutTheCheckbox,
 } from "./search-results-bar.cases";
@@ -58,4 +60,21 @@ test(`SPEC-CORE-066 I10 / D11 at ${DESKTOP}px: the bar stays at the top while th
 
   expect(Math.abs(after.bar.top)).toBeLessThanOrEqual(1);
   expect(after.shelf!.top).toBeLessThan(after.bar.bottom);
+});
+
+test(`SPEC-CORE-103 I9 / D1 at ${DESKTOP}px: 上書き保存 is the chips row's last item, at its right edge, and the bar is one row`, async ({
+  page,
+}) => {
+  await openChanged(page, DESKTOP);
+  const o = await measureOverwrite(page);
+  const m = await measure(page);
+
+  expect(o.lastInRow).toBe(true);
+  expect(o.button.left).toBeGreaterThanOrEqual(o.addFilter.right);
+  expect(overlapVertically(o.button, o.addFilter)).toBe(true);
+  expect(Math.abs(o.button.right - o.row.right)).toBeLessThanOrEqual(1);
+  expect(o.button.bottom).toBeLessThanOrEqual(m.bar.top + 0.5);
+  expect(m.scrollWidth).toBeLessThanOrEqual(DESKTOP);
+  const controls = [...m.switches, ...m.counts, ...m.views, ...m.sorts, ...m.mores];
+  for (const a of controls) for (const b of controls) expect(overlapVertically(a, b)).toBe(true);
 });

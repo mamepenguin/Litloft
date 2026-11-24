@@ -64,10 +64,14 @@ describe("watch history deletion", () => {
     expect(sourceFiles(ROOTS[1]).length).toBeGreaterThan(20);
   });
 
-  it("is called from one place, and that place is a user pressing it", () => {
+  it("is called only where the viewer asks for it", () => {
     expect(
       reaches("deleteWatchProgress", "frontend/src/lib/api.ts"),
-    ).toEqual(["frontend/src/components/ContinueWatchingSection.tsx"]);
+    ).toEqual([
+      "addons/knowledge/frontend/cardMenu/PageFileMenu.tsx",
+      "frontend/src/components/ContinueWatchingSection.tsx",
+      "frontend/src/components/appshell/CardFileMenu.tsx",
+    ]);
   });
 
   it("has no caller at all for the local-storage half", () => {

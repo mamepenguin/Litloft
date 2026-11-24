@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>スマホの検索結果</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:#211922;text-decoration:none}a:hover{color:#211922}
+.slide{position:absolute;left:0;top:0;width:1280px;height:720px;background:#ffffff;font-family:-apple-system,system-ui,sans-serif;color:#1d2a44}
+.slide .t{position:absolute;left:120px;top:80px;font-size:56px;font-weight:700}
+.slide .rule{position:absolute;left:120px;top:176px;width:1040px;height:6px;background:#2f6db5}
+.slide .l{position:absolute;left:120px;font-size:40px;line-height:50px;white-space:nowrap}
+.term{position:absolute;left:120px;font-size:44px;color:#ffffff;white-space:nowrap}
+</style>
+</helmet>
+<div style="width: 390px; height: 560px; box-sizing: border-box; padding: 20px 16px; background: #ffffff; font-family: -apple-system, system-ui, 'Segoe UI', Roboto, sans-serif; color: #211922; display: flex; flex-direction: column; gap: 16px">
+  <div style="display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 14px; border: 1px solid rgba(145,145,140,0.35); border-radius: 12px; font-size: 15px">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#62625b" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+    <span>推移的関数従属</span>
+  </div>
+  <ul style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px">
+    <li>
+      <a href="Player.dc.html" style="display: grid; grid-template-columns: auto 1fr; gap: 12px; padding: 10px 6px; border-radius: 12px">
+        <span style="position: relative; width: 64px; height: 36px; overflow: hidden; border-radius: 8px; background: #f6f6f3">
+          <span style="position: absolute; left: 0; top: 0; width: 1280px; height: 720px; transform-origin: 0 0; transform: scale(0.2) translate(-340px, -354px)">
+            <span class="slide" style="display: block">
+              <span class="t">第3回 データベースの正規化</span>
+              <span class="rule"></span>
+              <span class="l" style="top: 260px">第1正規形：繰り返し項目をなくす</span>
+              <span class="l" style="top: 340px">第2正規形：部分関数従属をなくす</span>
+              <span class="l" style="top: 420px">第3正規形：推移的関数従属をなくす</span>
+            </span>
+          </span>
+          <span style="position: absolute; right: 3px; bottom: 3px; padding: 0 3px; border-radius: 4px; background: rgba(0,0,0,0.55); color: #ffffff; font-size: 10px; line-height: 1.3">12:04</span>
+        </span>
+        <span style="min-width: 0; display: flex; flex-direction: column; gap: 2px">
+          <span style="font-size: 12px; font-weight: 600">12:04<span style="display: block; font-size: 11px; font-weight: 400; color: #62625b">画面内の文字</span></span>
+          <span style="font-size: 12px; color: #62625b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">情報システム論 第3回.mp4</span>
+          <span style="font-size: 16px; line-height: 1.6">第3正規形：<mark style="background: #fff8c5">推移的関数従属</mark>をなくす</span>
+        </span>
+      </a>
+    </li>
+    <li>
+      <a href="Player.dc.html" style="display: grid; grid-template-columns: auto 1fr; gap: 12px; padding: 10px 6px; border-radius: 12px">
+        <span style="position: relative; width: 64px; height: 36px; overflow: hidden; border-radius: 8px; background: #f6f6f3">
+          <span style="position: absolute; left: 0; top: 0; width: 1280px; height: 720px; transform-origin: 0 0; transform: scale(0.05)">
+            <span class="slide" style="display: block; background: #1d2a44">
+              <span class="term" style="top: 120px; font-size: 64px; font-weight: 700">正規化のまとめ</span>
+              <span class="term" style="top: 300px">冗長性を除き、更新時の矛盾を防ぐ</span>
+              <span class="term" style="top: 380px">推移的関数従属は第3正規形で除く</span>
+            </span>
+          </span>
+          <span style="position: absolute; right: 3px; bottom: 3px; padding: 0 3px; border-radius: 4px; background: rgba(0,0,0,0.55); color: #ffffff; font-size: 10px; line-height: 1.3">41:52</span>
+        </span>
+        <span style="min-width: 0; display: flex; flex-direction: column; gap: 2px">
+          <span style="font-size: 12px; font-weight: 600">41:52<span style="display: block; font-size: 11px; font-weight: 400; color: #62625b">画面内の文字</span></span>
+          <span style="font-size: 12px; color: #62625b">情報システム論 第3回.mp4</span>
+          <span style="font-size: 16px; line-height: 1.6"><mark style="background: #fff8c5">推移的関数従属</mark>は第3正規形で除く</span>
+        </span>
+      </a>
+    </li>
+  </ul>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":560}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

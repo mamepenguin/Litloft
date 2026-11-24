@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { Search } from "lucide-react";
+import { FileSearch } from "lucide-react";
 
 import { useFind } from "./FindContext";
 
@@ -15,9 +15,9 @@ export function FindButton() {
       aria-label={t("button")}
       title={t("button")}
       data-testid="find-button"
-      className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary"
+      className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary pointer-coarse:h-11 pointer-coarse:w-11"
     >
-      <Search size={16} />
+      <FileSearch size={16} />
     </button>
   );
 }

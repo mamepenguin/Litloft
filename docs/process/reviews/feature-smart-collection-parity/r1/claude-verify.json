@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-1",
+      "status": "confirmed",
+      "note": "frontend/src/lib/smartQueue.ts exists in the worktree and is imported at FileDetailFullScreen.tsx:30-34 and SmartFolderSaveButton.tsx:22 (plus CollectionPanel.tsx:15 as a type import). The touch-point list names only smartCollectionEval.ts as a new file under frontend/src/lib/, so the file is absent from the spec's touch list. This is a spec-scope gap, not a behavioural defect."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-2",
+      "status": "confirmed",
+      "note": "frontend/src/components/SmartFolderPlay.tsx exists in the worktree. The touch-point list does not name it. The file is imported by SmartFolderSaveButton/FolderToolbar paths and by frontend/src/components/__tests__/toolbarMenuHome.test.ts:77. The file itself was not read in full, so the export list in the claim is not re-verified."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-3",
+      "status": "confirmed",
+      "note": "frontend/src/components/smartFolderActions.ts exists in the worktree. SmartFolderSaveButton.tsx:33 and SmartFolderPlay.tsx:15 import from ./smartFolderActions. The file is absent from the touch-point list. The removal of the local createContext from SmartFolderSaveButton.tsx was not re-read in this pass."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-4",
+      "status": "confirmed",
+      "note": "frontend/src/components/__tests__/toolbarMenuHome.test.ts:77 lists \"frontend/src/components/SmartFolderPlay.tsx\" in its allowlist, so the test file was edited to admit the new component. The test file is not in the touch-point list."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-5",
+      "status": "confirmed",
+      "note": "frontend/src/lib/fileDetailShell.ts:27-28 says the collection route is reached only with ?collection= / ?folder_play=1, and that comment is now stale. /files/[id]/page.tsx:46-47 renders the full-screen player for typeof sp.smart_collection === \"string\", and SmartFolderSaveButton.tsx:324 and FileDetailFullScreen.tsx:166-167 navigate with ?smart_collection=. FileDetailFullScreen.tsx:352 passes surface=\"collection\" unconditionally, with no branch on queue mode. The comment is therefore inaccurate for the new route. The same stale wording also appears at frontend/src/components/FileDetail/__tests__/FileDetailCanvas.test.tsx:116. The file is named in the touch-point list, yet the diff leaves it unchanged."
+    }
+  ],
+  "specification_compliance": [
+    "Touch-point list vs. diff: four new or edited files are absent from the list (smartQueue.ts, SmartFolderPlay.tsx, smartFolderActions.ts, toolbarMenuHome.test.ts). Confirmed by file presence and grep.",
+    "fileDetailShell.ts is named in the touch list but its doc comment describes the pre-change routing; confirmed stale against the new /files/{id}?smart_collection= route.",
+    "No invariant (I1-I12) or revision (SPEC-ADDON-054, SPEC-CORE-040, SPEC-CORE-066) was evaluated behaviourally in this pass; the review was limited to the five listed findings."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The new module smartQueue.ts holds a module-level Map of in-flight queue loads (FileDetailFullScreen.tsx:44-88). Its behaviour under cross-tab or unmount races is not specified by the touch list, which does not name this module."
+  ],
+  "regression_risks": [
+    "Stale doc comment in fileDetailShell.ts:27-28 and FileDetailCanvas.test.tsx:116 may mislead future edits that rely on the route description; no runtime effect was observed."
+  ],
+  "test_coverage": [
+    "Tests exist for the new route and queue mode: frontend/src/app/files/[id]/__tests__/page.smartCollection.test.tsx and frontend/src/components/__tests__/FileDetailFullScreen.smartCollection.test.tsx. These were located by grep only and were not run or read in full."
+  ],
+  "not_verified": [
+    "No command was run, so no build, unit test or e2e result was obtained. Only Read, Glob and Grep were used.",
+    "The content of SmartFolderPlay.tsx, smartQueue.ts and smartFolderActions.ts was not read in full. Only their existence and import sites were confirmed.",
+    "The diff itself was not inspected. The 'diff leaves it unchanged' part of TP-5 is inferred from the absence of a change in the worktree, not from git diff.",
+    "Invariants I1-I12 and the revised spec items were not checked against behaviour.",
+    "The browser-level layout claims (I11) were not checked."
+  ],
+  "confidence": 85
+}

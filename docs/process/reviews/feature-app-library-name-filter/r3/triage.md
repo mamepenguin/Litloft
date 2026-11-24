@@ -1,0 +1,116 @@
+# Triage: r3
+
+## Trajectory
+
+This run:
+- claude-read: Each fix round has added a branch to the same layout invariant, so the See all header design is being patched. In r1→r2 (5c0a18297, documents only), SPEC-CORE-099 I13 was split into listing-mode and other shelf pages below 640px, matching the existing `listing ? … : …` code branch. In r2→r3, 036593c added a new layout constraint (the sort in a `shrink-0` box, so the field gives way). 4be7884 then added a new breakpoint state: the row switch moved from sm to md, which creates a 640–767px stacked band. The invariants were revised a second time, I12 (r3) and SPEC-CORE-099 I13 (r3), adding a third width band and a further listing/non-listing split at 640 vs 768px. No round removed a branch or state. Each new band moves the squeeze to the next width up, and the band from 768px, where the field can still shrink, is not bounded by a test (F1).
+
+Earlier runs:
+- r2 / claude-read: Round r1 → fix commit 5c0a18297 changes documents only: it adds a revision of SPEC-CORE-099 I13 to invariants.md and records the r1 decision. The revision adds a branch to the invariant (listing-mode vs other shelf pages below 640px) that mirrors the `listing ? … : …` branch already in VideoShelfPage and ReadingShelfPage. No code branch, state or prediction was added or removed in this round. Only one fix round exists, so there is no repeating pattern of the design being patched. The new invariant branch has no test on its non-listing side (F1).
+
+C findings so far: 1
+
+## Verdict
+
+Verdict: PASS
+
+Reasons:
+- none
+
+## Read coverage
+
+Product files:
+- addons/knowledge/frontend/clipsapp/ClipShelfBlock.tsx — partial: Only the diff hunk (FilteredEmpty export); unchanged since r2.
+- addons/knowledge/frontend/clipsapp/Library.tsx — partial: Only the diff hunks (imports, Menus conditionsKey, removed FilteredEmpty).
+- addons/knowledge/frontend/clipsapp/ShelfPage.tsx — partial: Only the diff hunks (imports, the filtered empty-state branch).
+- addons/knowledge/frontend/clipsapp/clipsUrl.ts — partial: Only the diff hunks (ClipFilters.name, readClipFilters, hasClipFilters, clipFiltersKey, clipsHref).
+- addons/knowledge/frontend/clipsapp/requests.ts — partial: Only the diff hunks (clipConditions search, loadShelfPage unverified).
+- addons/knowledge/frontend/pages/clips.tsx — partial: Only the diff hunks (imports, effectiveParams q drop, applyName, the normalisation effect, the Target-choice drop, bodyDrawn/trailing).
+- frontend/e2e-components/app-header-desktop.spec.ts — full: Read the changed SHELF_PAGES test in the supplied diff with its enclosing loop.
+- frontend/e2e-components/app-header.spec.ts — partial: Only the changed I13 phone test in the diff.
+- frontend/e2e-components/name-filter-desktop.spec.ts — full: New file, read in full in the diff, including the 640/768 block from the fix commits.
+- frontend/e2e-components/name-filter.measure.ts — full: New file, read in full in the diff.
+- frontend/e2e-components/name-filter.spec.ts — full: New file, read in full in the diff.
+- frontend/e2e-components/projects.ts — partial: Only the one added entry in the diff.
+- frontend/e2e-components/spec-viewport.spec.ts — partial: Only the two added entries in the diff.
+- frontend/src/app/drive/[name]/apps/reading/shelf/page.tsx — full: The diff covers the whole component.
+- frontend/src/app/drive/[name]/apps/video/shelf/page.tsx — full: The diff covers the whole component.
+- frontend/src/components/PageTabs.tsx — partial: Only the diff hunks (trailing prop, class constants, wrapper).
+- frontend/src/components/appshell/AppTabs.tsx — full: The diff shows the props interface and the whole function.
+- frontend/src/components/appshell/NameFilter.tsx — full: New file, read in full in the diff.
+- frontend/src/components/appshell/libraryFilters.ts — partial: Only the diff hunks (name in state, write, setName, return).
+- frontend/src/components/readingapp/LibraryFace.tsx — partial: Only the diff hunks (name, query, filtersActive, link conditions).
+- frontend/src/components/readingapp/ReadingApp.tsx — partial: Only the diff hunks (imports, filters, showName, trailing).
+- frontend/src/components/readingapp/ReadingShelfPage.tsx — partial: The diff hunks plus the fix-commit hunks at lines 271-288 (the listing wrapper with md:flex-row and the shrink-0 sort), confirmed by grep at line 274.
+- frontend/src/components/readingapp/shelfLinks.ts — full: The diff hunks show the interface and the enclosing readingShelfHref.
+- frontend/src/components/videoapp/LibraryFace.tsx — partial: Only the diff hunks (name, query, filtersActive, link conditions).
+- frontend/src/components/videoapp/VideoApp.tsx — partial: Only the diff hunks (imports, filters, showName, trailing).
+- frontend/src/components/videoapp/VideoShelfPage.tsx — partial: Opened lines 295-344 (the actions block from the fix commits); the other hunks were read in the diff.
+- frontend/src/components/videoapp/shelfLinks.ts — full: The diff hunks show the interface and the enclosing videoShelfHref.
+- frontend/src/messages-core/en.json — partial: Only the appFilters hunk.
+- frontend/src/messages-core/ja.json — partial: Only the appFilters hunk.
+
+Test files:
+- addons/knowledge/frontend/__tests__/clipsAppHarness.tsx — partial: Only the matchSearch hunks in the diff.
+- addons/knowledge/frontend/__tests__/clipsNameFilter.test.tsx — full: New file, read in the diff.
+- addons/knowledge/frontend/clipsapp/__tests__/clipsUrl.test.ts — partial: Only the added hunk in the diff.
+- addons/knowledge/frontend/clipsapp/__tests__/requests.test.ts — partial: Only the one changed line in the diff.
+- frontend/src/__tests__/appTargetParam.test.tsx — partial: Only the added I4 cases in the diff.
+- frontend/src/__tests__/ime-enter-guard.test.ts — partial: Only the two changed hunks in the diff.
+- frontend/src/__tests__/nameFilterMemberTarget.test.tsx — full: New file, read in the diff.
+- frontend/src/__tests__/nameFilterRetention.test.tsx — full: New file, read in the diff.
+- frontend/src/components/__tests__/PageTabs.test.tsx — partial: Only the added trailing-slot block in the diff.
+- frontend/src/components/__tests__/seeAllNameFilter.listing.test.tsx — full: New file, read in the diff.
+- frontend/src/components/__tests__/seeAllNameFilter.test.tsx — full: New file, read in the diff.
+- frontend/src/components/appshell/__tests__/NameFilter.normalise.test.tsx — full: New file, read in the diff.
+- frontend/src/components/appshell/__tests__/NameFilter.test.tsx — full: New file, read in the diff.
+- frontend/src/components/readingapp/__tests__/ReadingApp.nameFilter.test.tsx — full: New file, read in the diff.
+- frontend/src/components/videoapp/__tests__/VideoApp.nameFilter.test.tsx — full: New file, read in the diff.
+
+## Findings
+
+A: 0
+B: 2
+C: 0
+
+### claude-read:F1 — bucket B, LOW, open
+
+Claim: The new 640/768px See all test is titled '…and the field stays readable', but at 768px it checks only that the field ends before the sort. Nothing bounds the field's width between 768 and 1023px, the band where the field still shares one row with a whole-value sort that cannot shrink.
+Impact: From 768px the listing wrapper is a row (md:flex-row). The sort now sits in a `shrink-0` box, and the NameFilter box is `min-w-0` with a default flex-shrink of 1, so the field is the only part that can give way. Commit 4be7884 reports that this exact squeeze hid the field's text at 640–767px. If the header's auto column is narrower than 260px plus the sort at 768–1023px (wider CI fonts, a longer ja sort label, a wider Target name), the field shrinks until its text is hidden, and no test fails. The 1024px case asserts 260px; the 768px case does not.
+Evidence: frontend/src/components/videoapp/VideoShelfPage.tsx:315,322 and ReadingShelfPage.tsx:274 (`md:flex-row`, sort wrapped in `shrink-0`). NameFilter.tsx open container: `flex … w-full min-w-0 … sm:w-[260px]`. PageHeader.tsx:117-121,164-167 put `actions` in an `auto` grid column beside `minmax(120px,1fr)` and `fit-content(40%)`. name-filter-desktop.spec.ts (the 640/768 block): `if (width < 768) { expect(Math.round(field.width)).toBe(260) … } else { expect(field.x + field.width).toBeLessThanOrEqual(sort.x) }`. The WIDTHS 1024/1280/1440 block asserts 260px.
+Repro: Mutation: add `md:max-lg:w-[40px]` to the NameFilter open container, or otherwise let it collapse at 768–1023px. Every name-filter-desktop case still passes: 640 is stacked, 768 checks only the ordering, and 1024 and up are unaffected. app-header-desktop.spec.ts at 768 checks only sameRow(field, h1) and the sort's position.
+Introduced: introduced
+Reviewer bucket: B | Author bucket: 
+
+<details><summary>Proposed fix</summary>
+
+> At 768px, assert a floor on the field's width (for example ≥ 200px, or exactly 260px if that is the intent), or name the breakpoint where the field returns to 260px and measure it.
+
+</details>
+
+### claude-read:F2 — bucket B, LOW, open
+
+Claim: The r3 revision of SPEC-CORE-099 I13 adds a promise that a non-listing shelf page from 640px keeps the sort on the title row left of the Target. The only test at 640px (app-header-desktop.spec.ts) now measures the stacked listing-mode layout, so neither the r2-reported non-listing right-end clause below 640px nor the new non-listing 640–767px clause is measured.
+Impact: A later change to the non-listing `SortChoiceMenu` / `ReadingSortMenu` branch (a watch shelf without a profile, an unreadable Reading key, or a page still looking up its Target) could move the sort off the title row at 640–767px, or off the right end below 640px, with no test failing.
+Evidence: invariants.md:9 has the clauses 'on any other shelf page below 640px … right end' and '… on any other shelf page from 640px, the sort menu is on the title row left of the Target'. app-header-desktop.spec.ts (the SHELF_PAGES loop, widths 640/768/1280) requires `header input[type=search]`, so it only runs listing-mode pages. The fixture fixtures/appHeader.tsx:140-147 mounts by=folder only. The non-listing branch is VideoShelfPage.tsx:331-337.
+Repro: Mutation: wrap the non-listing SortChoiceMenu at VideoShelfPage.tsx:332 in `<div className="w-full flex flex-col items-start">`. No e2e or unit test opens a non-listing shelf page at 375 or 640px, so nothing fails.
+Introduced: pre-existing
+Reviewer bucket: B | Author bucket: 
+
+<details><summary>Proposed fix</summary>
+
+> Add a fixture page for a non-listing shelf (for example video-shelf by=watch with no profile), and measure the sort at 375px (right end) and at 640px (title row, left of the Target).
+
+</details>
+
+## Not verified
+
+- claude-read: I ran no Playwright, vitest or typecheck run, so I did not confirm that the new 640 and 768px cases pass on CI fonts.
+- claude-read: I did not compute the actual grid column widths at 768px in the real app shell (with any sidebar). F1's squeeze is inferred from the flex and grid rules, not measured.
+- claude-read: I did not read decisions.md lines 3 and 15 in full (long lines), so I did not check the R-5 re-check record word for word.
+- claude-read: I did not re-read the full bodies of the Clips files, LibraryFace, libraryFilters or PageTabs this round; they are unchanged since r2 and were read through the supplied diff.
+- claude-verify: Whether the field actually renders narrower than 260px at 768–1023px; I had no browser to run in.
+- claude-verify: ReadingShelfPage.tsx:274 was not read line by line; I assumed it mirrors VideoShelfPage from the listing definition at line 147.
+- claude-verify: Specs outside e2e-components (for example e2e-layout) that might cover non-listing shelf pages.
+
+TOTAL: 2 findings

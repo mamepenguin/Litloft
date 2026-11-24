@@ -1,0 +1,276 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "R1",
+      "origin": "reviewer",
+      "claim": "The diff adds a new shared product component, frontend/src/components/CardProgress.tsx, which the touch-point list does not name (it names only FileCard.tsx, VideoCard.tsx and ContinueWatchingSection.tsx for the bar and tick).",
+      "impact": "Both card kinds now render their progress bar through one new module, so a later change to either card's bar goes through a file no reviewer was told to expect. The module also imports RESUME_THRESHOLD from frontend/src/lib/playbackProgress.ts. That puts the player's progress module, with its imports of ProfileProvider, playedRanges, watchedRangesStore and api, into the dependency graph of every FileCard grid. A user cannot see this.",
+      "evidence": "frontend/src/components/CardProgress.tsx:1-64 (new file); frontend/src/components/FileCard.tsx:7,160 and frontend/src/components/videoapp/VideoCard.tsx:6,39 import it; CardProgress.tsx:2 imports RESUME_THRESHOLD from @/lib/playbackProgress, which playbackProgress.ts:24 now exports (it was module-private before).",
+      "repro": "not_reproduced: this is a touch-point comparison, not a runtime defect. Compare the 'Touch points' section of docs/specs/watched-ranges-display.md with the file list in the diff.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariant is broken. I8 behaviour is in CardProgress and watchedRangesCards.test.tsx covers it on both cards. The only problem is that the place is not in the planned touch points.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Add CardProgress.tsx, and the export of RESUME_THRESHOLD from playbackProgress.ts, to the touch-point list. Optionally move RESUME_THRESHOLD to a small constants module so the cards do not import the player hook module."
+    },
+    {
+      "id": "R2",
+      "origin": "reviewer",
+      "claim": "The shelves change rewrites the request-level dispatch in `_shelves`: it merges the `by == \"all\"` branch with the keyed branch and turns the early returns into a single `response`. The touch-point list names only `_item` and the item builders, and those are left unchanged.",
+      "impact": "Every shelves request (GET /shelves and POST /shelves/query, all `by` values) now goes through restructured control flow. As I read it, the behaviour is the same: the merged call passes `key=\"all\" if params.key is None else params.key`, which matches both old branches, and keyed responses still omit `base`. Even so, I9 (same files, order and counts) depends on a refactor the plan did not announce. Because `_attach_watched_ranges` runs outside the try block, a failure of the ranges query is not logged by the existing 'Shelves failed' handler.",
+      "evidence": "backend/app/routers/shelves.py:513-548: the merged `if params.by == \"all\" or params.key is not None` branch, the single `response` variable, and `_attach_watched_ranges(db, viewer_id, response.shelves)` called after the try/except at line 547. New helper `_attach_watched_ranges` at lines 420-434. `_item` (186-192), `_keyed_shelf` and `_unkeyed_shelves` are unchanged.",
+      "repro": "not_reproduced: read only. Mutation reasoning: dropping `or params.key is not None` would send keyed requests for by != all into `_unkeyed_shelves`. The new backend tests use only unkeyed `by=watch` and `by=folder`, so it is not clear that they would catch this. Pre-existing shelves tests, which I did not read, probably cover keyed shelves.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "As I read it, the refactor keeps I9's files, order and counts, so no invariant is shown to be broken. It is an unplanned place: the plan put the change in the item builders, but it was made in the request dispatcher.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "List `_shelves` (the dispatch and the single attach point) in the touch points. Consider calling `_attach_watched_ranges` inside the try so its failures get the same log line."
+    }
+  ],
+  "specification_compliance": [
+    "Touch-point comparison, files in the diff not named by the list: frontend/src/components/CardProgress.tsx (R1), and the `_shelves` dispatch in backend/app/routers/shelves.py instead of `_item`/item builders (R2).",
+    "frontend/e2e-components/fixtures/app.tsx, fixtures/watchedRanges.tsx, projects.ts, spec-viewport.spec.ts, watched-band.serve.ts, watched-band*.spec.ts and watched-range-cards.spec.ts fall under the listed 'Real-browser measurement ... in frontend/e2e-components/' item. They use sibling names (watched-band.spec.ts) instead of player-seek-indicator.spec.ts, which the list allows. componentFixtureParity.test.tsx is fixture-registration bookkeeping for that item.",
+    "frontend/src/__tests__/VideoPlayer.test.tsx and VideoPlayerShell.test.tsx gain a getPlayedSegments mock and fall under the listed item for 'tests that mock fetch around a mounted MediaControls'.",
+    "frontend/src/lib/playedRanges.ts is listed but not changed: the 2xx report is wrapped around sendPlayedRanges in playbackProgress.ts:196-204. This is a listed place left unused, not an unplanned one.",
+    "No addon path (addons/media_import) is touched, which is consistent with the list.",
+    "Docs touched (DESIGN.md, api.md, video.md, keyboard-shortcuts.md, viewers-and-players.md) are all listed; docs/specs/* and INDEX.md are implicit."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "TouchControlsPresenter.tsx:109 replaces `focus-within:opacity-100` with `has-[:focus-visible]:opacity-100`. This changes when faded touch chrome becomes visible on focus (programmatic or mouse focus no longer reveals it). The spec does not mention this change.",
+    "watched_ranges on a shelves item is attached after the try/except, so a failure of that query is not logged by the 'Shelves failed' handler (shelves.py:544-547)."
+  ],
+  "regression_risks": [
+    "The `_shelves` dispatch refactor affects every shelves request: keyed shelves under by != all, and by=all with key or page.",
+    "Card components now import the player progress module through CardProgress, which adds a module-graph coupling between FileCard grids and playback code."
+  ],
+  "test_coverage": [
+    "backend/tests/test_watched_ranges.py covers I7 run building and key presence for watch-history, unkeyed by=watch shelves and shelves/query, and the one-query and read-only behaviour (I9 partly). It does not exercise keyed shelves (key=continue, key=in_progress with page) through the refactored dispatch.",
+    "watchedRangesCards.test.tsx covers I8 tick bounds and fills on both cards through CardProgress.",
+    "watchedBand.data/visibility/shortcuts tests cover the store and bottom-only flows in jsdom; e2e specs measure D1-D5 geometry."
+  ],
+  "not_verified": [
+    "Whether pre-existing backend shelves tests cover keyed requests (key with page, by=all with key) after the dispatch refactor; I did not open them.",
+    "Full bodies of FileCard.tsx, PointerControlsPresenter.tsx, CompactControlsPresenter.tsx, usePlayerGestures.ts and api.ts beyond the changed hunks.",
+    "No test or build was run; all conclusions come from reading the code.",
+    "The repository's .claude/rules documents were not read in full."
+  ],
+  "coverage": [
+    {
+      "path": "backend/app/routers/drives.py",
+      "read": "full",
+      "reason": "Read the whole of get_watch_history (lines 1736-1808) and the import hunk."
+    },
+    {
+      "path": "backend/app/routers/shelves.py",
+      "read": "full",
+      "reason": "Read lines 180-549: _item, _keyed_shelf, _unkeyed_shelves, the endpoints, _attach_watched_ranges and _shelves."
+    },
+    {
+      "path": "backend/app/schemas.py",
+      "read": "full",
+      "reason": "Read all changed hunks with their enclosing classes in the diff."
+    },
+    {
+      "path": "backend/app/services/watched_ranges.py",
+      "read": "full",
+      "reason": "New file, read whole in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/app.tsx",
+      "read": "full",
+      "reason": "Both changed hunks (import and registry entry) read in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/watchedRanges.tsx",
+      "read": "full",
+      "reason": "New file, read whole in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/projects.ts",
+      "read": "full",
+      "reason": "One-line hunk in the DESKTOP_ONLY array read in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/spec-viewport.spec.ts",
+      "read": "full",
+      "reason": "Both list hunks read in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/watched-band-desktop.spec.ts",
+      "read": "full",
+      "reason": "New file, read whole in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/watched-band.serve.ts",
+      "read": "full",
+      "reason": "New file, read whole in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/watched-band.spec.ts",
+      "read": "full",
+      "reason": "New file, read whole in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/watched-range-cards.spec.ts",
+      "read": "full",
+      "reason": "New file, read whole in the diff."
+    },
+    {
+      "path": "frontend/e2e-layout/fixtures/video-app.html",
+      "read": "partial",
+      "reason": "Only the three changed hunks (SPEC entries, card build loop, measurement fields) read in the diff."
+    },
+    {
+      "path": "frontend/e2e-layout/video-app.spec.ts",
+      "read": "partial",
+      "reason": "Only the changed hunks (Measurement interface, constants, assertions) read in the diff."
+    },
+    {
+      "path": "frontend/src/components/CardProgress.tsx",
+      "read": "full",
+      "reason": "New file, read whole in the diff."
+    },
+    {
+      "path": "frontend/src/components/ContinueWatchingSection.tsx",
+      "read": "full",
+      "reason": "Single-line prop hunk read in the diff with its FileCard call site."
+    },
+    {
+      "path": "frontend/src/components/FileCard.tsx",
+      "read": "partial",
+      "reason": "Changed hunks only (imports, props, progress JSX near lines 157-167); the rest of FileCardImpl not read."
+    },
+    {
+      "path": "frontend/src/components/player/MediaControls/CompactControlsPresenter.tsx",
+      "read": "partial",
+      "reason": "Changed hunks only (prop destructuring and SeekBar props)."
+    },
+    {
+      "path": "frontend/src/components/player/MediaControls/MediaControlsContainer.tsx",
+      "read": "full",
+      "reason": "Read lines 60-330, the whole component body."
+    },
+    {
+      "path": "frontend/src/components/player/MediaControls/PointerControlsPresenter.tsx",
+      "read": "partial",
+      "reason": "Changed hunks only (prop destructuring and SeekBar props)."
+    },
+    {
+      "path": "frontend/src/components/player/MediaControls/TouchControlsPresenter.tsx",
+      "read": "full",
+      "reason": "Read lines 25-260, the whole component."
+    },
+    {
+      "path": "frontend/src/components/player/MediaControls/hooks/useMediaControlsState.ts",
+      "read": "full",
+      "reason": "Read lines 155-359, the whole hook body, plus the diff's option and interface hunks."
+    },
+    {
+      "path": "frontend/src/components/player/MediaControls/hooks/usePlayerGestures.ts",
+      "read": "partial",
+      "reason": "Changed hunks only: options interface, callbacksRef, applySkip, and the tap branch in the pointer-up handler."
+    },
+    {
+      "path": "frontend/src/components/player/MediaControls/parts/SeekBar.tsx",
+      "read": "full",
+      "reason": "Read lines 60-216 and the constants and props hunks in the diff."
+    },
+    {
+      "path": "frontend/src/components/player/MediaControls/types.ts",
+      "read": "full",
+      "reason": "Changed hunks within MediaControlsPresenterProps read in the diff."
+    },
+    {
+      "path": "frontend/src/components/player/hooks/useVideoShortcuts.ts",
+      "read": "full",
+      "reason": "The changed hunk covers the four arrow-key handler entries; consumers grepped."
+    },
+    {
+      "path": "frontend/src/components/videoapp/VideoCard.tsx",
+      "read": "full",
+      "reason": "The diff covers the whole of VideoCard's changed body."
+    },
+    {
+      "path": "frontend/src/lib/api.ts",
+      "read": "partial",
+      "reason": "Changed hunks only (import line, ShelfItem type, getPlayedSegments)."
+    },
+    {
+      "path": "frontend/src/lib/playbackProgress.ts",
+      "read": "full",
+      "reason": "Read the whole file."
+    },
+    {
+      "path": "frontend/src/lib/watchedRangesStore.ts",
+      "read": "full",
+      "reason": "New file, read whole in the diff."
+    },
+    {
+      "path": "frontend/src/types/index.ts",
+      "read": "full",
+      "reason": "Changed hunks (new interfaces, WatchHistoryItem field) read in the diff."
+    },
+    {
+      "path": "backend/tests/test_watched_ranges.py",
+      "read": "full",
+      "reason": "New file, read whole in the diff."
+    },
+    {
+      "path": "frontend/src/__tests__/VideoPlayer.test.tsx",
+      "read": "partial",
+      "reason": "Only the one-line mock hunk."
+    },
+    {
+      "path": "frontend/src/components/__tests__/VideoPlayerShell.test.tsx",
+      "read": "partial",
+      "reason": "Only the one-line mock hunk."
+    },
+    {
+      "path": "frontend/src/components/__tests__/componentFixtureParity.test.tsx",
+      "read": "partial",
+      "reason": "Only the arrangement-list hunk."
+    },
+    {
+      "path": "frontend/src/components/__tests__/watchedBand.shortcuts.test.tsx",
+      "read": "full",
+      "reason": "New file, read whole in the diff."
+    },
+    {
+      "path": "frontend/src/components/__tests__/watchedRangesCards.test.tsx",
+      "read": "full",
+      "reason": "New file, read whole in the diff."
+    },
+    {
+      "path": "frontend/src/components/player/MediaControls/__tests__/watchedBand.data.test.tsx",
+      "read": "full",
+      "reason": "New file, read whole in the diff."
+    },
+    {
+      "path": "frontend/src/components/player/MediaControls/__tests__/watchedBand.visibility.test.tsx",
+      "read": "full",
+      "reason": "New file, read whole in the diff."
+    },
+    {
+      "path": "frontend/src/components/player/MediaControls/__tests__/watchedBandHarness.tsx",
+      "read": "full",
+      "reason": "New file, read whole in the diff."
+    },
+    {
+      "path": "frontend/src/components/player/MediaControls/hooks/__tests__/usePlayerGestures.test.tsx",
+      "read": "partial",
+      "reason": "Only the changed hunks (callbacks object and the skip-report test)."
+    }
+  ],
+  "confidence": 80
+}

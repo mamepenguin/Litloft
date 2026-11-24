@@ -1,0 +1,80 @@
+{
+ "A": {
+  "text": "検索: \"in:\"Cats\" 子ザメ\" | コレクション Cats | × | ＋ | 条件 | ファイル | 箇所 | グリッド表示 | 関連度順 | コレクションを読み込めませんでした | 再試行",
+  "count": null,
+  "alert": [
+   "コレクションを読み込めませんでした\n\n再試行",
+   ""
+  ],
+  "reqs": [],
+  "passages": [
+   "コレクションを読み込めませんでした\n\n再試行",
+   ""
+  ],
+  "retry": {
+   "text": "検索: \"in:\"Cats\" 子ザメ\" | コレクション Cats | × | ＋ | 条件 | ファイル | 箇所 | 4 ファイル・5 箇所 | 1:20 | 1:20 | 画面内の文字 | アニメ『おでかけ子ザメ』第47話「落としもの」-後編-.mp4 | 61 うたおう！ 原作 ペンギンポックス (「おでかけ子ザメ」KADOKAWA刊) O11 晴れの日でも | 1:10 | 1:10 | 画面内の文字 | アニメ『おでかけ子ザメ』第29話「冬のベーカリー」.mp4 | 61 うたおう! 原作 ペンギンポックス (「おでかけ子ザメ」KADOKAWA刊） O11 晴れの日でも | 1:10 | 1:10 | 画面内の文字 | アニメ『おでかけ子ザメ』第43話「まねきねこ」.mp4 | 61 うたおう! キャスト 子ザメ5书ん 花澤香菜 おばさん 渡辺優里奈 O11 お兄さん 渡部俊樹",
+   "reqs": [
+    "GET /api/drives/動画/collections ids=null",
+    "GET /api/drives/動画/smart-folders ids=null",
+    "GET /api/drives/動画/files?search=猫&sort=created_at&order=desc&page=1&limit=500 ids=null",
+    "GET /api/addons/intelligence/search?q=猫&limit=1000&passages=true ids=null",
+    "POST /api/drives/動画/files/query?search=子ザメ&sort=created_at&order=desc&page=1&limit=30 ids=8",
+    "POST /api/addons/intelligence/search?q=子ザメ&limit=1000&passages=true&filter={} ids=8",
+    "GET /api/addons/intelligence/files/Apq6ZrOo4qq7/frame?t=80 ids=null",
+    "GET /api/addons/intelligence/files/oUoI_V4TWkZ3/frame?t=70 ids=null",
+    "GET /api/addons/intelligence/files/_p2jkii4itW-/frame?t=70 ids=null",
+    "GET /api/addons/intelligence/files/_p2jkii4itW-/frame?t=80 ids=null",
+    "GET /api/addons/intelligence/files/XGPJ2WG7SqRn/frame?t=80 ids=null"
+   ]
+  }
+ },
+ "B": {
+  "text": "検索: \"in:\"Cats\"\" | コレクション Cats | × | ＋ | 条件 | グリッド表示 | 関連度順 | コレクションを読み込めませんでした | 再試行",
+  "alert": [
+   "コレクションを読み込めませんでした\n\n再試行",
+   ""
+  ],
+  "reqs": [
+   "GET /api/drives/動画/files?search=猫&sort=created_at&order=desc&page=1&limit=500 200",
+   "GET /api/addons/intelligence/search?q=猫&limit=1000&passages=true 500"
+  ]
+ },
+ "C": {
+  "text": "検索: \"in:\"Cats\"\" | コレクション Cats | × | ＋ | 条件 | 0件 | グリッド表示 | 関連度順 | 一致するファイルが見つかりません | 検索条件を変更してください。",
+  "count": "0",
+  "alert": [
+   ""
+  ],
+  "reqs": [
+   "GET /api/drives/動画/files?search=猫&sort=created_at&order=desc&page=1&limit=500 ids=null 200",
+   "GET /api/addons/intelligence/search?q=猫&limit=1000&passages=true ids=null 404",
+   "POST /api/drives/動画/files/query?sort=created_at&order=desc&page=1&limit=30 ids=0 200"
+  ]
+ },
+ "D": {
+  "text": "検索: \"in:\"Cats\" 子ザメ\" | コレクション Cats | × | ＋ | 条件 | ファイル | 箇所 | グリッド表示 | 関連度順 | コレクションを読み込めませんでした | 再試行",
+  "count": null,
+  "alert": [
+   "コレクションを読み込めませんでした\n\n再試行",
+   ""
+  ],
+  "retryButtons": 1,
+  "reqs": [
+   "GET /api/drives/動画/files?search=猫&sort=created_at&order=desc&page=1&limit=500 ids=null",
+   "GET /api/addons/intelligence/search?q=猫&limit=1000&passages=true ids=null"
+  ],
+  "evalPages": 21
+ },
+ "Dw": {
+  "reqs": [
+   "GET /api/addons/intelligence/search?q=猫&limit=1000&passages=true"
+  ]
+ },
+ "Ew": {
+  "reqs": [],
+  "retry": 0
+ },
+ "S": {
+  "writes": []
+ }
+}

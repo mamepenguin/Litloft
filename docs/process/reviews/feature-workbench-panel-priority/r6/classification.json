@@ -1,0 +1,96 @@
+{
+  "risk": "HIGH",
+  "score": 7,
+  "base": 3,
+  "zone_max": "MEDIUM",
+  "modifiers": [],
+  "promotions": [],
+  "zones_touched": [
+    {
+      "path": "DESIGN.md",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "docs/specs/INDEX.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/workbench-panel-priority.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/user-guide/viewers-and-players.md",
+      "level": "LOW"
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/inspectorResponsive.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/player-workbench-desktop.spec.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/stubs/addons.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/stubs/previewActionSlot.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/app/globals.css",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/MediaCanvas.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/MediaPlayerBlock.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/ShellLayout.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/__tests__/WorkbenchPlayerFocus.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/mediaHostStyle.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/workbench/Workbench.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/layoutSizes.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/workbenchPlayerFocus.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/messages-core/en.json",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/messages-core/ja.json",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/test/setup.ts",
+      "level": "MEDIUM"
+    }
+  ],
+  "human_zones_touched": [],
+  "protected_paths_touched": [],
+  "docs_only": false,
+  "reasons": [
+    "highest zone MEDIUM (4 points)"
+  ]
+}

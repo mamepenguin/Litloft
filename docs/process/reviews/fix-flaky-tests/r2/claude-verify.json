@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "MEDIUM",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "CR-1",
+      "status": "confirmed",
+      "note": "Checked against the code. The doc comment at SearchPage.semanticContinuation.test.tsx:376-380 says the old observer 'holds the state it was created with, and firing it reveals nothing'. The production callbacks do not work that way. (1) Continuation observer, frontend/src/components/folder/useFolderFiles.ts:582-594: its callback calls revealMore. revealMore (lines 427-433) has empty deps, uses a functional setContinuation updater and reads continuationKeyRef.current, so it does not read stale closed-over state. An old observer that still observes the sentinel would still add CONTINUATION_PAGE. The observer exists only while continuationState === 'open' (line 583). (2) Filename observer, frontend/src/hooks/useInfiniteScroll.ts:157-175: its callback reads pageRef.current. loadPage (lines 67-118) depends only on fetchPage and limit. While loading or loadingMore is true, the guard at line 158 creates no observer and the cleanup has called disconnect(). The mock's disconnect() at test lines 174-176 clears targets, so the old instance has nothing to fire. The real mechanism is therefore 'no live observer with targets exists until the passive effect re-runs', not 'the old observer fires with stale state'. reveal() at lines 381-388 handles this correctly, because it waits for an instance created after the last fire whose target set is not empty. The defect is in the comment only. The test logic is unaffected."
+    }
+  ],
+  "specification_compliance": [
+    "reveal() waits for an IntersectionObserver instance created after the last fire with a non-empty target set. This matches how both production effects (useFolderFiles.ts:582-594, useInfiniteScroll.ts:157-175) recreate their observers after a commit."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "The misleading comment could lead a future maintainer to 'fix' the wait by keeping old observers alive, when the real need is to wait for the passive effect to re-attach an observer."
+  ],
+  "test_coverage": [
+    "Tests I9 and I10 in SearchPage.semanticContinuation.test.tsx exercise reveal() several times in a row, through the continuation sentinel and the filename sentinel."
+  ],
+  "not_verified": [
+    "I did not run the test suite, so I did not observe the flake or its absence at runtime.",
+    "I did not check whether fetchPage passed into useInfiniteScroll from useFolderFiles closes over state that could make loadPage stale.",
+    "I did not review the rest of the commit's test changes outside reveal() and fireSentinels()."
+  ],
+  "confidence": 88
+}

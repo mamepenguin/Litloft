@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "MEDIUM",
+  "findings": [],
+  "verification": [],
+  "specification_compliance": [
+    "No findings were listed, so no per-finding verification was performed. The invariants were not independently checked against the code."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [],
+  "test_coverage": [
+    "Not examined. There were no findings to verify."
+  ],
+  "not_verified": [
+    "I did not read the code at commit facb9a0a. I did not independently check invariants I1-I11 or the tests, because the findings list was empty."
+  ],
+  "confidence": 75
+}

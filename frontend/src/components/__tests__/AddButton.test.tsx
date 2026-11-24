@@ -116,32 +116,52 @@ describe("AddButton", () => {
     expect(screen.queryByRole("menu")).not.toBeInTheDocument();
     open();
     expect(screen.getByRole("menu")).toBeInTheDocument();
-    expect(screen.getByText("Files")).toBeInTheDocument();
-    expect(screen.getByText("Folder")).toBeInTheDocument();
+    expect(screen.getByText("Upload files")).toBeInTheDocument();
+    expect(screen.getByText("Upload folder")).toBeInTheDocument();
   });
 
   it("offers new folder only when handed a handler, and no note row of its own", () => {
     const rows = () => screen.getAllByRole("menuitem").map((item) => item.textContent?.trim());
     render(<AddButton />);
     open();
-    expect(rows()).toEqual(["Files", "Folder"]);
+    expect(rows()).toEqual(["Upload files", "Upload folder"]);
     cleanup();
 
     render(<AddButton onCreateFolder={vi.fn()} />);
     open();
-    expect(rows()).toEqual(["Files", "Folder", "New Folder"]);
+    expect(rows()).toEqual(["Upload files", "Upload folder", "New folder"]);
+  });
+
+  it("SPEC-CORE-123 I3: the first row opens the file picker and the second the folder picker", () => {
+    const clicked: Array<{ directory: boolean }> = [];
+    const spy = vi
+      .spyOn(HTMLInputElement.prototype, "click")
+      .mockImplementation(function (this: HTMLInputElement) {
+        clicked.push({ directory: this.hasAttribute("webkitdirectory") });
+      });
+    try {
+      render(<AddButton onCreateFolder={vi.fn()} />);
+      open();
+      fireEvent.click(screen.getByText("Upload files"));
+      expect(clicked).toEqual([{ directory: false }]);
+      open();
+      fireEvent.click(screen.getByText("Upload folder"));
+      expect(clicked).toEqual([{ directory: false }, { directory: true }]);
+    } finally {
+      spy.mockRestore();
+    }
   });
 
   it("closes the menu when a row is chosen", () => {
     const onCreateFolder = vi.fn();
     render(<AddButton onCreateFolder={onCreateFolder} />);
     open();
-    fireEvent.click(screen.getByText("New Folder"));
+    fireEvent.click(screen.getByText("New folder"));
     expect(onCreateFolder).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole("menu")).not.toBeInTheDocument();
   });
 
-  it.each(["Files", "Folder", "New Folder"])(
+  it.each(["Upload files", "Upload folder", "New folder"])(
     "returns focus to the trigger after %s",
     (label) => {
       render(<AddButton onCreateFolder={vi.fn()} />);

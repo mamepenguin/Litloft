@@ -162,8 +162,8 @@ A **warm white canvas** with **coral red** as the single brand accent — flat,
 minimal, photography-forward: generous border-radius, depth without shadows.
 
 **Light**: white canvas, plum black text, coral red accent.
-**Dark**: warm plum dark (`#1a0e10`) with bright coral (`#e85d5e`) — a red-tinted
-plum rather than pure black, so the warm character stays consistent.
+**Dark**: neutral near-black (`#131312`) with bright coral (`#e85d5e`) — the
+same faint warmth as the light greys, coral the only hue.
 
 ---
 
@@ -212,23 +212,23 @@ for an error surface in markup use `bg-danger/15`.
 
 | Token | Value | Notes |
 |---|---|---|
-| `--bg-primary` | `#1a0e10` | Warm plum dark |
-| `--bg-card` | `#231216` | Slightly lighter plum |
-| `--bg-elevated` | `#2f191b` | Elevated surface |
-| `--bg-sidebar` | `#1a0e10` | Same as bg-primary |
+| `--bg-primary` | `#131312` | Neutral near-black |
+| `--bg-card` | `#1c1c1b` | Slightly lighter neutral |
+| `--bg-elevated` | `#272725` | Elevated surface |
+| `--bg-sidebar` | `#131312` | Same as bg-primary |
 | `--bg-border` | `rgba(255,255,255,0.08)` | White translucent border |
-| `--text-primary` | `#f5e6e8` | Warm light text |
-| `--text-muted` | `#c4a0a4` | Pinkish muted text |
+| `--text-primary` | `#eeeeea` | Warm off-white text |
+| `--text-muted` | `#a5a59f` | Muted warm grey text |
 | `--accent` | `#e85d5e` | Bright coral |
 | `--accent-hover` | `#f07070` | Lighter coral |
 | `--accent-teal` | `#4caf80` | Bright green |
 | `--accent-amber` | `#f4c674` | Warm honey |
 | `--player-indicator` | `#ffffff` | White rather than coral: the indicator is read against the picture |
-| `--sand` | `#3d2023` | Dark sand |
-| `--sand-hover` | `#4a2a2e` | Dark sand hover |
-| `--warm-light` | `#3d2023` | Same as sand |
-| `--warm-silver` | `#7a6668` | Muted pink-silver |
-| `--dark-surface` | `#0d0608` | Deepest surface |
+| `--sand` | `#2f2f2c` | Dark neutral |
+| `--sand-hover` | `#3a3a37` | Dark neutral hover |
+| `--warm-light` | `#2f2f2c` | Same as sand |
+| `--warm-silver` | `#8a8a84` | Muted warm grey-silver |
+| `--dark-surface` | `#0b0b0a` | Deepest surface |
 | `--focus-ring` | `#617bff` | Bright blue |
 | `--danger` | `#ff8a8a` | Bright coral error |
 | `--danger-bg` | `rgba(255,45,66,0.12)` | Error background |
@@ -353,6 +353,16 @@ Long-form prose has its own scale in §3.3, in `em`, which is why H3 here is sma
 than body text while `.markdown-body h3` is larger: one labels a box, the other is
 a heading inside a text.
 
+**Text read for its content is set at the body size.** A sentence or more that the
+viewer reads for what it says — a comment, a summary, a description, a quoted
+passage, a question they wrote, a one-sentence summary included — is `text-base`
+(16px), `leading-relaxed` (1.625), `text-text-primary`, at every width. Labels,
+metadata, controls, status, empty and error lines, and clamped excerpts that only
+mark where something matched stay at 14px or smaller. Lists used to jump to a place
+(transcript rows, Find-in-file matches) and monospace text (plain-text files,
+Markdown source) keep their density. A field the viewer types such text into is
+`text-base` too; its line height follows §3.5.
+
 ### 3.3 Long-form Prose (MarkdownPreview / "reading-A")
 
 Applies wherever `.markdown-body` renders. Keep these values identical across
@@ -418,6 +428,11 @@ p, li, dd {
   line-height: 1.5;
 }
 ```
+
+An **in-place edit field** — no border and no background of its own, drawn in the
+same box as the text it replaces — is the exception: it takes the text's line height
+with `!leading-relaxed`, so the block keeps its height when editing starts. The
+rule above is unlayered and beats a plain Tailwind utility.
 
 **Prohibited:**
 
@@ -549,13 +564,14 @@ frame. On the collection route, where nothing bleeds them, they stay cards.
 
 ### Page Header
 
-One header for every screen with a subject, in up to three rows:
+One header for every screen with a subject, in up to four rows:
 
 | Row | Holds |
 |---|---|
 | Trail | a small navigation control at the leading edge, and the breadcrumb |
 | Subject | icon, title (`<h1>` at the §3.2 size), scope line, actions |
 | Tabs | the screen's tabs, if any |
+| Actions | an app header's remaining controls on a phone, after the tabs |
 
 - **The subject is named once**: by the breadcrumb's last segment or by a title,
   never both.
@@ -564,11 +580,30 @@ One header for every screen with a subject, in up to three rows:
 - The leading control stays in the same place across the screen's modes.
 - **The title does not move between screens a sidebar row opens.** The same space
   sits above every header, and such a screen's top level has no trail.
+- **A file page has no page header.** Its trail and its kind's controls are drawn
+  in the app header's one row, and so is — at wide, where the page has an
+  inspector — its inspector toggle, at that row's right end past the profile
+  button (§Header): the app header is already that screen's toolbar, and a second
+  bar under it costs a phone about half of a 16:9 video's height.
 - **Controls that change the layout belong to the app toolbar, not the page
   header.** The tree toggle sits beside the menu button, the same size at the same
-  height, so it stays put whichever page or file is open.
+  height, so it stays put whichever page or file is open. A phone's file page does
+  not show it: the tree has no width beside a file there, so the button would
+  change nothing.
 - **The header is as wide as the content under it** (§3.8), and starts at the
   content's left edge.
+- **A file page's trail starts at whichever is further right**: 16px inside the
+  content's box (or its own padding, where that is larger) — the right pane on the
+  canonical route, the centred column on the collection route — the fixed menu and
+  tree buttons' right edge plus 12px, or the header's own left end plus 16px. The
+  buttons overlap the header's left end, so a trail under them would be unreadable;
+  the right pane has no padding, so its edge is the tree's or an inline sidebar's
+  border, and the trail keeps the 16px from it that the header's controls keep from
+  its right end.
+- **The fixed menu and tree buttons sit on the header's centre line**, as do the
+  header's controls and a file page's trail, so the row reads as one line.
+  While the tree pane animates its width the trail may arrive at the new edge when
+  the animation ends.
 - **The icon and title are the sidebar row's.** The icon sits in a tile beside the
   title and the scope line.
 - **The scope line is the drive and the screen's count.** An unknown count shows
@@ -578,9 +613,25 @@ One header for every screen with a subject, in up to three rows:
   title's place in the subject row and has that row to itself; the heading
   「検索: "…"」 becomes a visually hidden `<h1>` so the page still has one. The
   field is a §Inputs field. Under it sit the chips: the URL's `type` as a chip
-  first, then the operator chips, then 「＋ 条件」. Under the chips, one results bar
+  first, then the operator chips, then 「＋ 条件」; on a Smart Collection whose
+  conditions differ from the saved ones, a secondary 「上書き保存」 button sits
+  at that row's right end. Under the chips, one results bar
   holds the Files / Passages switch, Scene search, the count, View, Sort and `…`.
-  Save as Smart Folder is not a primary action: it lives in `…`.
+  Save as Smart Collection is not a primary action: it lives in `…`.
+- **An app header's Target ends the scope line below 640px.** The title row keeps only
+  the icon tile and the title, so a title that runs long is cut by the viewport rather
+  than by a control beside it; the Target sits at the end of the scope line, beside the
+  count it narrows. The page's other actions — a shelf page's sort menu — take a row of
+  their own, the header's last, after the tabs and right-aligned, so they sit directly
+  above the content they order. At 640px and wider both return to the title row's end,
+  actions and then the Target. A short line gives up the drive name first (the sidebar
+  already names the drive), then part of the Target's name.
+- **A quiet control states a value without competing for the eye.** No fill and no
+  border: a leading icon, the value in muted text at the scope line's size, and a
+  trailing chevron. It takes the elevated surface on hover where the device can hover,
+  and while its menu is open; on a coarse pointer it keeps a 44px touch target. The
+  control's own word is not drawn — the value says what it holds — while its accessible
+  name still states the word and the value.
 
 ### Image query chip
 
@@ -612,6 +663,10 @@ with a **border in the accent colour**, never a fill.
   are both white in the light theme. The accent border clears WCAG 1.4.11's 3 : 1.
 - **Unselected controls carry `border-transparent`**, so nothing shifts on
   selection.
+- **The workbench's panel toggles are the exception**: they are a row of independent
+  on/off pills, not one of N options, so the off state keeps a neutral
+  `--bg-border` border so each still reads as a control. Both states use a 1px
+  border, so nothing shifts.
 - **On a crowded bar, prefer a labelled menu** (`View: List view`). A border says
   which option is on but not what the options are.
 - **A set of options side by side is `SegmentedControl`**: an outlined
@@ -630,17 +685,32 @@ with a **border in the accent colour**, never a fill.
   hover, and never use `scale()`.**
 - **A card's name clamps to two lines where it clamps at all.** A one-line
   `truncate` is also fine; a third number is not.
+- **A media card's progress bar fills only the watched ranges**, on the bar's
+  existing track and fill colour (video shelf 4px, black 50 % track, white
+  fill; continue-watching 3px, white 20 % track, accent fill). An empty range
+  list keeps the old fill from the start to the resume point. **A finished
+  card (position at least 90 % of the duration, the shelf's Finished state)
+  fills its whole bar and has no tick**: gaps left by deliberately skipped
+  parts would otherwise read as unfinished work.
+- **The resume tick** is a 3px by 10px white bar with 2px rounded top corners
+  and a 1px black 50 % outline, rising from the thumbnail's bottom edge and
+  centred on the resume point. It is drawn only when the ranges are (so the
+  resume point is where opening the file starts), and only when that point
+  sits more than 5 seconds from either end.
 - **A video card's title is 16/22 medium and sits 12px under the thumbnail; its
   byline is 14/20 muted, one truncated line, 4px under the title.**
 - **A text file's stand-in thumbnail** — its title over a shrunken cast of the
   body — is sized by the media box, not by the name rule.
+- **A folder card's second line is the item count alone** (「13件」, "13 items"),
+  with no kind names.
 - `line-clamp-*` needs `display: -webkit-box`; any other `display` utility on the
   same element silently cancels the clamp.
 
 ### Home entry row
 
 The row of app destinations at the top of a drive's Home: Library, the
-built-in and addon apps, and the Inbox while it holds arrivals.
+built-in and addon apps, the drive's Home shortcuts, and the Inbox while it
+holds arrivals.
 
 - **It measures its own width** (§8.5 Measure against the container), never
   the viewport: the same row sits beside an inline sidebar and inside a phone.
@@ -654,6 +724,15 @@ built-in and addon apps, and the Inbox while it holds arrivals.
 - **A count is plain text inside the link** — a `bg-warm-light` pill, after
   the label in the wrapping row and at the tile's top-right in the grid — so
   the link's own name carries the number.
+- **Home shortcuts come after the addon entries and before the Inbox**, in
+  the order the drive placed them, with no heading or separator. A shortcut
+  is a tile like the others: a Smart Collection, pin or collection leads
+  where the sidebar's row for that item leads; an app shortcut leads to its app
+  with that Target in force, which is not a sidebar row.
+- **Every tile's label follows one rule**: at or above `36rem` a tile is at
+  most `16rem` wide and its label is a single truncated line; below it the
+  label wraps to at most two clamped lines. Either way the tile's accessible
+  name is the full label.
 
 ### The first fact under a file's name
 
@@ -694,6 +773,94 @@ this file from the one beside it?*
 
 - Height `h-14` (56px), `sticky top-0 z-20`.
 - No menu button of its own; see §Sidebar.
+- **The outermost control on each side opens the pane on that side.** The tree
+  button sits at the left end beside the menu button and opens the tree; where the
+  page has an inspector, its toggle sits at the right end past the profile button
+  and opens the inspector.
+- The trailing end is search, quick note, the `header-actions` slot and the avatar
+  on every screen but a phone's file page. On a wide file page a vertical divider
+  follows the avatar, then the **Focus mode** button, then the inspector toggle
+  where the page has one. A file page with no inspector still draws the divider
+  and the Focus mode button: it is the header's last control there.
+- **The Focus mode button has the inspector toggle's shape and its opposite
+  weight.** It is a 32×32 button with the `Focus` icon, muted on no fill when off
+  and `bg-bg-elevated text-text-primary` when on, like the menu and tree buttons'
+  pressed look. Its `aria-pressed`, name and title follow the mode, so it is one
+  control that says what the next press will do.
+- **A file page draws its row into the header.** The content is portalled, not
+  lifted, so it stays part of the page: find, the image arrows, the Inbox actions
+  and a note's editor act on the page that drew them. The newest mounted file page
+  owns the row, and a file-to-file or loading-to-loaded swap replaces its content
+  without passing through the header's ordinary form. A page outside the shell,
+  with no header to draw into, keeps the row it draws itself.
+- **Wide, left to right**: menu button, tree button, the trail (or, where the host
+  supplies a back control, that control and the trail beside it), the file kind's
+  controls, the Inbox actions, a vertical divider, search, quick note, the
+  `header-actions` slot and the avatar, then a vertical divider, the Focus mode
+  button, and the inspector toggle where the page has an inspector. The trail
+  begins at the edge §Page Header gives it. The first divider marks where the
+  file's own controls end and the controls every screen has begin; the second
+  marks where those controls end and the file's own mode controls begin.
+- **Narrow, left to right**: menu button, a two-line heading, the file kind's
+  controls, search. The heading's first line is `‹` and the parent folder's name
+  (the drive's name at the root, or the host's back label where it supplied one),
+  12px muted, as a link to that folder or as that control; the second line is the
+  file's name, 14px semibold, one line, truncated with an ellipsis. With no name
+  yet the heading shows the first line alone, centred, at the same row height.
+- **A phone's file page gives up the header's own controls**: no quick note, no
+  avatar, and no tree button, Focus mode button or inspector toggle beside the
+  row. Quick note and the avatar are on every other screen, the tree has no width
+  beside a file, focus mode is suspended below `md`, and the inspector sheet rests
+  rather than closing, so a toggle would have no closed state to show. The
+  `header-actions` slot stays mounted at the row's end, where nothing draws.
+- **Walking the Inbox** on a phone, the row is the menu button, the heading, then
+  previous, next and **Done**. The file kind's controls and search are not shown.
+- **A note's view switch** is the segmented group at wide (§Selected-state
+  controls) and one button at narrow, showing the mode it switches to — pencil
+  while previewing, eye while editing. Two segments do not fit beside a two-line
+  heading.
+- **While a note is renaming on a phone, nothing sits right of the heading.** The
+  input takes the width those controls had, and every one of them — the kind's
+  controls, the Inbox actions, search — is hidden and unpressable until the rename
+  is committed or cancelled. At wide the rename hides nothing.
+- **Finding in the file wears `FileSearch`**, never the magnifier: the magnifier
+  belongs to global search, and two of them in one row would mean two things.
+- **A phone's inspector is raised from its resting strip**, never from the header;
+  see §Context Menus / Dropdowns, the Bottom Sheet.
+
+#### Focus mode
+
+On a file page at `md` or wider, the Focus mode button or `T` gives the page the
+header's, sidebar's and tree's room. The mode lasts while the tab stays on file
+pages; it is not remembered across a reload or a screen that is not a file page.
+
+- **The hidden header is out of the page, not gone.** It takes no height, paints
+  nothing and is `inert`, but stays mounted, so search, quick note, the
+  `header-actions` slot and the file row keep their state and their shortcuts keep
+  working. Entering moves keyboard focus inside it to the page.
+- **Measuring the hidden header says nothing about where the page starts.** It
+  keeps its controls in the tree, so anything that positions content against the
+  header must read the focus layout, never the header's height.
+- **The way back is the top edge.** With a fine pointer a transparent strip along
+  the top reveals the header on entry, so it also works over a player's iframe and
+  draws nothing over the file. With a coarse pointer a thin bar at the top
+  centre, inside a finger-sized hit area, does the same on a tap; it is the only
+  thing the mode draws over the page. It sits in the gap above the content rather
+  than on it: a pill tall enough to hold an icon covered the top of a video.
+- **The revealed header overlays the page and moves nothing.** It sits at the safe
+  area's top with a shadow, at its ordinary height, with the menu and tree buttons
+  in their usual place. The content keeps the box it had while the header was
+  hidden, and `--app-header-h` keeps the focus layout's value.
+- **What holds the reveal is what the viewer is using.** The pointer over the
+  header, keyboard focus inside it, an open header menu or the overlay sidebar
+  keeps it; when none remains it hides and focus returns to the page. A note's
+  failed or conflicted save holds it by status, so the save dot is never hidden
+  with the header.
+- **No animation on entering, leaving, revealing or hiding.** The header is
+  reached by aiming at an edge; a slide would put the controls under the pointer
+  only after the motion ended, and the layout must arrive in the frame the press
+  asked for.
+
 
 ### Sidebar
 
@@ -721,8 +888,9 @@ this file from the one beside it?*
 
 ### Inspector tab strip
 
-The tabs under the inspector's fixed header. What it contains is decided by the
-file, not the layout.
+The inspector's first row, above the panels. The file's header block (title,
+action row, tags) is the top of Info, not a row above the strip. What the strip
+contains is decided by the file, not the layout.
 
 - **One tab is no strip.**
 - **A tab with nothing to show is not a tab**, and it appears the moment it has
@@ -766,7 +934,7 @@ higher than whatever it currently sits under.
 
 | Tier | `z` | What belongs here |
 |---|---|---|
-| In-flow chrome | `z-10` – `z-30` | Sticky bars, the header (`z-20`), an inspector covering the canvas (`z-20`), the raised mobile Bottom Sheet (`z-[25]`), anchored popovers, the sidebar backdrop (`z-30`) |
+| In-flow chrome | `z-10` – `z-30` | Sticky bars, the header (`z-20`), the revealed focus header and its reveal strip and handle (`z-[25]`), an inspector covering the canvas (`z-20`), the raised mobile Bottom Sheet (`z-[25]`), anchored popovers, the sidebar backdrop (`z-30`) |
 | Floating surfaces | `z-40` | Overlay sidebar, mini-player, upload progress, bottom-anchored mobile menus, the Bottom Sheet's resting strip |
 | Modal dialogs | `z-50` | Confirm / Rename / Move and anything that interrupts to ask, including addon dialogs |
 | Immersive viewers | `z-[60]` | Full-screen image gallery and archive viewer, which replace the page; a phone player's frame pinned to fill the screen |
@@ -775,6 +943,13 @@ higher than whatever it currently sits under.
 - **Within a tier, do not build behaviour on the number.** Document order and
   stacking contexts decide ties; nothing that must be *correct* may depend on
   who is on top.
+- **The revealed focus header and the mode's reveal strip and handle sit above
+  the inspector's overlay form and the sticky find bar, and below the overlay
+  sidebar's backdrop.** The header is reached over a page that may carry its own
+  pinned chrome, so it ranks with the chrome but above the page; the sidebar's
+  backdrop dims the page and everything over it alike. The menu and tree buttons
+  keep their own `z-50`, so they are reachable while the header is revealed and
+  hidden with the header when it is not.
 - **A panel that has run out of room is still in-flow chrome.**
 - **An immersive viewer takes the page out of reach, not just out of sight**: the
   rest of the page is `inert` and body scroll is locked until it closes.
@@ -785,9 +960,20 @@ higher than whatever it currently sits under.
 
 | State | What is on screen |
 |---|---|
-| peek | The file's name, like, favourite and `⋮`, above the home indicator |
+| peek | The file's name (a button that raises the sheet), like, favourite and `⋮`, above the home indicator |
 | half | The top of the inspector. On a page with a player, the sheet's top edge meets the player's bottom edge, so the video stays whole; elsewhere a fixed fraction of the window |
 | full | Most of the inspector column, with room to read a tab |
+
+- **The strip's name raises the sheet, and only raises it.** The name and a
+  chevron-up are one button, announcing itself as collapsed, and it exists only at
+  `peek`: the header carries no inspector toggle on a phone, because a sheet that
+  rests instead of closing has no closed state for one to show. The handle, a pull
+  from the content's top and Escape are the ways down.
+- **The name is separate from the strip's action row.** Raising the sheet needs no
+  fresh data, so the name stays pressable while the like, favourite and `⋮` are
+  inert during a refetch.
+- **A press on the name while a strip popup is open only dismisses the popup**,
+  and the press's click is swallowed (§Context Menus).
 
 - **`half` is where the player ends, derived rather than offset**, and only while
   that gives more room than the fixed fraction. `full` never depends on the
@@ -809,8 +995,9 @@ higher than whatever it currently sits under.
 - **At rest the drawer is not mounted.** An open drawer is a dialog layer that
   takes every Escape on the page and lifts itself over the keyboard for any
   focused field.
-- **On a phone the sheet is one scroller.** The inspector's header scrolls away
-  with the content; only the tab strip sticks.
+- **On a phone the sheet is one scroller.** The tab strip is the first row and
+  sticks; the inspector's header block sits at the top of Info and scrolls with
+  it.
 - **The player is never moved into or re-parented by the sheet**; re-parenting
   restarts playback. At `full` it stays behind the sheet.
 - **Nothing goes inside the player's box but the player and the controls that act
@@ -847,6 +1034,21 @@ exception. Full-screen image and archive viewers follow the same rules.
   (ad, end screen).
 - Track fills `bg-white/25` empty and `bg-white/40` buffered; the volume
   slider's played range is `bg-accent`.
+- **The watched band sits above the seek line**: a 3px strip spanning the
+  line's own box, its bottom edge 8px above the visible 4px line (4px above
+  the knob's top), with no track of its own. Levels are white at 35 %, 60 %
+  and 90 %. It appears only while a mouse or pen is over the seek row, while
+  the bar is scrubbed, for 2 seconds after a skip, and while the touch chrome
+  is bottom-only — not for focus, a pause, or any other reveal. The line, its
+  buffered and played fills, and the knob are unchanged.
+- **On touch a skip shows the bottom bar alone**: time, full-screen and the
+  seek bar with its band, beside the half-disc skip feedback, and not the
+  centre transport, the top-right buttons or the hairline. It holds for 2
+  seconds after the last skip, scrub end or full-screen press, then hides
+  while playing and returns whole while paused; a single tap, a pause or
+  resume, focus entering the chrome, or the settings sheet also ends it. With
+  a mouse or pen a skip reveals the whole bar, as any other control press
+  does.
 - **The seek indicator follows the theme**: `--player-indicator` — coral in
   light, white in dark — fills the played range and the knob alike, in the
   control bar and in the hairline that stays behind once the bar fades. Dark
@@ -865,7 +1067,8 @@ exception. Full-screen image and archive viewers follow the same rules.
 - **Transient gesture feedback**: a half-disc `bg-white/15`, icon plus label,
   fading, `aria-hidden` — the same operation must also be a real button or
   shortcut.
-- **Transient state pills**: `bg-black/70 rounded-2xl`, top centre.
+- **Transient state pills**: `bg-black/70 rounded-2xl`, top centre. They share
+  that spot and stack, the long-press speed pill above the jump label.
 - **Player settings are one panel** (`bg-black/85`) inside the frame: a bottom
   sheet on touch, a `w-64 rounded-2xl` popover on mouse. No bare native controls
   in the bar.
@@ -956,10 +1159,13 @@ A row in the search page's Passages view: one picture, one place in one file.
 
 The find bar over a file's canvas, and its places in the inspector's **検索** tab.
 
-- **The bar is a strip, not a card**: `bg-card` with a bottom border, under the page
-  row at the top of the canvas. Field, count, previous, next, then close at the far
-  end, with the status line under them. The count is `tabular-nums` so stepping does
-  not shift the buttons.
+- **The bar is a strip, not a card**: `bg-card` with a bottom border, under the
+  app header's row at the top of the canvas. Field, count, previous, next, then close
+  at the far end, with the status line under them. The count is `tabular-nums` so
+  stepping does not shift the buttons.
+- **The button that opens it sits in the file's row and wears `FileSearch`**, not
+  the magnifier: the magnifier is global search's, and two of them in one header
+  would name two different things.
 - **The places live in the inspector**, not under the bar: the inspector already has
   a desktop form and a phone sheet, and the bar stays one row on a phone.
 - **Kind chips sit at the top of the tab** and follow §Selected-state controls: an
@@ -1093,15 +1299,12 @@ from their old position rather than jumping.
 
 ## 8. Display preferences applied before first paint
 
-The theme and the media layout preference are applied to `<html>` before the
-first paint, so neither flashes the other value for a frame, and both are then
-acted on in CSS.
+The theme is applied to `<html>` before the first paint, so it does not flash
+the other value for a frame, and it is then acted on in CSS.
 
 - **Theme**: `light` and `dark` apply their own rules; `system`, or nothing
   stored, follows `prefers-color-scheme`.
-- **Media layout**: see §8.5.
-- A browser that blocks site data still gets the system theme and the default
-  layout.
+- A browser that blocks site data still gets the system theme.
 
 ---
 
@@ -1109,13 +1312,17 @@ acted on in CSS.
 
 ### File detail: one shell, two canvases
 
-Every kind of file gets the same page row, the same inspector header and the same
-Info tab. Only the canvas differs, and there are two:
+Every kind of file gets the same row in the app header, the same inspector header
+and the same Info tab. Only the canvas differs, and there are two:
 
 | Canvas | Kinds | What is in it |
 |---|---|---|
-| **Document** | a Markdown note, and HTML shown the same way | the editor, with the note's own controls in the page row |
-| **Viewer** | **everything else** | the viewer, and what belongs to that viewer alone — a media file's description, its long summary, and the transcript when placed below the player |
+| **Document** | a Markdown note, and HTML shown the same way | the editor, with the note's own controls in the file's row |
+| **Viewer** | **everything else** | the viewer, and what belongs to that viewer alone — a player file's workbench panels under the player |
+
+- **The row is the app header's row, not a bar of its own** (§Header): the canvas
+  starts at the header's bottom edge on every kind and in every load state, and
+  there is no second row between them.
 
 - **The viewer has the column to itself**, rather than getting whatever height
   metadata leaves over.
@@ -1128,12 +1335,22 @@ Info tab. Only the canvas differs, and there are two:
 
 | Token | Value | Meaning |
 |---|---|---|
-| inspector width | `24rem` (384px) | Fixed. Where the row cannot hold it beside the canvas it covers the canvas at the same width rather than narrowing — at 320px Japanese wraps at 12–14 characters a line. |
+| inspector width | `24rem` (384px) | Fixed. Where the row cannot hold it beside the canvas it covers the canvas at the same width rather than narrowing — at 320px Japanese wraps at 12–14 characters a line. A player file (video, audio, `.loft`) instead stacks it under the player, so the width becomes the row's. |
+| wide inspector width | `max(40% of the row, 32rem)` | While a `document-side` tab that declares `wide` is selected in the `beside` form. 40% of a 1280px row is 416px, about 24 characters a line at 16px; the 512px floor keeps about 30. Overlay, the stacked form and the phone keep `24rem`. No transition: the width is a fact of the selected tab. |
 | canvas padding | `2rem` (32px) | Around the canvas contents; part of the sum below because the player is inside it. |
 | beside threshold | player minimum + canvas padding + inspector width | Measured on the row that holds both — never on the canvas, whose width is what is being decided. |
+| stacked canvas | at most `60%` of the row's height | The canvas takes the find bar and the player, and scrolls inside itself; the inspector keeps the rest at full width. |
+| stacked frame | half the row's height, less the bars sharing the canvas | A framed player is capped at `min(today's height budget, that half) × 16 / 9`, so the frame, the find bar and the action row fit without scrolling and the controls stay on screen. |
 
-The companion rail below has the same width for the same reason, not by sharing a
-value; a change to one is not a change to the other.
+The stacked form is chosen by the row's width and by the file kind, never by
+whether the inspector is open: opening and closing it only turns the layout on
+and off, so a window drag cannot close what it opened.
+
+The two-pane route's left pane — the folder tree, or a collection's item list —
+steps aside when it is what stops a player file's inspector fitting beside the
+player. The collapse belongs to the file page, not to the tree setting:
+`tree:enabled:{drive}` is not written, the tree button brings the pane back,
+and the sidebar keeps its overlay form while the pane is away.
 
 ### The Related tab
 
@@ -1163,36 +1380,55 @@ listed when the file has a relation or when any addon publishes to
 - On the collection route, which has no inspector, the same sections sit under one
   `Related` heading.
 
-### Companion region (media file detail)
+### Workbench (media file detail)
 
-Chapters and the transcript. It belongs to a **player** — a PDF has a viewer but no
-playback clock, so it has no companion region.
-
-| Surface | "Beside" means | "Below" means |
-|---|---|---|
-| File page | a tab in the inspector | a bounded box in the canvas, under the description |
-| Collection playback | a second column beside the player | the same box, under the player |
-
-**The companion is moved, never duplicated**: it holds a fetch, a playback clock
-and a scroll position.
+The transcript, the scenes, the detailed summary and the summary note, under a
+player. It belongs to a **player** — a PDF has a viewer but no playback clock,
+so it has no workbench.
 
 | Token | Value | Meaning |
 |---|---|---|
-| rail width | `24rem` (384px) | Fixed. 320px wrapped Japanese at 12–14 characters a line. |
-| box height | `60%` of the scroll container | The bounded box below the player. |
-| below: index column | `12.5rem`–`22rem` | The chapter list beside the transcript; wider than about 350px, timestamps compete with what they index. |
-| below: body column | `68ch` | The reading measure, as both base and cap. |
-| player minimum | `34.5rem` (552px) | Narrower and a 16:9 video stops being watchable. |
-| gap | `1.5rem` (24px) | The standard section gap. |
-| switch threshold | rail width + player minimum + gap | A sum, not a feel. |
+| column threshold | `41rem` | At or above it, the panels that are shown sit side by side as equal columns; below it they sit one above the other. Not in the split layout. |
+| split threshold | `61rem` | The width at which the column beside the player reaches `24rem`; below it the panels stay under the player and the button is not drawn. |
+| split share | `60%` of the columns | The player's share of the canvas content when the panels sit beside it; the panels take the rest. |
+| row beside threshold | `13rem`, plus `3.25rem` while **Show panels beside the player** is drawn | While a panel is shown under an enlarged frame, the row moves into the space to the player's right once that space is at least this wide; below it the row stays under a centred frame. |
+| panel floor | `18rem` | The panels are at least this tall. If the room is less, they keep it and the page scrolls. |
+| player cap | half, or `30%`, of the scroll container's visible height | While a panel is shown under a framed player on the canonical page. **Enlarge panels** in the row picks the smaller share, floored at a 480px-wide frame (270px tall) so the player keeps its full controls, and never above half. An unframed player (audio) is not capped, and neither are pseudo or system full screen and the mini player. Not in the split layout. |
+| collection height | `60%` of the scroll container, at least `18rem` | The panels together on the collection surface. Two stacked panels share it equally. The player there is not capped. |
 
-**Four questions, four thresholds. Do not merge them.**
+- **The row is the panels' switch**: one toggle per available panel, the
+  **Show panels beside the player** button while the canvas holds two columns,
+  the **Enlarge panels** button while a panel is shown outside the split layout,
+  and the player's `file-preview-actions` entries at its trailing end. With no
+  toggle and no action the row is not drawn.
+- **The row follows the frame while Enlarge panels is on.** With `13rem` or more
+  beside the frame, the frame sits at the canvas's left edge at the same size
+  and the row takes the space to its right, its bottom on the frame's bottom;
+  the panels start `0.75rem` under the frame. With less room the frame is
+  centred and the row is under it, one `1rem` above the panels.
+- **The threshold fits one line's widest content**: the widest panel toggle,
+  the **Show panels beside the player** button and the Enlarge panels button at
+  the coarse size. A `file-preview-actions` entry is not part of the budget.
+- **At most two panels are shown**, in the panel list's order rather than the
+  order they were turned on.
+- **A panel is mounted once per form**: turning it on or off, closing it and
+  switching tabs move nothing and replace no player.
+- **Placement belongs to the space, with one choice.** The wide forms use the
+  workbench, and the stacked inspector and the phone use tabs. The reader
+  chooses which panels are on, whether the player or the panels get the larger
+  share, and — where the canvas holds two columns (61rem) — whether the panels
+  sit under the player or beside it. Nothing else about placement is a
+  preference: the row follows the frame.
+- **Each panel's body scrolls inside itself.**
+- **A panel is an `--bg-elevated` card with no border.** `--bg-card` is the page's
+  white in the light theme, so a card drawn with it has no visible edge there.
+
+**Three questions, three thresholds. Do not merge them.**
 
 | Question | Measured against |
 |---|---|
-| Can a rail sit beside the player? | The host's own width |
-| Can the inspector sit beside the canvas, or must it cover it? | The width of the row holding both |
-| Does the inspector *start* open? | The viewport (1120px). A default only; the reader's choice outranks it |
+| Can the inspector sit beside the canvas, or must it cover it? | The width of the row holding both; a player file in a row that cannot hold it is stacked instead of covered |
+| Does the inspector *start* open? | The file kind and the viewport. A video, audio or `.loft` file: open off a phone. Anything else: the viewport (1120px). A default only; the reader's choice outranks it |
 | Is the inspector a pane or a Bottom Sheet? | The viewport (768px) |
 
 Placement is a fact about the space, so it is measured on the container; whether
@@ -1202,8 +1438,14 @@ and a folder tree have already taken space the viewport does not know about.
 
 - **The host holds the height.** An occupant cannot tell which form it is in and
   must never bound itself.
-- **Lead and fill, not equal shares**: a short index sizes to its content under a
-  cap, and the long body takes the rest. The index does not shrink.
+
+- **The pane widens for one tab, and only beside.** A `document-side` tab whose
+  entry declares `wide` takes `max(40% of the row, 32rem)`; selecting any other
+  tab returns the pane to `24rem` in the same frame, and the canvas narrows by
+  the same amount. Overlay, the stacked form and the phone keep `24rem`: the
+  pane there already covers or owns the width, and a jump in place would move a
+  page nobody can see. The width is an attribute on the pane and a stylesheet
+  rule, with no transition, so nothing inside the pane re-renders for it.
 
 ### The primary pointer decides whether anything scrolls sideways
 
@@ -1282,11 +1524,32 @@ portrait.
 - **Archive listings use these rows too**, with each picture's ratio read once it
   loads.
 
-### A floor under the canvas viewer
+### The viewer fills the canvas
 
-Archive and PDF viewers are at least **70% of the canvas height** (never less than
-320px), so a short archive does not draw a thin band over an empty canvas. A
-floor, not a ceiling. Not on a phone, where the canvas is the screen.
+On a file page, a PDF, an EPUB and an archive viewer take the canvas's content
+bottom: from under the find bar when it is open to above the preview actions
+when they are present, at every width and in focus mode, with no scrollbar in
+the canvas. The height is **measured**, never a `vh` or a container query: the
+rows around it and the resting phone sheet have no CSS length the viewer could
+subtract, and `container-type: size` would make the canvas the containing block
+for the archive's unportalled `position: fixed` overlay. A child added to or
+removed from the canvas — the find bar opening after the viewer mounted —
+re-measures.
+
+The collection route keeps the viewers' own heights: a PDF's page area at
+`80vh`, the EPUB's measured height (`60dvh` before it measures), the archive's
+natural height. Text previews, Office excerpts and images keep their own
+heights on the file page too; only the filled viewers stretch.
+
+### A drive that cannot be opened
+
+- **Its pages say so instead of showing an empty folder**: a 48px `rounded-2xl`
+  `bg-bg-elevated` tile with `HardDrive` in `text-text-muted`, the heading
+  「ドライブ「<name>」を開けません」 as the page's only `<h1>` at 18px bold, then
+  「ドライブ一覧へ」 as a Secondary (Sand) link and, when the viewer could unlock a
+  protected drive, 「ロックを解除」 as a Ghost link in `text-text-muted`; 16px
+  between the three, centred, 24px side padding and 120px below, and no `+ Add`
+  button and no drop zone.
 
 ### Sticking below the header
 
@@ -1305,7 +1568,7 @@ number. A pane that scrolls itself sticks to its own top instead.
 - Separate line-height rules for headings, body, and forms (jp-ui-contracts)
 - Avoid `tracking-wider` on any element that may render Japanese text
 - Use the `break-anywhere` utility for long words and URLs — not `break-all`
-- Use plum black (`#211922` / `#f5e6e8`) for primary text
+- Use plum black (`#211922`) in light mode and warm off-white (`#eeeeea`) in dark mode for primary text
 - Apply 12px radius uniformly to long-form content blocks (`blockquote`, `pre`, `img`, fenced code)
 - Let tables carry structure via `border-bottom` + `font-weight` only — no zebra, no fills
 - Measure layout against the container a component actually has
@@ -1318,7 +1581,7 @@ number. A pane that scrolls itself sticks to its own top instead.
 - Do not handroll arbitrary `shadow-[0_*]` values, or stack `shadow-2xl` with `ring-*` — use the `shadow-card` (Level 1) or `shadow-lg` (Level 3) tokens. The one exception is not depth: a zero-blur shadow in the ground's own colour that extends a sticky strip's background a pixel upward (the inspector tab strip), because some engines round a stuck strip down and show a row of the content beneath
 - Do not use border-radius below 12px on outer surfaces
 - Do not use cool grays — always warm/olive-toned
-- Do not use pure black in dark mode — use warm plum dark (`#1a0e10`)
+- Do not use pure black in dark mode — use neutral near-black (`#131312`)
 - Do not re-introduce the UA default yellow on `<mark>`
 - Do not add zebra stripes or cell grid borders to reading-surface tables
 - Do not hard-code `max-width` on prose callers — the reading measure lives in one place

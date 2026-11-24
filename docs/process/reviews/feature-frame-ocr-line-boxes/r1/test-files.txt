@@ -1,0 +1,9 @@
+addons/intelligence/tests/frame_line_doubles.py
+addons/intelligence/tests/test_frame_ocr_worker_reread.py
+addons/intelligence/tests/test_spec_addon_133_frame_ocr_outdated.py
+addons/intelligence/tests/test_spec_addon_133_frame_ocr_reread.py
+addons/intelligence/tests/test_spec_addon_133_frame_ocr_reread_text.py
+addons/intelligence/tests/test_spec_addon_133_loft_read_rule.py
+addons/intelligence/tests/test_spec_addon_134_frame_lines_kept.py
+addons/intelligence/tests/test_spec_addon_134_frame_lines_schema.py
+addons/intelligence/tests/test_spec_addon_134_frame_lines_store.py

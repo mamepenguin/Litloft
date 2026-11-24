@@ -1,0 +1,89 @@
+{
+  "v": 3,
+  "createdOnFiles": {
+    "v": 1,
+    "at": "2026-11-11T12:00:00Z"
+  },
+  "title": "プレイヤー画面の幅別レイアウト",
+  "launch": {
+    "view": "canvas"
+  },
+  "pages": [],
+  "boards": {
+    "Main.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 1180,
+      "h": 820,
+      "title": "iPad 横 1180×820"
+    },
+    "MiniLandscape.dc.html": {
+      "x": 1260,
+      "y": 0,
+      "w": 1133,
+      "h": 650,
+      "title": "iPad mini 横 1133×650 — Transcript"
+    },
+    "MiniLandscapeInfo.dc.html": {
+      "x": 2473,
+      "y": 0,
+      "w": 1133,
+      "h": 650,
+      "title": "iPad mini 横 1133×650 — Info"
+    },
+    "Portrait.dc.html": {
+      "x": 0,
+      "y": 1240,
+      "w": 820,
+      "h": 1180,
+      "title": "iPad 縦 820×1180"
+    },
+    "SmallWindow.dc.html": {
+      "x": 900,
+      "y": 1240,
+      "w": 900,
+      "h": 700,
+      "title": "小さいウインドウ 900×700"
+    },
+    "MiniPortrait.dc.html": {
+      "x": 1880,
+      "y": 1240,
+      "w": 744,
+      "h": 1133,
+      "title": "iPad mini 縦 744×1133（スマホのシートと同じ）"
+    },
+    "PhoneInfo.dc.html": {
+      "x": 2704,
+      "y": 1240,
+      "w": 390,
+      "h": 844,
+      "title": "スマホ縦 390×844 — Info"
+    }
+  },
+  "order": [
+    "Main.dc.html",
+    "MiniLandscape.dc.html",
+    "MiniLandscapeInfo.dc.html",
+    "Portrait.dc.html",
+    "SmallWindow.dc.html",
+    "MiniPortrait.dc.html",
+    "PhoneInfo.dc.html"
+  ],
+  "notes": {
+    "rowBeside": {
+      "x": 0,
+      "y": -300,
+      "text": "ツリーを畳めば収まる幅: 横並び",
+      "kind": "title1",
+      "maxW": 3606
+    },
+    "rowStacked": {
+      "x": 0,
+      "y": 940,
+      "text": "畳んでも収まらない幅: 動画の下に縦積み",
+      "kind": "title1",
+      "maxW": 3094
+    }
+  },
+  "designSystems": []
+}

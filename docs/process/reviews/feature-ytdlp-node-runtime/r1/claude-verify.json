@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "CRITICAL",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R1",
+      "status": "confirmed",
+      "note": "addons/intelligence/tests/youtube_frame_doubles.py:85-86 writes cfg['stderr'] to stderr before dumping the JSON on a successful -J. :271-274 adds `stderr=None` to set_ytdlp and writes it to ytdlp.json. The spec's Touch points (docs/specs/ytdlp-node-runtime.md:239-268) name no file under addons/intelligence/tests/. The change is test-only scope drift. It supports the I5 test, which needs a successful lookup that also writes to stderr."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R2",
+      "status": "confirmed",
+      "note": "providers/youtube.py:57 adds a module-level `from ...service import JS_RUNTIME_OPTIONS`. Lines 262 and 271 keep the lazy imports inside functions. manager.py:37-38 already imported ..service at module level. service.py:35 is its only module-level relative import (.schemas), and it does not import subscription, so the new import makes no circular import. The import graph does widen: importing the provider now loads service and its app.* imports (service.py:20-33). This is outside the literal touch point but has no behavioral defect I could find."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R3",
+      "status": "confirmed",
+      "note": "Both files exist: addons/intelligence/tests/test_spec_addon_141_ytdlp_node_runtime.py and addons/media_import/backend/tests/test_spec_addon_142_ytdlp_node_runtime.py. Neither is listed in Touch points. tests/test_backend_dockerfile.py:106 defines test_spec_addon_142_i7_the_backend_image_files_name_no_addon_and_no_js_runtime, while the touch point at spec:262-264 mentions only I8's tests for that file. These are test-only additions that check declared invariants (I1, I7)."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "claude-deep-1",
+      "status": "confirmed",
+      "note": "This is the same observation as R1 plus R3. youtube_frame_doubles.py:85-86 and :271-274 show the new stderr knob. The two new submodule test files exist and are not listed in Touch points (spec:239-268), which name only tests/test_backend_dockerfile.py among test files."
+    }
+  ],
+  "specification_compliance": [
+    "The four findings are scope observations about files outside the Touch points list. All are test files or an import-graph change; none contradicts a declared invariant.",
+    "JS_RUNTIME_OPTIONS = {'js_runtimes': {'node': {}}} (service.py:44) is spread into options dicts at service.py:83,171,271,344, manager.py:99 and providers/youtube.py:192,219. That is seven sites, matching the seven dicts in I3/I4."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "Importing subscription/providers/youtube.py now loads media_import's service module and its app.* dependencies at import time. Before, that happened only when a function that needs service was called."
+  ],
+  "regression_risks": [
+    "A test or tool that imports providers.youtube in an environment where service's app.* imports cannot load would now fail at import. I did not check whether any existing test depends on that."
+  ],
+  "test_coverage": [
+    "The I5 test path relies on the new stderr knob in the shared fake yt-dlp. Existing callers of set_ytdlp keep their behavior because stderr defaults to None, which the script treats as falsy."
+  ],
+  "not_verified": [
+    "Did not run any tests; I had no command execution.",
+    "Did not read the contents of the two new SPEC-ADDON-141/142 test files beyond confirming they exist.",
+    "Did not check whether the media_import tests that import providers.youtube load service successfully in the test image.",
+    "Did not compare against origin/develop directly. 'Before' state comes from the reviewers' descriptions and the code as it is now."
+  ],
+  "confidence": 85
+}

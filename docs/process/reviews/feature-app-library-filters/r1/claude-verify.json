@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R1",
+      "status": "confirmed",
+      "note": "Reproduced by reading the code. labels.ts is changed by this branch (it is listed in r1/product-files.txt) and is not a touch point. At HEAD, VideoShelfPage.tsx:201 passes `shelf: { key: shelfKey, label: \"\" }`. The checkout at /Users/libre/Sources/video_share, which predates this branch, has `label: shelfKey` at VideoShelfPage.tsx:177. labels.ts:41 (`by === \"tag\"`) returns `shelf.label` for every key except no_tag, so it now returns \"\". VideoAppHeader.tsx:49 uses `title ?? t(\"title\")`, and `??` keeps the empty string, so a Video by=tag See all page has an empty title. It looks like the folder branch was reordered to prefer `shelf.label` (labels.ts:37); without the label change, a See all page would have shown the full folder path, so the label was blanked and that broke the tag branch. No VideoShelfPage test uses by=tag."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R2",
+      "status": "confirmed",
+      "note": "ToolbarMenu.tsx is in r1/product-files.txt and is not a touch point. It adds `inlineLabel` (lines 140, 174, 256-262) and `onOpenChange` (lines 157, 181). `changeOpen` (lines 188-191) now handles the trigger toggle (line 220) and `close` (line 194, used by Escape at 211 and DismissScrim at 288). FilterMenus.tsx:217/222/231 are the only callers of the new props. No test under components/__tests__ refers to inlineLabel or onOpenChange on ToolbarMenu."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R3",
+      "status": "confirmed",
+      "note": "VideoPagedGrid.tsx is in r1/product-files.txt and is not a touch point. It adds a `filtered` prop (lines 49, 53) and separates the `empty` branch (line 58) from the `ready && items.length === 0` branch (lines 61-66), which shows appFilters.filterEmpty when `filtered` is set. VideoShelfPage.tsx:248 calls it without `filtered`."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R4",
+      "status": "confirmed",
+      "note": "useReadingApp.ts:269-271 adds `useEffect(() => { readLibraryFilters(\"reading\", drive) }, [drive])`, and chooseTarget at :278 calls `resetLibraryFilters(\"reading\", drive)`. useReadingApp.ts is in r1/product-files.txt. readingapp/ReadingApp.tsx is not in that list, so the branch does not change it."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R5",
+      "status": "confirmed",
+      "note": "frontend/src/test/setup.ts:5 imports resetLibraryFilters, and :151-152 reset video and reading with drive \"\". popup-dismissal.test.ts:171 has the key frontend/src/components/appshell/FilterMenus.tsx. e2e-components/projects.ts:10 and spec-viewport.spec.ts:82,101 register library-filters(-desktop).spec.ts. All of these files are in r1/product-files.txt or r1/test-files.txt, and none is a touch point."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R6",
+      "status": "confirmed",
+      "note": "At HEAD, clipsAppHarness.tsx:151-158 has `(!q(c).has(\"trust\") || q(c).get(\"per_shelf\") === \"60\")`. The pre-branch harness (video_share checkout, line 151) had `!q(c).has(\"trust\")`. A by=all shelves call with trust and per_shelf=60 therefore now matches isNewShelf. The comment at :155-156 says Home's New shelf is the call without trust, but the predicate also matches the Library's per_shelf=60 grid. Callers in clipsLibrary/clipsLibraryFilters/clipsViewPerTarget add `per_shelf === \"60\"` themselves. The Home assertions at clipsHome.test.tsx:137 and :206 now also match any trust-carrying per_shelf=60 call."
+    }
+  ],
+  "specification_compliance": [
+    "The Video by=tag See all title regression (R1) affects existing See all behaviour; no invariant of this spec names the See all title, but SPEC-CORE-145 shelf pages are expected to show a title."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "VideoShelfPage.tsx:248 does not pass `filtered` to VideoPagedGrid, so a filtered Video See all page with no result shows the generic no-files empty state, not the filter-empty title. I10 names only the Library, so this may be intended."
+  ],
+  "regression_risks": [
+    "Video by=tag See all page header title is empty (labels.ts:41 with VideoShelfPage.tsx:201 label \"\").",
+    "ToolbarMenu open/close routing change affects every ToolbarMenu user; the change is behaviour-preserving when onOpenChange is absent, but it has no direct test."
+  ],
+  "test_coverage": [
+    "No VideoShelfPage test pins the by=tag title.",
+    "No ToolbarMenu unit test covers inlineLabel or onOpenChange.",
+    "The loosened isNewShelf harness predicate makes Home assertions also match trust-carrying per_shelf=60 calls."
+  ],
+  "not_verified": [
+    "Did not run any test or browser; all reproductions are by reading code.",
+    "Compared against the /Users/libre/Sources/video_share checkout as a proxy for origin/develop; its exact commit was not confirmed.",
+    "Did not check the backend tag-counts invariants (I1, I2, I13) or the Clips URL invariants (I5, I11)."
+  ],
+  "confidence": 85
+}

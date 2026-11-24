@@ -62,6 +62,8 @@ export interface FileItem {
   trust_unknown?: true;
   created_at: string;
   updated_at: string;
+  /** The file's filesystem modification time; `null` before the first scan. */
+  modified_at: string | null;
   /**
    * Set only on the backend search path. Indicates whether the query matched
    * the title, folder_path, or both. `null` on non-search paths.
@@ -179,6 +181,19 @@ export interface FolderCount {
 
 export interface PinnedFolder {
   path: string;
+  on_home?: boolean;
+}
+
+export type HomeShortcutKind = "smart_folder" | "pin" | "collection" | "app_target";
+
+export interface HomeShortcut {
+  kind: HomeShortcutKind;
+  id: string;
+  name: string;
+  query: string | null;
+  file_type: FileKind | null;
+  /** The Home entry an `app_target` shortcut belongs to; `null` on every other kind. */
+  app?: string | null;
 }
 
 export interface Neighbors {
@@ -220,6 +235,7 @@ export interface CollectionDetail {
   items: CollectionItemEntry[];
   created_at: string;
   updated_at: string;
+  on_home?: boolean;
 }
 
 export interface ArchiveEntry {
@@ -343,6 +359,21 @@ export interface WatchProgress {
   duration: number;
 }
 
+export interface WatchedRange {
+  start: number;
+  end: number;
+}
+
+export interface PlayedSegmentItem {
+  index: number;
+  played_seconds: number;
+}
+
+export interface PlayedSegmentsResponse {
+  segment_seconds: number;
+  segments: PlayedSegmentItem[];
+}
+
 export interface Highlight {
   id: string;
   page: number | null;
@@ -361,6 +392,7 @@ export interface HighlightInput {
 
 export interface WatchHistoryItem extends FileItem {
   watch_progress: WatchProgress;
+  watched_ranges?: WatchedRange[];
 }
 
 export interface BatchRenameRequest {

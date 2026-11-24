@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>PDF のファイルページ</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:#c4383a}a:hover{color:#a52a2c}
+</style>
+</helmet>
+<div style="width: 1440px; height: 900px; position: relative; overflow: hidden; background: #ffffff; font-family: 'Hiragino Sans', 'Noto Sans JP', system-ui, sans-serif; color: #1c1c1a; font-size: 14px">
+
+  <sc-if value="{{ showChrome }}" hint-placeholder-val="{{ true }}">
+    <nav aria-label="サイドバー" style="position: absolute; left: 0; top: 0; width: 240px; height: 900px; box-sizing: border-box; border-right: 1px solid #ecebe6; background: #fbfbf9; padding: 12px; display: flex; flex-direction: column; gap: 4px">
+      <div style="display: flex; gap: 8px; margin-bottom: 8px">
+        <button type="button" aria-label="メニュー" style="width: 40px; height: 40px; border-radius: 10px; border: 0; background: #f0efea"></button>
+        <button type="button" aria-label="ツリー" style="width: 40px; height: 40px; border-radius: 10px; border: 0; background: transparent"></button>
+      </div>
+      <div style="height: 36px; border-radius: 10px; background: #f0efea; display: flex; align-items: center; padding: 0 12px; font-weight: 600">テスト画像</div>
+      <sc-for list="{{ nav }}" as="item" hint-placeholder-count="8">
+        <div style="height: 36px; display: flex; align-items: center; padding: 0 12px; border-radius: 10px; color: #4a4a46">{{ item.label }}</div>
+      </sc-for>
+    </nav>
+    <header style="position: absolute; left: 240px; top: 0; right: 0; height: 56px; box-sizing: border-box; border-bottom: 1px solid #ecebe6; display: flex; align-items: center; padding: 0 16px; gap: 10px; color: #4a4a46">
+      <span>テスト画像</span><span style="color: #b5b4ad">›</span><span>docs</span><span style="color: #b5b4ad">›</span><span style="color: #1c1c1a; font-weight: 600">Litloft User Guide</span>
+      <div style="flex: 1"></div>
+      <span style="width: 28px; height: 28px; border-radius: 8px; background: #f0efea"></span>
+      <span style="width: 28px; height: 28px; border-radius: 8px; background: #f0efea"></span>
+      <span style="width: 28px; height: 28px; border-radius: 8px; background: #f0efea"></span>
+      <span style="width: 1px; height: 20px; background: #e2e1db"></span>
+      <span style="width: 28px; height: 28px; border-radius: 8px; background: #f0efea"></span>
+      <span style="width: 28px; height: 28px; border-radius: 8px; background: #f0efea"></span>
+    </header>
+  </sc-if>
+
+  <main style="position: absolute; left: {{ canvasLeft }}px; top: {{ canvasTop }}px; width: {{ canvasW }}px; bottom: 0; overflow: hidden; background: #ffffff">
+    <div style="height: 55px; box-sizing: border-box; border-bottom: 1px solid #ecebe6; display: flex; align-items: center; gap: 12px; padding: 0 16px; color: #4a4a46">
+      <span style="color: #b5b4ad">‹</span>
+      <span style="border: 1px solid #e2e1db; border-radius: 12px; padding: 2px 10px">1</span><span>/ 48</span>
+      <span>›</span>
+      <span style="width: 1px; height: 20px; background: #e2e1db"></span>
+      <span style="border: 1px solid #e2e1db; border-radius: 16px; padding: 6px 12px">Fit width</span>
+      <span>−</span><span>100%</span><span>+</span>
+    </div>
+    <div style="position: absolute; left: 0; right: 0; top: 55px; height: {{ deskH }}px; background: #f4f4f0; display: flex; justify-content: center; overflow: hidden">
+      <div style="margin-top: 16px; width: {{ pageW }}px; height: 1300px; background: #ffffff; box-sizing: border-box; padding: {{ pagePad }}px">
+        <div style="margin-top: 380px; color: #e5484d; font-weight: 800; letter-spacing: 6px; font-size: {{ pageSmall }}px">LITLOFT</div>
+        <div style="font-weight: 800; font-size: {{ pageBig }}px; line-height: 1.1">User Guide</div>
+        <div style="margin-top: 32px; font-family: Georgia, serif; color: #555; font-size: {{ pageSmall }}px; line-height: 1.6">Browsing, viewing, searching and writing notes in your home library.</div>
+      </div>
+    </div>
+    <sc-if value="{{ isBefore }}" hint-placeholder-val="{{ false }}">
+      <div style="position: absolute; left: 0; right: 0; top: {{ belowTop }}px; bottom: 0; background: #ffffff; padding: 20px 24px; box-sizing: border-box; border-top: 1px solid #ecebe6">
+        <div style="font-weight: 700; margin-bottom: 8px">要約</div>
+        <div style="color: #6b6a64">ここから下は、キャンバスをスクロールしないと読めない</div>
+      </div>
+    </sc-if>
+  </main>
+
+  <aside aria-label="インスペクタ" style="position: absolute; right: 0; top: {{ canvasTop }}px; bottom: 0; width: {{ inspW }}px; box-sizing: border-box; border-left: 1px solid #ecebe6; background: #ffffff; display: flex; flex-direction: column">
+    <div role="tablist" style="display: flex; gap: 4px; padding: 0 8px; border-bottom: 1px solid #ecebe6; height: 40px; align-items: stretch">
+      <sc-for list="{{ tabs }}" as="tab" hint-placeholder-count="5">
+        <button type="button" role="tab" aria-selected="{{ tab.selected }}" style="border: 0; background: transparent; padding: 0 10px; font-size: 13px; color: {{ tab.color }}; font-weight: {{ tab.weight }}; border-bottom: 2px solid {{ tab.line }}">{{ tab.label }}</button>
+      </sc-for>
+    </div>
+
+    <sc-if value="{{ isDetail }}" hint-placeholder-val="{{ false }}">
+      <div style="padding: 20px 16px; overflow: hidden; display: flex; flex-direction: column; gap: 14px; font-size: 16px; line-height: 1.625">
+        <div style="display: flex; align-items: center; gap: 8px">
+          <div style="font-size: 18px; font-weight: 700; flex: 1">詳細要約</div>
+          <span style="font-size: 12px; color: #6b6a64">gemma4:e4b</span>
+        </div>
+        <div style="font-weight: 700">1. 何ができるか</div>
+        <p style="margin: 0">ドライブごとにファイルを閲覧し、動画・PDF・EPUB・ノートを同じ画面で開ける。フォルダ一覧、コレクション、受信箱から目的のファイルへ移れる<a href="#cite" style="margin-left: 4px; font-size: 12px; text-decoration: none; background: #fbe9e9; border-radius: 6px; padding: 1px 6px">p.4</a>。</p>
+        <div style="font-weight: 700">2. 検索</div>
+        <p style="margin: 0">ファイル名・タグ・本文を横断して探す通常の検索と、意味で探すハイブリッド検索がある。結果は抜粋付きで表示される<a href="#cite" style="margin-left: 4px; font-size: 12px; text-decoration: none; background: #c4383a; color: #ffffff; border-radius: 6px; padding: 1px 6px">p.12</a>。</p>
+        <div id="cite" style="border: 1px solid #ecebe6; border-radius: 12px; padding: 12px 14px; background: #fbfbf9; display: flex; flex-direction: column; gap: 6px">
+          <div style="font-size: 12px; color: #6b6a64">12 ページ</div>
+          <div style="font-family: Georgia, serif; color: #3a3a36">“Search looks at file names, tags and the text inside documents, and a hybrid mode ranks by meaning…”</div>
+          <button type="button" style="align-self: flex-start; border: 1px solid #e2e1db; background: #ffffff; border-radius: 16px; padding: 4px 12px; font-size: 13px">このページへ</button>
+        </div>
+        <div style="font-weight: 700">3. ノート</div>
+        <p style="margin: 0">Markdown のノートはその場で編集でき、保存は自動で行われる。保存に失敗すると表示で知らせる<a href="#cite" style="margin-left: 4px; font-size: 12px; text-decoration: none; background: #fbe9e9; border-radius: 6px; padding: 1px 6px">p.21</a>。</p>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isNotDetail }}" hint-placeholder-val="{{ true }}">
+      <div style="padding: 20px 16px; display: flex; flex-direction: column; gap: 12px">
+        <div style="font-size: 20px; font-weight: 700">Litloft User Guide</div>
+        <div style="color: #6b6a64; font-size: 13px">314.8 KB</div>
+        <div style="display: flex; gap: 20px; color: #6b6a64"><span>Like</span><span>Favorites</span><span>Verified</span></div>
+        <div style="color: #6b6a64">+ Add tag</div>
+        <sc-if value="{{ isInfo }}" hint-placeholder-val="{{ true }}">
+          <div style="border-top: 1px solid #ecebe6; padding-top: 14px; display: flex; flex-direction: column; gap: 6px">
+            <div style="font-weight: 700">要約</div>
+            <p style="margin: 0; line-height: 1.7; color: #3a3a36">Litloft の使い方をまとめたガイド。ファイルの閲覧、動画と文書の表示、検索、ノートの書き方を順に説明している。</p>
+            <a href="Detail.dc.html" style="font-size: 13px; text-decoration: none">詳細要約を読む</a>
+          </div>
+        </sc-if>
+        <div style="border-top: 1px solid #ecebe6; padding-top: 14px; color: #4a4a46">› Comments</div>
+      </div>
+    </sc-if>
+  </aside>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"mode":{"editor":"enum","options":["before","info","detail"],"default":"before"},"focus":{"editor":"boolean","default":false},"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const mode = this.props.mode ?? 'before';
+    const focus = this.props.focus ?? false;
+    const sideW = focus ? 0 : 240;
+    const headerH = focus ? 0 : 56;
+    const rowW = 1440 - sideW;
+    const inspW = mode === 'detail' ? Math.max(Math.round(rowW * 0.4), 512) : 384;
+    const canvasW = rowW - inspW;
+    const pageW = Math.min(900, canvasW - 62);
+    const scale = pageW / 900;
+    const toolbar = 55;
+    const viewerH = mode === 'before' ? Math.round(900 * 0.8) : 900 - headerH - toolbar;
+    const sel = (id) => mode === id || (id === 'info' && mode === 'before');
+    const tab = (id, label) => ({
+      label,
+      selected: sel(id) ? 'true' : 'false',
+      color: sel(id) ? '#1c1c1a' : '#6b6a64',
+      weight: sel(id) ? 600 : 400,
+      line: sel(id) ? '#c4383a' : 'transparent',
+    });
+    return {
+      showChrome: !focus,
+      nav: ['Home', 'Inbox', 'Library', 'Video', 'Reading', 'Ask', 'Notes', 'Clips'].map((label) => ({ label })),
+      canvasLeft: sideW,
+      canvasTop: headerH,
+      canvasW,
+      inspW,
+      deskH: viewerH,
+      belowTop: toolbar + viewerH,
+      pageW,
+      pagePad: Math.round(110 * scale),
+      pageBig: Math.round(64 * scale),
+      pageSmall: Math.round(22 * scale),
+      isBefore: mode === 'before',
+      isDetail: mode === 'detail',
+      isNotDetail: mode !== 'detail',
+      isInfo: mode === 'info',
+      tabs: [tab('info', 'Info'), tab('pages', 'Pages'), tab('detail', '詳細要約'), tab('related', 'Related'), tab('ask', 'Ask')],
+    };
+  }
+}
+</script>
+</body>
+</html>

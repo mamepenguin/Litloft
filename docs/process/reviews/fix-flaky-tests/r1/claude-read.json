@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "MEDIUM",
+  "findings": [
+    {
+      "id": "CR-1",
+      "origin": "reviewer",
+      "claim": "The change reaches three places (the addons/media_import gitlink, frontend/e2e-components/sheet-gesture.spec.ts, and addons/media_import/backend/tests/test_subscription_item_outcomes.py), but no invariants file declares a touch-point list, so none of them can be checked against a planned scope.",
+      "impact": "Nothing a user can hit: no production module changes in either repository. The only effect is that the planned-scope check for this review has no reference to check against.",
+      "evidence": "docs/process/reviews/fix-flaky-tests/ holds only decisions.md and r1/{head,expected,classification,fixes}.txt, and there is no invariants file. r1/classification.json:8-17 lists zones_touched as addons/media_import and frontend/e2e-components/sheet-gesture.spec.ts, which matches the diff. decisions.md:7 says the same: no production code changed. The commit under review (bf9514c) only moves the gitlink e18e57c..8bae8a5. The spec diff in the review input comes from f23f56e on the same branch.",
+      "repro": "not_reproduced",
+      "introduced": "unverified",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariant is declared, so bucket A is unavailable. The places reached match the classification's zones_touched and are all test code or a submodule pin, so this is a gap in process records and not a code defect.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    }
+  ],
+  "specification_compliance": [
+    "No invariants file exists for fix-flaky-tests, so there is no declared touch-point list to compare the diff against.",
+    "The places reached match r1/classification.json zones_touched: addons/media_import (MEDIUM) and frontend/e2e-components/sheet-gesture.spec.ts (MEDIUM).",
+    "No production module changes: useSheetPullToCollapse.ts and MobileInspectorSheet.tsx are untouched, and the media_import change is limited to backend/tests."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "MobileInspectorSheet.tsx:161-183 reads the knob's release velocity from PointerEvent.timeStamp. The knob cases in sheet-gesture.spec.ts only use PUSH, so they do not depend on whether a CDP touch timestamp carries through to the derived pointer event's timeStamp. A future knob-flick case would."
+  ],
+  "regression_risks": [
+    "The TestInterItemDelay autouse fixture replaces time.sleep on the global time module for every test in that class. Any other sleep reached during _sync_blocking (for example a retry backoff) would be recorded as an event. The exact-list assertion would fail loudly rather than pass silently, so the risk is a false failure, not a missed defect.",
+    "FLICK gapMs = round(20 / (0.5 * 4)) = 10 ms, which gives 2 px/ms. If SHEET_PULL_DISMISS_VELOCITY rose above 2.5 px/ms, the gap would round to 0, the stamps would collapse onto one instant, and the flick velocity would become undefined or infinite. The constant is 0.5 today (frontend/src/lib/sheetPullGesture.ts:27)."
+  ],
+  "test_coverage": [
+    "useSheetPullToCollapse.ts:106-158 computes velocity from event.timeStamp, so the explicit CDP timestamps in swipe() (sheet-gesture.spec.ts:143-162) do control the input the hook measures.",
+    "The new exact-order assertion in TestInterItemDelay would catch these mutations: a missing sleep after a failed attempt, a sleep after a reuse, a sleep after the last attempt, a sleep before the title lookup, and a sleep after a rate-limited attempt.",
+    "The rewritten media_import tests no longer measure that a real wall-clock delay of _DELAY elapses. They check only that time.sleep is called with _DELAY. A sleep done some other way (for example Event.wait) would bypass the stub and fail the test, so the check is still sound."
+  ],
+  "not_verified": [
+    "I did not run the Playwright suite or the pytest suite. I cannot run commands.",
+    "I did not check that Chromium's Input.dispatchTouchEvent timestamp (seconds since epoch) maps to the page's event.timeStamp (ms since time origin) consistently enough for the velocity window SHEET_VELOCITY_WINDOW_MS.",
+    "I did not read the media_import production code for _sync_blocking to confirm it calls time.sleep through the time module rather than via `from time import sleep`.",
+    "I did not check the submodule's history between e18e57c and 8bae8a5 beyond the diff supplied."
+  ],
+  "confidence": 80
+}

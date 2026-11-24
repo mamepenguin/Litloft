@@ -1,0 +1,2 @@
+frontend/src/components/__tests__/FilePreview.excelActualSize.test.tsx
+frontend/src/components/__tests__/FilePreview.excelTextOverflow.test.tsx

@@ -11,11 +11,13 @@ import {
   type SlotEntry,
 } from "@/lib/addons";
 import type { ShelfItem } from "@/lib/api";
+import type { AppRequests } from "@/lib/memberTarget";
 import type { VideoTargetParams } from "@/lib/videoAppTarget";
 import { stableJson } from "./discoverCache";
 import { createRestrict } from "./restrict";
 
 const SHELVES_SLOT = "video-discover-shelves";
+const RECOMMENDED_SLOT = "video-discover-recommended";
 const PAGE_SIZE = 60;
 
 export type ProviderPagePhase =
@@ -89,21 +91,30 @@ function addPage(ctx: Runtime, rawItems: readonly unknown[]): number {
 /**
  * One addon page provider's items, cursor by cursor, under the app's target.
  * A new drive, target, entry, locale or entry list starts over and drops any
- * answer still in flight for the old load.
+ * answer still in flight for the old load; Recommended mode adds the profile,
+ * the nickname and its own entry list.
  */
 export function useProviderShelfPage({
   enabled,
   entryId,
+  recommended,
+  nickname,
+  hasProfile,
   drive,
   params,
+  requests,
   ready,
   empty,
   onViewerRejected,
 }: {
   enabled: boolean;
   entryId: string | null;
+  recommended: boolean;
+  nickname: string | null;
+  hasProfile: boolean;
   drive: string;
   params: VideoTargetParams | null;
+  requests: AppRequests;
   ready: boolean;
   empty: boolean;
   onViewerRejected: () => void;
@@ -125,7 +136,7 @@ export function useProviderShelfPage({
   paramsRef.current = params;
 
   const entriesKey = useMemo(() => {
-    const entries = slots[SHELVES_SLOT] ?? [];
+    const entries = slots[recommended ? RECOMMENDED_SLOT : SHELVES_SLOT] ?? [];
     return stableJson(
       entries.map((entry) => [
         entry.addonName ?? null,
@@ -135,10 +146,23 @@ export function useProviderShelfPage({
         entry.i18n_key ?? null,
       ]),
     );
-  }, [slots]);
+  }, [slots, recommended]);
   const loadKey = useMemo(
-    () => stableJson([drive, params ?? null, entryId, locale, entriesKey]),
-    [drive, params, entryId, locale, entriesKey],
+    () =>
+      recommended
+        ? stableJson([
+            drive,
+            requests.key,
+            params ?? null,
+            entryId,
+            locale,
+            nickname ?? null,
+            hasProfile,
+            RECOMMENDED_SLOT,
+            entriesKey,
+          ])
+        : stableJson([drive, requests.key, params ?? null, entryId, locale, entriesKey]),
+    [recommended, drive, requests.key, params, entryId, locale, nickname, hasProfile, entriesKey],
   );
 
   const catalogueReady = !catalogueLoading && catalogueDrive === drive;
@@ -180,9 +204,9 @@ export function useProviderShelfPage({
       setHeld(emptyState(loadKey, "waiting", null));
       return;
     }
-    const entry = sortSlotEntries(slotsRef.current[SHELVES_SLOT] ?? []).find(
-      (candidate) => candidate.id === entryId,
-    );
+    const entry = sortSlotEntries(
+      slotsRef.current[recommended ? RECOMMENDED_SLOT : SHELVES_SLOT] ?? [],
+    ).find((candidate) => candidate.id === entryId);
     if (!entry) {
       setHeld(emptyState(loadKey, "absent", null));
       return;
@@ -193,6 +217,10 @@ export function useProviderShelfPage({
     void (async () => {
       const provider = await loadSlotPageProvider(entry);
       if (my !== seq.current) return;
+      if (recommended && !hasProfile) {
+        setHeld(emptyState(loadKey, "absent", null));
+        return;
+      }
       if (!provider) {
         setHeld(emptyState(loadKey, "absent", null));
         return;
@@ -200,6 +228,7 @@ export function useProviderShelfPage({
 
       const accepted = new Map<string, ShelfItem>();
       const restrict = createRestrict({
+        requests,
         drive,
         target,
         accepted,
@@ -251,7 +280,20 @@ export function useProviderShelfPage({
     return () => {
       if (seq.current === my) seq.current += 1;
     };
-  }, [enabled, entryId, loadKey, catalogueReady, targetReady, empty, drive, locale, attempt]);
+  }, [
+    enabled,
+    entryId,
+    loadKey,
+    catalogueReady,
+    targetReady,
+    empty,
+    drive,
+    locale,
+    recommended,
+    hasProfile,
+    attempt,
+    requests,
+  ]);
 
   const retryFirst = useCallback(() => setAttempt((n) => n + 1), []);
 

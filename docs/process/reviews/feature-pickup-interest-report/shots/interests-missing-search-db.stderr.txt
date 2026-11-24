@@ -1,0 +1,1 @@
+FileNotFoundError: Database not found: /tmp/r5-interests/empty/search.db

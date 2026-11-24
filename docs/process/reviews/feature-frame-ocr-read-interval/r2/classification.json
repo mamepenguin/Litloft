@@ -1,0 +1,48 @@
+{
+  "risk": "HIGH",
+  "score": 7,
+  "base": 3,
+  "zone_max": "MEDIUM",
+  "modifiers": [],
+  "promotions": [],
+  "zones_touched": [
+    {
+      "path": "addons/intelligence",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "docs/addons/intelligence.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/INDEX.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/frame-ocr-read-interval.md",
+      "level": "LOW"
+    },
+    {
+      "path": "scripts/dev/frame_ocr_bench/i2_check.py",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "scripts/dev/frame_ocr_bench/measure.py",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "scripts/dev/frame_ocr_bench/reference.py",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "scripts/dev/frame_ocr_bench/run.sh",
+      "level": "MEDIUM"
+    }
+  ],
+  "human_zones_touched": [],
+  "protected_paths_touched": [],
+  "docs_only": false,
+  "reasons": [
+    "highest zone MEDIUM (4 points)"
+  ]
+}

@@ -10,7 +10,7 @@ import { ShortcutsProvider } from "../../ShortcutsProvider";
 import type { FileItem } from "@/types";
 import type { MediaController } from "@/lib/mediaController";
 import type { DocumentController } from "@/lib/documentController";
-import { makeFile, relationMocks, setViewport, shellLoaded, usePolicyMock, withRelations } from "./harness";
+import { claimSlot, makeFile, relationMocks, setViewport, shellLoaded, slotMocks, usePolicyMock, withRelations } from "./harness";
 
 const shared = vi.hoisted(() => ({
   params: new URLSearchParams(),
@@ -27,6 +27,7 @@ const shared = vi.hoisted(() => ({
   intelligenceInSlots: true,
   pdfViewer: false,
   pdfText: [] as string[],
+  realVideo: false,
 }));
 
 vi.mock("next-intl", async () => {
@@ -149,6 +150,11 @@ vi.mock("../../FilePreview", async () => {
   const { TextLines } = await import("../../TextLines");
   const { PdfPreview } = await import("../../PdfPreview");
   const { FindTextBodyProvider } = await import("../find/FindContext");
+  const { lazy, Suspense } = await import("react");
+  // Loaded only by the tests that set `shared.realVideo`.
+  const VideoPlayer = lazy(() =>
+    import("../../VideoPlayer").then((m) => ({ default: m.VideoPlayer })),
+  );
   // The real viewer is lazily loaded, so it lands after the bar has opened
   // and selected its query.
   function DeferredPdf({
@@ -193,6 +199,11 @@ vi.mock("../../FilePreview", async () => {
       }, [onDocumentController]);
       return (
         <div data-testid="file-preview">
+          {shared.realVideo && file?.file_type === "video" && (
+            <Suspense fallback={null}>
+              <VideoPlayer videoId={file.id} />
+            </Suspense>
+          )}
           {shared.pdfViewer && file?.mime_type === "application/pdf" && (
             <DeferredPdf file={file} onDocumentController={onDocumentController} />
           )}
@@ -342,6 +353,8 @@ interface FindRow {
   snippet: string;
   match_start: number;
   match_length: number;
+  boxes?: number[][];
+  frame_size?: number[];
 }
 
 interface FindAnswer {
@@ -587,6 +600,7 @@ beforeEach(() => {
   shared.citation = undefined;
   shared.intelligenceInSlots = true;
   shared.pdfViewer = false;
+  shared.realVideo = false;
   shared.replace = vi.fn();
   shared.push = vi.fn();
   shared.selectFile = vi.fn();
@@ -2497,5 +2511,413 @@ describe("SPEC-CORE-028 I3 the chip text", () => {
     await findCount("2000+ 件");
 
     expect(chipTexts()).toEqual(["すべて 2000+", "発話 1500+", "画面内の文字 500+"]);
+  });
+});
+
+/* ---------- the stacked inspector ---------- */
+
+describe("SPEC-CORE-083 083.9 find in a stacked row with the inspector closed", () => {
+  beforeEach(() => {
+    // A tablet with a narrow row: the form is stacked, and the closed
+    // inspector leaves the panels under the player.
+    setViewport(1024);
+    window.localStorage.setItem(`inspector-open:${DRIVE}`, "false");
+    claimSlot("player-side", [
+      { id: "transcript", label: "Transcript", priority: 10, addonName: "intelligence" },
+    ]);
+    vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(900);
+    vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(700);
+  });
+
+  afterEach(() => {
+    slotMocks.occupied.clear();
+    slotMocks.entries.clear();
+    vi.restoreAllMocks();
+  });
+
+  const panels = () => screen.queryByRole("group", { name: "パネル" });
+  const transcriptNode = () => screen.getByTestId("slot-entry-transcript");
+  const fit = () => screen.getByTestId("inspector-fit-host").dataset.inspectorFit;
+
+  it("SPEC-CORE-083 turns the stacked layout on while find is open, and back off when it closes, without writing the panel list", async () => {
+    reply = () => answer(THREE_UTTERANCES());
+    await openPage(VIDEO);
+    await waitFor(() => expect(fit()).toBe("stacked"));
+    await waitFor(() => expect(panels()).not.toBeNull());
+    expect(transcriptNode().closest("[hidden]")).not.toBeNull();
+
+    const input = await openBar();
+    typeInto(input, TERM);
+
+    await waitFor(() => expect(panels()).toBeNull());
+    expect(screen.getAllByTestId("slot-entry-transcript")).toHaveLength(1);
+    expect(screen.getByTestId("inspector-pane")).toContainElement(
+      transcriptNode(),
+    );
+
+    fireEvent.keyDown(focusedInput(), { key: "Escape" });
+
+    await waitFor(() => expect(panels()).not.toBeNull());
+    expect(fit()).toBe("stacked");
+    expect(screen.queryByTestId("inspector-pane")).toBeNull();
+    expect(transcriptNode().closest("[hidden]")).not.toBeNull();
+    expect(window.localStorage.getItem(`inspector-open:${DRIVE}`)).toBe("false");
+    expect(window.localStorage.getItem("workbench-panels")).toBeNull();
+  });
+});
+
+/* ---------- SPEC-CORE-135: the place a search result opened at ---------- */
+
+const BOX_A = [0.1, 0.4, 0.7, 0.4, 0.7, 0.46, 0.1, 0.46];
+const BOX_B = [0.6, 0.85, 0.8, 0.85, 0.8, 0.9, 0.6, 0.9];
+
+describe("SPEC-CORE-135 I6 opening with find and t makes the scene row with boxes at t current", () => {
+  it("picks the first scene row with boxes at t, in answer order, without seeking", async () => {
+    reply = () =>
+      answer([
+        row("utterance", "said needle", { start: 12.48, end: 15, boxes: [BOX_A] }),
+        row("scene", "shown needle plain", { start: 12.48, end: 18 }),
+        row("scene", "shown needle boxed", { start: 12.48, end: 18, boxes: [BOX_A] }),
+        row("scene", "shown needle again", { start: 12.48, end: 18, boxes: [BOX_B] }),
+        row("scene", "later needle", { start: 30, end: 40, boxes: [BOX_B] }),
+      ]);
+    await openPage(VIDEO, `&t=12.480&find=${TERM}`);
+
+    await findCount("3 / 5");
+    expect(player.seek).not.toHaveBeenCalled();
+
+    enter(screen.getByDisplayValue(TERM) as HTMLInputElement);
+    await findCount("4 / 5");
+    expect(player.seek).toHaveBeenLastCalledWith(12.48);
+  });
+
+  it("takes a start within 0.001 of t and not one 0.0011 away", async () => {
+    reply = () =>
+      answer([
+        row("scene", "far needle", { start: 12.4789, end: 18, boxes: [BOX_A] }),
+        row("scene", "near needle", { start: 12.4791, end: 18, boxes: [BOX_B] }),
+      ]);
+    const first = await openPage(VIDEO, `&t=12.480&find=${TERM}`);
+    await findCount("2 / 2");
+    first.unmount();
+
+    reply = () => answer([row("scene", "far needle", { start: 12.4789, end: 18, boxes: [BOX_A] })]);
+    await openPage(VIDEO, `&t=12.480&find=${TERM}`);
+    await findCount("1 件");
+    await flush();
+    expect(exactly("1 / 1")).toEqual([]);
+    expect(player.seek).not.toHaveBeenCalled();
+  });
+
+  it("takes a start half a millisecond off its three-decimal link, 12.0625 written 12.062", async () => {
+    reply = () =>
+      answer([
+        row("scene", "earlier needle", { start: 3, end: 8, boxes: [BOX_B] }),
+        row("scene", "tied needle", { start: 12.0625, end: 18, boxes: [BOX_A] }),
+      ]);
+    await openPage(VIDEO, `&t=12.062&find=${TERM}`);
+
+    await findCount("2 / 2");
+    expect(player.seek).not.toHaveBeenCalled();
+  });
+
+  it("lets an Enter pressed before the first answer decide the current row instead", async () => {
+    const rows = () => [
+      row("utterance", "first needle spoken", { start: 5, end: 9 }),
+      row("scene", "shown needle", { start: 12.48, end: 18, boxes: [BOX_A] }),
+    ];
+    reply = () => answer(rows());
+    const plain = await openPage(VIDEO, `&t=12.480&find=${TERM}`);
+    await findCount("2 / 2");
+    plain.unmount();
+
+    const pending = deferred<Reply>();
+    reply = () => pending.promise;
+    await openPage(VIDEO, `&t=12.480&find=${TERM}`);
+    const input = (await screen.findByDisplayValue(TERM)) as HTMLInputElement;
+    await waitFor(() => expect(findCalls.length).toBe(2));
+    enter(input);
+    pending.resolve(answer(rows()));
+
+    await findCount("1 / 2");
+    expect(player.seek).toHaveBeenLastCalledWith(5);
+  });
+
+  it("applies to the answer reached by 再試行 after a failed first answer", async () => {
+    let fail = true;
+    reply = () =>
+      fail
+        ? { status: 500 }
+        : answer([
+            row("utterance", "first needle spoken", { start: 5, end: 9 }),
+            row("scene", "shown needle", { start: 12.48, end: 18, boxes: [BOX_A] }),
+          ]);
+    await openPage(VIDEO, `&t=12.480&find=${TERM}`);
+    await waitFor(() => expect(statusWith("検索できませんでした")).not.toBeNull());
+
+    fail = false;
+    fireEvent.click(screen.getByRole("button", { name: "再試行" }));
+
+    await findCount("2 / 2");
+    expect(player.seek).not.toHaveBeenCalled();
+  });
+
+  it("does not apply once the query has changed", async () => {
+    reply = (q) =>
+      answer(
+        [
+          row("utterance", "first needle spoken", { start: 5, end: 9 }, q),
+          row("scene", `shown ${q}`, { start: 12.48, end: 18, boxes: [BOX_A] }, q),
+        ],
+        { query: q },
+      );
+    await openPage(VIDEO, `&t=12.480&find=${TERM}`);
+    await findCount("2 / 2");
+
+    const input = screen.getByDisplayValue(TERM) as HTMLInputElement;
+    typeInto(input, "needles");
+    await waitFor(() => expect(findCalls.at(-1)?.q).toBe("needles"));
+    await findCount("2 件");
+    await flush();
+
+    expect(exactly("2 / 2")).toEqual([]);
+    expect(player.seek).not.toHaveBeenCalled();
+  });
+});
+
+/* ---------- SPEC-CORE-135: outlines over a native video ---------- */
+
+const BOX_C = [0.2, 0.2, 0.3, 0.2, 0.3, 0.25, 0.2, 0.25];
+const BOX_D = [0.5, 0.1, 0.9, 0.1, 0.9, 0.15, 0.5, 0.15];
+
+interface VideoState {
+  currentTime: number;
+  duration: number;
+  ended: boolean;
+  videoWidth: number;
+  videoHeight: number;
+}
+
+/**
+ * jsdom lays nothing out. Every box measures 640x360 here, through every
+ * measuring API a layer could use, so the painted rectangle is known whichever
+ * one the layer reads.
+ */
+function layOutEverything(width = 640, height = 360) {
+  const rect = { x: 0, y: 0, left: 0, top: 0, right: width, bottom: height, width, height };
+  vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(
+    () => ({ ...rect, toJSON: () => rect }) as DOMRect,
+  );
+  for (const [key, value] of [
+    ["clientWidth", width],
+    ["clientHeight", height],
+    ["offsetWidth", width],
+    ["offsetHeight", height],
+  ] as const) {
+    vi.spyOn(HTMLElement.prototype, key, "get").mockReturnValue(value);
+  }
+  class MeasuredResizeObserver {
+    constructor(private readonly callback: ResizeObserverCallback) {}
+    observe(target: Element) {
+      const entry = {
+        target,
+        contentRect: rect,
+        borderBoxSize: [{ inlineSize: width, blockSize: height }],
+        contentBoxSize: [{ inlineSize: width, blockSize: height }],
+        devicePixelContentBoxSize: [{ inlineSize: width, blockSize: height }],
+      } as unknown as ResizeObserverEntry;
+      queueMicrotask(() => this.callback([entry], this as unknown as ResizeObserver));
+    }
+    unobserve() {}
+    disconnect() {}
+  }
+  vi.stubGlobal("ResizeObserver", MeasuredResizeObserver);
+}
+
+function driveVideo(initial: Partial<VideoState> = {}) {
+  const state: VideoState = {
+    currentTime: 0,
+    duration: 600,
+    ended: false,
+    videoWidth: 1280,
+    videoHeight: 720,
+    ...initial,
+  };
+  const video = document.querySelector("video");
+  if (!video) throw new Error("no <video> on the page");
+  for (const key of Object.keys(state) as (keyof VideoState)[]) {
+    Object.defineProperty(video, key, { configurable: true, get: () => state[key] });
+  }
+  return {
+    video,
+    async set(next: Partial<VideoState>, event = "timeupdate") {
+      Object.assign(state, next);
+      await act(async () => {
+        video.dispatchEvent(new Event(event));
+      });
+      await flush();
+    },
+  };
+}
+
+function outlines() {
+  const current = Array.from(document.querySelectorAll(".find-box-current"));
+  const marks = Array.from(document.querySelectorAll(".find-box")).filter(
+    (el) => !el.classList.contains("find-box-current"),
+  );
+  return { current: current.length, marks: marks.length };
+}
+
+const NONE = { current: 0, marks: 0 };
+
+// The rows of the segment carry different numbers of quads, so the counts
+// of current and mark outlines say which row is current.
+const SEGMENT_ROWS = () => [
+  row("utterance", "said needle", { start: 10, end: 20 }),
+  row("scene", "shown needle a", { start: 10, end: 20, boxes: [BOX_A] }),
+  row("scene", "shown needle b", { start: 10, end: 20, boxes: [BOX_B, BOX_D] }),
+  row("scene", "shown needle a again", { start: 10, end: 20, boxes: [BOX_A] }),
+  row("scene", "later needle", { start: 30, end: 40, boxes: [BOX_C] }),
+];
+
+async function openOnSegment(
+  initial: Partial<VideoState> = {},
+  box: [number, number] = [640, 360],
+) {
+  shared.realVideo = true;
+  layOutEverything(...box);
+  reply = () => answer(SEGMENT_ROWS());
+  await openPage(VIDEO, `&find=${TERM}`);
+  await waitFor(() => expect(document.querySelector("video")).not.toBeNull());
+  const media = driveVideo(initial);
+  await findCount("5 件");
+  const input = screen.getByDisplayValue(TERM) as HTMLInputElement;
+  enter(input);
+  enter(input);
+  await findCount("2 / 5");
+  await flush();
+  return media;
+}
+
+describe("SPEC-CORE-135 I7 the player outlines the current row's lines while the playhead is in its segment", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("draws from start - 0.5 up to, not including, end, the current row's quad current and the others marks", async () => {
+    const media = await openOnSegment();
+
+    await media.set({ currentTime: 9.49 });
+    expect(outlines()).toEqual(NONE);
+
+    await media.set({ currentTime: 9.5 });
+    expect(outlines()).toEqual({ current: 1, marks: 2 });
+
+    await media.set({ currentTime: 19.99 }, "seeked");
+    expect(outlines()).toEqual({ current: 1, marks: 2 });
+
+    await media.set({ currentTime: 20 });
+    expect(outlines()).toEqual(NONE);
+  });
+
+  it("draws while paused and goes when the media ends", async () => {
+    const media = await openOnSegment();
+
+    await media.set({ currentTime: 15 });
+    expect(outlines()).toEqual({ current: 1, marks: 2 });
+
+    await media.set({ ended: true }, "ended");
+    expect(outlines()).toEqual(NONE);
+  });
+
+  it("follows the current row: another quad of the segment, then another segment, then a row without boxes", async () => {
+    const media = await openOnSegment();
+    await media.set({ currentTime: 15 });
+    const input = screen.getByDisplayValue(TERM) as HTMLInputElement;
+
+    enter(input);
+    await findCount("3 / 5");
+    await flush();
+    expect(outlines()).toEqual({ current: 2, marks: 1 });
+
+    enter(input);
+    await findCount("4 / 5");
+    await flush();
+    expect(outlines()).toEqual({ current: 1, marks: 2 });
+    enter(input);
+    await findCount("5 / 5");
+    await flush();
+    expect(outlines()).toEqual(NONE);
+    await media.set({ currentTime: 35 }, "seeked");
+    expect(outlines()).toEqual({ current: 1, marks: 0 });
+
+    enter(input);
+    await findCount("1 / 5");
+    await flush();
+    expect(outlines()).toEqual(NONE);
+  });
+
+  it("waits for the video's size and draws nothing in Picture in Picture", async () => {
+    const media = await openOnSegment({ videoWidth: 0, videoHeight: 0 });
+
+    await media.set({ currentTime: 15 });
+    expect(outlines()).toEqual(NONE);
+
+    await media.set({ videoWidth: 1280, videoHeight: 720 }, "loadedmetadata");
+    expect(outlines()).toEqual({ current: 1, marks: 2 });
+
+    Object.defineProperty(document, "pictureInPictureElement", {
+      configurable: true,
+      get: () => media.video,
+    });
+    try {
+      await media.set({ currentTime: 15.5 });
+      expect(outlines()).toEqual(NONE);
+    } finally {
+      Object.defineProperty(document, "pictureInPictureElement", {
+        configurable: true,
+        get: () => null,
+      });
+    }
+  });
+
+  it.each([
+    ["zero width", [0, 360]],
+    ["zero height", [640, 0]],
+  ] as [string, [number, number]][])("draws nothing over a picture box of %s, and draws over a sized one", async (_n, box) => {
+    const control = await openOnSegment();
+    await control.set({ currentTime: 15 });
+    expect(outlines()).toEqual({ current: 1, marks: 2 });
+    cleanup();
+    vi.restoreAllMocks();
+
+    const media = await openOnSegment({}, box);
+    await media.set({ currentTime: 15 });
+    expect(outlines()).toEqual(NONE);
+  });
+
+  it("goes when a new query is typed and when find closes, and is hidden from assistive technology", async () => {
+    const media = await openOnSegment();
+    await media.set({ currentTime: 15 });
+    expect(outlines()).toEqual({ current: 1, marks: 2 });
+    const drawn = document.querySelector(".find-box-current")!;
+    expect(drawn.closest('[aria-hidden="true"]')).not.toBeNull();
+
+    const input = screen.getByDisplayValue(TERM) as HTMLInputElement;
+    typeInto(input, "needles");
+    await flush();
+    expect(outlines()).toEqual(NONE);
+
+    typeInto(input, TERM);
+    await findCount("5 件");
+    enter(input);
+    enter(input);
+    await findCount("2 / 5");
+    await media.set({ currentTime: 15.2 });
+    expect(outlines()).toEqual({ current: 1, marks: 2 });
+
+    fireEvent.keyDown(input, { key: "Escape" });
+    await flush();
+    expect(outlines()).toEqual(NONE);
   });
 });

@@ -1,0 +1,70 @@
+{
+ "before": [
+  "2BCm4Dt8shqX|boats|船|null",
+  "7uJxc24sQjC2|PDFs|type:pdf|null",
+  "kTAxUdy_43ax|Zero|tag:zz_none 猫|null",
+  "opUEar7SN9nC|Cats|猫|null",
+  "1o3_aPQmTaIZ|海の動画|海|null",
+  "iJoo9-NqbcRO|あんこ動画|tag:あんこ type:video|null"
+ ],
+ "moreMenu": [
+  "スマートコレクションに保存\n選択モード"
+ ],
+ "createToast": [
+  ""
+ ],
+ "createDialog": 0,
+ "createReqs": [
+  "GET /api/drives/動画/collections 200",
+  "GET /api/drives/動画/smart-folders 200",
+  "GET /api/files/XGPJ2WG7SqRn/stream 206",
+  "GET /api/files/XGPJ2WG7SqRn/stream 206",
+  "GET /api/files/XGPJ2WG7SqRn/stream 206",
+  "GET /api/files/XGPJ2WG7SqRn/stream 206"
+ ],
+ "afterCreate": [
+  "2BCm4Dt8shqX|boats|船|null",
+  "7uJxc24sQjC2|PDFs|type:pdf|null",
+  "kTAxUdy_43ax|Zero|tag:zz_none 猫|null",
+  "opUEar7SN9nC|Cats|猫|null",
+  "1o3_aPQmTaIZ|海の動画|海|null",
+  "iJoo9-NqbcRO|あんこ動画|tag:あんこ type:video|null"
+ ],
+ "overwriteVisible": 1,
+ "overwriteToast": [
+  ""
+ ],
+ "overwriteReqs": [
+  "GET /api/drives/動画/collections 200",
+  "GET /api/drives/動画/smart-folders 200"
+ ],
+ "patches": 0,
+ "afterOverwrite": [
+  "2BCm4Dt8shqX|boats|船|null",
+  "7uJxc24sQjC2|PDFs|type:pdf|null",
+  "kTAxUdy_43ax|Zero|tag:zz_none 猫|null",
+  "opUEar7SN9nC|Cats|猫|null",
+  "1o3_aPQmTaIZ|海の動画|海|null",
+  "iJoo9-NqbcRO|あんこ動画|tag:あんこ type:video|null"
+ ],
+ "disabledWhileLoading": true,
+ "doubleReqs": [
+  "GET /api/drives/動画/collections 200",
+  "GET /api/drives/動画/smart-folders 200"
+ ],
+ "doubleToast": [
+  ""
+ ],
+ "collDialog": 0,
+ "collReqs": [
+  "GET /api/drives/動画/collections 200"
+ ],
+ "afterCollSave": [
+  "2BCm4Dt8shqX|boats|船|null",
+  "7uJxc24sQjC2|PDFs|type:pdf|null",
+  "kTAxUdy_43ax|Zero|tag:zz_none 猫|null",
+  "opUEar7SN9nC|Cats|猫|null",
+  "1o3_aPQmTaIZ|海の動画|海|null",
+  "iJoo9-NqbcRO|あんこ動画|tag:あんこ type:video|null"
+ ]
+}

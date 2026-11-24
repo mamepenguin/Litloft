@@ -75,6 +75,36 @@ beforeEach(() => {
 });
 
 describe("SPEC-CORE-063 the Target menu lists the shown set", () => {
+  it.each([
+    { name: "with the prop", extra: { defaultTargetExcludeOrigin: "webclip" }, expected: { exclude_origin: "webclip" } },
+    { name: "without the prop", extra: {}, expected: {} },
+    { name: "SPEC-CORE-136 with an origin", extra: { defaultTargetOrigin: "webclip" }, expected: { origin: "webclip" } },
+    {
+      name: "SPEC-CORE-136 with an origin and an excluded origin",
+      extra: { defaultTargetOrigin: "webclip", defaultTargetExcludeOrigin: "capture" },
+      expected: { origin: "webclip", exclude_origin: "capture" },
+    },
+  ])("counts the default target's files $name", async ({ extra, expected }) => {
+    render(menu({ selectedId: "sf-a", ...extra }));
+    openMenu();
+    await waitFor(() => expect(getDriveFiles).toHaveBeenCalled());
+    expect(getDriveFiles).toHaveBeenCalledWith(DRIVE, { type: ["video"], limit: 1, ...expected });
+  });
+
+  it("SPEC-CORE-136 asks the count again when the origin changes", async () => {
+    const { rerender } = render(menu({ selectedId: "sf-a", defaultTargetOrigin: "webclip" }));
+    openMenu();
+    await waitFor(() =>
+      expect(getDriveFiles).toHaveBeenCalledWith(DRIVE, { type: ["video"], limit: 1, origin: "webclip" }),
+    );
+
+    rerender(menu({ selectedId: "sf-a", defaultTargetOrigin: "capture" }));
+
+    await waitFor(() =>
+      expect(getDriveFiles).toHaveBeenLastCalledWith(DRIVE, { type: ["video"], limit: 1, origin: "capture" }),
+    );
+  });
+
   it("lists every smart folder when nothing was ever saved, unusable ones disabled", () => {
     render(menu());
     openMenu();
@@ -157,11 +187,11 @@ describe("Manage… and the shown set", () => {
     await waitFor(() => expect(readShownTargets(DRIVE)).toEqual(["sf-a"]));
   });
 
-  it("filters the checklist by name", async () => {
+  it("SPEC-CORE-106 I1 filters the checklist by name", async () => {
     render(menu());
     await openManage();
 
-    fireEvent.change(screen.getByRole("searchbox", { name: "Search smart folders" }), {
+    fireEvent.change(screen.getByRole("searchbox", { name: "Search targets" }), {
       target: { value: "alp" },
     });
 

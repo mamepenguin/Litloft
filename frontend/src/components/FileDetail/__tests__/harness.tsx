@@ -2,11 +2,12 @@
  * Each suite keeps its own `vi.mock()` lines: `vi.mock` is hoisted per file,
  * so a helper that called it for you would run in the wrong file.
  */
-import { useEffect } from "react";
+import { useEffect, useLayoutEffect } from "react";
 import { expect, vi } from "vitest";
-import { screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 
 import * as api from "@/lib/api";
+import enMessages from "@/messages-core/en.json";
 import type { FileRelationItem } from "@/lib/api";
 import { inspectorOpenStore } from "@/lib/inspectorOpenStore";
 import type { SlotEntry } from "@/lib/addons";
@@ -23,6 +24,15 @@ import {
   type ArchiveState,
 } from "@/lib/archiveController";
 
+/** Raises the phone's sheet the way a narrow page offers: the strip's name button. */
+export function raiseSheetFromStrip() {
+  fireEvent.click(
+    within(screen.getByTestId("mobile-inspector-peek")).getByRole("button", {
+      name: enMessages.inspector.expandSheet,
+    }),
+  );
+}
+
 export const slotMocks = {
   occupied: new Set<string>(),
   entries: new Map<string, SlotEntry[]>(),
@@ -37,7 +47,7 @@ export const slotPropsByNode = new WeakMap<Element, Record<string, unknown>>();
 
 export const editableTagChipsCalls: Array<Record<string, unknown>> = [];
 
-export const usePolicyMock = vi.fn();
+export const usePolicyMock = vi.fn(() => ({ enabled: true, isLoading: false }));
 
 export const overlaySidebarSpy = vi.fn();
 
@@ -153,10 +163,15 @@ export function claimSlot(slotId: string, entries: SlotEntry[]) {
 export function SlotEntryRendererStub({
   entry,
   props,
+  onRendered,
 }: {
   entry: SlotEntry;
   props: Record<string, unknown>;
+  onRendered?: () => void;
 }) {
+  useLayoutEffect(() => {
+    onRendered?.();
+  }, [onRendered]);
   const report = props?.onAvailability as
     | ((available: boolean) => void)
     | undefined;
@@ -297,6 +312,10 @@ export function ChaptersPanelStub({
         data-testid="chapters-resolved-empty"
         onClick={() => onResolved?.(0)}
       />
+      <button
+        data-testid="chapters-resolved-some"
+        onClick={() => onResolved?.(3)}
+      />
     </div>
   );
 }
@@ -358,4 +377,19 @@ export function setViewport(width = 1400) {
     value: width,
   });
   inspectorOpenStore.notifyViewportChange();
+}
+
+/**
+ * jsdom lays nothing out, so every element reports a zero width and the shell
+ * has no row to measure. A measured row is what a browser always has; the
+ * inspector's form — and the content that waits for it — comes from this.
+ */
+export function measureRow(width = 1200) {
+  vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockImplementation(
+    function (this: HTMLElement) {
+      return this.getAttribute("data-testid") === "inspector-fit-host"
+        ? width
+        : 0;
+    },
+  );
 }

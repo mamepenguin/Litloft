@@ -15,6 +15,7 @@ import { VideoShelfPage } from "@/components/videoapp/VideoShelfPage";
 import { DiscoverFace as ReadingDiscoverFace } from "@/components/readingapp/DiscoverFace";
 import { LibraryFace as ReadingLibraryFace } from "@/components/readingapp/LibraryFace";
 import type { ShelfItem } from "@/lib/api";
+import { appRequests } from "@/lib/memberTarget";
 import { SEE_ALL_FIRST_PAGE, SEE_ALL_TOTAL, bylineOf, titleOf } from "../videoCardSpacing.data";
 
 const DRIVE = "fixture";
@@ -94,6 +95,7 @@ function installFetch(face: string, first: string, later: string): void {
     const q = url.searchParams;
 
     if (url.pathname.endsWith("/smart-folders")) return json([]);
+    if (url.pathname.endsWith("/collections")) return json([]);
     if (url.pathname.endsWith("/files")) {
       return json({ data: [], meta: { total: SEE_ALL_TOTAL, page: 1, limit: 1 } });
     }
@@ -157,11 +159,12 @@ function Face({ face }: { face: string }): ReactElement {
         <VideoLibraryFace
           drive={DRIVE}
           params={{ type: ["video"] }}
+          requests={appRequests(null, null)}
           empty={false}
-          savedClassification="folder"
+          group="folder"
           hasProfile
           sortId="newest"
-          onClassification={noop}
+          onGroup={noop}
           onSort={noop}
           onViewerRejected={noop}
         />
@@ -187,6 +190,7 @@ function Face({ face }: { face: string }): ReactElement {
         <ReadingLibraryFace
           drive={DRIVE}
           params={{ type: ["pdf", "epub", "archive"] }}
+          requests={appRequests(null, null)}
           empty={false}
           hasProfile
           group="tag"

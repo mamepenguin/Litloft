@@ -1,0 +1,39 @@
+== files/query 10000
+status=200 upload=160014 time=0.027796s
+{"data":[{"id":"qERiRkQ083gn","filename":"【iPhone Duo _ Galaxy Z Fold8】スペックに表れない「本当の性能」と「意外な落とし穴」を比較・解説する。 (1).loft","title":"【iPhone Duo   Galaxy Z Fold8】スペックに�
+== shelves/query 10000
+status=200 upload=160014 time=0.027355s
+{"by":"all","shelves":[{"key":"all","label":"","count":850,"items":[{"id":"qERiRkQ083gn","filename":"【iPhone Duo _ Galaxy Z Fold8】スペックに表れない「本当の性能」と「意外な落とし穴」を比較・解説する。 (1).loft",
+== intelligence POST /search 10000
+status=200 upload=160014 time=0.294380s
+{"results":[{"file_id":"Zn_OtNtfddfu","drive":"動画","filename":"アニメ『おでかけ子ザメ』第41話「子ザメときこりの出水」.mp4","file_type":"video","score":1.0762,"match_types":["keyword","metadata","text_content_keyword"],"s
+== intelligence POST /search/images 10000
+status=200 upload=160014 time=0.096041s
+{"results":[{"file_id":"iKORc6htJbeY","drive":"動画","filename":"アニメ『おでかけ子ザメ』第12話「どろんこ」.mp4","file_type":"video","score":0.1217,"match_types":["clip_thumbnail"],"segments":[{"time_range":null,"matches":[{"typ
+== files/query 10001
+status=422 upload=160030 time=0.011244s
+{"detail":[{"type":"too_long","loc":["body","file_ids"],"msg":"List should have at most 10000 items after validation, not 10001","input":["qERiRkQ083gn","WISmvWWabTAo","pMBtfsXb_KnT","Ir6Y2mvuXXOG","opuf2121Nfxq","Y6pdy3NoVs9j","aKQ8fGHL6jRq","IQQRB7
+== shelves/query 10001
+status=422 upload=160030 time=0.009716s
+{"detail":[{"type":"too_long","loc":["body","file_ids"],"msg":"List should have at most 10000 items after validation, not 10001","input":["qERiRkQ083gn","WISmvWWabTAo","pMBtfsXb_KnT","Ir6Y2mvuXXOG","opuf2121Nfxq","Y6pdy3NoVs9j","aKQ8fGHL6jRq","IQQRB7
+== intelligence POST /search 10001
+status=422 upload=160030 time=0.019198s
+{"detail":[{"type":"too_long","loc":["body","file_ids"],"msg":"List should have at most 10000 items after validation, not 10001","input":["qERiRkQ083gn","WISmvWWabTAo","pMBtfsXb_KnT","Ir6Y2mvuXXOG","opuf2121Nfxq","Y6pdy3NoVs9j","aKQ8fGHL6jRq","IQQRB7
+== intelligence POST /search/images 10001
+status=422 upload=160030 time=0.018368s
+{"detail":[{"type":"too_long","loc":["body","file_ids"],"msg":"List should have at most 10000 items after validation, not 10001","input":["qERiRkQ083gn","WISmvWWabTAo","pMBtfsXb_KnT","Ir6Y2mvuXXOG","opuf2121Nfxq","Y6pdy3NoVs9j","aKQ8fGHL6jRq","IQQRB7
+== intelligence POST /search without filter
+status=422 upload=160014 time=0.011860s
+{"detail":"filter is required"}
+== files/query empty-string id
+status=422 upload=17 time=0.004270s
+{"detail":[{"type":"value_error","loc":["body","file_ids"],"msg":"Value error, file_ids cannot contain an empty element","input":[""],"ctx":{"error":{}}}]}
+== files/query missing file_ids
+status=422 upload=2 time=0.004456s
+{"detail":[{"type":"missing","loc":["body","file_ids"],"msg":"Field required","input":{}}]}
+== files/query unknown drive
+status=404 upload=15 time=0.006100s
+{"detail":"Drive not found: nope"}
+== GET files total (reference)
+status=200 upload=0 time=0.005765s
+{"data":[{"id":"qERiRkQ083gn","filename":"【iPhone Duo _ Galaxy Z Fold8】スペックに表れない「本当の性能」と「意外な落とし穴」を比較・解説する。 (1).loft","title":"【iPhone Duo   Galaxy Z Fold8】スペックに�

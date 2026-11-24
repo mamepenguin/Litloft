@@ -129,12 +129,14 @@ vi.mock("@/components/ProfileProvider", () => ({
 const getShelves = vi.fn();
 const getDriveFiles = vi.fn();
 const getSmartFolders = vi.fn();
+const getCollections = vi.fn();
 
 vi.mock("@/lib/api", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/api")>()),
   getShelves: (...args: unknown[]) => getShelves(...args),
   getDriveFiles: (...args: unknown[]) => getDriveFiles(...args),
   getSmartFolders: (...args: unknown[]) => getSmartFolders(...args),
+  getCollections: (...args: unknown[]) => getCollections(...args),
 }));
 
 function item(id: string, title: string) {
@@ -296,6 +298,7 @@ beforeEach(() => {
   getShelves.mockReset().mockImplementation(async (d, p) => defaultShelves(d, p));
   getDriveFiles.mockReset().mockImplementation(async (_d, p) => defaultFiles(p));
   getSmartFolders.mockReset().mockResolvedValue([]);
+  getCollections.mockReset().mockResolvedValue([]);
 });
 
 describe("SPEC-CORE-068 Recommended from the video-discover-recommended provider", () => {
@@ -327,7 +330,7 @@ describe("SPEC-CORE-068 Recommended from the video-discover-recommended provider
     expect(typeof args.restrict).toBe("function");
   });
 
-  it.runIf(addonsLinked)("SPEC-CORE-068 I3 Recommended's restrict asks for unwatched videos under the target, 60 per shelf", async () => {
+  it.runIf(addonsLinked)("SPEC-CORE-068 I3 SPEC-CORE-142 I6 Recommended's restrict asks for videos under the target with no watch condition, 60 per shelf", async () => {
     getSmartFolders.mockResolvedValue([smartFolder("sf-trips", "Trips", "tag:Trip")]);
     writeAppPrefs(DRIVE, { target: "sf-trips" });
     intel.pickup = restricting(["r1", "r2"]);
@@ -338,7 +341,8 @@ describe("SPEC-CORE-068 Recommended from the video-discover-recommended provider
     const calls = restrictCalls();
     expect(calls.length).toBeGreaterThan(0);
     for (const p of calls) {
-      expect(p).toMatchObject({ by: "all", key: "all", per_shelf: 60, type: ["video"], watch: "unwatched" });
+      expect(p).toMatchObject({ by: "all", key: "all", per_shelf: 60, type: ["video"] });
+      expect(p.watch).toBeUndefined();
       expect([p.tag].flat()).toContain("Trip");
     }
     expect(calls.flatMap((p) => p.ids as string[])).toEqual(["r1", "r2"]);

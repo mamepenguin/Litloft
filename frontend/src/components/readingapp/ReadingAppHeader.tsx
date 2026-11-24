@@ -5,12 +5,12 @@ import { BookOpen } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 
 import { AppHeader } from "@/components/appshell/AppHeader";
-import { READING_BASE_KINDS, resolveReadingTarget } from "@/lib/readingAppTarget";
+import { isReadingTargetUsable, READING_BASE_KINDS } from "@/lib/readingAppTarget";
 import type { SmartFolder } from "@/types/smartFolder";
 import type { ReadingAppState } from "./useReadingApp";
 
 function isUsableTarget(folder: SmartFolder): boolean {
-  return resolveReadingTarget(folder).usable;
+  return isReadingTargetUsable(folder);
 }
 
 export function ReadingAppHeader({
@@ -20,14 +20,17 @@ export function ReadingAppHeader({
   breadcrumb,
   actions,
   tabs,
+  homeEntry,
 }: {
   drive: string;
   state: ReadingAppState;
   title?: string;
   breadcrumb?: ReactNode;
-  /** Beside the Target button. */
+  /** Below the tabs on a phone, beside the Target at `sm` and wider. */
   actions?: ReactNode;
   tabs?: ReactNode;
+  /** The key of this app's Home entry. */
+  homeEntry?: string;
 }) {
   const t = useTranslations("readingApp");
   const locale = useLocale();
@@ -52,9 +55,11 @@ export function ReadingAppHeader({
       target={{
         drive,
         app: "reading",
-        name: state.ready ? (state.folder?.name ?? t("allBooks")) : null,
+        homeEntry: state.targetKnown ? homeEntry : undefined,
+        name: state.targetKnown ? (state.targetName ?? t("allBooks")) : null,
         folders: state.smartFolders,
-        selectedId: state.folder?.id ?? "default",
+        collections: { list: state.collections, retry: state.retryCollections },
+        selectedId: state.targetId,
         currentCount: state.count,
         label: t("target"),
         defaultLabel: t("allBooks"),

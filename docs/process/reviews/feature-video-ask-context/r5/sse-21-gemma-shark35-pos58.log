@@ -1,0 +1,15 @@
+# 2026-11-15 17:54:46 file puqsf46R2vWh
+# ollama ps before: ['gemma4:e4b']
+# frames before: 10219.large.webp 27444.large.webp 27653.large.webp 39498.large.webp 48382.large.webp 58308.large.webp 66566.large.webp 71071.large.webp 
+body {"question": "いま子ザメが持っているカップには何と書いてありますか？", "profile": null, "position_seconds": 58.3} history_turns 0
+  5.38 status 200
+  5.38 : keepalive
+ 10.38 : keepalive
+ 13.95 FIRST answer_chunk
+ 14.47 citations [{"n": 19, "position": {"seconds": 58.3}}]
+ 14.47 meta {"partial": false, "image": "attached"}
+ 14.47 done {}
+ 14.47 end; max silent gap before first chunk 5.38s
+ANSWER: いま子ザメが持っているカップには「ホットチョコレート」と書いてあります [19]。
+# frames after: 10219.large.webp 27444.large.webp 27653.large.webp 39498.large.webp 48382.large.webp 58300.large.webp 58308.large.webp 66566.large.webp 71071.large.webp 
+# ollama ps after: ['gemma4:e4b']

@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R1",
+      "status": "confirmed",
+      "note": "tests/ocr_fixtures.py:239-275 adds WholeImageBoxShim, which gives each line of a whole-image fake one box and answers detect_boxes/recognise_boxes. tests/ocr_fixtures.py:354-358 adds \"app.workers.frame_ocr\" to _SEARCH_DB_MODULES, and the modules are iterated at :427 and :479. tests/loft_media_world.py:113-117 patches both seams through patch_everywhere for every LoftWorld. The touch points name neither shared fixture. I did not count the dependent test files myself."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R2",
+      "status": "confirmed",
+      "note": "indexer.py:2013-2026: the call `await asyncio.to_thread(_is_outdated_frame_read, task.file_id)` (defined at :203-205, a DB read through _outdated_frame_ids) sits in the same try as index_frame_ocr, and _reread_running (declared at :306) is discarded in its finally. indexer.py:2171-2174 subtracts _reread_running inside _native_frame_busy. The touch point for indexer.py names neither _frame_ocr_worker nor this state. One consequence: if the lookup raises, index_frame_ocr is skipped. The task has already been taken from the queue, so it is only logged at :2022, with no retry on this run. Before this change, only index_frame_ocr was inside that try. I did not verify the test-coverage half of the claim (that no test has a running re-read)."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R3",
+      "status": "confirmed",
+      "note": "frame_ocr.py:126 declares the field and frame_ocr.py:404 assigns it. A grep over the whole worktree finds no other code reference. The only other match is docs/process/reviews/feature-frame-ocr-read-interval/decisions.md:7, which records that the `max(1.0, frame_gap)` early-end check was removed. The field is therefore a dead leftover of that removed check."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R4",
+      "status": "confirmed",
+      "note": "files.py:88-89 adds frame_ocr_read and frame_ocr_rule to the dict returned by _get_indexed_file_or_404. The callers are scenes.py:87, chapter_suggestions.py:34 and the files.py call sites listed in the finding. I saw no observable effect. scenes.py:87-91 reads only file_type and mime_type. files.py:1719 returns the dict to image routes, which read their own keys. chapter_suggestions.py:39 returns the dict only to internal callers at :52, :88, :115 and :149, which discard it. No caller serialises the whole dict into a response."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R5",
+      "status": "confirmed",
+      "note": "files.py:1072-1083 computes raise_reread. Its only use is files.py:1107, inside `if fresh == [] and not rescan and not loft_updates and not loft_running` (:1106). Take {tasks:[frame_ocr, text]} where frame_ocr is queued and text is fresh: frame_ocr goes into already_queued (:1059-1063) and fresh=[text]. Control then falls through to _reset_flags (:1136-1139), which touches only fresh tasks, and to enqueue (:1162-1163), so the queued re-read stays at its backlog priority. A native video with clip in the request behaves the same way, because rescan is true (:1098-1102). The response is 'accepted'. The touch point says 'a queued re-read is raised to 100' without restricting that to the all-queued case. The clarification says 'a reindex raises a queued re-read to 100'. I10 covers only the case that answers already_queued."
+    }
+  ],
+  "specification_compliance": [
+    "I10 (all-queued case): files.py:1065-1116 answers already_queued and raises the queued re-read via raise_task_priority. The mixed-task case is not raised (R5).",
+    "I11: _native_frame_busy (indexer.py:2160-2178) excludes running re-reads (_reread_running) and queued outdated reads (_outdated_frame_ids) from the .loft download gate."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "_ReadResult.frame_gap is computed on every decoded frame and never read (frame_ocr.py:126,404).",
+    "If the _is_outdated_frame_read lookup raises in _frame_ocr_worker (indexer.py:2014-2016), the frame task is dropped without running index_frame_ocr."
+  ],
+  "regression_risks": [
+    "The shared test fixtures (ocr_fixtures.py, loft_media_world.py) now route every whole-image fake through WholeImageBoxShim. That changes how many tests outside the frame-OCR scope exercise the frame reader."
+  ],
+  "test_coverage": [
+    "Not assessed beyond the fixture changes cited in R1."
+  ],
+  "not_verified": [
+    "I did not run any tests. The tools available to me are read-only.",
+    "I did not check whether any test covers a running or post-store re-read against the .loft gate (part of R2).",
+    "I did not count the test files that depend on build_search_db or LoftWorld (part of R1).",
+    "I did not check whether the task dropped after a lookup exception is re-collected by _collect_incomplete on restart."
+  ],
+  "confidence": 85
+}

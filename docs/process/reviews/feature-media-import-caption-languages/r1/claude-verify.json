@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R1",
+      "status": "confirmed",
+      "note": "Reproduced by reading the code. service.py:200 sets has_captions = caption_track is not None. service.py:1068-1073 passes has_captions=bool(meta.get('has_captions')) to _should_run_stt. service.py:422-425 returns `not has_captions` for 'missing_captions'. _download_stt_and_notify (service.py:1092-1124) downloads audio to a .stt_temp file beside the .loft and emits scan.complete so intelligence picks it up. router.py:200 forwards request.stt_mode. So in 'If no captions' mode, a chat-replay-only video or a video with no candidate track now starts STT. Before, has_captions was true whenever any subtitle was listed (spec line 19), so STT did not run. The Touch points list (spec lines 258-282) does not name this path. The spec body does document it: item 7 (lines 197-201) and item 10 (lines 237-240) state this consequence as intended. So the claim about the touch-point list is accurate, but the effect is specified, not unspecified."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R2",
+      "status": "confirmed",
+      "note": "Reproduced. manager.py:730 gates fetch_transcript on `meta.has_captions or include_no_transcript`. youtube.py:549 sets has_captions from the new service meaning. When the gate is false, transcript_error stays None (manager.py:729), and manager.py:532-535 records 'imported' with error_kind=None. Before, has_captions was true for any listed subtitle (spec line 19). The download then produced nothing, returned (False, None), and youtube.py:599-604 promoted that to ERROR_NO_TRANSCRIPT ('no_transcript', registry.py:33). The Touch points list does not name subscription_videos. Spec item 4 (lines 174-178) documents this exact change and argues that nothing reads it for imported rows. Accurate as a touch-point omission, but the behaviour is specified."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R3",
+      "status": "confirmed",
+      "note": "Reproduced. _fetch_and_update (service.py:945-951) calls _metadata_error_is_unavailable for any URL. That function (service.py:253-258) uses youtube.py's _classify_fetch_error, whose markers are documented as yt-dlp YouTube ExtractorError texts (youtube.py:63-71). detect_provider is called only afterwards (service.py:980). _caption_track (service.py:166-177) runs on every info dict, including Vimeo's: provider_registration.py:23 registers vimeo, and docs/addons/media-import.md:13 says Vimeo is supported. The spec and invariants describe YouTube only and do not mention non-YouTube URLs. The practical effect for Vimeo: a missing language defaults to 'ja', so a Vimeo video whose captions are listed under other keys now gets has_captions false. Before, it was true with a download that found nothing. It therefore leaves the retry set and, in missing_captions mode, now gets STT."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R4",
+      "status": "confirmed",
+      "note": "Reproduced. CaptionStatusBadge.tsx:59 returns the non-retryable 'noCaptions' view when !metadata.has_captions, before it checks caption_error_kind === 'permanent' at line 68. The badge's output therefore changes for rows whose has_captions flips to false, and for rows that newly get 'permanent'. The Touch points list names no frontend file. Spec item 7 (lines 205-209) describes the badge effect, noting that its code is unchanged. Accurate as an omission from the touch-point list. The behaviour is specified."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R5",
+      "status": "confirmed",
+      "note": "Reproduced. test_spec_addon_165_caption_track.py:21-25 imports _CASES, _PREFIX and UNAVAILABLE from addons.media_import.tests.test_youtube_item_classification. That module defines _PREFIX at line 28, UNAVAILABLE at line 36 and _CASES at line 40. The new tests therefore depend on an existing test module's private data. The Touch points describe only new tests, and edits to existing fakes for the has_captions change."
+    }
+  ],
+  "specification_compliance": [
+    "SPEC-ADDON-165: _caption_track (service.py:166-177) orders the candidates as L, L-orig, base, base-orig, removes duplicates with dict.fromkeys, excludes live_chat from subtitles only, and returns None when none is listed. This matches I2.",
+    "SPEC-ADDON-166: service.py:200 sets has_captions = caption_track is not None. This matches I4.",
+    "SPEC-ADDON-167: service.py:948-951 marks the row permanent only when _classify_fetch_error returns ItemUnavailable, then re-raises. The UPDATE ... WHERE file_id writes nothing when no row exists. This matches I6.",
+    "Both paths pass caption_track, or else language (service.py:1038, manager.py:732), as spec item 1 requires."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "Non-YouTube fetch-path URLs (e.g. Vimeo) are affected by _caption_track and by the YouTube error classifier. The spec does not discuss this (R3)."
+  ],
+  "regression_risks": [
+    "In missing_captions mode, URL import now starts STT for chat-replay-only videos and for videos with no candidate track, including Vimeo videos whose language is unknown. This is documented for YouTube in spec item 7 and item 10, not for Vimeo.",
+    "The new tests depend on private names in test_youtube_item_classification.py. Renaming them there breaks the SPEC-165 tests."
+  ],
+  "test_coverage": [
+    "I did not run the tests. I confirmed only that test_spec_addon_165_caption_track.py exists and what it imports."
+  ],
+  "not_verified": [
+    "I did not run the test suite, and I did not compare against origin/develop with git: the pre-change has_captions definition was taken from the spec's description (line 19).",
+    "api.ts:26 and schemas.py:35, which the R4 evidence cites, were not opened.",
+    "How yt-dlp actually names Vimeo subtitle keys and errors was not checked."
+  ],
+  "confidence": 85
+}

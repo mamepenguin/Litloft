@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-1",
+      "status": "confirmed",
+      "note": "addons/intelligence/app/routers/scenes.py:58-72 implements _require_youtube_loft: when indexed loft_source is non-null it returns for 'youtube' and raises HTTPException 400 'Not a video file' for any other value; it calls read_loft only when loft_source is NULL. The call site at scenes.py:90-91 runs it for LOFT_MIME files. The file is not named in the touch-point list (which names routers/video_visual.py, routers/files.py and app/schemas.py). The behaviour claimed is present. Whether the file is in the diff was not checked with git, but the hunk content matches the claim. Scope observation only; no defect identified in the function itself."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-2",
+      "status": "confirmed",
+      "note": "The listed test files exist in the working tree: addons/intelligence/tests/loft_media_world.py, youtube_frame_doubles.py, test_listing_call_inventory.py, and seven test_spec_addon_117_*.py files (loft_media_start, scene_tile_small, loft_ask_context, loft_media_schema, loft_scenes, loft_media_fetch, loft_media_queue). The frontend tests IndexDetailsDialogLoft.test.tsx, IndexStatusWidgetLoftMedia.test.tsx, ScenesSection/__tests__/ScenesSectionLoftVisualIndex.test.tsx and ScenesSectionRequests.test.tsx also exist. The touch-point list names only production frontend files and does not name tests, so the scope claim holds. Scope observation only."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-3",
+      "status": "confirmed",
+      "note": "Rewritten expectations are present. test_spec_addon_085_storyboard_retry.py:103-104 defines accepted() and :107-112 move_drive(); the already_queued test at :172-186 asserts status 200 (line 181) and enqueued == [(file_id, 'loft_media')] (line 183). test_spec_addon_078_youtube_reset_sites.py:118 asserts manager.queued == [(FILE, 'clip'), (FILE, 'loft_media')]. ScenesSectionRequests.test.tsx:414-551 has the 'SPEC-ADDON-089 I7 - the .loft' block with SPEC-ADDON-118 item 4 test names, including mount/file-change requests (:415-428) and the Visual Index test (:535-551). The line numbers in the claim differ slightly from the file, but the substance matches. Scope observation only."
+    }
+  ],
+  "specification_compliance": [
+    "Checked the three listed findings against the working tree at the reviewed commit. Each describes test or source files that are present and whose content matches the claim. None of the three is a spec-invariant violation, so no invariant was found broken by these findings alone.",
+    "The scenes.py loft_source trust path (SPEC-ADDON-117 I12/I13 style classification) returns 200 for 'youtube', rejects other non-null values with 400, and falls back to read_loft only when loft_source is NULL. This matches the design comment at scenes.py:59-61."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "For a .loft whose loft_source is NULL and whose drive is not mounted, _require_youtube_loft catches only LoftUnreadable and turns it into 400 'Not a video file' (scenes.py:67-72). The spec does not say whether an unreadable reference on the scenes route should answer 400 or another status. This was not reproduced."
+  ],
+  "regression_risks": [
+    "The scenes route now trusts the indexed loft_source column over the .loft file. If that column is stale, the route can serve or refuse scenes incorrectly until the next fetch updates it. Not reproduced."
+  ],
+  "test_coverage": [
+    "The reviewed test files exist (seven test_spec_addon_117 modules, shared fixtures, and frontend tests for the loft Visual Index). The three rewritten legacy expectations (SPEC-ADDON-085, SPEC-ADDON-078, SPEC-ADDON-089 frontend) were read and match the new behaviour. Test runs were not possible (read-only tools), so pass/fail status is unknown."
+  ],
+  "not_verified": [
+    "Did not run git diff or git show, so I could not confirm from git that scenes.py and the test files are part of commit 65a7f4e8e's diff. I checked existence and content in the working tree only.",
+    "Did not run the test suites or the frontend tests; the read-only tool set does not allow it.",
+    "Did not verify the invariants I1-I13 in depth beyond the scenes.py route and the rewritten test expectations. The new fetch worker, indexer and yt-dlp download paths were not reviewed.",
+    "Did not confirm the exact line numbers quoted in TP-3; the content matches but the offsets differ slightly."
+  ],
+  "confidence": 80
+}

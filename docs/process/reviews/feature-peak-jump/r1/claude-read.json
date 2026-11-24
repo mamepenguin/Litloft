@@ -1,0 +1,223 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "R1",
+      "origin": "reviewer",
+      "claim": "The diff reaches three unit-test directories (frontend/src/components/__tests__/, frontend/src/components/player/__tests__/, frontend/src/components/player/MediaControls/__tests__/), including an edit to the pre-existing componentFixtureParity.test.tsx, none of which is named in the declared touch-point list, which names only frontend/e2e-components/ for tests.",
+      "impact": "None for a user. The planned-reach list is incomplete, so a reader of the spec does not learn that the shared fixture-parity test's arrangement list changed.",
+      "evidence": "componentFixtureParity.test.tsx:331 adds \"peak-jump\" to the arrangement list. New files: __tests__/peakJump.shortcuts.test.tsx, player/__tests__/peakJump.shell.test.tsx, MediaControls/__tests__/peakJump.{controls,order}.test.tsx, peakJump.strings.test.ts and peakJumpHarness.tsx. docs/process/spec-and-design.md:41 defines touch points as where the change is planned to reach and does not exempt tests. Every other reached path (watchedRangesStore.ts, mostWatched.ts as 'a small module beside it', the MediaControls files, layout.ts, ControlButton.tsx, useVideoShortcuts.ts, messages-core, e2e-components/, the docs) is covered by the list. layout.ts is edited itself, not only 'beside' it, and I count that as within the listed entry.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariant is broken. It is a gap in the planned-reach list, limited to test code.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Add the unit-test directories, or a line saying unit tests beside the touch points are implied, to the touch-point list in docs/process/reviews/feature-peak-jump/invariants.md."
+    },
+    {
+      "id": "R2",
+      "origin": "reviewer",
+      "claim": "No test exercises the `interactive` gate of jump availability or the unmount cleanup that publishes jumpAvailable=false, so removing either would pass the suite.",
+      "impact": "A regression would let P be consumed and do nothing in two cases: while an embed's ad or end screen owns the frame, and after MediaControls unmounts while the same file stays registered (browser controls). It would also let the button show over an embed's own UI. The current code is correct.",
+      "evidence": "MediaControlsContainer.tsx:96 (`interactive &&`) and :142 (cleanup `publishJumpAvailable(mc, false)`). A Grep of the peakJump tests for 'interactive' finds nothing. peakJump.order.test.tsx:324 unmounts the controls with `controls: false` but never presses P or checks that P falls through while they are unmounted. register/unregister reset the flag only on a change of file or nickname (watchedRangesStore.ts:173,188).",
+      "repro": "Mutation, by reading only: delete line 142's cleanup body. No test in peakJump.shortcuts/order/controls/shell presses P after `controls: false` with a lower shortcut, so the mutant survives. Delete `interactive &&` at line 96. No peak-jump test renders with interactive=false, so this mutant survives too.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "The code satisfies I4. This is a test gap that would let an I4 regression through.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add tests: (a) with interactive=false there is no button and P reaches a lower shortcut; (b) after `controls: false` on the same file, P is not consumed."
+    },
+    {
+      "id": "R3",
+      "origin": "reviewer",
+      "claim": "No unit or e2e test shows the long-press speed pill and the jump label at once, so the I5 placement 'below the speed pill' is untested.",
+      "impact": "Swapping the two children in GestureOverlay, or splitting them into separately positioned elements that overlap, would pass the suite and draw the label on top of or above the speed pill.",
+      "evidence": "GestureOverlay.tsx:73-102 stacks boost-pill then the label in one flex-col. A Grep for 'boost' in the peakJump tests finds nothing. GestureOverlay.test.tsx covers boost-pill only on its own.",
+      "repro": "Mutation, by reading only: swap the {boosting && ...} and {mostWatched && ...} blocks. No test checks their relative order, so the mutant survives.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "The code satisfies I5. This is a test gap only.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add a GestureOverlay test that renders boosting and mostWatched together and checks that the label follows the boost pill in the same stacking container."
+    }
+  ],
+  "specification_compliance": [
+    "Touch-point question: every product path in the diff falls within the declared touch points. mostWatched.ts is the 'small module beside' watchedRangesStore. layout.ts is edited, which I read as within the 'beside layout.ts' entry. The unit-test directories are not listed (R1). hooks/useMediaControlsState.ts is listed but not touched, which is under-reach, not over-reach.",
+    "I1: spotsFromPieces merges runs of level 2 or 3 pieces that are contiguous (run.end === piece.start), cuts on level 1 and on gaps (no row), and sorts by strength desc, length desc, start asc. This matches.",
+    "I2: handleJump finds the remembered start in the current list, advances with wrap, falls back to index 0, returns before any state change if seek throws, and does not call play or pause.",
+    "I3: rememberedRef is cleared only by the registrationKey effect and lost on remount. Changes to duration, spots and availability do not touch it.",
+    "I4: jumpAvailable combines mc, nickname, duration>0 (duration is normalised to finite in useMediaControlsState), !interrupted (matching the presenters' seekable check), interactive and spots>0. The shortcut's `when` reads the published flag, and ShortcutsProvider.tsx:107 returns false (not consumed) when `when` is false. The label is gated on jumpAvailable synchronously.",
+    "I5: there is a 2 s label timer, restarted on each press, in a role=status aria-live=polite region stacked below the boost pill. reportSkip and resetTapSequence are called on every successful jump.",
+    "I6: the jump path calls only mc.seek and the in-memory store. No fetch and no storage.",
+    "I7: the pointer button comes after +10 when frameWidth >= 524, with title; the touch button comes before full screen; there is no compact button; COMPACT_MAX_WIDTH is unchanged.",
+    "I8: the ja/en strings at en.json/ja.json:573-574 and :1187 match the spec."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "After an unavailable spell during which the 2 s label timer fired, the label stays hidden when availability returns. Within 2 s, the availability effect has already cleared mostWatched, so the label does not come back. This is consistent with 'a label on screen hides'.",
+    "Between a render that changes `spots` and the passive effect that resubscribes handleJump, a P press would use the previous spots list. The window is one commit and has no practical effect."
+  ],
+  "regression_risks": [
+    "GestureOverlay moved the boost pill's absolute top-centre positioning onto a new wrapper. Existing GestureOverlay tests check only the testid and text, so a positioning regression of the boost pill alone would not be caught.",
+    "watchedRangesStore.dropEntryIfUnused now also waits for jumpListeners to be empty. An entry is kept alive while MediaControls is mounted, which matches skipListeners."
+  ],
+  "test_coverage": [
+    "The order, wrap, spot-vanish, duration-change, file, nickname and remount cases (I1-I3) are covered in peakJump.order.test.tsx.",
+    "Profile, duration, ad break and level-2 emergence for availability, plus the label, live region, skip reveal and touch bottom-only (I4, I5), are covered in peakJump.controls.test.tsx.",
+    "P, Shift+P, macOS Ctrl+P, Cmd+P, Ctrl+P print, editing focus, non-consumption without a profile, and the compact and narrow pointer layouts are covered in peakJump.shortcuts.test.tsx. ShellVideoPlayer is covered in peakJump.shell.test.tsx.",
+    "Real-browser placement and clipping at 524/523/480 and the touch order are covered in the e2e specs.",
+    "Gaps: the interactive=false gate, P after a MediaControls unmount on the same file (R2), and the label below a simultaneous boost pill (R3)."
+  ],
+  "not_verified": [
+    "I did not run any test, e2e spec or type check. All mutation results come from reading only.",
+    "I did not read useMediaControlsState.noteSkip or usePlayerGestures.resetTapSequence in full. Their effects are taken from the tests' assertions.",
+    "I did not read ShortcutsProvider's key matcher for platform-specific Ctrl/Cmd handling beyond lines 84-112.",
+    "I did not read the docs/user-guide or DESIGN.md hunks against the files on disk.",
+    "I did not check React StrictMode double-effect behaviour for register/unregister and the remembered spot."
+  ],
+  "coverage": [
+    {
+      "path": "frontend/e2e-components/fixtures/app.tsx",
+      "read": "partial",
+      "reason": "Read both changed hunks (lines 95-109 import, 2825-2844 ARRANGEMENTS entry); the rest of the 2800+ line fixture file is unchanged."
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/peakJump.tsx",
+      "read": "full",
+      "reason": "New file, read whole."
+    },
+    {
+      "path": "frontend/e2e-components/peak-jump-desktop.spec.ts",
+      "read": "full",
+      "reason": "New file, read whole."
+    },
+    {
+      "path": "frontend/e2e-components/peak-jump.serve.ts",
+      "read": "full",
+      "reason": "New file, read whole."
+    },
+    {
+      "path": "frontend/e2e-components/peak-jump.spec.ts",
+      "read": "full",
+      "reason": "New file, read whole."
+    },
+    {
+      "path": "frontend/e2e-components/projects.ts",
+      "read": "full",
+      "reason": "Read the changed hunk with its enclosing DESKTOP_ONLY array (lines 40-59)."
+    },
+    {
+      "path": "frontend/e2e-components/spec-viewport.spec.ts",
+      "read": "full",
+      "reason": "Read both changed hunks with their enclosing arrays (lines 80-149)."
+    },
+    {
+      "path": "frontend/src/components/player/MediaControls/GestureOverlay.tsx",
+      "read": "full",
+      "reason": "Read whole."
+    },
+    {
+      "path": "frontend/src/components/player/MediaControls/MediaControlsContainer.tsx",
+      "read": "full",
+      "reason": "Read whole."
+    },
+    {
+      "path": "frontend/src/components/player/MediaControls/PointerControlsPresenter.tsx",
+      "read": "full",
+      "reason": "Read whole."
+    },
+    {
+      "path": "frontend/src/components/player/MediaControls/TouchControlsPresenter.tsx",
+      "read": "full",
+      "reason": "Read whole."
+    },
+    {
+      "path": "frontend/src/components/player/MediaControls/layout.ts",
+      "read": "full",
+      "reason": "Read whole."
+    },
+    {
+      "path": "frontend/src/components/player/MediaControls/parts/ControlButton.tsx",
+      "read": "full",
+      "reason": "Read whole."
+    },
+    {
+      "path": "frontend/src/components/player/MediaControls/types.ts",
+      "read": "full",
+      "reason": "Read whole."
+    },
+    {
+      "path": "frontend/src/components/player/hooks/useVideoShortcuts.ts",
+      "read": "full",
+      "reason": "Read whole."
+    },
+    {
+      "path": "frontend/src/lib/mostWatched.ts",
+      "read": "full",
+      "reason": "New file, read whole."
+    },
+    {
+      "path": "frontend/src/lib/watchedRangesStore.ts",
+      "read": "full",
+      "reason": "Read whole."
+    },
+    {
+      "path": "frontend/src/messages-core/en.json",
+      "read": "full",
+      "reason": "Read both changed hunks with their enclosing objects (lines 560-584 player, 1175-1194 shortcuts)."
+    },
+    {
+      "path": "frontend/src/messages-core/ja.json",
+      "read": "full",
+      "reason": "Read both changed hunks with their enclosing objects (lines 560-584 player, 1175-1194 shortcuts)."
+    },
+    {
+      "path": "frontend/src/components/__tests__/componentFixtureParity.test.tsx",
+      "read": "partial",
+      "reason": "Read lines 300-349 around the changed hunk only."
+    },
+    {
+      "path": "frontend/src/components/__tests__/peakJump.shortcuts.test.tsx",
+      "read": "full",
+      "reason": "New file, read whole as shown in the provided diff; not reopened from disk."
+    },
+    {
+      "path": "frontend/src/components/player/MediaControls/__tests__/peakJump.controls.test.tsx",
+      "read": "full",
+      "reason": "New file, read whole as shown in the provided diff; grepped on disk for interactive/boost."
+    },
+    {
+      "path": "frontend/src/components/player/MediaControls/__tests__/peakJump.order.test.tsx",
+      "read": "full",
+      "reason": "New file, read whole as shown in the provided diff; grepped on disk for controls: false."
+    },
+    {
+      "path": "frontend/src/components/player/MediaControls/__tests__/peakJump.strings.test.ts",
+      "read": "full",
+      "reason": "New file, read whole as shown in the provided diff."
+    },
+    {
+      "path": "frontend/src/components/player/MediaControls/__tests__/peakJumpHarness.tsx",
+      "read": "full",
+      "reason": "New file, read whole as shown in the provided diff."
+    },
+    {
+      "path": "frontend/src/components/player/__tests__/peakJump.shell.test.tsx",
+      "read": "full",
+      "reason": "New file, read whole as shown in the provided diff."
+    }
+  ],
+  "confidence": 80
+}

@@ -1,0 +1,36 @@
+{
+  "risk": "MEDIUM",
+  "score": 5,
+  "base": 1,
+  "zone_max": "MEDIUM",
+  "modifiers": [],
+  "promotions": [],
+  "zones_touched": [
+    {
+      "path": "frontend/src/__tests__/driveHeaderEncoding.test.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/__tests__/imageQuery.driveHeader.test.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/imageQuery.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "mcp-server/src/tools/ask.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "mcp-server/src/tools/write.ts",
+      "level": "MEDIUM"
+    }
+  ],
+  "human_zones_touched": [],
+  "protected_paths_touched": [],
+  "docs_only": false,
+  "reasons": [
+    "highest zone MEDIUM (4 points)"
+  ]
+}

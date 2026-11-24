@@ -1,0 +1,76 @@
+{
+  "tool": "ask",
+  "arguments": {
+    "drive": "動画",
+    "query": "この範囲のファイルは何についての内容ですか。日本語で3行以内。",
+    "scope": {
+      "collections": [
+        "Spirit"
+      ]
+    }
+  },
+  "result": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\"answer\":\"この範囲のファイルは、**44 Crow's End**、**33 Shallow Waters**、**03 At Sea**、**13 Gurenu Fields**、**07 Hummingberg**というタイトルの音声ファイル（MP3）のリストです。これらは特定の場所やシーンを示唆する名称を持つオーディオコンテンツであることがわかります。具体的な内容や詳細な説明については、ファイルのメタデータからは判断できません。\",\"sources\":{\"sources\":[{\"file_id\":\"MPzSVyUbGuUb\",\"drive\":\"動画\",\"filename\":\"44 Crow's End.mp3\",\"file_type\":\"audio\",\"score\":0.01639344262295082,\"match_types\":[\"metadata\"]},{\"file_id\":\"cPaHnmMaDQZE\",\"drive\":\"動画\",\"filename\":\"33 Shallow Waters.mp3\",\"file_type\":\"audio\",\"score\":0.016129032258064516,\"match_types\":[\"metadata\"]},{\"file_id\":\"ngDP1hiz_Jgo\",\"drive\":\"動画\",\"filename\":\"03 At Sea.mp3\",\"file_type\":\"audio\",\"score\":0.015873015873015872,\"match_types\":[\"metadata\"]},{\"file_id\":\"1pbYym2mwSP0\",\"drive\":\"動画\",\"filename\":\"13 Gurenu Fields.mp3\",\"file_type\":\"audio\",\"score\":0.015625,\"match_types\":[\"metadata\"]},{\"file_id\":\"7cNbPKjA0gB7\",\"drive\":\"動画\",\"filename\":\"07 Hummingberg.mp3\",\"file_type\":\"audio\",\"score\":0.015384615384615385,\"match_types\":[\"metadata\"]}]},\"citations\":{\"citations\":[{\"file_id\":\"MPzSVyUbGuUb\",\"drive\":\"動画\",\"filename\":\"44 Crow's End.mp3\",\"file_type\":\"audio\",\"quote\":\"filename: 44 Crow's End.mp3 | title: 44 Crow's End\",\"relevance\":0,\"segment_location\":null,\"section_title\":null},{\"file_id\":\"cPaHnmMaDQZE\",\"drive\":\"動画\",\"filename\":\"33 Shallow Waters.mp3\",\"file_type\":\"audio\",\"quote\":\"filename: 33 Shallow Waters.mp3 | title: 33 Shallow Waters\",\"relevance\":0,\"segment_location\":null,\"section_title\":null},{\"file_id\":\"ngDP1hiz_Jgo\",\"drive\":\"動画\",\"filename\":\"03 At Sea.mp3\",\"file_type\":\"audio\",\"quote\":\"filename: 03 At Sea.mp3 | title: 03 At Sea\",\"relevance\":0,\"segment_location\":null,\"section_title\":null},{\"file_id\":\"1pbYym2mwSP0\",\"drive\":\"動画\",\"filename\":\"13 Gurenu Fields.mp3\",\"file_type\":\"audio\",\"quote\":\"filename: 13 Gurenu Fields.mp3 | title: 13 Gurenu Fields\",\"relevance\":0,\"segment_location\":null,\"section_title\":null},{\"file_id\":\"7cNbPKjA0gB7\",\"drive\":\"動画\",\"filename\":\"07 Hummingberg.mp3\",\"file_type\":\"audio\",\"quote\":\"filename: 07 Hummingberg.mp3 | title: 07 Hummingberg\",\"relevance\":0,\"segment_location\":null,\"section_title\":null}]},\"done\":{\"retrieved_count\":5,\"took_ms\":19961},\"scope\":{\"scope\":{\"folders\":[],\"collections\":[\"Spirit\"],\"tags\":[],\"kinds\":[]},\"matched_file_count\":50}}"
+      }
+    ]
+  },
+  "requests": [
+    {
+      "method": "GET",
+      "url": "/api/drives/%E5%8B%95%E7%94%BB/collections",
+      "headers": {
+        "host": "127.0.0.1:4599",
+        "connection": "keep-alive",
+        "authorization": "Bearer r5",
+        "accept": "*/*",
+        "accept-language": "*",
+        "sec-fetch-mode": "cors",
+        "user-agent": "node",
+        "accept-encoding": "gzip, deflate"
+      },
+      "body": "",
+      "status": 200,
+      "response_type": "application/json"
+    },
+    {
+      "method": "GET",
+      "url": "/api/drives/%E5%8B%95%E7%94%BB/smart-folders",
+      "headers": {
+        "host": "127.0.0.1:4599",
+        "connection": "keep-alive",
+        "authorization": "Bearer r5",
+        "accept": "*/*",
+        "accept-language": "*",
+        "sec-fetch-mode": "cors",
+        "user-agent": "node",
+        "accept-encoding": "gzip, deflate"
+      },
+      "body": "",
+      "status": 200,
+      "response_type": "application/json"
+    },
+    {
+      "method": "POST",
+      "url": "/api/addons/intelligence/ask",
+      "headers": {
+        "host": "127.0.0.1:4599",
+        "connection": "keep-alive",
+        "authorization": "Bearer r5",
+        "accept": "text/event-stream",
+        "x-lit-drive": "%E5%8B%95%E7%94%BB",
+        "content-type": "application/json",
+        "accept-language": "*",
+        "sec-fetch-mode": "cors",
+        "user-agent": "node",
+        "accept-encoding": "gzip, deflate",
+        "content-length": "138"
+      },
+      "body": "{\"query\":\"この範囲のファイルは何についての内容ですか。日本語で3行以内。\",\"scope\":{\"collections\":[\"Spirit\"]}}",
+      "status": 200,
+      "response_type": "text/event-stream; charset=utf-8"
+    }
+  ]
+}

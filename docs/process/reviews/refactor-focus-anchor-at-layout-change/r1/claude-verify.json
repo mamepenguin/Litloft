@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "MEDIUM",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1",
+      "status": "confirmed",
+      "note": "frontend/src/lib/readingAnchor.ts:125-127 defines `export function forgetReadingAnchor(): void { pending = null; }`. Its only caller is AppShell.tsx:339, inside the layout effect at AppShell.tsx:336-344 keyed on [focusState, focusLayout]: when the layout is unchanged it drops the anchor, and otherwise it restores it. docs/process/reviews/refactor-focus-anchor-at-layout-change/r1/product-files.txt:4 lists lib/readingAnchor.ts as a product file of this change, and decisions.md:7 says the commit touches it. The touch-point list does not name lib/readingAnchor.ts. The earlier report is docs/process/reviews/feature-focus-mode/r6/claude-read.json:58. I could not read the base version, so 'added by the diff' rests on product-files.txt, on decisions.md ('now drops it in AppShell's layout effect instead of not taking it') and on there being no other definition or use of the function."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F2",
+      "status": "confirmed",
+      "note": "frontend/src/components/FocusModeShortcuts.tsx imports only toggleFocusMode from useFocusMode (line 7). It does not import useIsWideViewport. The handler at line 22 is `() => toggleFocusMode()` and the memo's dependencies at line 28 are `[t]`. useFocusMode.ts:102-105 now has `toggleFocusMode(): void` with no parameter and always calls rememberReadingAnchor(). r1/product-files.txt:2 lists FocusModeShortcuts.tsx as changed in this commit. The touch-point list puts the shortcut context in useFocusMode.ts and does not name this file. The earlier report is docs/process/reviews/feature-focus-mode/r6/claude-read.json:88. I could not see the pre-change text directly."
+    }
+  ],
+  "specification_compliance": [
+    "I2 (scroll anchor across entering and leaving) is still served. toggleFocusMode remembers the anchor synchronously before it toggles the store (useFocusMode.ts:102-105). AppShell.tsx:336-344 restores the anchor when focusLayout changes and drops it when the toggle leaves the layout unchanged (below 768px)."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "Pressing T below 768px now captures an anchor (with a DOM probe) and drops it in the same commit's layout effect. Before, no anchor was taken. Nothing visible should change, because capture only reads layout."
+  ],
+  "regression_risks": [
+    "AppShell.tsx:338 compares a ref with focusLayout. If focusLayout changes without a toggle (a resize across 768px with the state on, or leaving the file page URL), restoreReadingAnchor runs with pending normally null. That is a no-op unless an anchor was left pending, and forgetReadingAnchor on the earlier same-layout commit should prevent that."
+  ],
+  "test_coverage": [
+    "decisions.md cites focus-mode-desktop.spec.ts:834 and :890 as killing mutants of the drop and the restore. I did not open these tests."
+  ],
+  "not_verified": [
+    "The base (origin/develop) text of readingAnchor.ts and FocusModeShortcuts.tsx. I could not run git diff, so the 'removed' parts of each claim are inferred from product-files.txt and decisions.md.",
+    "The e2e tests named in decisions.md were not read or run.",
+    "Other callers that set focusModeStore directly (for example the tree button's exit path), to see how they interact with the anchor."
+  ],
+  "confidence": 85
+}

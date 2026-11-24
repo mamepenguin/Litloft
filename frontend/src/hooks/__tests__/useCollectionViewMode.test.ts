@@ -74,6 +74,7 @@ function makeFile(
     trust_reviewed_at: null,
     created_at: "",
     updated_at: "",
+    modified_at: null,
   };
 }
 

@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R1",
+      "status": "confirmed",
+      "note": "Confirmed. frontend/src/components/ToolbarMenu.tsx:196-201: the trigger's onClick calls `triggerRef.current?.focus()` before `setOpen`. The call sits outside the `quiet` branch, so it runs for every shape (default, filled, quiet). The comment at :197-198 says the Escape handler on the wrapper box (:186-192) relies on it. TargetMenu.addonKey.test.tsx:179 sends Escape to `document.activeElement`. The spec's touch point (docs/specs/addon-app-header.md:249) lists only the `quiet` shape for ToolbarMenu.tsx, and the spec never mentions focus. For the user, the effect is that the trigger now gets focus on click in browsers that don't do this themselves (macOS Safari), so Escape closes the menu there. This looks harmless or even helpful, but it does change behaviour for every ToolbarMenu caller that I15 covers."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R2",
+      "status": "confirmed",
+      "note": "Confirmed. r1/classification.json:122 lists frontend/src/components/videoapp/__tests__/VideoApp.states.test.tsx among the touched paths. At :374-375 the test finds the drive text and then checks `drive.parentElement?.textContent` for \"main · 0\", which matches a scope split into separate drive and detail spans. No touch point in docs/specs/addon-app-header.md names this file."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R3",
+      "status": "confirmed",
+      "note": "Confirmed. frontend/src/components/__tests__/componentFixtureParity.test.tsx:325 contains \"app-header\" in the arrangement list, and r1/classification.json:78 lists the file as touched. No touch point names it."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R4",
+      "status": "confirmed",
+      "note": "Confirmed. VideoAppHeader.tsx:30 and ReadingAppHeader.tsx:28 both carry the JSDoc `/** Below the tabs on a phone, beside the Target at `sm` and wider. */`, and r1/classification.json:102 and :114 list both files as touched. Only the comments change. Neither file is named in the touch points."
+    }
+  ],
+  "specification_compliance": [
+    "The touched files in r1/classification.json include ToolbarMenu.tsx, componentFixtureParity.test.tsx, VideoApp.states.test.tsx, VideoAppHeader.tsx and ReadingAppHeader.tsx. Apart from ToolbarMenu's `quiet` shape, the touch points do not name these changes.",
+    "The touch point for the shelf pages' sort menus covers both LibraryControls.tsx files: the `quiet` prop on SortChoiceMenu (videoapp/LibraryControls.tsx:52) and on ReadingSortMenu (readingapp/LibraryControls.tsx:174) defaults to false."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "Clicking any ToolbarMenu trigger now focuses it explicitly (ToolbarMenu.tsx:199) for every shape. In browsers that don't focus a button on click, Escape now closes the menu where before it may not have."
+  ],
+  "regression_risks": [
+    "The explicit focus on click reaches every ToolbarMenu caller. I15 counts only visual drawing, so this change is outside its check."
+  ],
+  "test_coverage": [
+    "TargetMenu.addonKey.test.tsx:179 depends on the trigger being focused when Escape is sent to `document.activeElement`."
+  ],
+  "not_verified": [
+    "I could not run git diff, so I could not compare against the exact develop versions of the files. That a file was touched comes from r1/classification.json, and its current content was read at HEAD.",
+    "I did not run any tests or check the focus behaviour in a browser.",
+    "I did not check invariants I1 to I15 beyond the four findings."
+  ],
+  "confidence": 85
+}

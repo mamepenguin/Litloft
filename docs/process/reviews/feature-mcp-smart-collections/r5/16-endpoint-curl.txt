@@ -1,0 +1,54 @@
+$ curl -s -i "http://video-share-mcp-smart.localhost:3101/app-api/smart-collection-members?drive=%E5%8B%95%E7%94%BB"
+HTTP/1.1 400 Bad Request
+vary: rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch
+content-type: application/json
+date: Sun, 15 Nov 2026 03:52:44 GMT
+connection: close
+transfer-encoding: chunked
+
+{"detail":"drive and id are required"}
+$ curl -s -i "http://video-share-mcp-smart.localhost:3101/app-api/smart-collection-members"
+HTTP/1.1 400 Bad Request
+vary: rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch
+content-type: application/json
+date: Sun, 15 Nov 2026 03:52:44 GMT
+connection: close
+transfer-encoding: chunked
+
+{"detail":"drive and id are required"}
+$ curl -s -i "...?drive=%E5%8B%95%E7%94%BB&id=unknownid99"
+HTTP/1.1 404 Not Found
+vary: rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch
+content-type: application/json
+date: Sun, 15 Nov 2026 03:52:44 GMT
+connection: close
+transfer-encoding: chunked
+
+{"detail":"Smart collection not found"}
+$ curl -s -i "...?drive=%E5%8B%95%E7%94%BB&id=iJoo9-NqbcRO&offset=-1"
+HTTP/1.1 400 Bad Request
+vary: rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch
+content-type: application/json
+date: Sun, 15 Nov 2026 03:52:44 GMT
+connection: close
+transfer-encoding: chunked
+
+{"detail":"offset and limit must be non-negative integers"}
+$ curl -s -i "...?drive=%E5%8B%95%E7%94%BB&id=iJoo9-NqbcRO&limit=abc"
+HTTP/1.1 400 Bad Request
+vary: rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch
+content-type: application/json
+date: Sun, 15 Nov 2026 03:52:44 GMT
+connection: close
+transfer-encoding: chunked
+
+{"detail":"offset and limit must be non-negative integers"}
+$ curl -s -i "...?drive=nosuchdrive&id=iJoo9-NqbcRO"
+HTTP/1.1 404 Not Found
+vary: rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch
+content-type: application/json
+date: Sun, 15 Nov 2026 03:52:44 GMT
+connection: close
+transfer-encoding: chunked
+
+{"detail":"Drive not found: nosuchdrive"}

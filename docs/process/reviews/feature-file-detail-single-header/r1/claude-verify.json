@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-1",
+      "status": "confirmed",
+      "note": "frontend/src/components/FileHeaderRowProvider.tsx exists (export FileHeaderRowProvider at :56). It is in the change set (r1/classification.json:158, head e622215f). It is imported by AppShell.tsx:8 and wrapped at :25, Header.tsx:13, ChromeButtons.tsx:9, FileDetailChrome.tsx:16, FileDetailFullScreen.tsx:8 and folder/RightPaneFile.tsx:9. The string 'FileHeaderRowProvider' does not appear in docs/specs/file-detail-single-header.md. invariants.md has only an empty '## Revisions' heading (lines 1-3), so the touch-point list was never amended. Whether the file is new rather than modified was not checked independently, because no git access was available. Either way it is an unlisted touch point."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-2",
+      "status": "confirmed",
+      "note": "docs/user-guide/keyboard-shortcuts.md:209 reads 'On a phone there is no toggle in the row; press the sheet's resting strip instead.' The file is in the change set (r1/classification.json:22). The string 'keyboard-shortcuts' does not appear in docs/specs/file-detail-single-header.md, and invariants.md has no Revisions entries."
+    }
+  ],
+  "specification_compliance": [
+    "The touch-point list in docs/specs/file-detail-single-header.md does not name FileHeaderRowProvider.tsx or docs/user-guide/keyboard-shortcuts.md, but both are in the change set at e622215f."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "No behavioural analysis beyond the two touch-point findings was done."
+  ],
+  "regression_risks": [
+    "The new header-row context provider wraps the whole AppShell, so every page renders inside it. This was not assessed behaviourally."
+  ],
+  "test_coverage": [
+    "Tests were not examined. Both findings are about scope, not behaviour."
+  ],
+  "not_verified": [
+    "Whether FileHeaderRowProvider.tsx is a new file or an existing one that was modified (no git access).",
+    "The behavioural invariants I1 to I10.",
+    "Whether the worktree's working files match commit e622215f exactly. This was assumed from r1/head.txt and the git status, which shows only untracked review files."
+  ],
+  "confidence": 90
+}

@@ -29,6 +29,7 @@ function file(overrides: Partial<FileItem>): FileItem {
     trust_reviewed_at: null,
     created_at: "2026-05-01",
     updated_at: "2026-05-01",
+    modified_at: null,
     ...overrides,
   };
 }

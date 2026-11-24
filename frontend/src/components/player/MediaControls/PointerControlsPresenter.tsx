@@ -9,6 +9,7 @@ import {
   RotateCcw,
   RotateCw,
   Settings,
+  Target,
   Volume2,
   VolumeX,
 } from "lucide-react";
@@ -53,6 +54,10 @@ export function PointerControlsPresenter({
   onSettingsOpenChange,
   settingsExtra,
   settingsToggles,
+  watchedPieces,
+  bandVisible,
+  showJump = false,
+  onJump,
 }: MediaControlsPresenterProps) {
   const t = useTranslations("player");
 
@@ -99,6 +104,8 @@ export function PointerControlsPresenter({
           onScrubStart={onScrubStart}
           onScrubChange={onScrubChange}
           onScrubEnd={onScrubEnd}
+          watchedPieces={watchedPieces}
+          bandVisible={bandVisible}
         />
 
         <div className="flex items-center gap-0.5">
@@ -119,6 +126,16 @@ export function PointerControlsPresenter({
           >
             <RotateCw size={18} />
           </ControlButton>
+
+          {showJump && onJump && (
+            <ControlButton
+              label={t("jumpToMostWatched")}
+              title={`${t("jumpToMostWatched")} (P)`}
+              onClick={onJump}
+            >
+              <Target size={18} />
+            </ControlButton>
+          )}
 
           <div className="ml-1">
             <TimeDisplay

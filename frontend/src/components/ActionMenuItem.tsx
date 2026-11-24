@@ -9,6 +9,8 @@ export interface ActionMenuItemProps {
   disabled?: boolean;
   danger?: boolean;
   active?: boolean;
+  /** Opt-in to a one-line label: the menu widens to fit it. */
+  noWrap?: boolean;
 }
 
 export function ActionMenuItem({
@@ -18,6 +20,7 @@ export function ActionMenuItem({
   disabled,
   danger,
   active,
+  noWrap,
 }: ActionMenuItemProps) {
   return (
     <button
@@ -33,6 +36,8 @@ export function ActionMenuItem({
       // danger row tints accent under the pointer while refusing the click.
       aria-pressed={active}
       className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors disabled:opacity-50 disabled:hover:bg-transparent ${
+        noWrap ? "whitespace-nowrap " : ""
+      }${
         danger
           ? "text-danger hover:bg-accent/10"
           : active

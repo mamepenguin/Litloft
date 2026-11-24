@@ -2,6 +2,7 @@
 
 import {
   useCallback,
+  useEffect,
   useId,
   useRef,
   useState,
@@ -136,10 +137,25 @@ interface ToolbarMenuProps {
   portalOnPhone?: boolean;
   /** Draws the label before the value, for a control whose value alone would not say what it sets. */
   showLabel?: boolean;
+  /** Draws the label and value as one cut-off run, rather than two text nodes. */
+  inlineLabel?: boolean;
   /** Filled label-value form: no leading icon, muted label, value, trailing chevron. */
   filled?: boolean;
+  /**
+   * Icon, value and chevron on the bare surface, for a control that sits
+   * beside the text it narrows rather than standing on its own.
+   */
+  quiet?: boolean;
   /** Lets a long value shorten with an ellipsis where the bar is tight. */
   truncateValue?: boolean;
+  /** Fills its container, for a row of menus that share the width equally. */
+  fullWidth?: boolean;
+  /** Draws a quiet menu's whole value, for a value the viewer must read in full. */
+  fullValue?: boolean;
+  /** Added to the visible value, for example to hide it where the bar is narrow. */
+  valueClassName?: string;
+  /** Tells a menu whose body loads on open when it is drawn and dropped. */
+  onOpenChange?: (open: boolean) => void;
   children: (close: () => void) => ReactNode;
 }
 
@@ -156,13 +172,30 @@ export function ToolbarMenu({
   align = "end",
   portalOnPhone = false,
   showLabel = false,
+  inlineLabel = false,
   filled = false,
+  quiet = false,
   truncateValue = false,
+  fullWidth = false,
+  fullValue = false,
+  valueClassName,
+  onOpenChange,
   children,
 }: ToolbarMenuProps) {
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const surface = useMenuSurface(open, align, undefined, { portalOnPhone });
+
+  const onOpenChangeRef = useRef(onOpenChange);
+  useEffect(() => {
+    onOpenChangeRef.current = onOpenChange;
+  });
+  const reported = useRef(open);
+  useEffect(() => {
+    if (reported.current === open) return;
+    reported.current = open;
+    onOpenChangeRef.current?.(open);
+  }, [open]);
 
   const close = () => {
     setOpen(false);
@@ -187,7 +220,12 @@ export function ToolbarMenu({
     >
       <button
         ref={triggerRef}
-        onClick={() => setOpen((s) => !s)}
+        onClick={() => {
+          // Focusing the pressed button is what a browser does, and the box's
+          // Escape handler above relies on it.
+          triggerRef.current?.focus();
+          setOpen((s) => !s);
+        }}
         // `label: state`, except where the state *is* the label. A sort
         // order outside the offered table falls back to naming the control,
         // and "Sort: Sort" is a name that says one thing twice.
@@ -199,28 +237,52 @@ export function ToolbarMenu({
         // 12px between neighbours — and two of them would overlap, the later
         // one winning the hit test.
         className={
-          filled
-            ? "flex max-w-full items-center gap-1.5 rounded-2xl bg-sand px-4 py-2 text-sm text-text-muted transition-colors hover:bg-sand-hover pointer-coarse:min-h-11"
-            : `flex items-center gap-1.5 rounded-2xl border border-bg-border bg-bg-card px-3 py-2 text-sm text-text-muted transition-colors hover:text-text-primary pointer-coarse:min-h-11${showLabel || truncateValue ? " max-w-full" : ""}`
+          quiet
+            ? `flex max-w-full min-w-0 items-center gap-1 rounded-xl px-2 py-1 text-sm text-text-muted hover:bg-bg-elevated pointer-coarse:min-h-11${open ? " bg-bg-elevated" : ""}`
+            : filled
+              ? "flex max-w-full items-center gap-1.5 rounded-2xl bg-sand px-4 py-2 text-sm text-text-muted transition-colors hover:bg-sand-hover pointer-coarse:min-h-11"
+              : `flex items-center gap-1.5 [&>svg]:flex-shrink-0 rounded-2xl border border-bg-border bg-bg-card px-3 py-2 text-sm text-text-muted transition-colors hover:text-text-primary pointer-coarse:min-h-11${showLabel || truncateValue ? " max-w-full" : ""}${fullWidth ? " w-full" : ""}`
         }
       >
-        {filled ? (
+        {quiet ? (
+          <>
+            <span className="flex-shrink-0">
+              <Icon size={14} />
+            </span>
+            <span className={fullValue ? "whitespace-nowrap" : "min-w-[2.5em] truncate"}>
+              {value}
+            </span>
+            <ChevronDown size={14} className="flex-shrink-0" aria-hidden="true" />
+          </>
+        ) : filled ? (
           <>
             <span className="text-text-muted">{label}</span>
             <span className="min-w-0 truncate text-text-primary">{value}</span>
             <ChevronDown size={16} className="flex-shrink-0" aria-hidden="true" />
           </>
+        ) : inlineLabel ? (
+          <>
+            <Icon size={16} />
+            <span className="max-w-[12rem] min-w-0 truncate text-text-primary">
+              {`${label} ${value}`}
+            </span>
+          </>
         ) : (
           <>
             <Icon size={16} />
-            {showLabel && <span>{label}</span>}
+            {showLabel && <span className="flex-shrink-0 whitespace-nowrap">{label}</span>}
             <span
               className={
-                showLabel
-                  ? "max-w-[12rem] truncate text-text-primary"
-                  : truncateValue
-                    ? "truncate"
-                    : undefined
+                [
+                  showLabel
+                    ? "max-w-[12rem] min-w-0 truncate text-text-primary"
+                    : truncateValue
+                      ? "truncate"
+                      : undefined,
+                  valueClassName,
+                ]
+                  .filter(Boolean)
+                  .join(" ") || undefined
               }
             >
               {value}
@@ -247,6 +309,8 @@ export interface MenuRadioOption<T> {
   detail?: string;
   disabled?: boolean;
   title?: string;
+  /** Drawn between the check column and the name. */
+  icon?: ComponentType<{ size?: number }>;
 }
 
 interface MenuRadioGroupProps<T> {
@@ -304,6 +368,13 @@ export function MenuRadioGroup<T>({
             <span className="w-4 flex-shrink-0">
               {selected && <Check size={14} />}
             </span>
+            {opt.icon !== undefined && (
+              // On the name's first line, so a name that wraps leaves the
+              // icon at the top rather than the row's centre.
+              <span className="mt-0.5 flex-shrink-0 self-start text-text-muted">
+                <opt.icon size={14} />
+              </span>
+            )}
             {opt.detail === undefined && (
               // Smart-folder names reach this row from the user, so a long
               // unbroken one has to wrap rather than widen the menu.

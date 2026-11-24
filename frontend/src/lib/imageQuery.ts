@@ -118,7 +118,7 @@ export function askImageAvailability(drive: string): Promise<boolean> {
   const asked = (async () => {
     try {
       const response = await fetch(IMAGE_QUERY_AVAILABLE_PATH, {
-        headers: { "X-Lit-Drive": drive },
+        headers: { "X-Lit-Drive": encodeURIComponent(drive) },
       });
       if (response.status !== 200) return false;
       const body = (await response.json().catch(() => ({}))) as {
@@ -338,7 +338,7 @@ export async function requestImageAnswer(
     response = await fetch(IMAGE_QUERY_PATH, {
       method: "POST",
       headers: {
-        "X-Lit-Drive": drive,
+        "X-Lit-Drive": encodeURIComponent(drive),
         "Content-Type": entry.type,
       },
       body: entry.blob,

@@ -1,0 +1,92 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1",
+      "status": "confirmed",
+      "note": "FileDetailContainer.tsx:87,349 holds documentController and passes it down. FileDetailPresenter.tsx:55,226,272 declares and forwards it. ShellLayout.tsx:96,163,380-396 reads it in openInViewer. Both files are listed in r6/product-files.txt. The touch-point list names neither file."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F2",
+      "status": "confirmed",
+      "note": "lowerInspector.tsx:52-56 exports useLowerInspector, which returns a callback calling registry.lower(). ShellLayout.tsx:379 calls the hook, and line 392 calls the result when isMobile. lowerInspector.tsx is in r6/product-files.txt but not in the touch points."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F3",
+      "status": "confirmed",
+      "note": "FileDetailShell.tsx:82 and 113 add the raiseSheetRequest prop. Lines 462-470 add an effect that, when the request counter changes, sets the sheet state to SHEET_STATE_HALF unless it is already expanded. ShellLayout.tsx:402 and 431-433 bump sheetRaiseRequest in select() on mobile, and line 686 passes it to the shell."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F4",
+      "status": "confirmed",
+      "note": "ShellLayout.tsx:366-377 adds tabRequest state and mirrors find.selectRequest into it. Lines 602-619 build desktopShellKey and desktopWanted unconditionally. Lines 632-642 make the desktop InspectorShell controlled with activeId={desktopActiveId ?? 'info'} and onActiveIdChange. That same `inspector` goes to FileDetailShell (player files included, line 682) and to MarkdownDocumentLayout (line 732). The sheet's shell takes selectRequest={tabRequest} at line 654."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F5",
+      "status": "confirmed",
+      "note": "ShellLayout.tsx:266-269 sets documentSideEntries to [] when hasPlayer. On a player file (usesCanvasViewer), canvasSlotIds at lines 457-459 is therefore []. sectionExcludeIds (460-465) then holds only the playerSideEntries ids. No hard-coded 'detailed-summary' exclusion remains for player files. Info excludes it only because intelligence also registers detailed-summary in player-side. FileDetailContent.test.tsx:223 expects 3 slots, and line 572 now claims player-side."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F6",
+      "status": "confirmed",
+      "note": "DetailedSummarySection.tsx:190-194: canShow = loaded && (available || status==='generating' || status==='failed'). It no longer counts hasActiveSummary. Lines 247-250 report canShow through onAvailability in whatever slot mounts the component, so the change also reaches the player-side registration. The code comment shows this is deliberate (it relates to I13)."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F7",
+      "status": "confirmed",
+      "note": "DetailedSummarySection.tsx:300-313: doRegenerate always calls setData (it sets generating only when there is no prior available/status), onAvailabilityRef.current?.(true) and selectRef.current?.(). Its callers are startGenerate→doRegenerate (349; handleGenerate covers the AI menu at 501, Retry at 554 and the body's Regenerate buttons at 901/1137) and handleConfirmRegenerate (356). On the document-side host, select() is gated by reportedNow (ShellLayout.tsx:429), and the call just before it sets that to true."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F8",
+      "status": "confirmed",
+      "note": "Reproduced by reading the code. With hasActiveSummary true and the summary never generated, the AI offer is active (494-499). handleGenerate → startGenerate (344-347) sets confirmRegenerateOpen and returns, so doRegenerate and select() are not called. The component renders null at 507 (no status or reason) or at 575 (!available). The two regenerate ConfirmDialogs exist only inside the body branches (925 and 1186), which need data.available. The dialog never appears, and no tab is listed or selected, which contradicts I11 when a note exists. The startGenerate gating may predate this change; that could not be checked without the base diff."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F9",
+      "status": "confirmed",
+      "note": "stubs/next-navigation.ts:63-69: useRouter's push and replace append to window.__fixturePushes, for every spec that uses the stub. r6/product-files.txt and r6/test-files.txt list fixtures/focusMode.tsx, fixtures/inspectorResponsive.tsx, stubs/documentSideSlot.tsx, spec-viewport.spec.ts, componentFixtureParity.test.tsx, DocumentSideJump.test.tsx, DocumentSideSlot.test.tsx and MediaShell.test.tsx. None of them is in the touch points."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F10",
+      "status": "needs_human",
+      "note": "At the commit, docs/ADDON-DEVELOPMENT.md:1790 has `| intelligence | inspector-tabs | ask |` next to the document-side row at 1789. The row matches addons/intelligence/manifest.json:106-110, which declares inspector-tabs 'ask', so its content is accurate and unrelated to document-side. With only Read/Grep and no base diff, I could not confirm that this commit added the row. Docs are not in r6/product-files.txt."
+    }
+  ],
+  "specification_compliance": [
+    "I11 is violated when the file has an active summary note (see F8): the AI-menu path opens a confirm dialog that is never rendered.",
+    "Touch-point scope exceeded: FileDetailContainer, FileDetailPresenter, lowerInspector, FileDetailShell's sheet-raise effect, and player/Markdown InspectorShell control (F1-F4)."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "Player-file Info excludes detailed-summary only through the player-side registration, no longer through a core hard-code (F5).",
+    "DetailedSummarySection availability changed in player-side too (F6).",
+    "Every regenerate path selects the tab (F7)."
+  ],
+  "regression_risks": [
+    "Controlled InspectorShell on player and Markdown pages may change selection behaviour on resets (F4).",
+    "A player-side registration missing for detailed-summary would now draw it twice on a player file (F5)."
+  ],
+  "test_coverage": [
+    "Did not run tests. FileDetailContent.test.tsx and MediaShell.test.tsx were adjusted to claim player-side for detailed-summary."
+  ],
+  "not_verified": [
+    "Base-commit content (no git access): whether F8's dialog gating and F10's doc row predate this commit.",
+    "Whether buildInspectorTabs mounts unavailable document-side tabs hidden (assumed, so that the AI offer registers).",
+    "Runtime behaviour; no tests or e2e were run."
+  ],
+  "confidence": 82
+}

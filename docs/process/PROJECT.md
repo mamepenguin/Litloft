@@ -78,7 +78,9 @@ disappear exits without having waited.
     decisions as checkable lines: regions and their order, columns at a stated width,
     card size and proportion, controls and their labels, the states drawn.
   - R-5 screenshots every artboard's screen and state at the artboard's width, plus the
-    phone width.
+    phone width. Screenshots and recordings under `docs/process/reviews/` are
+    gitignored (only `design/` is tracked): they serve the review in the checkout that
+    took them, and `decisions.md` records in words what each one showed.
   - After R-5 and before `review.sh`, the `design-checker` subagent writes
     `docs/process/reviews/<topic>/design-check.md`, ending in `TOTAL: N findings`.
   - A design difference is not triaged by frequency and impact, and is not bucket B.
@@ -165,6 +167,12 @@ The specs in `docs/superpowers/specs/` predate this and are a local, gitignored 
   stack or test started there writes the real SQLite DB and thumbnails.
 - Docker: containers, the `litloft-test` image tag, and ports 3000 and 8000. Two stacks
   sharing `data/` must not run at once.
+- A stack that runs alongside another one (a parallel R-5) runs on its own clone:
+  `python3 scripts/dev/r5_stack.py clone` in the worktree, then `up`, `down`, and
+  `destroy` when done. Without `--with-drives` the drives are shared and mounted
+  read-only, so uploads, moves, renames and purges fail; a run that writes files needs
+  `--with-drives`. Open it at the URL `up` prints, never at `localhost`: cookies are not
+  separated by port.
 - The addon submodules under `addons/`, which are separate repositories.
 
 ## known_issues_file

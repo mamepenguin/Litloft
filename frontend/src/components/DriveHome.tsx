@@ -3,12 +3,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { History, FilePlus, Home, Star } from "lucide-react";
 import { useTranslations } from "next-intl";
-import type { FileItem, PaginatedResponse, WatchHistoryItem } from "@/types";
-import { dismissContinueItem, getDriveFiles, getWatchHistory } from "@/lib/api";
+import type { FileItem, HomeShortcut, PaginatedResponse, WatchHistoryItem } from "@/types";
+import { dismissContinueItem, getDriveFiles, getHomeShortcuts, getWatchHistory } from "@/lib/api";
 import { addonNavEntries } from "@/lib/addonNavigation";
 import { UploadZone } from "@/components/UploadZone";
 import { useUploadCompleted } from "@/hooks/useUpload";
 import { useInboxCount } from "@/hooks/useInboxCount";
+import { useEntryVisibility } from "@/hooks/useEntryVisibility";
 import { useTreeRefresh } from "@/components/TreeRefreshContext";
 import { useWebSocketRefresh } from "@/hooks/useWebSocketRefresh";
 import { AddButton } from "./AddButton";
@@ -64,6 +65,7 @@ export function DriveHome({ driveName }: DriveHomeProps) {
   const refreshTree = useTreeRefresh();
   const { addons, catalogueDrive } = useAddonSlots();
   const inboxCount = useInboxCount(driveName);
+  const { hidden: hiddenEntries } = useEntryVisibility(driveName);
   const [continueWatching, setContinueWatching] = useState<WatchHistoryItem[]>([]);
   const [continueWatchingLoading, setContinueWatchingLoading] = useState(false);
   const [recentlyPlayed, setRecentlyPlayed] = useState<WatchHistoryItem[]>([]);
@@ -76,6 +78,12 @@ export function DriveHome({ driveName }: DriveHomeProps) {
   const [fileSectionsFailed, setFileSectionsFailed] = useState(false);
   const [watchHistoryFailed, setWatchHistoryFailed] = useState(false);
   const [pageLoaded, setPageLoaded] = useState(false);
+  // Kept with the drive it was requested for: until the new drive's answer
+  // lands, Home must not draw the previous drive's shortcuts.
+  const [shortcuts, setShortcuts] = useState<{
+    drive: string;
+    items: HomeShortcut[];
+  }>({ drive: driveName, items: [] });
 
   // Read only after an `await`, so the effect below has always run by then.
   const shownDriveRef = useRef(driveName);
@@ -142,6 +150,13 @@ export function DriveHome({ driveName }: DriveHomeProps) {
 
   const loadPage = useCallback(async () => {
     const pageLoadId = ++pageLoadRef.current;
+    const drive = driveName;
+    // Started here but not awaited by the rows: a slow or failed shortcut
+    // request must not hold the rest of the page back.
+    const shortcutsRequest = getHomeShortcuts(drive).then(
+      (items) => items,
+      () => [] as HomeShortcut[],
+    );
     setPageLoaded(false);
     setRecent({ files: [], loading: true });
     setFavorites({ files: [], loading: true });
@@ -180,6 +195,11 @@ export function DriveHome({ driveName }: DriveHomeProps) {
         !watchResults.some((result) => result.status === "fulfilled"),
       );
     }
+
+    const shortcutItems = await shortcutsRequest;
+    if (pageLoadRef.current !== pageLoadId) return;
+    if (shownDriveRef.current !== drive) return;
+    setShortcuts({ drive, items: shortcutItems });
   }, [driveName, fetchFileSections, applyFileSections, hasProfile]);
 
   // `nickname` is a dependency because the viewer travels in a cookie,
@@ -305,6 +325,8 @@ export function DriveHome({ driveName }: DriveHomeProps) {
         drive={driveName}
         addonEntries={addonEntries}
         inboxCount={inboxCount}
+        shortcuts={shortcuts.drive === driveName ? shortcuts.items : []}
+        hiddenKeys={hiddenEntries}
       />
 
       {hasProfile && (

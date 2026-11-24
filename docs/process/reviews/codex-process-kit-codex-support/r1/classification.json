@@ -1,0 +1,39 @@
+{
+  "risk": "CRITICAL",
+  "score": 10,
+  "base": 0,
+  "zone_max": "CRITICAL",
+  "modifiers": [],
+  "promotions": [],
+  "zones_touched": [
+    {
+      "path": ".githooks/pre-push",
+      "level": "CRITICAL"
+    },
+    {
+      "path": ".process-kit.lock",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "CLAUDE.md",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "docs/process/codex.md",
+      "level": "LOW"
+    }
+  ],
+  "human_zones_touched": [],
+  "protected_paths_touched": [
+    ".githooks/pre-push",
+    ".process-kit.lock",
+    "docs/process/codex.md"
+  ],
+  "docs_only": false,
+  "reasons": [
+    "highest zone CRITICAL (10 points)",
+    "protected path changed: .githooks/pre-push",
+    "protected path changed: .process-kit.lock",
+    "protected path changed: docs/process/codex.md"
+  ]
+}

@@ -134,6 +134,7 @@ const mockFile: FileItem = {
   trust_reviewed_at: null,
   created_at: "2026-01-01T00:00:00Z",
   updated_at: "2026-01-01T00:00:00Z",
+  modified_at: null,
 };
 
 function renderWithStack(ui: React.ReactElement) {
@@ -907,8 +908,10 @@ describe("FileActions Copy ID", () => {
     const input = screen.getByRole("textbox") as HTMLInputElement;
     expect(dialog).toContainElement(input);
     expect(input.value).toBe("file-1");
-    expect(document.activeElement).toBe(input);
-    expect([input.selectionStart, input.selectionEnd]).toEqual([0, 6]);
+    await waitFor(() => {
+      expect(document.activeElement).toBe(input);
+      expect([input.selectionStart, input.selectionEnd]).toEqual([0, 6]);
+    });
     expect(toastSuccessMock).not.toHaveBeenCalled();
     expect(clipboardSpies.copy).not.toHaveBeenCalled();
   });

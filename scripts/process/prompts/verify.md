@@ -29,18 +29,50 @@ and needs no reproduction: `repro` may be `not_reproduced`.
 No threat model is declared.
 @end
 
-@if invariants
 ## Declared invariants
 
-The invariants are declared in {{INVARIANTS_PATH}}; where an id appears twice, the later
-line is the one in force:
+@if invariants
+The invariants are declared in {{INVARIANTS_PATH}}. Their text follows; where an id
+appears twice, the later line is the one in force. A finding in bucket A must cite one of
+these ids in `invariant_ref`.
 
 {{INVARIANTS}}
+@end
+@if noinvariants
+No invariants file exists for this change. Bucket A is not available without one.
 @end
 
 ## Findings to verify
 
 {{FINDINGS}}
+
+## Unspecified behavior to score
+
+The readers listed these behaviors that the spec does not describe:
+
+{{UNSPECIFIED}}
+
+Score every entry above yourself, without regard to how the reader scored it, and return
+one record per entry in `unspecified_scores`: `source_reviewer` (the `reviewer` shown),
+`index` (the `index` shown), `frequency`, `impact` and `reason`. An entry with no record
+makes your artifact invalid.
+
+Score each entry on two scales, as it would reach a user in ordinary use. Judge frequency
+against the threat model above: use outside it scores 0. Score the behavior as it is, not
+the worst thing that could be imagined.
+
+- `frequency` (0-10): 0 = no ordinary condition (it needs an artificial delay, a crash at a
+  precise moment, hand-edited data, or use outside the threat model); 1 = a few times a
+  year; 3 = a few times a month; 5 = a few times a week; 8 = almost every day; 10 = every
+  use. Values in between are allowed.
+- `impact` (1-10): 1 = a trivial visual difference, or harmless; 3 = inconvenient, easy to
+  work around; 5 = a feature does not work and the user notices; 8 = silently wrong, or
+  lost data that takes effort to recover; 10 = unrecoverable loss or a broken security
+  boundary.
+- `reason`: one sentence naming what triggers it and what the user sees.
+
+A behavior no reader listed goes in your own `potential_unspecified_behavior`, as an object
+with `behavior`, `frequency`, `impact` and `reason`; it needs no record.
 
 ## Rules for what you return
 
@@ -50,9 +82,15 @@ line is the one in force:
   required for `needs_human` and for `rejected_with_evidence`, and for a rejection it must
   carry the evidence: `file:line` and what the code does.
 - Reproduce the claim before you confirm or reject it. Severity is not yours to change.
-- If you find a defect no reader listed, report it as a finding with `origin` `verifier`,
-  carrying `claim`, `impact`, `evidence`, `repro`, `introduced`, `bucket_proposal`
-  and `severity` as any finding does. It needs no record.
+- If you find a defect no reader listed, report it as a finding with `origin` `verifier`.
+  It needs no record. It carries `id`, `claim` (one sentence: what is wrong, no remedy),
+  `impact`, `evidence` (`file:line` and the observed behavior), `repro`
+  (`not_reproduced` is allowed), `introduced` (`introduced`, `pre-existing` or
+  `unverified`), `bucket_proposal` (A, B or C with a reason; A requires an
+  `invariant_ref` that is declared), `severity` (BLOCKER, HIGH, MEDIUM, LOW or INFO;
+  BLOCKER requires bucket A or C) and, optionally, `proposed_fix`.
+- Bucket A breaks a declared invariant. Bucket B breaks none but reads wrong. Bucket C
+  means the design itself is wrong.
 - `not_verified` must list at least one thing you did not check. Confidence 100 with an
   empty `not_verified` is invalid, and an artifact with confidence below 70 is not accepted.
   Report your honest confidence.
@@ -61,7 +99,7 @@ line is the one in force:
 ## Output
 
 Return one JSON object through the structured output, with `schema_version` 1, `reviewer`
-`{{REVIEWER}}`, `role` `verify`, `risk` `{{RISK}}`, `findings`, `verification`,
+`{{REVIEWER}}`, `role` `verify`, `risk` `{{RISK}}`, `findings`, `verification`, `unspecified_scores`,
 `specification_compliance`, `unspecified_behavior_found`, `potential_unspecified_behavior`,
 `regression_risks`, `test_coverage`, `not_verified` and `confidence`. Text outside the
 structured result is discarded.

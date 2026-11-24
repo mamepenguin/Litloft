@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "U1",
+      "status": "confirmed",
+      "note": "FileMetaBlock.tsx:60 adds an `inspector = false` prop. Lines 66-67 set `data-inspector-header-block` and drop `mt-4` when the prop is set, and lines 80-89 add the header-body, title and meta attributes. FileDetailContainer.tsx:282 passes `inspector={ridesShell}`. r6/classification.json lists frontend/src/components/FileDetail/FileMetaBlock.tsx among the changed paths, and the touch-point list does not name it."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "U2",
+      "status": "confirmed",
+      "note": "useMiniPlayer.ts:24, 56 and 70 add a `stacked` input, and line 34 adds `if (inputs.stacked) return false`. MiniPlayerContainer.tsx:19, 35 and 45 thread `stacked` through. FilePreview.tsx:116 reads `useInspectorForm(file.id)` and passes `stacked` at lines 126 and 152. classification.json lists all four files, including hooks/__tests__/useMiniPlayer.test.ts, and none of them is in the touch-point list."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "U3",
+      "status": "confirmed",
+      "note": "Both frontend/src/hooks/useInspectorForm.ts and frontend/src/lib/leftPaneContext.ts exist and appear as changed paths in classification.json. FilePreview.tsx:116 consumes useInspectorForm. The touch-point list names only inspectorFormStore.ts and treeYieldStore.ts as new lib modules."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "U4",
+      "status": "confirmed",
+      "note": "useIsMobile.ts:5 has `export const MOBILE_BREAKPOINT = 768`. inspectorOpenStore.ts:10 imports it from `@/hooks/useIsMobile`, and line 48 uses it. classification.json lists useIsMobile.ts, which is absent from the touch-point list."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "U5",
+      "status": "confirmed",
+      "note": "setup.ts:119-127 is a global afterEach. At line 125 it calls `document.documentElement.removeAttribute(\"data-media-layout\")`. classification.json lists frontend/src/test/setup.ts, which is not a touch point."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "U6",
+      "status": "confirmed",
+      "note": "build-bundle.ts:34 adds a global alias, `/^@\\/lib\\/addons$/` → stubs/addons.ts. stubs/next-navigation.ts:19-23 now returns `window.__fixtureSearchParams` when it is set. stubs/addons.ts and stubs/transcriptSlot.tsx exist, and all of them appear in classification.json. The touch-point list allows build-bundle.ts only for a new bundle entry and does not name the stubs."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "U7",
+      "status": "confirmed",
+      "note": "classification.json lists changed test and harness files that the touch-point list does not name: FileDetail/__tests__/harness.tsx, componentFixtureParity.test.tsx, e2e-components/fixtures/app.tsx, spec-viewport.spec.ts, StackedInspector.test.tsx, InspectorForm.test.tsx, FileDetailShellYield.test.tsx, InspectorShell.headerInInfo.test.tsx, TreeYield.test.tsx, TreeYieldRemount.test.tsx and useMiniPlayer.test.ts."
+    }
+  ],
+  "specification_compliance": [
+    "All seven scope findings, U1 through U7, are confirmed: files outside the declared touch points were changed. I checked this against the files in the worktree and against r6/classification.json."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "The mini-player is suppressed while the inspector is stacked (useMiniPlayer.ts:34), but the declared touch points do not cover this."
+  ],
+  "regression_risks": [
+    "The global afterEach in setup.ts that clears data-media-layout could hide test-order dependencies.",
+    "The global @/lib/addons alias in build-bundle.ts changes how every component fixture resolves addons."
+  ],
+  "test_coverage": [
+    "I did not run the tests. I only confirmed that the files exist and appear in the changed-file list."
+  ],
+  "not_verified": [
+    "I could not run git diff, so I relied on r6/classification.json for the list of changed files and on reading the files at HEAD. I did not confirm hunk-level diffs against origin/develop.",
+    "I did not check whether the out-of-scope changes break any invariant from I1 to I10.",
+    "I did not run the tests or the e2e suites."
+  ],
+  "confidence": 88
+}

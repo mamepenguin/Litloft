@@ -219,9 +219,9 @@ const GROUPS = [
   "the drawer is nine tenths of the viewport vaul reads",
   "the end of the tab can be brought on screen",
   "exactly one box scrolls, and it is the sheet's",
-  "the tab strip stays reachable once it has been scrolled to",
-  "the tab strip is on screen from the start when the header fits",
-  "replaced: the pinned header leaves the wrong box scrolling",
+  "the tab strip stays stuck at the top while the Info panel scrolls",
+  "the tab strip is on screen from the start",
+  "the panel form's one scroller is the panel",
   "replaced: the hand-written cap ends below the screen",
   "replaced: an unbounded scroller ends a whole overhang below the screen",
 ] as const;
@@ -290,12 +290,14 @@ test.describe(GROUPS[3], () => {
 
 test.describe(GROUPS[4], () => {
   eachCase(GROUPS[4], async (page, { width, height, snap }) => {
-    // A header taller than the whole visible sheet, which at `half` is
-    // the file page's real shape: the strip starts below the fold.
-    const spec = { width, height, snap, headerPx: height };
+    // Info's content is taller than the whole visible sheet, so the
+    // header block and the body start below the fold and the strip has to
+    // hold its place while they travel.
+    const spec = { width, height, snap, headerPx: 40, bodyPx: height * 3 };
 
     const rest = await layout(page, spec);
-    expect(rest.stripTopInScroller).toBeGreaterThan(rest.scroller.height);
+    expect(rest.stripTopInScroller).toBeCloseTo(0, 0);
+    expect(rest.headerTopInScroller).toBeGreaterThan(rest.strip.height);
 
     const scrolled = await layout(page, spec, TO_THE_END);
     expect(scrolled.stripPosition).toBe("sticky");
@@ -314,34 +316,22 @@ test.describe(GROUPS[4], () => {
 
 test.describe(GROUPS[5], () => {
   eachCase(GROUPS[5], async (page, { width, height, snap }) => {
-    const m = await layout(page, { width, height, snap, headerPx: 40 });
+    // A header block taller than the whole visible sheet: it sits in Info,
+    // so it cannot push the strip off screen.
+    const m = await layout(page, { width, height, snap, headerPx: height });
+    expect(m.stripTopInScroller).toBeCloseTo(0, 0);
+    expect(m.strip.top).toBeGreaterThanOrEqual(0);
     expect(m.strip.bottom).toBeLessThanOrEqual(height + 1);
-    expect(m.stripTopInScroller).toBeCloseTo(40, 0);
+    expect(m.headerTopInScroller).toBeGreaterThan(m.strip.height);
   });
 });
-
-/**
- * Where the `shrink-0` header and tab strip are taller than the whole
- * visible sheet, the two-tier form overflows the sheet's own scroller as
- * well as the panel.
- */
-const HEADER_OVERFLOWS_THE_SHEET = ["667x375 at half"];
-expect(HEADER_OVERFLOWS_THE_SHEET).toHaveLength(1);
 
 test.describe(GROUPS[6], () => {
   eachCase(GROUPS[6], async (page, c) => {
     const m = await layout(page, { ...c, mode: "panel" }, TO_THE_END);
 
-    if (HEADER_OVERFLOWS_THE_SHEET.includes(caseKey(c))) {
-      expect(m.verticallyScrollable).toEqual([
-        "mobile-inspector-content",
-        "inspector-panel",
-      ]);
-      expect(m.maxScroll).toBeGreaterThan(0);
-    } else {
-      expect(m.verticallyScrollable).toEqual(["inspector-panel"]);
-      expect(m.maxScroll).toBe(0);
-    }
+    expect(m.verticallyScrollable).toEqual(["inspector-panel"]);
+    expect(m.maxScroll).toBe(0);
     expect(m.end.top).toBeGreaterThan(c.height);
   });
 });
@@ -775,7 +765,7 @@ test.describe("no row of the tab body shows above the stuck strip", () => {
   }> {
     const m = await layout(page, spec, TO_THE_END);
     expect(m.stripPosition).toBe("sticky");
-    const body = page.locator("[data-testid='inspector-panel'] > div").first();
+    const body = page.locator("[data-testid='inspector-body']");
     const clip = {
       x: 0,
       y: Math.floor(m.strip.top) - 1,

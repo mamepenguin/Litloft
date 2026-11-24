@@ -49,6 +49,7 @@ const mockGetWatchHistory = vi.fn();
 vi.mock("@/lib/api", () => ({
   getDriveFiles: (...args: unknown[]) => mockGetDriveFiles(...args),
   getWatchHistory: (...args: unknown[]) => mockGetWatchHistory(...args),
+  getHomeShortcuts: vi.fn().mockResolvedValue([]),
   initUpload: vi.fn(),
   completeUpload: vi.fn().mockResolvedValue(undefined),
   getThumbnailUrl: (id: string) => `/api/files/${id}/thumbnail`,
@@ -93,6 +94,7 @@ const aFile = (id: string): FileItem => ({
   trust_reviewed_at: null,
   created_at: "2026-01-01T00:00:00",
   updated_at: "2026-01-01T00:00:00",
+  modified_at: null,
 });
 
 const aWatchItem = (id: string): WatchHistoryItem => ({

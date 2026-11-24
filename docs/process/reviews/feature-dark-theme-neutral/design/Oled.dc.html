@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>OLED 真っ黒</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:#e85d5e}a:hover{color:#f07070}
+</style>
+</helmet>
+<div style="width: 760px; height: 560px; box-sizing: border-box; display: flex; flex-direction: column; background: #000000; color: #ededed; font-family: -apple-system, system-ui, 'Hiragino Sans', sans-serif; font-size: 14px; line-height: 1.6; overflow: hidden">
+<header style="height: 56px; flex-shrink: 0; display: flex; align-items: center; gap: 16px; padding: 0 20px; border-bottom: 1px solid rgba(255,255,255,0.1)">
+<span style="font-weight: 700; font-size: 16px">Litloft</span>
+<label style="flex-grow: 1; display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 12px; border-radius: 16px; background: #262626; color: #a3a3a3">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M21 21l-4.3-4.3"></path></svg>
+<input type="search" placeholder="ファイルを検索" style="flex-grow: 1; border: 0; background: transparent; color: #ededed; font-size: 14px; outline: none">
+</label>
+<button type="button" style="height: 36px; padding: 0 16px; border: 0; border-radius: 16px; background: #e85d5e; color: #ffffff; font-size: 14px; font-weight: 600">アップロード</button>
+</header>
+<div style="flex-grow: 1; display: flex; min-height: 0">
+<nav style="width: 176px; flex-shrink: 0; padding: 16px 12px; display: flex; flex-direction: column; gap: 2px; background: #000000; border-right: 1px solid rgba(255,255,255,0.1)">
+<span style="padding: 0 8px 6px; font-size: 12px; color: #a3a3a3">フォルダ</span>
+<a href="#" style="padding: 7px 8px; border-radius: 8px; background: #222222; color: #ededed; text-decoration: none">映画</a>
+<a href="#" style="padding: 7px 8px; border-radius: 8px; color: #a3a3a3; text-decoration: none">旅行 2026</a>
+<a href="#" style="padding: 7px 8px; border-radius: 8px; color: #a3a3a3; text-decoration: none">講演</a>
+<a href="#" style="padding: 7px 8px; border-radius: 8px; color: #a3a3a3; text-decoration: none">メモ</a>
+<span style="margin-top: auto; padding: 0 8px; font-size: 12px; color: #8a8a8a">ゴミ箱 3 件</span>
+</nav>
+<main style="flex-grow: 1; padding: 20px; display: flex; flex-direction: column; gap: 14px; min-width: 0">
+<div style="display: flex; align-items: baseline; gap: 10px">
+<h1 style="margin: 0; font-size: 20px; font-weight: 700">映画</h1>
+<span style="font-size: 13px; color: #a3a3a3">24 ファイル · 38.2 GB</span>
+</div>
+<div style="display: flex; gap: 6px">
+<span style="padding: 3px 10px; border-radius: 12px; background: #e85d5e; color: #ffffff; font-size: 12px">すべて</span>
+<span style="padding: 3px 10px; border-radius: 12px; background: #262626; color: #ededed; font-size: 12px">お気に入り</span>
+<span style="padding: 3px 10px; border-radius: 12px; background: #262626; color: #ededed; font-size: 12px">未視聴</span>
+<span style="padding: 3px 10px; border-radius: 12px; background: #262626; color: #ededed; font-size: 12px">#家族</span>
+</div>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px">
+<article style="border-radius: 12px; background: #141414; overflow: hidden">
+<div style="height: 96px; background: #3b5b7a; position: relative"><span style="position: absolute; right: 6px; bottom: 6px; padding: 1px 6px; border-radius: 4px; background: rgba(0,0,0,0.7); color: #ffffff; font-size: 11px">1:42:08</span><div style="position: absolute; left: 0; bottom: 0; width: 60%; height: 3px; background: #e85d5e"></div></div>
+<div style="padding: 8px 10px"><div style="font-size: 13px; font-weight: 600">海辺の記録</div><div style="font-size: 12px; color: #a3a3a3">2.4 GB · 11月2日</div></div>
+</article>
+<article style="border-radius: 12px; background: #141414; overflow: hidden">
+<div style="height: 96px; background: #6b7d4a; position: relative"><span style="position: absolute; right: 6px; bottom: 6px; padding: 1px 6px; border-radius: 4px; background: rgba(0,0,0,0.7); color: #ffffff; font-size: 11px">58:31</span></div>
+<div style="padding: 8px 10px"><div style="font-size: 13px; font-weight: 600">森の朝</div><div style="font-size: 12px; color: #a3a3a3">1.1 GB · 10月28日</div></div>
+</article>
+<article style="border-radius: 12px; background: #141414; overflow: hidden">
+<div style="height: 96px; background: #8a5a3c; position: relative"><span style="position: absolute; right: 6px; bottom: 6px; padding: 1px 6px; border-radius: 4px; background: rgba(0,0,0,0.7); color: #ffffff; font-size: 11px">2:05:44</span></div>
+<div style="padding: 8px 10px"><div style="font-size: 13px; font-weight: 600">夕暮れの街</div><div style="font-size: 12px; color: #a3a3a3">3.8 GB · 10月15日</div></div>
+</article>
+<article style="border-radius: 12px; background: #141414; overflow: hidden">
+<div style="height: 96px; background: #2f4a5c; position: relative"><span style="position: absolute; right: 6px; bottom: 6px; padding: 1px 6px; border-radius: 4px; background: rgba(0,0,0,0.7); color: #ffffff; font-size: 11px">45:12</span></div>
+<div style="padding: 8px 10px"><div style="font-size: 13px; font-weight: 600">雨の日</div><div style="font-size: 12px; color: #a3a3a3">0.9 GB · 9月30日</div></div>
+</article>
+<article style="border-radius: 12px; background: #141414; overflow: hidden">
+<div style="height: 96px; background: #7a6a52; position: relative"><span style="position: absolute; right: 6px; bottom: 6px; padding: 1px 6px; border-radius: 4px; background: rgba(0,0,0,0.7); color: #ffffff; font-size: 11px">1:18:27</span></div>
+<div style="padding: 8px 10px"><div style="font-size: 13px; font-weight: 600">砂丘</div><div style="font-size: 12px; color: #a3a3a3">2.0 GB · 9月12日</div></div>
+</article>
+<article style="border-radius: 12px; background: #222222; overflow: hidden; outline: 2px solid #e85d5e">
+<div style="height: 96px; background: #4a3f5e; position: relative"><span style="position: absolute; right: 6px; bottom: 6px; padding: 1px 6px; border-radius: 4px; background: rgba(0,0,0,0.7); color: #ffffff; font-size: 11px">33:50</span></div>
+<div style="padding: 8px 10px"><div style="font-size: 13px; font-weight: 600">星空</div><div style="font-size: 12px; color: #a3a3a3">0.6 GB · 8月21日</div></div>
+</article>
+</div>
+</main>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":760,"height":560}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

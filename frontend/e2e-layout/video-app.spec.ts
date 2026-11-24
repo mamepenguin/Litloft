@@ -36,6 +36,8 @@ interface Measurement {
   longTitle: Box & { lineHeight: number };
   shortTitle: Box;
   progress: Box | null;
+  progressFills: Box[];
+  resumeTick: Box | null;
   shelfTitles: (Box & { truncated: boolean })[];
   seeAll: Box[];
 }
@@ -49,8 +51,9 @@ declare global {
 
 const PHONE = 390;
 const DESKTOP = 1440;
-/** `h-1` and the 16:9 `aspect-video`, declared and not read off a measurement. */
+/** `h-1`, `h-[10px]` and the 16:9 `aspect-video`, declared and not read off a measurement. */
 const PROGRESS_PX = 4;
+const TICK_PX = 10;
 const TILE_PX = 40;
 
 async function measure(page: Page, face: "discover" | "library", width: number) {
@@ -82,6 +85,10 @@ for (const width of [PHONE, DESKTOP]) {
       expect(m.thumb.width / m.thumb.height).toBeCloseTo(16 / 9, 1);
       expect(m.progress!.height).toBe(PROGRESS_PX);
       expect(m.progress!.width).toBeCloseTo(m.thumb.width, 0);
+      expect(m.progressFills).toHaveLength(3);
+      expect(m.resumeTick!.height).toBe(TICK_PX);
+      expect(m.resumeTick!.bottom).toBeCloseTo(m.progress!.bottom, 0);
+      expect(Math.abs(m.resumeTick!.left + m.resumeTick!.width / 2 - (m.progress!.left + m.progress!.width * 0.4))).toBeLessThan(1);
       expect(m.longTitle.height).toBeLessThanOrEqual(m.longTitle.lineHeight * 2 + 1);
       expect(m.longTitle.height).toBeGreaterThan(m.shortTitle.height);
       expect(m.cardSlot.width).toBeGreaterThanOrEqual(176);

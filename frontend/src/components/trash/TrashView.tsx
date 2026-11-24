@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
@@ -25,14 +25,18 @@ interface TrashViewProps {
 
 export function TrashView({ driveName }: TrashViewProps) {
   const tt = useTranslations("trash");
+  const tc = useTranslations("common");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [sort, setSort] = useState<SortField>("created_at");
   const [order, setOrder] = useState<SortOrder>("desc");
   const [typeFilter, setTypeFilter] = useState<FileType | null>(null);
   const [selectable, setSelectable] = useState(false);
   const [emptyConfirmOpen, setEmptyConfirmOpen] = useState(false);
+  const [emptyBusy, setEmptyBusy] = useState(false);
+  const [emptyError, setEmptyError] = useState<string | null>(null);
   const [purgeConfirmOpen, setPurgeConfirmOpen] = useState(false);
   const [purgeTarget, setPurgeTarget] = useState<string | null>(null);
+  const emptyRunningRef = useRef(false);
 
   const selection = useSelection();
 
@@ -83,14 +87,30 @@ export function TrashView({ driveName }: TrashViewProps) {
   }, [purgeTarget, setFiles]);
 
   const handleEmptyTrash = useCallback(async () => {
+    if (emptyRunningRef.current) return;
+    emptyRunningRef.current = true;
+    setEmptyBusy(true);
+    setEmptyError(null);
     try {
       await emptyTrash(driveName);
       setEmptyConfirmOpen(false);
       setFiles([]);
     } catch {
-      // keep dialog open
+      // The list is refetched first so it shows what the server holds; a
+      // timeout can hide a request the server finished.
+      reset();
+      setEmptyError(tc("wholeListFailed"));
+    } finally {
+      emptyRunningRef.current = false;
+      setEmptyBusy(false);
     }
-  }, [driveName, setFiles]);
+  }, [driveName, setFiles, reset, tc]);
+
+  const handleEmptyTrashCancel = useCallback(() => {
+    if (emptyRunningRef.current) return;
+    setEmptyConfirmOpen(false);
+    setEmptyError(null);
+  }, []);
 
   const handleMetaSelect = useCallback((id: string) => {
     setSelectable(true);
@@ -195,6 +215,11 @@ export function TrashView({ driveName }: TrashViewProps) {
             setSelectable(false);
           }}
           onComplete={refresh}
+          onSelectOnly={selection.replace}
+          onProcessed={(processed) => {
+            const dropped = new Set(processed);
+            setFiles((prev) => prev.filter((f) => !dropped.has(f.id)));
+          }}
         />
       )}
 
@@ -203,8 +228,11 @@ export function TrashView({ driveName }: TrashViewProps) {
         title={tt("emptyTrash")}
         message={tt("confirmEmpty")}
         confirmLabel={tt("emptyTrash")}
+        busy={emptyBusy}
+        progress={emptyBusy ? tc("working") : undefined}
+        error={emptyError ?? undefined}
         onConfirm={handleEmptyTrash}
-        onCancel={() => setEmptyConfirmOpen(false)}
+        onCancel={handleEmptyTrashCancel}
       />
 
       <ConfirmDialog

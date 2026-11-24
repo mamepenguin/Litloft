@@ -11,6 +11,7 @@ import {
 import { useTranslations } from "next-intl";
 
 import { listedTabs, showsTabStrip, type InspectorTab } from "./tabs";
+import { InspectorActiveTabContext } from "./activeTab";
 
 /**
  * `column` makes the whole inspector one column: the inspector adds no
@@ -24,20 +25,32 @@ interface InspectorShellProps {
   resetKey?: string;
   scroll?: InspectorScroll;
   selectRequest?: { tabId: string; seq: number } | null;
+  /**
+   * Report that the request has been taken. A request is for the shell that
+   * was mounted when it was made: one mounted later starts on the first tab
+   * rather than replaying a selection nobody asked for again.
+   */
+  onSelectRequestTaken?: (seq: number) => void;
   onSelect?: (tabId: string) => void;
+  /**
+   * The selection, when the host has to know it during render — the pane's
+   * wide width depends on the tab, so an effect would paint a frame at the
+   * wrong width. Omitted, the shell keeps it itself.
+   */
+  activeId?: string;
+  onActiveIdChange?: (tabId: string) => void;
 }
 
-/**
- * In `column` mode the header and its action row scroll away. Trading the
- * pinned header for the height it takes is the user's confirmed decision.
- */
 export function InspectorShell({
   header,
   tabs,
   resetKey,
   scroll = "panel",
   selectRequest = null,
+  onSelectRequestTaken,
   onSelect,
+  activeId: controlledId,
+  onActiveIdChange,
 }: InspectorShellProps) {
   const t = useTranslations("inspector");
   // Only a listed tab can be selected. An unlisted one is mounted so it
@@ -45,7 +58,16 @@ export function InspectorShell({
   // own entry has just said is empty.
   const listed = listedTabs(tabs);
   const firstId = listed[0]?.id ?? "info";
-  const [activeId, setActiveId] = useState<string>(firstId);
+  const [internalId, setInternalId] = useState<string>(firstId);
+  const controlled = controlledId !== undefined;
+  const activeId = controlled ? controlledId : internalId;
+  const setActiveId = useCallback(
+    (id: string) => {
+      if (controlled) onActiveIdChange?.(id);
+      else setInternalId(id);
+    },
+    [controlled, onActiveIdChange],
+  );
   const tabRefs = useRef(new Map<string, HTMLButtonElement>());
 
   useEffect(() => {
@@ -62,10 +84,18 @@ export function InspectorShell({
   // in state, a dead id springs back the moment its tab returns.
   useEffect(() => {
     if (active && active.id !== activeId) setActiveId(active.id);
-  }, [active, activeId]);
+  }, [active, activeId, setActiveId]);
+
+  const takenRef = useRef(onSelectRequestTaken);
+  useEffect(() => {
+    takenRef.current = onSelectRequestTaken;
+  });
 
   useEffect(() => {
     if (!selectRequest) return;
+    // Taking the request retires it, so a shell mounted later — the pane
+    // reopening, the sheet after a resize — starts on the first tab.
+    takenRef.current?.(selectRequest.seq);
     if (listed.some((tab) => tab.id === selectRequest.tabId)) {
       setActiveId(selectRequest.tabId);
     }
@@ -93,7 +123,7 @@ export function InspectorShell({
       setActiveId(next.id);
       tabRefs.current.get(next.id)?.focus();
     },
-    [listed, active?.id],
+    [listed, active?.id, setActiveId],
   );
 
   const column = scroll === "column";
@@ -129,6 +159,7 @@ export function InspectorShell({
   }, [column, strip]);
 
   return (
+    <InspectorActiveTabContext.Provider value={active?.id ?? null}>
     <div
       ref={rootRef}
       data-testid="inspector-shell"
@@ -139,10 +170,6 @@ export function InspectorShell({
       // instead of extending it.
       className={column ? "flex flex-col" : "flex h-full min-h-0 flex-col"}
     >
-      <div className={column ? "px-4 pt-4 pb-3" : "shrink-0 px-4 pt-4 pb-3"}>
-        {header}
-      </div>
-
       {strip && (
         <div
           ref={stripRef}
@@ -223,10 +250,12 @@ export function InspectorShell({
                 : "min-h-0 flex-1 space-y-4 overflow-auto p-4"
             }
           >
+            {tab.id === "info" && header}
             {tab.content}
           </div>
         );
       })}
     </div>
+    </InspectorActiveTabContext.Provider>
   );
 }

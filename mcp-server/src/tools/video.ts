@@ -31,7 +31,8 @@ interface CoreFile {
 
 interface SceneItem {
   start: number;
-  end: number | null;
+  end: number;
+  frame_time: number;
   transcript_excerpt: string | null;
 }
 
@@ -124,7 +125,7 @@ async function fetchSceneFrames(
       const index = next++;
       try {
         const res = await client.requestBytes("GET", framePath(fileId), {
-          query: { t: scenes[index].start, size: "small" },
+          query: { t: scenes[index].frame_time, size: "small" },
           headers: driveHeaders(drive),
           signal: budget.signal,
         });
@@ -198,7 +199,7 @@ const getVideoFrame: LitloftMediaTool = {
 const listVideoScenes: LitloftMediaTool = {
   name: "list_video_scenes",
   description:
-    "Overview of a video: up to 24 representative scenes chosen from the scene changes found at indexing, each with its start/end time, the nearby transcript excerpt and a small frame image. Pass start_time/end_time (seconds) to look closer at one part of a long video. Use get_video_frame for a large frame of a scene you want to read. Native videos and YouTube .loft references indexed by the intelligence addon; for a .loft of another provider the error gives its URL.",
+    "Overview of a video: up to 40 representative scenes chosen from the video's sections, each with its section start/end time, the time of its frame, the nearby transcript excerpt and a small frame image. Pass start_time/end_time (seconds) to look closer at one part of a long video. Use get_video_frame for a large frame of a scene you want to read. Native videos and YouTube .loft references indexed by the intelligence addon; for a .loft of another provider the error gives its URL.",
   inputSchema: {
     drive: z.string(),
     file_id: z.string(),
@@ -242,6 +243,7 @@ const listVideoScenes: LitloftMediaTool = {
           index: i + 1,
           start: scene.start,
           end: scene.end,
+          frame_time: scene.frame_time,
           transcript_excerpt: truncateExcerpt(scene.transcript_excerpt),
           frame: "image" in frames[i] ? "included" : "unavailable",
         })),
@@ -257,7 +259,9 @@ const listVideoScenes: LitloftMediaTool = {
         );
       }
       res.scenes.forEach((scene, i) => {
-        content.push(textBlock(`Scene ${i + 1} at ${scene.start}s`));
+        content.push(
+          textBlock(`Scene ${i + 1} at ${scene.start}s (frame at ${scene.frame_time}s)`)
+        );
         const frame = frames[i];
         content.push("image" in frame ? frame.image : textBlock(`frame unavailable: ${frame.reason}`));
       });

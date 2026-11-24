@@ -8,7 +8,7 @@ It runs inside the backend, is scoped to a drive, and appears in the sidebar as 
 
 - **Import from URL** turns a video URL into a `.loft` file in the folder you choose.
 - yt-dlp fetches the title, channel, description, publication date, duration, thumbnail and chapters.
-- When the video has captions, one `.vtt` file in the video's language is saved next to the `.loft`.
+- When the video has captions, one `.vtt` file in the video's language is saved next to the `.loft`. For a language with a region, such as `en-US`, captions listed under the base language (`en`) count too. A live stream's chat replay is not captions.
 - With the [intelligence addon](intelligence.md), a video without captions can be transcribed with speech-to-text.
 - YouTube and Vimeo play in embedded players inside Litloft. Other sites show a link card.
 - You can subscribe to a YouTube channel or playlist, and its new videos are imported on a schedule.
@@ -21,7 +21,7 @@ media_import is built into the backend image whenever `addons/media_import/` is 
 docker compose up -d --build
 ```
 
-The image build installs yt-dlp from the addon's `requirements.txt`. To stop the addon loading, leave the submodule uninitialised; see [Enabling and disabling addons](overview.md#enabling-and-disabling-addons).
+The image build installs yt-dlp from the addon's `requirements.txt`, and Node.js for yt-dlp's JavaScript challenges. To stop the addon loading, leave the submodule uninitialised; see [Enabling and disabling addons](overview.md#enabling-and-disabling-addons).
 
 ## Per-drive policy
 
@@ -80,11 +80,11 @@ If the owner has disabled embedding, the page says **Embedded playback is disabl
 
 In the [iOS app](../user-guide/ios-app.md), the YouTube player's settings have **Open in the iOS player**, which plays the video in iOS's own full-screen player. From there the video can continue in picture-in-picture when you leave the app. A browser does not show this button.
 
-## Below the player
+## Where the details are
 
-The addon adds a panel under the player with:
+The addon adds a panel at the top of the file's **Info** tab, under the title, with:
 
-- the channel name, publication date and the start of the description;
+- the channel name, publication date and the start of the description. The channel name is a link to that channel's videos;
 - the caption status, for example **YouTube has no captions for this video**. When a download failed, click the status to try again.
 
 Two actions for a `.loft` are in the file's menus:
@@ -93,6 +93,14 @@ Two actions for a `.loft` are in the file's menus:
 - **Generate captions with speech-to-text**, in the **AI** menu, downloads the audio for the intelligence addon to transcribe. The AI menu is part of the intelligence addon.
 
 Both show their result as a notification.
+
+## A channel's videos
+
+Clicking the channel name in the **Info** tab opens `/drive/{drive}/addons/media_import?provider=<provider>&channel=<channel>`: every `.loft` in the same drive whose channel and provider match exactly, newest publication first. A video with no publication date sorts by the date it was imported. The header has a link back to **YouTube & Feeds**, and each card shows the publication date under the title. Videos load as you scroll.
+
+Right-click a card, or press and hold it on a touch screen, for the same menu as the file list: open in a new tab, download, add to a collection, copy, cut, copy ID, rename, move and move to trash. After a rename, move or move to trash, the list reloads.
+
+The list comes from `GET /api/addons/media_import/channel-videos?provider=&channel=` with the `X-Lit-Drive` header. It answers `{"items": [{"file_id", "published_at"}]}` with every match, in that order. A missing header is `400`, a locked or unknown drive `404`, and a missing or blank `provider` or `channel` `422`.
 
 ## Search and Ask
 
@@ -107,7 +115,7 @@ You watch subscription videos in the drive's [Video](../user-guide/video.md) app
 - **よく見るソース** / **Regular sources**: subscriptions set to **Regular source**, at most the two newest videos from each.
 - **購読の新着** / **New from subscriptions**: subscriptions set to **購読の新着に表示** / **Show in New from subscriptions**, newest first.
 
-Each card shows the channel and the publish date under the title. A shelf shows up to 12 videos, and its **See all** opens the whole lane in the Video app, under the same type and smart folder as Discover, with more videos loading as you scroll. A video that two subscriptions share appears once.
+Each card shows the channel and the publish date under the title. A shelf shows up to 12 videos, and its **See all** opens the whole lane in the Video app, under the same type and Smart Collection as Discover, with more videos loading as you scroll. A video that two subscriptions share appears once.
 
 Each subscription has a **Show in the video app** setting, chosen when you add it and changeable in its details:
 
@@ -133,7 +141,7 @@ Every item shows its title and a link to the video, including items that were no
 
 ## Limits
 
-- The addon never saves the video file. Only the speech-to-text audio is downloaded, temporarily, for transcription.
+- The addon never saves the video file. Only the speech-to-text audio is downloaded, temporarily, for transcription. With the [intelligence addon](intelligence.md), the video itself is also downloaded once, without sound, to read the text shown on screen, and deleted right after.
 - yt-dlp reads public web pages, and the provider may throttle many imports made in a short time. Throttled caption downloads are retried later.
 - Encrypted (DRM) streams are not supported.
 - Some videos cannot be embedded outside the provider's site.
@@ -142,7 +150,7 @@ Every item shows its title and a link to the video, including items that were no
 
 | Symptom | Likely cause |
 |---|---|
-| Import fails for a URL that used to work | yt-dlp is out of date. Rebuild the backend image (`docker compose up -d --build`). |
+| Import fails for a URL that used to work | yt-dlp is out of date. Rebuild the backend image without the layer cache (`docker compose build --no-cache backend`, then `docker compose up -d backend`). |
 | No captions | The video has none, or they could not be downloaded. The caption status under the player says which. |
 | **Embedded playback is disabled for this video** | The owner does not allow embedding. Use **Watch on YouTube**. |
 | **Refresh metadata** changes nothing | The fetch failed. Check `docker compose logs backend`. |

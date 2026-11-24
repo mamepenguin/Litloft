@@ -43,6 +43,7 @@ export default async function FileRoute({ params, searchParams }: PageProps) {
   const hasCollection =
     typeof sp.collection === "string" ||
     typeof sp.playlist === "string" ||
+    typeof sp.smart_collection === "string" ||
     sp.folder_play === "1";
   if (hasCollection) {
     return <FileDetailFullScreen fileId={id} />;

@@ -1,0 +1,31 @@
+{
+  "risk": "HIGH",
+  "score": 7,
+  "base": 2,
+  "zone_max": "MEDIUM",
+  "modifiers": [
+    "persistence"
+  ],
+  "promotions": [],
+  "zones_touched": [
+    {
+      "path": ".gitignore",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "docs/process/PROJECT.md",
+      "level": "LOW"
+    },
+    {
+      "path": "scripts/dev/r5_stack.py",
+      "level": "MEDIUM"
+    }
+  ],
+  "human_zones_touched": [],
+  "protected_paths_touched": [],
+  "docs_only": false,
+  "reasons": [
+    "highest zone MEDIUM (4 points)",
+    "modifiers: persistence"
+  ]
+}

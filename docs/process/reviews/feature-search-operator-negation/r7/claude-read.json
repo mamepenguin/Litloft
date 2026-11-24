@@ -1,0 +1,400 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [
+    {
+      "id": "R1",
+      "origin": "reviewer",
+      "claim": "The addon refactor of apply_filter_normalisation and the KINDS change reach the Ask scope model (addons/intelligence/app/schemas.py AskScope), which is not in the touch-point list.",
+      "impact": "Ask scopes now accept kinds ['epub'] (previously 422), and every Ask-scope 422 detail text now carries a field-label prefix ('tags: ...', 'kinds: unknown kind: ...'). The spec's section 7 mentions the epub effect, but the planned touch points name only SearchFilter, KINDS and the /files/matching body.",
+      "evidence": "addons/intelligence/app/schemas.py:826 calls apply_filter_normalisation(self); addons/intelligence/app/file_matching.py:107 KINDS gains 'epub'; file_matching.py:130,148,167,170,189 error messages gain the '{label}:' prefix used by both models.",
+      "repro": "POST an Ask request with scope {kinds:['epub']}: before the change 422, after it accepted. A scope with kinds:['movie'] now answers detail 'kinds: unknown kind: movie'.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Breaks no declared invariant (I19 covers epub for the filter; spec section 7 accepts the Ask effect) but the reached module is absent from the touch-point list.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Add addons/intelligence/app/schemas.py (AskScope) to the addon touch points, or note that the shared helper reaches it."
+    },
+    {
+      "id": "R2",
+      "origin": "reviewer",
+      "claim": "The SearchFilter type change (favorite/liked from boolean to boolean|null, six new keys) reaches frontend/src/lib/semanticSearch.ts and frontend/src/lib/semanticSearchRequest.ts, which are not in the touch-point list.",
+      "impact": "Every consumer of SearchFilter now serialises favorite:false when the query holds -is:favorite; consumers not listed were not reviewed for the new shape. No user-visible defect found.",
+      "evidence": "frontend/src/lib/semanticSearch.ts:10,62 and semanticSearchRequest.ts:4,12,21 import SearchFilter; searchQuery.ts SearchFilter now has favorite: boolean | null; tests searchScopeOperators.test.ts and semanticSearch.passages.test.ts had their expected favorite:false changed to null.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "A reach outside the declared list; behavior appears correct.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    },
+    {
+      "id": "R3",
+      "origin": "reviewer",
+      "claim": "The change edits fixtures and expectations in other specs' existing tests (SPEC-CORE-117/099 member-target tests, SPEC-CORE-043 and SPEC-CORE-040 filter tests, SPEC-CORE-043/047/138 menu-order tests), and the frontend test directories are not in the touch-point list.",
+      "impact": "ReadingApp.memberTarget.test.tsx and VideoApp.memberTarget.test.tsx changed 'sf-neg' from '-tag:read'/'-tag:draft' to 'unread -tag:read'/'drafts -tag:draft', so the case once labelled 'a negated token, free text to the parser' now carries free text; the no-free-text negated member path is instead covered only by the new appTargetNegation.test.tsx. A reader of the old spec tests may not notice that their meaning changed.",
+      "evidence": "frontend/src/components/readingapp/__tests__/ReadingApp.memberTarget.test.tsx:78; frontend/src/components/videoapp/__tests__/VideoApp.memberTarget.test.tsx:121,176; frontend/src/lib/__tests__/searchScopeOperators.test.ts:326-337; frontend/src/lib/__tests__/semanticSearch.passages.test.ts:50-61.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariant broken; the edits follow the revised invariants, but they lie outside the listed touch points.",
+        "invariant_ref": null
+      },
+      "severity": "LOW"
+    },
+    {
+      "id": "R4",
+      "origin": "reviewer",
+      "claim": "The listed touch point frontend/src/app/app-api/smart-collection-members/route.ts is not changed, so its evaluation of a Smart Collection with only new tokens (e.g. '-path:Work') passes no memberLimit and reads every listing page even when meta.total exceeds 10,000.",
+      "impact": "If Notes and Clips evaluate members through this route (the knowledge addon is not in this checkout), a '-path:Work' Smart Collection on a large drive pages through the whole drive before the app falls back, contrary to the early stop that I17 states for 'the evaluation'. The result is the same; only time and load differ.",
+      "evidence": "route.ts:80-91 calls evaluateSmartCollection without memberLimit; smartCollectionEval.ts:142-148 stops early only when input.memberLimit is set; inNameResolution.ts:172 and memberTarget.ts:111 pass it.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "A",
+        "reason": "I17's last clause says the evaluation with no free text reads no page after the first one whose total exceeds 10,000; this evaluation path does not stop.",
+        "invariant_ref": "I17"
+      },
+      "severity": "LOW",
+      "proposed_fix": "Either pass memberLimit in route.ts when the caller needs only usability, or confirm that Notes/Clips do not use this route and drop it from the touch points."
+    }
+  ],
+  "specification_compliance": [
+    "Backend: FileFiltersQuery, filtered_drive_files, apply_file_filters, the listing/folder-counts/tag-counts/shelves callers and FileMatchingRequest all carry the six new keys; ShelfQuery, TagCountsQuery and FileListingQuery subclass FileFiltersQuery (shelves.py:367, drives.py:1148,1154), as I2 requires.",
+    "Frontend parsing, chips, chip removal, suggestions, impossible check and the refused in: state follow the spec's sending steps 1-9 as read.",
+    "Touch points listed but not reached by the diff: frontend/src/lib/api.ts, readingAppTarget.ts (reached through resolveAppTarget/resolveMemberTarget), smart-collection-members/route.ts (see R4), GlobalSearch.tsx and FolderBrowser.tsx (reached through hooks)."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    {
+      "behavior": "useFolderFiles now skips the in: resolution (loads no collection lists) when the query has an impossible kind or range even if it holds no new token, which changes SPEC-CORE-116 loading for pre-existing in: queries.",
+      "frequency": 1,
+      "impact": 1,
+      "reason": "A query such as 'in:Trip type:video' on an image-fixed page now loads no list; the user sees the same empty result with fewer requests."
+    },
+    {
+      "behavior": "The memberLimit early stop applies to the in: resolution of any Smart Collection without free text, including ones whose query holds no new token, so those also stop after the first page over 10,000.",
+      "frequency": 1,
+      "impact": 1,
+      "reason": "An in: naming a large operator-only Smart Collection reports too large after one page instead of after reading all pages; the visible outcome is the same."
+    },
+    {
+      "behavior": "The search window's launcher turns off Go-to rows, folder jumps and tag suggestions (and stops loading the drive's tag names) while the typed query is impossible.",
+      "frequency": 2,
+      "impact": 2,
+      "reason": "Typing 'tag:x -tag:x' in the window hides every jump and suggestion row; the spec only says an impossible query requests nothing."
+    },
+    {
+      "behavior": "Excluding a collection that exists in another drive only, or a name that no collection carries, is sent and excludes nothing, while an in: of the same name would list nothing.",
+      "frequency": 1,
+      "impact": 2,
+      "reason": "A typo in '-in:Tirp' silently excludes nothing and the results look unfiltered; the spec allows it but does not say the user gets any hint."
+    }
+  ],
+  "regression_risks": [
+    "SearchFilter.favorite/liked changed type to boolean|null; any future producer writing favorite:false for 'unset' would now send favorite:false to the addon.",
+    "In the addon, the Ask scope shares the refactored normalisation helpers, so the validation messages and kind set of Ask scopes changed."
+  ],
+  "test_coverage": [
+    "Backend: test_search_negation_operators.py covers each condition, parity across the listing, /files/query, folder-counts, shelves and tag-counts routes, and validation on both surfaces.",
+    "Addon: test_search_negation_filter.py covers accept/reject parity and the omitted-when-unset body; test_search_negation_filter_scope.py covers the two matching calls.",
+    "No test covers route.ts (Notes/Clips evaluation) with a new-token Smart Collection over 10,000."
+  ],
+  "not_verified": [
+    "Whether the knowledge addon's Notes/Clips use /app-api/smart-collection-members (the addon is not in this checkout).",
+    "No tests were run; parity claims are read from the test code only.",
+    "The design artefact and the R-5 records under docs/process/reviews were not opened.",
+    "Enclosing functions of ConditionMenu.tsx and useFolderFiles.ts were read only around the changed hunks."
+  ],
+  "coverage": [
+    {
+      "path": "addons/intelligence/app/file_matching.py",
+      "read": "full",
+      "reason": "Every diff hunk plus lines 1-60 and the grep of its users."
+    },
+    {
+      "path": "backend/app/routers/drives.py",
+      "read": "full",
+      "reason": "Every changed hunk in the diff; class hierarchy checked by grep."
+    },
+    {
+      "path": "backend/app/routers/internal.py",
+      "read": "full",
+      "reason": "Every changed hunk in the diff."
+    },
+    {
+      "path": "backend/app/routers/shelves.py",
+      "read": "full",
+      "reason": "The single changed hunk; ShelfQuery base checked by grep."
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/app.tsx",
+      "read": "full",
+      "reason": "Both changed hunks."
+    },
+    {
+      "path": "frontend/e2e-components/search-chips-negated.spec.ts",
+      "read": "full",
+      "reason": "New file, read whole in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/spec-viewport.spec.ts",
+      "read": "full",
+      "reason": "One-line hunk."
+    },
+    {
+      "path": "frontend/src/components/SmartFolderSaveButton.tsx",
+      "read": "full",
+      "reason": "Both changed hunks."
+    },
+    {
+      "path": "frontend/src/components/folder/useFolderFiles.ts",
+      "read": "partial",
+      "reason": "All diff hunks plus lines 225-344 in the file."
+    },
+    {
+      "path": "frontend/src/components/search/ConditionMenu.tsx",
+      "read": "partial",
+      "reason": "All diff hunks only."
+    },
+    {
+      "path": "frontend/src/components/search/InNameNotice.tsx",
+      "read": "full",
+      "reason": "Diff covers the whole component."
+    },
+    {
+      "path": "frontend/src/components/search/SearchFilterChips.tsx",
+      "read": "full",
+      "reason": "All diff hunks."
+    },
+    {
+      "path": "frontend/src/components/search/SearchQueryHeader.tsx",
+      "read": "full",
+      "reason": "One hunk."
+    },
+    {
+      "path": "frontend/src/components/search/useFileSearch.ts",
+      "read": "full",
+      "reason": "Diff hunks plus lines 100-299."
+    },
+    {
+      "path": "frontend/src/components/search/useLauncherRows.ts",
+      "read": "full",
+      "reason": "The changed hunk."
+    },
+    {
+      "path": "frontend/src/components/videoapp/VideoAppHeader.tsx",
+      "read": "full",
+      "reason": "The changed hunk."
+    },
+    {
+      "path": "frontend/src/components/videoapp/useVideoApp.ts",
+      "read": "full",
+      "reason": "The changed hunk."
+    },
+    {
+      "path": "frontend/src/lib/appTarget.ts",
+      "read": "full",
+      "reason": "The changed hunks."
+    },
+    {
+      "path": "frontend/src/lib/inNameResolution.ts",
+      "read": "full",
+      "reason": "All diff hunks."
+    },
+    {
+      "path": "frontend/src/lib/listingRequest.ts",
+      "read": "full",
+      "reason": "All diff hunks."
+    },
+    {
+      "path": "frontend/src/lib/memberTarget.ts",
+      "read": "full",
+      "reason": "All diff hunks."
+    },
+    {
+      "path": "frontend/src/lib/searchQuery.ts",
+      "read": "full",
+      "reason": "All diff hunks."
+    },
+    {
+      "path": "frontend/src/lib/smartCollectionEval.ts",
+      "read": "full",
+      "reason": "All diff hunks."
+    },
+    {
+      "path": "frontend/src/lib/videoAppTarget.ts",
+      "read": "full",
+      "reason": "All diff hunks."
+    },
+    {
+      "path": "frontend/src/messages-core/en.json",
+      "read": "full",
+      "reason": "All diff hunks."
+    },
+    {
+      "path": "frontend/src/messages-core/ja.json",
+      "read": "full",
+      "reason": "All diff hunks."
+    },
+    {
+      "path": "addons/intelligence/tests/test_filtered_search_file_ids_conditions.py",
+      "read": "partial",
+      "reason": "The changed hunk only."
+    },
+    {
+      "path": "addons/intelligence/tests/test_search_negation_filter.py",
+      "read": "full",
+      "reason": "New file in the diff."
+    },
+    {
+      "path": "addons/intelligence/tests/test_search_negation_filter_scope.py",
+      "read": "full",
+      "reason": "New file in the diff."
+    },
+    {
+      "path": "backend/tests/test_filtered_drive_files_contract.py",
+      "read": "partial",
+      "reason": "The changed hunk only."
+    },
+    {
+      "path": "backend/tests/test_search_negation_operators.py",
+      "read": "full",
+      "reason": "New file in the diff."
+    },
+    {
+      "path": "frontend/src/__tests__/appTargetNegation.test.tsx",
+      "read": "full",
+      "reason": "New file in the diff."
+    },
+    {
+      "path": "frontend/src/__tests__/core-search-vocabulary.test.ts",
+      "read": "partial",
+      "reason": "Changed hunks only."
+    },
+    {
+      "path": "frontend/src/components/__tests__/GlobalSearch.negation.test.tsx",
+      "read": "full",
+      "reason": "New file in the diff."
+    },
+    {
+      "path": "frontend/src/components/__tests__/SearchPage.negation.test.tsx",
+      "read": "full",
+      "reason": "New file in the diff."
+    },
+    {
+      "path": "frontend/src/components/__tests__/SmartFolderSaveButton.negation.test.tsx",
+      "read": "full",
+      "reason": "New file in the diff."
+    },
+    {
+      "path": "frontend/src/components/__tests__/componentFixtureParity.test.tsx",
+      "read": "partial",
+      "reason": "One-line hunk."
+    },
+    {
+      "path": "frontend/src/components/folder/__tests__/useFolderFiles.scope.test.tsx",
+      "read": "partial",
+      "reason": "Changed hunks only."
+    },
+    {
+      "path": "frontend/src/components/readingapp/__tests__/ReadingApp.memberTarget.test.tsx",
+      "read": "partial",
+      "reason": "Changed hunk only."
+    },
+    {
+      "path": "frontend/src/components/search/__tests__/SearchFilterChips.negation.test.tsx",
+      "read": "full",
+      "reason": "New file in the diff."
+    },
+    {
+      "path": "frontend/src/components/search/__tests__/SearchQueryHeader.modified.test.tsx",
+      "read": "partial",
+      "reason": "Changed hunk only."
+    },
+    {
+      "path": "frontend/src/components/search/__tests__/SearchQueryHeader.negation.test.tsx",
+      "read": "full",
+      "reason": "New file in the diff."
+    },
+    {
+      "path": "frontend/src/components/search/__tests__/SearchQueryHeader.scope.test.tsx",
+      "read": "partial",
+      "reason": "Changed hunk only."
+    },
+    {
+      "path": "frontend/src/components/search/__tests__/SearchQueryHeader.sizeDuration.test.tsx",
+      "read": "partial",
+      "reason": "Changed hunk only."
+    },
+    {
+      "path": "frontend/src/components/search/__tests__/useFileSearch.filtered.test.tsx",
+      "read": "partial",
+      "reason": "Changed hunks only."
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoApp.memberTarget.test.tsx",
+      "read": "partial",
+      "reason": "Changed hunks only."
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoApp.negationTargetMenu.test.tsx",
+      "read": "full",
+      "reason": "New file in the diff."
+    },
+    {
+      "path": "frontend/src/lib/__tests__/inNameResolution.negation.test.ts",
+      "read": "full",
+      "reason": "New file in the diff."
+    },
+    {
+      "path": "frontend/src/lib/__tests__/listingRequest.negation.test.ts",
+      "read": "full",
+      "reason": "New file in the diff."
+    },
+    {
+      "path": "frontend/src/lib/__tests__/searchImpossibleConditions.test.ts",
+      "read": "full",
+      "reason": "New file in the diff."
+    },
+    {
+      "path": "frontend/src/lib/__tests__/searchNegationOperators.test.ts",
+      "read": "full",
+      "reason": "New file in the diff."
+    },
+    {
+      "path": "frontend/src/lib/__tests__/searchQuery.test.ts",
+      "read": "partial",
+      "reason": "Changed hunk only."
+    },
+    {
+      "path": "frontend/src/lib/__tests__/searchScopeOperators.test.ts",
+      "read": "partial",
+      "reason": "Changed hunks only."
+    },
+    {
+      "path": "frontend/src/lib/__tests__/searchSuggestions.negation.test.ts",
+      "read": "full",
+      "reason": "New file in the diff."
+    },
+    {
+      "path": "frontend/src/lib/__tests__/semanticSearch.passages.test.ts",
+      "read": "partial",
+      "reason": "Changed hunk only."
+    },
+    {
+      "path": "frontend/src/lib/__tests__/smartCollectionEval.negation.test.ts",
+      "read": "full",
+      "reason": "New file in the diff."
+    }
+  ],
+  "confidence": 74
+}

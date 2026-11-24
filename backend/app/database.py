@@ -555,6 +555,20 @@ def _migrate(engine_) -> None:
                 "ON files (liked_at)"
             ))
 
+    # Filled by every write that touches the file and by the scan; the
+    # migration itself leaves every existing row NULL.
+    inspector_modified = inspect(engine_)
+    if "files" in inspector_modified.get_table_names():
+        modified_columns = {
+            column["name"] for column in inspector_modified.get_columns("files")
+        }
+        if "modified_at" not in modified_columns:
+            logger.info("Migrating: adding 'modified_at' column to files")
+            with engine_.begin() as conn:
+                conn.execute(
+                    text("ALTER TABLE files ADD COLUMN modified_at DATETIME")
+                )
+
     # The columns stay NULL after this runs; the scanner backfills them for
     # images it finds with no width recorded.
     inspector_dimensions = inspect(engine_)
@@ -569,6 +583,38 @@ def _migrate(engine_) -> None:
             if "image_height" not in dimension_columns:
                 logger.info("Migrating: adding 'image_height' column to files")
                 conn.execute(text("ALTER TABLE files ADD COLUMN image_height INTEGER"))
+
+    # The value is filled by the write paths and the scan's Markdown pass, so
+    # a converted database starts with every row NULL.
+    inspector_origin = inspect(engine_)
+    if "files" in inspector_origin.get_table_names():
+        origin_columns = {
+            column["name"] for column in inspector_origin.get_columns("files")
+        }
+        with engine_.begin() as conn:
+            if "md_origin" not in origin_columns:
+                logger.info("Migrating: adding 'md_origin' column to files")
+                conn.execute(
+                    text("ALTER TABLE files ADD COLUMN md_origin VARCHAR(32)")
+                )
+            conn.execute(text(
+                "CREATE INDEX IF NOT EXISTS idx_files_drive_md_origin "
+                "ON files (drive, md_origin)"
+            ))
+
+    inspector_home = inspect(engine_)
+    existing_tables = set(inspector_home.get_table_names())
+    for table in ("smart_folders", "pinned_folders", "collections"):
+        if table not in existing_tables:
+            continue
+        columns = {column["name"] for column in inspector_home.get_columns(table)}
+        if "home_added_at" in columns:
+            continue
+        logger.info("Migrating: adding 'home_added_at' column to %s", table)
+        with engine_.begin() as conn:
+            conn.execute(
+                text(f"ALTER TABLE {table} ADD COLUMN home_added_at DATETIME")
+            )
 
     cleanup_tables = set(inspect(engine_).get_table_names())
     if {"files", "collections", "collection_items"} <= cleanup_tables:

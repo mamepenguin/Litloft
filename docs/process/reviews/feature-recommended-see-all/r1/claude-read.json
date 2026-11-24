@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [],
+  "specification_compliance": [
+    "Every path the diff reaches falls in the declared touch-point list or in the implicit set (spec, INDEX.md, review records). Core: frontend/src/components/videoapp/{useDiscover.ts, shelfLinks.ts, useProviderShelfPage.ts, VideoShelfPage.tsx}, frontend/src/app/drive/[name]/apps/video/shelf/page.tsx, and two new tests under frontend/src/components/videoapp/__tests__/. Addon: addons/intelligence/frontend/{api.ts, pickupShelfProvider.ts, slots.ts, __tests__/pickupPageProvider.test.ts} and the submodule pointer. Docs: docs/user-guide/video.md, docs/ADDON-DEVELOPMENT.md, docs/addons/intelligence.md. Implicit: docs/specs/recommended-see-all.md and docs/specs/INDEX.md.",
+    "No backend, Internal API, messages/i18n, or protected path appears in the diff, which matches 'No backend change, no Internal API change, no protected path'.",
+    "No new import edges were added outside the listed modules. useDiscover.ts already imported loadSlotPageProvider (line 8) and providerShelfHref (line 31) before this change, and the diff does not modify the shared test harness discoverHarness.ts.",
+    "docs/process/reviews/feature-recommended-see-all/r1/head.txt records 9f30df9873aa46ebe9b0e92a05d4b7471e7ad657 as the head, so the diff supplied is origin/develop..head."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "useProviderShelfPage's loadKey and effect dependencies now include recommended and hasProfile. In plain entry mode, recommended stays false and the loadKey is unchanged, but hasProfile is also a raw effect dependency in that mode. A change of hasProfile in plain entry mode would rerun the effect with the same loadKey, which might restart or re-request the load. This is not assessed further here because the question was limited to touch points."
+  ],
+  "test_coverage": [
+    "New tests sit in the listed __tests__ directories: VideoApp.recommendedSeeAll.test.tsx and VideoShelfPage.recommended.test.tsx in core, and pickupPageProvider.test.ts in the addon. The core tests run only when the addons are linked (it.runIf(addonsLinked))."
+  ],
+  "not_verified": [
+    "I could not list the commit's files with git (no shell), so the file list comes from the supplied diff plus repository greps for the new identifiers.",
+    "I did not inspect the submodule commit range e4be5f6..9456513 for files beyond the four shown in the diff.",
+    "I did not run the tests or check the behaviour of the invariants. The review was limited to the touch-point question."
+  ],
+  "confidence": 85
+}

@@ -5,9 +5,9 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { act, render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { act, render, screen, waitFor, fireEvent, within } from "@testing-library/react";
 
-import { readAppPrefs, writeAppPrefs } from "@/lib/appPrefs";
+import { readAppPrefs, readTargetView, writeAppPrefs, writeTargetView } from "@/lib/appPrefs";
 import { ApiStatusError } from "@/lib/api";
 import { VideoApp } from "../VideoApp";
 
@@ -40,12 +40,14 @@ vi.mock("@/components/AddonSlotsProvider", () => ({
 const getShelves = vi.fn();
 const getDriveFiles = vi.fn();
 const getSmartFolders = vi.fn();
+const getCollections = vi.fn();
 
 vi.mock("@/lib/api", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/api")>()),
   getShelves: (...args: unknown[]) => getShelves(...args),
   getDriveFiles: (...args: unknown[]) => getDriveFiles(...args),
   getSmartFolders: (...args: unknown[]) => getSmartFolders(...args),
+  getCollections: (...args: unknown[]) => getCollections(...args),
 }));
 
 function item(id: string, title: string, extra: Record<string, unknown> = {}) {
@@ -174,6 +176,7 @@ beforeEach(() => {
   getShelves.mockReset().mockImplementation(async (d, p) => defaultShelves(d, p));
   getDriveFiles.mockReset().mockImplementation(async (d, p) => defaultFiles(d, p));
   getSmartFolders.mockReset().mockResolvedValue([]);
+  getCollections.mockReset().mockResolvedValue([]);
 });
 
 describe("SPEC-CORE-054 the page header", () => {
@@ -274,7 +277,7 @@ describe("SPEC-CORE-057 I8 Discover", () => {
     const newBefore = filesCalls({ sort: "created_at" }).length;
 
     fireEvent.click(screen.getByRole("tab", { name: "Library" }));
-    await screen.findByText("Movies");
+    await screen.findByRole("heading", { name: "Movies" });
     fireEvent.click(screen.getByRole("tab", { name: "Discover" }));
 
     expect(await screen.findByText("Resume me")).toBeInTheDocument();
@@ -317,24 +320,25 @@ describe("SPEC-CORE-057 no profile", () => {
     expect(filesCalls({ sort: "random" })).toHaveLength(0);
   });
 
-  it("SPEC-CORE-057 does not offer Watch state in the Classification menu", async () => {
+  it("SPEC-CORE-057 does not offer Watch State in the Group By menu", async () => {
     writeAppPrefs(DRIVE, { face: "library" });
     renderApp();
 
-    await openMenu(/Classification/);
+    await openMenu(/Group By/);
 
     expect(screen.getByText("Tag")).toBeInTheDocument();
-    expect(screen.queryByText("Watch state")).not.toBeInTheDocument();
+    expect(screen.queryByText("Watch State")).not.toBeInTheDocument();
   });
 
-  it("SPEC-CORE-057 I10 shows Folder for a saved Watch state and keeps the saved value", async () => {
-    writeAppPrefs(DRIVE, { face: "library", classification: "watch" });
+  it("SPEC-CORE-057 I10 shows Folder for a saved Watch State and keeps the saved value", async () => {
+    writeAppPrefs(DRIVE, { face: "library" });
+    writeTargetView("video", DRIVE, "default", { group: "watch" });
     renderApp();
 
-    await screen.findByText("Movies");
+    await screen.findByRole("heading", { name: "Movies" });
     expect(shelfCalls({ by: "watch" })).toHaveLength(0);
     expect(shelfCalls({ by: "folder" }).length).toBeGreaterThan(0);
-    expect(readAppPrefs(DRIVE).classification).toBe("watch");
+    expect(readTargetView("video", DRIVE, "default").group).toBe("watch");
   });
 });
 
@@ -367,9 +371,9 @@ describe("SPEC-CORE-057 I9 Library", () => {
 
   it("SPEC-CORE-057 asks for folder shelves 12 at a time with 5 videos each, newest first", async () => {
     renderApp();
-    await screen.findByText("Movies");
+    await screen.findByRole("heading", { name: "Movies" });
 
-    const call = shelfCalls({ by: "folder" })[0][1] as Params;
+    const call = shelfCalls({ by: "folder", per_shelf: 5 })[0][1] as Params;
     expect(call).toMatchObject({
       per_shelf: 5,
       shelf_limit: 12,
@@ -383,9 +387,11 @@ describe("SPEC-CORE-057 I9 Library", () => {
   it("SPEC-CORE-057 draws each shelf with its count, videos and a See all link", async () => {
     renderApp();
 
-    expect(await screen.findByText("Movies")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Movies" })).toBeInTheDocument();
     expect(screen.getByText("Movie one")).toBeInTheDocument();
-    expect(screen.getByText(/7/)).toBeInTheDocument();
+    expect(
+      within(screen.getByRole("heading", { name: "Movies" }).parentElement!).getByText("7"),
+    ).toBeInTheDocument();
     const hrefs = screen
       .getAllByRole("link", { name: /See all/ })
       .map((a) => a.getAttribute("href"));
@@ -394,7 +400,7 @@ describe("SPEC-CORE-057 I9 Library", () => {
 
   it("SPEC-CORE-057 labels the root folder shelf with the drive name and keeps its key empty", async () => {
     renderApp();
-    await screen.findByText("Movies");
+    await screen.findByRole("heading", { name: "Movies" });
 
     expect(screen.getAllByText(DRIVE).length).toBeGreaterThan(0);
     const hrefs = screen
@@ -404,31 +410,36 @@ describe("SPEC-CORE-057 I9 Library", () => {
   });
 
   it("SPEC-CORE-057 labels the untagged shelf No tag", async () => {
-    writeAppPrefs(DRIVE, { classification: "tag" });
+    writeTargetView("video", DRIVE, "default", { group: "tag" });
     renderApp();
 
     expect(await screen.findByText("No tag")).toBeInTheDocument();
     expect(screen.getByText("Trip")).toBeInTheDocument();
   });
 
-  it("SPEC-CORE-057 offers the five classifications with a profile and saves the choice", async () => {
+  it("SPEC-CORE-147 I7 offers five groupings with a profile, never Watch State, and saves the choice", async () => {
     renderApp();
-    await openMenu(/Classification/);
+    await openMenu(/Group By/);
 
-    for (const label of ["Folder", "Tag", "Month added", "Length", "Watch state"]) {
+    for (const label of ["Folder", "Tag", "Date Added", "Length", "None"]) {
       expect(screen.getAllByText(label).length).toBeGreaterThan(0);
     }
+    expect(screen.queryByText("Watch State")).not.toBeInTheDocument();
     fireEvent.click(screen.getByText("Tag"));
 
     await waitFor(() => expect(shelfCalls({ by: "tag" }).length).toBeGreaterThan(0));
-    expect(readAppPrefs(DRIVE).classification).toBe("tag");
+    expect(readTargetView("video", DRIVE, "default").group).toBe("tag");
   });
 
-  it("SPEC-CORE-057 reads shelves by watch state for a profile", async () => {
-    writeAppPrefs(DRIVE, { classification: "watch" });
+  it("SPEC-CORE-147 I7 shows Folder for a stored Watch State with a profile and sends no Library by=watch", async () => {
+    writeTargetView("video", DRIVE, "default", { group: "watch" });
     renderApp();
 
-    await waitFor(() => expect(shelfCalls({ by: "watch" }).length).toBeGreaterThan(0));
+    await screen.findByRole("heading", { name: "Movies" });
+    expect(shelfCalls({ by: "folder" }).length).toBeGreaterThan(0);
+    expect(
+      shelfCalls({ by: "watch" }).filter(([, p]) => (p as Params).key === undefined),
+    ).toHaveLength(0);
   });
 });
 
@@ -477,9 +488,10 @@ describe("SPEC-CORE-055 the target menu", () => {
         getShelves.mock.calls.some(([, p]) => [(p as Params).tag].flat().includes("Trip")),
       ).toBe(true),
     );
-    const call = getShelves.mock.calls.find(([, p]) =>
-      [(p as Params).tag].flat().includes("Trip"),
-    )![1] as Params;
+    const call = getShelves.mock.calls.find(([, p]) => {
+      const params = p as Params;
+      return params.per_shelf !== 1 && [params.tag].flat().includes("Trip");
+    })![1] as Params;
     expect(call).toMatchObject({ sort: "created_at", order: "desc" });
   });
 

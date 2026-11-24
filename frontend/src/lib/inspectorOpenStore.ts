@@ -7,6 +7,8 @@
  * because `storage` events do not fire for the originating window.
  */
 
+import { MOBILE_BREAKPOINT } from "@/hooks/useIsMobile";
+
 const STORAGE_PREFIX = "inspector-open:";
 
 export function inspectorOpenStorageKey(drive: string): string {
@@ -38,16 +40,20 @@ function readPersisted(drive: string): boolean | null {
   }
 }
 
-function viewportDefault(): boolean {
+function viewportDefault(isPlayerFile: boolean): boolean {
   if (typeof window === "undefined") return false;
+  // A player file off a phone never stacks over the player, and beside it
+  // the row always had room, so its inspector is worth starting open. Any
+  // other file in a narrow row would cover what the reader came to read.
+  if (isPlayerFile && window.innerWidth >= MOBILE_BREAKPOINT) return true;
   return window.innerWidth >= VIEWPORT_OPEN_THRESHOLD;
 }
 
 export const inspectorOpenStore = {
-  get(drive: string): boolean {
+  get(drive: string, isPlayerFile = false): boolean {
     const persisted = readPersisted(drive);
     if (persisted !== null) return persisted;
-    return viewportDefault();
+    return viewportDefault(isPlayerFile);
   },
   set(drive: string, next: boolean): void {
     if (typeof localStorage !== "undefined") {

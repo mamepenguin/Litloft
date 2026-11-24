@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "MEDIUM",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R2-spec-D2-still-stale",
+      "status": "confirmed",
+      "note": "Reproduced by reading the files. At docs/specs/file-detail-single-header.md:47-52, D2 still says the trail starts at the further right of two points: 12px past the menu/tree buttons, or 'the left edge of the box that holds the file's content'. It does not mention a 16px inset. At :184-185, §7 still says 'screens other than file pages see no change'. The spec file contains no '16px inside', '+ 8px' or 'centre line' wording. The code differs on both points. frontend/src/components/Header.tsx:87-95 sets the content term to align.left + Math.max(16, paddingLeft), and the result to Math.max(16, wanted - frame.left), so the trail sits at least 16px inside the content box and at least 16px from the header's left end. frontend/src/components/ChromeButtons.tsx:58 places the fixed chrome buttons at top: calc(env(safe-area-inset-top, 0px) + 8px). That component renders unconditionally, so the move applies on every screen, not only file pages; behavior.md:25-27 says the same. decisions.md:3 records that behavior.md supersedes D2 and §7 for this fix, but the spec document itself was not updated, so the claim of stale spec text holds."
+    }
+  ],
+  "specification_compliance": [
+    "Code matches behavior.md's revised D2: the 16px minimum inset in Header.tsx:89 and :95, and the buttons at safe-area + 8px in ChromeButtons.tsx:58.",
+    "docs/specs/file-detail-single-header.md D2 (:47-52) and §7 (:184-185) still describe the behaviour from before the fix."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "A future reader of SPEC-CORE-094 could follow the stale D2 or §7 and treat the 16px inset or the buttons' move on every screen as a regression."
+  ],
+  "test_coverage": [
+    "Not inspected for this finding. behavior.md lists file-header-row-desktop.spec.ts, file-header-row.spec.ts and MenuButton.test.tsx as covering the new behaviour."
+  ],
+  "not_verified": [
+    "Did not run git diff, so I did not confirm that the spec file is unchanged between origin/develop and the commit; I read it in the worktree at HEAD.",
+    "Did not run any tests or check the screenshots.",
+    "Did not check whether other docs (for example a spec index or changelog) already describe the revised D2."
+  ],
+  "confidence": 90
+}

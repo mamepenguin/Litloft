@@ -5,7 +5,7 @@ import { SearchX } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { useContextMenu } from "@/hooks/useContextMenu";
-import { useFolderFilter } from "@/hooks/useFolderFilter";
+import type { FolderFilterApi } from "@/hooks/useFolderFilter";
 import { useIsInternalDragging } from "@/hooks/useIsInternalDragging";
 import type { DragState } from "@/hooks/useDragAndDrop";
 import type { FileItem, FileItemWithMatch, Folder, ViewMode } from "@/types";
@@ -16,6 +16,10 @@ import { FolderCard } from "@/components/FolderCard";
 import { FolderListRow } from "@/components/FolderListRow";
 import { FolderContextMenu } from "@/components/FolderContextMenu";
 import { Button } from "@/components/Button";
+import {
+  InNameNotice,
+  type InNameNoticeState,
+} from "@/components/search/InNameNotice";
 
 import { cardGridTemplate, useCardColumns } from "@/lib/cardGrid";
 
@@ -58,6 +62,8 @@ function FolderShelf({
 interface FolderContentProps {
   files: FileItemWithMatch[];
   folders: Folder[];
+  /** Owned by the caller, so that selecting all reaches only the rows it shows. */
+  filter: FolderFilterApi<FileItemWithMatch>;
   driveName: string;
   viewMode: ViewMode;
   loading: boolean;
@@ -94,15 +100,19 @@ interface FolderContentProps {
   continuationState?: ContinuationUiState;
   onShowMore?: () => void;
   continuationSentinelRef?: RefObject<HTMLDivElement | null>;
+  /** The `in:` resolution failed or was too large; nothing is listed. */
+  inNameState?: InNameNoticeState | null;
+  onRetryInName?: () => void;
 }
 
 export function FolderContent({
-  files, folders, driveName, viewMode, loading, loadingMore, hasMore = false,
+  files, folders, filter, driveName, viewMode, loading, loadingMore, hasMore = false,
   isRecent, isContinue = false, hasProfile, isFavorites, isLiked, isRecentAdded, isSearch, selectable, sortQuery,
   pinnedPaths, sentinelRef, dragState, isDropTarget, getDropTargetProps,
   selectedIds, onSelect, onMetaSelect, onShiftSelect, onTogglePin, onFavoriteToggle, onRefresh,
   onDragStart, onDragEnd, selectedCount, isDropDisabled, onFolderDragStart,
   widenTagScope, onAddFiles, continuationState, onShowMore, continuationSentinelRef,
+  inNameState, onRetryInName,
 }: FolderContentProps) {
   const isInternalDragging = useIsInternalDragging();
   const tFilter = useTranslations("filter");
@@ -112,16 +122,14 @@ export function FolderContent({
   const [menuTarget, setMenuTarget] = useState<Folder | null>(null);
   const { ref: folderGridRef, columns } = useCardColumns();
   const { menuState: folderMenuState, close: closeFolderMenu, handlers: folderMenuHandlers } = useContextMenu();
-  const filter = useFolderFilter<FileItemWithMatch>(files, folders);
   const filteredFiles = filter.files;
   const filteredFolders = filter.folders;
   const isFilterEmpty =
     filter.isActive && filteredFiles.length === 0 && filteredFolders.length === 0;
 
-  // The name box narrows the rows without touching the URL, and it is
-  // not visible to `FolderBrowser` above — so the "this is the whole
-  // folder" marker it set is withdrawn here while the box has something
-  // in it.
+  // The name box narrows the rows without touching the URL, so the "this
+  // is the whole folder" marker in `sortQuery` is withdrawn while the box
+  // has something in it.
   const rowSortQuery = filter.isActive
     ? sortQuery.replace(/([?&])nav=folder&?/, (_m, lead: string) =>
         lead === "?" ? "?" : "&",
@@ -129,6 +137,15 @@ export function FolderContent({
     : sortQuery;
 
   const rename = useFolderCardRename(driveName, onRefresh);
+
+  if (inNameState) {
+    return (
+      <InNameNotice
+        state={inNameState}
+        onRetry={inNameState === "failed" ? onRetryInName : undefined}
+      />
+    );
+  }
 
   return (
     <>

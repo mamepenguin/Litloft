@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1",
+      "status": "confirmed",
+      "note": "I traced this by reading the code. I could not run the mutant. Mechanism: useSceneList.ts:163 builds resetKey as `${fileId}|${shown?1:0}|${starts}`. The state placedKey is cleared only at :351 on hide; :349 resets the ref, not the state. :610 returns ready = shown && placedKey === resetKey. A hidden `.loft` keeps its rows (Container :296 and :317 return early before setRows(null)). So with :351 removed, ready is true in the first re-show render. useScenePictures.ts:105-112 calls read() in that commit's passive effect, and read() takes timesRef/stateRef from that render (:35-38). Those times come from the stale `visible` state (Container :719-730), and syncVisible's setVisible only shows up in the next render. If opening is still true, read() requests every stale near tile (:68-71). Tests: every re-show test that checks pictures ends opening before it hides. ScenesSectionReshow.test.tsx:155 and :192 use wheelTo. ScenesSectionPictureTiming.test.tsx:473 uses dwellOnRowFive, and :555/:557 is the I8 wheel. ScenesSectionScrollList.test.tsx:490 uses wheelTo, and :556 uses a ruler press. Once opening has ended, a stale read only adds dwell starts, and the next reading drops them (:65-66), so nothing is requested. Two tests re-show without ending opening, and neither can tell the mutant apart. ScenesSectionRequests.test.tsx:534 (.loft) only checks that tile 10's img comes back. Its pre-hide and post-show placements are the same (currentTime 0), so the stale near set equals the real one. ScenesSectionScrollList.test.tsx:509 (native, shared scroller) puts playback back to 0 before re-show and checks only scroller writes and scrollTop, not pictures. The collapse/expand tests in Requests :290/:314/:470, Seek :255 and VisualIndex :859 check no picture srcs. The mutant is very likely to survive."
+    }
+  ],
+  "specification_compliance": [
+    "I1 (a tile near only before the start placement is not asked for) depends on the placedKey state reset at useSceneList.ts:351 on hide. Without it, `ready` is already true in the first re-show render and the stale `visible` feeds the opening read. In the code as committed the reset is present."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "A native video collapsed and re-expanded outside host-driven mode clears its rows (Container :320) and gets them back with the same starts. The resetKey goes back to the old value. That path relies on the :351 reset in the same way, and no test checks it."
+  ],
+  "regression_risks": [
+    "Removing or moving `setPlacedKey(null)` at useSceneList.ts:351 would let a re-show ask for the previous showing's near tiles at once, and the suite would still pass."
+  ],
+  "test_coverage": [
+    "No re-show test keeps opening true across the hide and also moves the start placement between hide and show (for example, playback time changes while hidden), then checks that tiles near only before the placement have no src. That test would kill the F1 mutant."
+  ],
+  "not_verified": [
+    "I did not run the test suite or the mutant. The survival claim rests on reading the code and on React 18/19 flushing commit-1 passive effects before the sync re-render that its layout-effect setState schedules.",
+    "I did not read ScenesSectionOneList.test.tsx or ScenesSectionLoftVisualIndex.test.tsx in full. A grep found no `active: false` re-show in them, but a re-show done another way could be missed.",
+    "I did not check the e2e cases in frontend/e2e-components/scenes-section.cases.ts."
+  ],
+  "confidence": 80
+}

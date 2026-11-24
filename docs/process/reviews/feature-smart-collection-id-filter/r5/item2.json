@@ -1,0 +1,49 @@
+{
+ "in:\"Cats\"": {
+  "text": "ESC\nコレクション Cats\n×\n\nドット絵教室\n\n【公式】第1話～第26話　ひぐらしのなく頃に 期間限定本編配信\n\nテスト/\n\nIMG 0556\n\n写真/\n\n【公式】『ちいかわ』第332話「武器／クリーム」※1週間限定配信＜4⧸14 (火)AM7 59まで＞\n\nYouTube/\n\nアニメ『おでかけ子ザメ』第47話「落としもの」-後編-\n\nYouTube/おでかけ子ザメ/\n\nアニメ『おでかけ子ザメ』第45話「羽つきぎょうざ」\n\nYouTube/おでかけ子ザメ/\n\nアニメ『おでかけ子ザメ』第43話「まねきねこ」\n\nYouTube/おでかけ子ザメ/\n\nアニメ『おでかけ子ザメ』第29話「冬のベーカリー」\n\nYouTube/おでかけ子ザメ/\n\n全8件を表示 →\n?\nショートカット\nバッジの意味",
+  "reqs": [
+   "GET /api/drives/動画/collections ids=null 200",
+   "GET /api/drives/動画/smart-folders ids=null 200",
+   "GET /api/drives/動画/files?search=猫&sort=created_at&order=desc&page=1&limit=500 ids=null 200",
+   "GET /api/addons/intelligence/search?q=猫&limit=1000&passages=true ids=null 200",
+   "POST /api/drives/動画/files/query?limit=8 ids=8 200"
+  ]
+ },
+ "in:\"cats\" 子ザメ": {
+  "text": "ESC\nコレクション cats\n×\n\nアニメ『おでかけ子ザメ』第47話「落としもの」-後編-\n\nYouTube/おでかけ子ザメ/\n\nファイル名\nパス\nサムネイル\n内容一致\n\nアニメ『おでかけ子ザメ』第43話「まねきねこ」\n\nYouTube/おでかけ子ザメ/\n\nファイル名\nパス\nサムネイル\n内容一致\n\nアニメ『おでかけ子ザメ』第29話「冬のベーカリー」\n\nYouTube/おでかけ子ザメ/\n\nファイル名\nパス\nサムネイル\n内容一致\n\nアニメ『おでかけ子ザメ』第45話「羽つきぎょうざ」\n\nYouTube/おでかけ子ザメ/\n\nファイル名\nパス\nサムネイル\n内容一致\n全4件を表示 →\n?\nショートカット\nバッジの意味",
+  "reqs": [
+   "GET /api/drives/動画/collections ids=null 200",
+   "GET /api/drives/動画/smart-folders ids=null 200",
+   "GET /api/drives/動画/files?search=猫&sort=created_at&order=desc&page=1&limit=500 ids=null 200",
+   "GET /api/addons/intelligence/search?q=猫&limit=1000&passages=true ids=null 200",
+   "POST /api/drives/動画/files/query?search=子ザメ&limit=8 ids=8 200",
+   "POST /api/addons/intelligence/search?q=子ザメ&limit=8&filter={} ids=8 200"
+  ]
+ },
+ "in:\"Spirit\" 子ザメ": {
+  "text": "ESC\nコレクション Spirit\n×\n一致するファイルが見つかりません\n?\nショートカット\nバッジの意味",
+  "reqs": [
+   "GET /api/drives/動画/collections ids=null 200",
+   "GET /api/drives/動画/files?search=子ザメ&collection=Spirit&limit=8 ids=null 200",
+   "GET /api/addons/intelligence/search?q=子ザメ&limit=8&filter={\"collections\":[\"Spirit\"]} ids=null 200"
+  ]
+ },
+ "in:\"nothing_here\"": {
+  "text": "ESC\nコレクション nothing_here\n×\n一致するファイルが見つかりません\n?\nショートカット\nバッジの意味",
+  "reqs": [
+   "GET /api/drives/動画/collections ids=null 200",
+   "GET /api/drives/動画/smart-folders ids=null 200",
+   "GET /api/drives/動画/files?collection=nothing_here&limit=8 ids=null 200"
+  ]
+ },
+ "in:\"Zero\"": {
+  "text": "ESC\nコレクション Zero\n×\n一致するファイルが見つかりません\n?\nショートカット\nバッジの意味",
+  "reqs": [
+   "GET /api/drives/動画/collections ids=null 200",
+   "GET /api/drives/動画/smart-folders ids=null 200",
+   "GET /api/drives/動画/files?search=猫&tag=zz_none&sort=created_at&order=desc&page=1&limit=500 ids=null 200",
+   "GET /api/addons/intelligence/search?q=猫&limit=1000&passages=true&filter={\"tags\":[\"zz_none\"]} ids=null 200",
+   "POST /api/drives/動画/files/query?limit=8 ids=0 200"
+  ]
+ }
+}

@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "READ-1",
+      "status": "confirmed",
+      "note": "frontend/src/components/CollectionPanel.tsx:38-44: getLoop() returns getStoredLoop() ?? false, getSmartLoop() returns getStoredLoop() ?? true; both read the same LOOP_KEY 'collection-loop' (line 18). Line 92 (collection panel) uses getLoop; line 324 (SmartQueuePanel) uses getSmartLoop as initial state. So with no stored value, a Smart Collection queue starts with loop on and a collection queue starts with loop off. Spec docs/specs/smart-collection-parity.md:129-130 says the loop toggle works as for a collection and gives no separate default for Smart Collections, so the differing default is a deviation from the stated spec. Impact is limited to the first-use default when no value is stored; once the user toggles, the shared key makes both panels agree. Severity left to the orchestrator."
+    }
+  ],
+  "specification_compliance": [
+    "Spec step 5 (docs/specs/smart-collection-parity.md:129-130) says the loop toggle works as for a collection; the Smart Collection queue default (loop on when nothing is stored) differs from the collection default (loop off), so READ-1 is a real deviation."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The spec does not state an explicit default for the loop toggle in Smart Collection mode; whether loop-on is intended cannot be decided from the spec text alone."
+  ],
+  "regression_risks": [
+    "Changing getSmartLoop's default to false would change the first-use behaviour of Smart Collection queues for users who have never toggled loop; users with a stored value are unaffected."
+  ],
+  "test_coverage": [
+    "Not checked: whether any unit or e2e test pins the Smart Collection loop default. No test file was opened."
+  ],
+  "not_verified": [
+    "Did not run the app or tests (no command access); did not open frontend test or e2e files for loop defaults.",
+    "Did not check the design-decision notes or review records for an intended Smart Collection loop default beyond the spec lines quoted.",
+    "Did not check the bucket taxonomy definitions, so the bucket proposal is not validated against them."
+  ],
+  "confidence": 88
+}

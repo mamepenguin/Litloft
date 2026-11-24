@@ -1,0 +1,96 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "MEDIUM",
+  "findings": [
+    {
+      "id": "CR-1",
+      "origin": "reviewer",
+      "claim": "The change declares no touch-point list (no spec under docs/specs/ and no invariants.md for topic fix-ci-flaky-tests-2), so all eight paths the diff reaches lie outside any declared touch-point list, and so does the one reach beyond them: a new test import of getCollectionOnEnded from the product module CollectionPanel, which reads window.__collectionOnEnded.",
+      "impact": "A user cannot hit this. All eight edited files are test files: two Playwright specs and six Vitest files. No product file is edited. Without a list, this first-review question has nothing to compare against, and no invariant can be cited for these test changes.",
+      "evidence": "A grep for 'flaky' in docs/specs finds nothing. docs/process/reviews/fix-ci-flaky-tests-2/ contains only decisions.md and r1/ (classification.json, head.txt, expected.txt, fixes.txt, product-files.txt, test-files.txt), with no invariants.md. The diff edits frontend/e2e-components/justified-hold-desktop.spec.ts:276-278, frontend/e2e-epub/typography.spec.ts:94-101, frontend/src/__tests__/inboxActions.test.tsx:326, frontend/src/components/__tests__/FileActions.test.tsx:910-913, FileDetailFullScreen.inboxNav.test.tsx:162-166, FileDetailFullScreen.smartCollection.test.tsx:96 and 162-164, GlobalSearch.inSmartCollection.test.tsx:120-132, and frontend/src/components/sidebar/__tests__/sidebarNameInUse.test.tsx:266, 356-362 and 430-432. The new import at FileDetailFullScreen.smartCollection.test.tsx:96 reads CollectionPanel.tsx:428-430 (window.__collectionOnEnded, set and deleted by the effect at CollectionPanel.tsx:292-298). It does not edit that file. docs/process/workflow.md:69 lets a bug fix skip the spec design review and the approval, but it still requires a SPEC or UNSPEC statement. A precedent is feature-design-conformance-check r1 CR-1, which was LOW, bucket B.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariant is declared, so none can be broken. The finding records that the touch-point list is missing. It is not a behaviour defect, and all eight changes are test-only.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Record in decisions.md that this test-only flaky fix ships without a spec or touch-point list, or add a short invariants.md that names the eight test files and the read-only use of CollectionPanel's getCollectionOnEnded."
+    }
+  ],
+  "specification_compliance": [
+    "No spec or invariants file exists for this change, so there is nothing to check compliance against. Every place the diff reaches is outside a declared touch-point list (CR-1).",
+    "docs/specs/, docs/specs/INDEX.md and docs/process/reviews/fix-ci-flaky-tests-2/** are implicit touch points and are not reported.",
+    "No product (non-test) source file is edited. The only product code involved is read: CollectionPanel.getCollectionOnEnded is imported by a test, and the image-availability path string matches IMAGE_QUERY_AVAILABLE_PATH in frontend/src/lib/imageQuery.ts:6-7."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "typography.spec.ts:96-101: turnTimes no longer waits 250 ms after the last turn. It returns as soon as the 'turned' count goes up, and keepStart/where run straight after. If the host posts 'turned' before lastLocation and renderer.page settle, those reads could see an intermediate state. That would fail loudly, not pass silently, and I did not check the host's posting order.",
+    "typography.spec.ts:100: if a requested turn ever posts no 'turned' message (for example at the end of the book), expect.poll now times out and the test fails. The old fixed sleep would have passed. Callers start at fraction 0.2 and turn 2-3 times, so this is unlikely.",
+    "GlobalSearch.inSmartCollection.test.tsx:124-132: the hard-coded path string duplicates IMAGE_QUERY_AVAILABLE_PATH. If that path is renamed, the filter stops excluding it and the 'sends nothing' cases would fail loudly on the first case to open the window. They would not pass silently."
+  ],
+  "test_coverage": [
+    "justified-hold-desktop.spec.ts:278: the positive control now uses a Playwright locator click, which scrolls the element into view, waits for it to be stable and checks the hit target. It still asserts select:<shownKey>, so it shows that the harness records clicks. The held-cell half of the test (lines 263-272) is unchanged and still uses a click at the measured centre.",
+    "typography.spec.ts:96-101: each turn now waits for its own 'turned' message. Before, a dropped turn could leave the page on fewer turns than asked, so the wait is stricter, not looser.",
+    "sidebarNameInUse.test.tsx:266 and 430-432: settle() was replaced by waits that positively assert the non-409 feedback (toast.error was called; the 'Failed to rename Smart Collection' text appears). toast mocks are cleared in beforeEach (lines 101-107), so the wait cannot pass on a call left over from an earlier test. These waits add assertions.",
+    "sidebarNameInUse.test.tsx:358-362: openDialog now also requires focus on the dialog input. Every caller then uses the input, so this only tightens the precondition.",
+    "FileDetailFullScreen.smartCollection.test.tsx:164: endCurrentFile now waits for window.__collectionOnEnded to be registered. The 'nothing follows' cases (lines 304, 315, 329) assert empty navigations. Before, they could pass vacuously if onEnded ran before the handler was registered. Now they cannot. The handler is mounted whenever a queue exists (CollectionPanel.tsx:223, 359), including for a file that is not in the queue.",
+    "FileDetailFullScreen.inboxNav.test.tsx:164-166: renderAt waits for useFileNav to be called with drive 'main'. useFileNavMock is cleared in beforeEach, and line 223 still asserts the drive explicitly, so nothing is loosened.",
+    "FileActions.test.tsx:910-913 and inboxActions.test.tsx:326: synchronous assertions became waitFor/findBy with the same expectations. A missing state still times out and fails.",
+    "GlobalSearch.inSmartCollection.test.tsx:124-132: windowRequests() now leaves out /api/addons/intelligence/search/by-image/available. askImageAvailability (imageQuery.ts:115-134) caches the result per drive in a module-level Map, regardless of the query text. Typing or resolving an in: query therefore cannot cause the request, and the exclusion hides nothing the two 'sends nothing' assertions (lines 268, 283) are meant to catch."
+  ],
+  "not_verified": [
+    "I ran no test (Vitest or Playwright), so I did not check whether the eight files are now green or still flaky.",
+    "I did not check the order in which the EPUB reader host posts the 'turned' message relative to lastLocation and renderer.page being final.",
+    "I did not check that the justified-grid painted cell s.cells[0] always contains a [role=\"button\"] element in the harness.",
+    "I did not read the parts of inboxActions.test.tsx, FileActions.test.tsx, FileDetailFullScreen.smartCollection.test.tsx and GlobalSearch.inSmartCollection.test.tsx outside the ranges listed in coverage.",
+    "I did not check the commit boundary: I reviewed the diff given in the brief, not git show of 3474e9570 on its own."
+  ],
+  "coverage": [
+    {
+      "path": "frontend/e2e-components/justified-hold-desktop.spec.ts",
+      "read": "full",
+      "reason": "Read lines 1-300: the changed hunk at 273-280, its enclosing test (247-280) and the helpers it uses."
+    },
+    {
+      "path": "frontend/e2e-epub/typography.spec.ts",
+      "read": "full",
+      "reason": "Read the whole file (1-353), including the changed turnTimes at 94-102 and its callers."
+    },
+    {
+      "path": "frontend/src/__tests__/inboxActions.test.tsx",
+      "read": "partial",
+      "reason": "Read lines 290-339, which hold the changed hunk at 326 and its enclosing test."
+    },
+    {
+      "path": "frontend/src/components/__tests__/FileActions.test.tsx",
+      "read": "partial",
+      "reason": "Read lines 880-919, which hold the changed hunk at 910-913 and its enclosing test."
+    },
+    {
+      "path": "frontend/src/components/__tests__/FileDetailFullScreen.inboxNav.test.tsx",
+      "read": "full",
+      "reason": "Read the whole file (1-239)."
+    },
+    {
+      "path": "frontend/src/components/__tests__/FileDetailFullScreen.smartCollection.test.tsx",
+      "read": "partial",
+      "reason": "Read lines 90-239 (the import, endCurrentFile and setup) plus every endCurrentFile call site via grep (lines 244-259, 295-330, 354-382, 447-459)."
+    },
+    {
+      "path": "frontend/src/components/__tests__/GlobalSearch.inSmartCollection.test.tsx",
+      "read": "partial",
+      "reason": "Read lines 60-259 (the windowRequests filter and setup) plus both windowRequests() call sites via grep (lines 262-283)."
+    },
+    {
+      "path": "frontend/src/components/sidebar/__tests__/sidebarNameInUse.test.tsx",
+      "read": "full",
+      "reason": "Read the whole file (1-445)."
+    }
+  ],
+  "confidence": 85
+}

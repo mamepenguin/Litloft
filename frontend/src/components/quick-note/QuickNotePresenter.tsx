@@ -137,7 +137,7 @@ export function QuickNotePresenter({
             placeholder={t("placeholder")}
             aria-label={t("bodyLabel")}
             rows={8}
-            className="min-h-[9rem] w-full resize-none rounded-2xl border border-bg-border bg-bg-primary px-4 py-3 text-sm leading-relaxed text-text-primary placeholder:text-text-muted focus:border-focus-ring focus:outline-none"
+            className="min-h-[9rem] w-full resize-none rounded-2xl border border-bg-border bg-bg-primary px-4 py-3 text-base leading-relaxed text-text-primary placeholder:text-text-muted focus:border-focus-ring focus:outline-none"
           />
 
           <p className="truncate text-xs text-text-muted" title={filename}>

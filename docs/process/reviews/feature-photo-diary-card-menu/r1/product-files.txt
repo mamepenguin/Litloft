@@ -1,0 +1,8 @@
+frontend/e2e-components/file-grid-app-card-menu.spec.ts
+frontend/e2e-components/fixtures/app.tsx
+frontend/e2e-components/fixtures/fileGridAppCardMenu.tsx
+frontend/e2e-layout/fixtures/justified-grid.html
+frontend/e2e-layout/justified-grid.spec.ts
+frontend/src/components/FileCard.tsx
+frontend/src/components/FileGrid.tsx
+frontend/src/components/JustifiedFileCell.tsx

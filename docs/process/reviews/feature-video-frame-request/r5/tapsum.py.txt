@@ -1,0 +1,37 @@
+"""Summarise tap logs: one line per request, with exchange messages after the initial frames."""
+import json, sys
+
+path, start = sys.argv[1], int(sys.argv[2]) if len(sys.argv) > 2 else 0
+for i, line in enumerate(open(path)):
+    if i < start:
+        continue
+    d = json.loads(line)
+    msgs = d.get("messages", [])
+    head = {k: d.get(k) for k in ("model", "think", "options", "tool_choice", "temperature", "max_tokens", "stream", "tools") if k in d}
+    print(f"#{i} {d['t']} status={d.get('status')} first={d.get('first_byte_s')} total={d.get('total_s')} n_msgs={len(msgs)} {head}")
+    for j, m in enumerate(msgs):
+        c = m.get("content")
+        if j == 0 and m["role"] == "system":
+            continue
+        if j == 1 and m["role"] == "user" and isinstance(c, str) and len(c) > 300:
+            print(f"   [{j}] user prompt ({len(c)} chars) starts: {c[:120]!r}")
+            continue
+        if isinstance(c, list):
+            c = [p.get("text") if "text" in p else "IMG " + p["image"] for p in c]
+            c = [x if not isinstance(x, str) or len(x) < 200 else x[:200] + "..." for x in c]
+        elif isinstance(c, str) and len(c) > 400:
+            c = c[:400] + "..."
+        extra = ""
+        if m.get("images"):
+            extra += f" images={m['images']}"
+        if m.get("tool_calls"):
+            extra += f" tool_calls={json.dumps(m['tool_calls'], ensure_ascii=False)}"
+        if m.get("thinking"):
+            extra += " THINKING-SENT-BACK"
+        if m.get("tool_call_id"):
+            extra += f" tool_call_id={m['tool_call_id']}"
+        if m.get("tool_name"):
+            extra += f" tool_name={m['tool_name']}"
+        if m.get("extra_keys"):
+            extra += f" extra_keys={m['extra_keys']}"
+        print(f"   [{j}] {m['role']}: {c!r}{extra}")

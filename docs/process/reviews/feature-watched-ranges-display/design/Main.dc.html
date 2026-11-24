@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>常時の帯 PC</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="width: 880px; height: 495px; position: relative; overflow: hidden; background: #0e1116; font-family: -apple-system, system-ui, 'Segoe UI', Roboto, sans-serif; color: #ffffff">
+<div aria-hidden="true" style="position: absolute; inset: 0; background: radial-gradient(ellipse at 30% 35%, #3a4a5c 0%, #1b2430 45%, #0e1116 100%)"></div>
+<div style="position: absolute; left: 0; right: 0; bottom: 0; height: 150px; background: linear-gradient(to top, rgba(0,0,0,0.8), rgba(0,0,0,0.5) 55%, rgba(0,0,0,0))"></div>
+<div style="position: absolute; left: 16px; right: 16px; bottom: 52px; height: 40px">
+<div aria-hidden="true" style="position: absolute; left: 0; right: 0; top: 7px; height: 3px">
+<sc-for list="{{spans}}" as="s" hint-placeholder-count="6">
+<div style="position: absolute; top: 0; height: 3px; border-radius: 1px; left: {{s.left}}; width: {{s.width}}; background: {{s.color}}"></div>
+</sc-for>
+</div>
+<div style="position: absolute; left: 0; right: 0; top: 14px; height: 12px">
+<div style="position: absolute; left: 0; right: 0; top: 4px; height: 4px; border-radius: 9999px; overflow: hidden; background: rgba(255,255,255,0.25)">
+<div style="position: absolute; left: 0; top: 0; bottom: 0; width: 72%; background: rgba(255,255,255,0.4)"></div>
+<div style="position: absolute; left: 0; top: 0; bottom: 0; width: {{playedPct}}; background: {{indicator}}"></div>
+</div>
+<div style="position: absolute; top: 0; width: 12px; height: 12px; border-radius: 9999px; transform: translateX(-50%); left: {{playedPct}}; background: {{indicator}}"></div>
+</div>
+<input type="range" aria-label="シーク" min="0" max="2530" value="1520" style="position: absolute; inset: 0; opacity: 0; width: 100%; margin: 0">
+</div>
+<div style="position: absolute; left: 8px; right: 8px; bottom: 6px; height: 44px; display: flex; align-items: center; gap: 4px">
+<button type="button" aria-label="一時停止" style="width: 44px; height: 44px; border: 0; background: transparent; color: #ffffff; display: flex; align-items: center; justify-content: center; border-radius: 9999px">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
+</button>
+<button type="button" aria-label="音量" style="width: 44px; height: 44px; border: 0; background: transparent; color: #ffffff; display: flex; align-items: center; justify-content: center; border-radius: 9999px">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.5 8.5a5 5 0 0 1 0 7"></path></svg>
+</button>
+<span style="font-size: 13px; font-variant-numeric: tabular-nums; color: rgba(255,255,255,0.9); margin-left: 4px">25:20 <span style="color: rgba(255,255,255,0.5)">/</span> 42:10</span>
+<div style="flex: 1"></div>
+<button type="button" aria-label="設定" style="width: 44px; height: 44px; border: 0; background: transparent; color: #ffffff; display: flex; align-items: center; justify-content: center; border-radius: 9999px">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+</button>
+<button type="button" aria-label="全画面" style="width: 44px; height: 44px; border: 0; background: transparent; color: #ffffff; display: flex; align-items: center; justify-content: center; border-radius: 9999px">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M16 21h3a2 2 0 0 0 2-2v-3"></path></svg>
+</button>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light"},"$preview":{"width":880,"height":495}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const dur = 2530;
+    const level = ['', 'rgba(255,255,255,0.35)', 'rgba(255,255,255,0.6)', 'rgba(255,255,255,0.9)'];
+    const raw = [[0,420,1],[420,610,3],[900,1500,1],[1500,1580,2],[2100,2200,1]];
+    const spans = raw.map(function (r) {
+      return { left: (r[0] / dur * 100) + '%', width: ((r[1] - r[0]) / dur * 100) + '%', color: level[r[2]] };
+    });
+    const dark = (this.props.theme ?? 'light') === 'dark';
+    return { spans: spans, playedPct: (1520 / dur * 100) + '%', indicator: dark ? '#ffffff' : '#d63031' };
+  }
+}
+</script>
+</body>
+</html>

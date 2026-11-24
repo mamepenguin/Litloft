@@ -58,8 +58,9 @@ describe("PageHeader", () => {
       const rows = container.querySelectorAll("header > div");
       expect(rows).toHaveLength(1);
       // `firstElementChild`, not `querySelector("button")`: the latter finds a
-      // button anywhere in the row.
-      expect(rows[0].firstElementChild?.textContent).toBe("Tree");
+      // button anywhere in the row. The control opens the group that holds
+      // the title, which is the row's first child.
+      expect(rows[0].firstElementChild?.firstElementChild?.textContent).toBe("Tree");
     });
 
     // A duplicated control is not cosmetic here: `TreeToggle` is stateful,
@@ -194,6 +195,17 @@ describe("PageHeader", () => {
         <PageHeader title="Trash" actions={<button>Empty</button>} />,
       );
       expect(container.querySelector("header > div")!.children).toHaveLength(2);
+    });
+  });
+
+  describe("the primary action", () => {
+    it("is drawn once beside a scopeEnd, and not without one", () => {
+      const { rerender } = render(
+        <PageHeader title="Notes" scopeEnd={<button>Target</button>} primaryAction={<button>New</button>} />,
+      );
+      expect(screen.getAllByRole("button", { name: "New" })).toHaveLength(1);
+      rerender(<PageHeader title="Notes" primaryAction={<button>New</button>} />);
+      expect(screen.queryByRole("button", { name: "New" })).toBeNull();
     });
   });
 

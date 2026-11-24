@@ -1,0 +1,11 @@
+addons/intelligence/app/database.py
+addons/intelligence/app/indexer.py
+addons/intelligence/app/models.py
+addons/intelligence/app/routers/files.py
+addons/intelligence/app/workers/frame_ocr.py
+addons/intelligence/app/workers/frame_scan.py
+addons/intelligence/app/workers/ocr.py
+scripts/dev/frame_ocr_bench/i2_check.py
+scripts/dev/frame_ocr_bench/measure.py
+scripts/dev/frame_ocr_bench/reference.py
+scripts/dev/frame_ocr_bench/run.sh

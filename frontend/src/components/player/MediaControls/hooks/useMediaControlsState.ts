@@ -62,10 +62,18 @@ const EMPTY_SNAPSHOT: MediaControlsSnapshot = {
   captions: "unavailable",
 };
 
+/** How long a skip keeps the seek bar and its watched band up. */
+const SKIP_WINDOW_MS = 2000;
+
 export interface UseMediaControlsStateOptions {
   mc: MediaController | null;
   durationHint?: number | null;
   autoHideMs?: number;
+  /**
+   * True in the touch layout, where a skip shows the bottom bar alone
+   * rather than the whole chrome.
+   */
+  touch?: boolean;
   /**
    * Keep the controls up regardless of the idle timer. Set while
    * something transient is open over the frame — a sheet that faded
@@ -79,12 +87,20 @@ export interface MediaControlsState extends MediaControlsSnapshot {
   displayTime: number;
   scrubbing: boolean;
   controlsVisible: boolean;
+  /** Touch layout only: the seek bar and full-screen button without the rest. */
+  bottomOnly: boolean;
+  /** Whether the watched band is shown for a reason other than a hover. */
+  bandVisible: boolean;
   revealControls: () => void;
   hideControls: () => void;
   beginScrub: (seconds: number) => void;
   updateScrub: (seconds: number) => void;
   endScrub: () => void;
   setVolume: (value: number) => void;
+  /** A skip: the band shows for two seconds, and on touch the chrome goes bottom-only. */
+  noteSkip: () => void;
+  /** Restarts those two seconds for an action that is not a skip (a scrub end, a full-screen press). */
+  restartSkipWindow: () => void;
 }
 
 function finite(value: number): number {
@@ -142,6 +158,7 @@ export function useMediaControlsState({
   mc,
   durationHint,
   autoHideMs = DEFAULT_AUTO_HIDE_MS,
+  touch = false,
   holdVisible = false,
 }: UseMediaControlsStateOptions): MediaControlsState {
   const [snapshot, setSnapshot] = useState<MediaControlsSnapshot>(EMPTY_SNAPSHOT);
@@ -153,14 +170,28 @@ export function useMediaControlsState({
   // Same idea for the level the viewer just dragged to.
   const [pendingVolume, setPendingVolume] = useState<number | null>(null);
   const [controlsVisible, setControlsVisible] = useState(true);
+  const [bottomOnly, setBottomOnly] = useState(false);
+  const [skipWindow, setSkipWindow] = useState(false);
   const [revealNonce, setRevealNonce] = useState(0);
 
   // The scrub position is mirrored in a ref so endScrub can read the
   // latest value without being re-created on every drag frame.
   const scrubTimeRef = useRef<number | null>(null);
+  const skipTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { paused } = snapshot;
   const scrubbing = scrubTime !== null;
+
+  // Read by the skip timer, which outlives the render that started it.
+  const bottomOnlyRef = useRef(bottomOnly);
+  bottomOnlyRef.current = bottomOnly;
+  const scrubbingRef = useRef(scrubbing);
+  scrubbingRef.current = scrubbing;
+  const pausedRef = useRef(paused);
+  pausedRef.current = paused;
+  const prevPausedRef = useRef(paused);
+  const touchRef = useRef(touch);
+  touchRef.current = touch;
 
   useEffect(() => {
     if (!mc) return;
@@ -189,6 +220,7 @@ export function useMediaControlsState({
   }, [mc, durationHint]);
 
   useEffect(() => {
+    if (paused || holdVisible) setBottomOnly(false);
     // Nothing is moving, so there is nothing to get out of the way of.
     // holdVisible is the same idea for something the viewer opened
     // deliberately and is still reading.
@@ -201,9 +233,41 @@ export function useMediaControlsState({
     return () => clearTimeout(id);
   }, [paused, scrubbing, holdVisible, autoHideMs, revealNonce]);
 
+  // Resuming is as good a sign as pausing that the viewer is back, so it
+  // ends bottom-only too and leaves the whole chrome to the idle timer.
+  useEffect(() => {
+    if (prevPausedRef.current === paused) return;
+    prevPausedRef.current = paused;
+    setBottomOnly(false);
+  }, [paused]);
+
+  const restartSkipWindow = useCallback(() => {
+    if (skipTimerRef.current) clearTimeout(skipTimerRef.current);
+    setSkipWindow(true);
+    skipTimerRef.current = setTimeout(() => {
+      skipTimerRef.current = null;
+      setSkipWindow(false);
+      if (scrubbingRef.current) return;
+      if (!bottomOnlyRef.current) return;
+      setBottomOnly(false);
+      setControlsVisible(pausedRef.current);
+    }, SKIP_WINDOW_MS);
+  }, []);
+
   const revealControls = useCallback(() => {
+    setBottomOnly(false);
     setRevealNonce((n) => n + 1);
   }, []);
+
+  const noteSkip = useCallback(() => {
+    if (touchRef.current) {
+      setBottomOnly(true);
+      setControlsVisible(true);
+    } else {
+      revealControls();
+    }
+    restartSkipWindow();
+  }, [restartSkipWindow, revealControls]);
 
   // Stays hidden until something re-runs the effect above (playback
   // starting or stopping, a scrub, another reveal). An explicit "put it
@@ -230,7 +294,8 @@ export function useMediaControlsState({
     setScrubTime(null);
     setPendingSeek(target);
     mc?.seek(target);
-  }, [mc]);
+    if (bottomOnlyRef.current) restartSkipWindow();
+  }, [mc, restartSkipWindow]);
 
   useEffect(() => {
     if (pendingSeek === null) return;
@@ -267,17 +332,28 @@ export function useMediaControlsState({
     return () => clearTimeout(id);
   }, [pendingVolume]);
 
+  useEffect(
+    () => () => {
+      if (skipTimerRef.current) clearTimeout(skipTimerRef.current);
+    },
+    [],
+  );
+
   return {
     ...snapshot,
     volume: pendingVolume ?? snapshot.volume,
     displayTime: scrubTime ?? pendingSeek ?? snapshot.currentTime,
     scrubbing,
     controlsVisible,
+    bottomOnly,
+    bandVisible: skipWindow || scrubbing || bottomOnly,
     revealControls,
     hideControls,
     beginScrub,
     updateScrub,
     endScrub,
     setVolume,
+    noteSkip,
+    restartSkipWindow,
   };
 }

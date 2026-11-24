@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-1",
+      "status": "rejected_with_evidence",
+      "note": "The new module addons/intelligence/app/video_frames.py exists (1-136). Its docstring (lines 1-5) states it holds the decoding pieces shared by the frame-OCR reader, the scene-CLIP frame extraction and the frame scan. The touch-point list says the interval-frame extraction, difference hash, rotation probe and reachability check are 'moved into shared helpers the scan imports' without naming a destination. The new module is exactly that shared-helper destination, and clip.py:30 and frame_ocr.py:31 import from it. This is within the stated touch points, so it is not a scope defect."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-2",
+      "status": "confirmed",
+      "note": "Confirmed as a scope observation only. mcp-server/src/__tests__/ contains videoFrames.test.ts, videoScenesSections.test.ts and loftYoutube.test.ts. The touch-point list names only mcp-server/src/tools/video.ts and mcp-server/README.md. No behaviour defect was found. Test files for the touched MCP tool are a reasonable addition, but the touch-point list does not enumerate them."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-3",
+      "status": "confirmed",
+      "note": "Confirmed as a scope observation only. The files exist under addons/intelligence/tests/: test_spec_addon_111_frame_scan_{task,model,index,regenerate}.py, test_spec_addon_112_scene_sections.py, test_spec_addon_113_ask_frames.py, scene_sections_db.py and video_frames_doubles.py. The touch-point list names none of them. The new specs' tests are additive and do not delete the listed tests. No behaviour defect was found in this check."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-4",
+      "status": "confirmed",
+      "note": "Confirmed as a scope observation. clip.py:363-376 adds load_image_model(), which calls _ensure_siglip_full_loaded() or _ensure_loaded() depending on settings. frame_scan.py:38 and :201 import it and call it before the scan writes, which I7 requires for the 'CLIP model cannot be loaded' case. The new public function is not in the touch-point scope for clip.py, which covers only the helper move with behaviour unchanged. Existing clip.py behaviour was not altered by this addition as far as I checked."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-5",
+      "status": "rejected_with_evidence",
+      "note": "The automatic-request rule is governed by I9 in the invariants, not only by a Revises line. I9 states that the on_index hook enqueues a run only for a video that has no run at all, and that no automatic request replaces a run of an older pipeline version or retries a failed one. video_visual.py:555-569: if runs exist and after_scan is false, the reason is run_exists when there is no active run or when the active run has a different pipeline_version. test_video_visual_worker.py:796-799 creates a failed, inactive run with pipeline_version=1 and asserts run_exists. That matches I9 and the SPEC-ADDON-113 item 1 wording in the enqueue docstring (video_visual.py:535-539). The test change follows the declared invariant. It was not a new rule."
+    }
+  ],
+  "expected_placeholder": "none",
+  "specification_compliance": [
+    "TP-1 is within the touch-point wording: video_frames.py is the shared-helper destination for the moved helpers.",
+    "TP-5 is consistent with I9: automatic on_index requests stay out when a run exists, and a failed run is left for the user.",
+    "I9 pipeline-version and failed-run protection is consistent with the enqueue code at video_visual.py:555-569."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "Whether the new test files and the added MCP test files are acceptable without being named in the touch-point list is a scope question for the author, not a behaviour defect.",
+    "load_image_model in clip.py is a new public function outside the stated 'behaviour unchanged' helper move; it is only a scope note."
+  ],
+  "regression_risks": [
+    "The new public function clip.load_image_model in clip.py is a new surface that the scan depends on; a future change to _ensure_loaded or _ensure_siglip_full_loaded would affect the scan's readiness decision (I7).",
+    "The extraction helpers in video_frames.py are now shared by clip.py, frame_ocr.py and frame_scan.py; a change there affects all three paths."
+  ],
+  "test_coverage": [
+    "Test files for the new specs (SPEC-ADDON-111/112/113) and the MCP tests exist, but I did not run them; I only confirmed they exist and read the stickiness test at test_video_visual_worker.py:774-799."
+  ],
+  "not_verified": [
+    "Did not run any tests or the git diff; this is a read-only review with Read, Glob and Grep only.",
+    "Did not verify that the worktree HEAD is 3fd0bfcc2; I assumed the files read are the commit under review.",
+    "Did not verify the behaviour of clip.py, frame_ocr.py or video_frames.py beyond the code read here; I did not check that the moved helpers are byte-for-byte unchanged in behaviour.",
+    "Did not check the invariants I1-I10 beyond the stickiness rule (I9) and the scope claims in the findings."
+  ],
+  "confidence": 80
+}

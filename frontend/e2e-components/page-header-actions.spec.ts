@@ -81,3 +81,98 @@ for (const { id, sharesTitleRow } of ARRANGEMENTS) {
     }
   });
 }
+
+for (const width of NARROW) {
+  test(`page-header-title-medium-actions at ${width}px: actions that do not fit beside the title leave it whole`, async ({
+    page,
+  }) => {
+    await open(page, "page-header-title-medium-actions", width);
+
+    const h1 = await page.evaluate(() => {
+      const el = document.querySelector("header h1")!;
+      return { scrollWidth: el.scrollWidth, clientWidth: el.clientWidth };
+    });
+
+    expect(h1.clientWidth).toBeGreaterThan(0);
+    expect(h1.scrollWidth).toBeLessThanOrEqual(h1.clientWidth);
+  });
+
+  test(`page-header-title-short-action at ${width}px: an action that fits stays on the title's row`, async ({
+    page,
+  }) => {
+    await open(page, "page-header-title-short-action", width);
+
+    const rows = await page.evaluate(() => {
+      const header = document.querySelector("header")!;
+      const h1 = header.querySelector("h1")!.getBoundingClientRect();
+      const button = header.querySelector("button")!.getBoundingClientRect();
+      return { h1: { top: h1.top, bottom: h1.bottom }, button: { top: button.top, bottom: button.bottom } };
+    });
+
+    expect(rows.button.top).toBeLessThan(rows.h1.bottom);
+    expect(rows.button.bottom).toBeGreaterThan(rows.h1.top);
+  });
+}
+
+async function primaryBoxes(page: import("@playwright/test").Page) {
+  return page.evaluate(() => {
+    const box = (selector: string) => {
+      const r = document.querySelector(selector)!.getBoundingClientRect();
+      return { left: r.left, right: r.right, top: r.top, bottom: r.bottom };
+    };
+    return {
+      title: box("header h1"),
+      sort: box("#header-sort"),
+      scopeEnd: box("#scope-end"),
+      action: box("#header-action"),
+      tabs: box("#tabs"),
+      scrollWidth: document.documentElement.scrollWidth,
+    };
+  });
+}
+
+const onRow = (
+  a: { top: number; bottom: number },
+  b: { top: number; bottom: number },
+) => Math.min(a.bottom, b.bottom) > Math.max(a.top, b.top);
+
+test("page-header-primary-action at 1440px: title, sort, Target, then the primary action, rightmost, on one row", async ({
+  page,
+}) => {
+  await open(page, "page-header-primary-action", 1440);
+  const m = await primaryBoxes(page);
+
+  for (const box of [m.sort, m.scopeEnd, m.action]) expect(onRow(m.title, box)).toBe(true);
+  expect(m.sort.right).toBeLessThanOrEqual(m.scopeEnd.left + 1);
+  expect(m.scopeEnd.right).toBeLessThanOrEqual(m.action.left + 1);
+  expect(Math.abs(m.action.right - (1440 - 16))).toBeLessThanOrEqual(1);
+  expect(m.tabs.top).toBeGreaterThanOrEqual(m.action.bottom - 1);
+  expect(m.scrollWidth).toBeLessThanOrEqual(1440);
+});
+
+test("page-header-primary-action at 390px: the primary action is a full-width row after the tabs and the sort", async ({
+  page,
+}) => {
+  await open(page, "page-header-primary-action", 390);
+  const m = await primaryBoxes(page);
+
+  expect(m.sort.top).toBeGreaterThanOrEqual(m.tabs.bottom - 1);
+  expect(m.action.top).toBeGreaterThanOrEqual(m.sort.bottom - 1);
+  expect(Math.abs(m.action.left - 16)).toBeLessThanOrEqual(1);
+  expect(Math.abs(m.action.right - (390 - 16))).toBeLessThanOrEqual(1);
+  expect(m.scrollWidth).toBeLessThanOrEqual(390);
+});
+
+test("page-header-primary-only at 390px: the primary action is 12px below the tabs, full width", async ({
+  page,
+}) => {
+  await open(page, "page-header-primary-only", 390);
+  const m = await page.evaluate(() => {
+    const box = (selector: string) => document.querySelector(selector)!.getBoundingClientRect();
+    return { tabs: box("#tabs"), action: box("#header-action") };
+  });
+
+  expect(Math.abs(m.action.top - m.tabs.bottom - 12)).toBeLessThanOrEqual(1);
+  expect(Math.abs(m.action.left - 16)).toBeLessThanOrEqual(1);
+  expect(Math.abs(m.action.right - (390 - 16))).toBeLessThanOrEqual(1);
+});

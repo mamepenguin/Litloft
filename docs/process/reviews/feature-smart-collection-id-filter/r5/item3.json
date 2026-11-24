@@ -1,0 +1,55 @@
+{
+ "menu1": [
+  "タグ\n種類\nフォルダ\nコレクション\nサイズ\n長さ\nお気に入り"
+ ],
+ "options": [
+  {
+   "text": "boats",
+   "icons": [
+    "lucide lucide-list-filter flex-shrink-0 text-text-muted"
+   ]
+  },
+  {
+   "text": "Cats",
+   "icons": [
+    "lucide lucide-list-filter flex-shrink-0 text-text-muted"
+   ]
+  },
+  {
+   "text": "PDFs",
+   "icons": [
+    "lucide lucide-list-filter flex-shrink-0 text-text-muted"
+   ]
+  },
+  {
+   "text": "Spirit",
+   "icons": [
+    "lucide lucide-library flex-shrink-0 text-text-muted"
+   ]
+  },
+  {
+   "text": "Zero",
+   "icons": [
+    "lucide lucide-list-filter flex-shrink-0 text-text-muted"
+   ]
+  },
+  {
+   "text": "あんこ動画",
+   "icons": [
+    "lucide lucide-list-filter flex-shrink-0 text-text-muted"
+   ]
+  },
+  {
+   "text": "海の動画",
+   "icons": [
+    "lucide lucide-list-filter flex-shrink-0 text-text-muted"
+   ]
+  }
+ ],
+ "urlAfterPick": "http://video-share-sc-idfilter.localhost:3105/drive/動画/search?q=子ザメ+in:Cats",
+ "countAfterPick": "4",
+ "urlAfterBack": "http://video-share-sc-idfilter.localhost:3105/drive/動画/search?q=子ザメ",
+ "boxAfterBack": "子ザメ",
+ "imgUrl": "http://video-share-sc-idfilter.localhost:3105/drive/動画/search?img=e8582eb1927e",
+ "imgOptions": "no 条件を追加 button"
+}

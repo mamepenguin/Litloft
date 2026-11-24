@@ -1,0 +1,2 @@
+addons/intelligence/app/pickup/evaluate.py
+addons/intelligence/app/pickup/profile.py

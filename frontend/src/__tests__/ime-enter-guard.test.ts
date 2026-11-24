@@ -37,6 +37,7 @@ const TEXT_FIELD_ENTER = [
   "components/sidebar/SidebarCollectionsSection.tsx",
   "components/search/SearchQueryHeader.tsx",
   "components/FileDetail/find/useFindInFile.ts",
+  "components/appshell/NameFilter.tsx",
 ];
 
 /**
@@ -50,10 +51,12 @@ const NOT_A_TEXT_FIELD_ENTER = [
   "hooks/useFileCardLink.ts",
 ];
 
-/** Addon text fields whose Enter acts, each guarded and render-tested in its own repository. */
+/** Addon text fields that handle Enter themselves, each guarded and render-tested in its own repository. */
 const ADDON_TEXT_FIELD_ENTER = [
+  "intelligence/frontend/AskTab.tsx",
   "intelligence/frontend/Page.tsx",
   "intelligence/frontend/pages/search-compare.tsx",
+  "intelligence/frontend/TranscriptEditDialog.tsx",
   "intelligence/frontend/TranscriptSection.tsx",
   "media_import/frontend/Composer.tsx",
   "media_import/frontend/ImportFromUrlDialog.tsx",
@@ -100,13 +103,13 @@ function enterFiles(root: string): string[] {
 describe("core files handling Enter", () => {
   it("are all declared as a text field or not", () => {
     const declared = [...TEXT_FIELD_ENTER, ...NOT_A_TEXT_FIELD_ENTER].sort();
-    expect(declared).toHaveLength(20);
+    expect(declared).toHaveLength(21);
     expect(enterFiles(SRC)).toEqual(declared);
   });
 
   it("are all declared in the addons as well", () => {
     const declared = [...ADDON_TEXT_FIELD_ENTER, ...ADDON_NOT_A_GUARDED_ENTER].sort();
-    expect(declared).toHaveLength(8);
+    expect(declared).toHaveLength(10);
     const found = readdirSync(ADDONS_DIR, { withFileTypes: true })
       .filter((e) => e.isDirectory())
       .map((e) => resolve(ADDONS_DIR, e.name, "frontend"))

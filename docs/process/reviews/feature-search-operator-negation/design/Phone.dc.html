@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>375px の除外チップ</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:#62625b}a:hover{color:#211922}
+</style>
+</helmet>
+<div style="width: 375px; height: 520px; box-sizing: border-box; background: #ffffff; color: #211922; font-family: -apple-system, system-ui, 'Segoe UI', Roboto, sans-serif; padding: 24px 16px; display: flex; flex-direction: column; gap: 12px">
+  <label style="display: flex">
+    <input type="text" value="tag:旅行 -tag:2023 -path:&quot;写真/2019 北海道旅行/未整理の RAW データ&quot; -has:tag" aria-label="検索" style="flex: 1; min-width: 0; height: 40px; box-sizing: border-box; border: 1px solid rgba(145,145,140,0.35); border-radius: 12px; padding: 0 14px; font-size: 15px; color: #211922; background: #ffffff; font-family: inherit">
+  </label>
+  <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0">
+    <span style="display: inline-flex; align-items: center; gap: 4px; border-radius: 999px; background: #e5e5e0; padding: 2px 4px 2px 8px; font-size: 12px; line-height: 16px">
+      <span><b style="font-weight: 600">タグ</b> 旅行</span>
+      <button type="button" aria-label="タグ 旅行 を外す" style="border: 0; background: transparent; color: #62625b; padding: 2px; font-size: 12px; line-height: 12px">×</button>
+    </span>
+    <span style="display: inline-flex; align-items: center; gap: 4px; border-radius: 999px; box-shadow: inset 0 0 0 1px #b9b9b2; padding: 2px 4px 2px 8px; font-size: 12px; line-height: 16px">
+      <span><span style="color: #62625b">除外</span> <b style="font-weight: 600">タグ</b> 2023</span>
+      <button type="button" aria-label="除外 タグ 2023 を外す" style="border: 0; background: transparent; color: #62625b; padding: 2px; font-size: 12px; line-height: 12px">×</button>
+    </span>
+    <span style="display: inline-flex; min-width: 0; max-width: 100%; align-items: center; gap: 4px; border-radius: 999px; box-shadow: inset 0 0 0 1px #b9b9b2; padding: 2px 4px 2px 8px; font-size: 12px; line-height: 16px; box-sizing: border-box">
+      <span style="min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap"><span style="color: #62625b">除外</span> <b style="font-weight: 600">フォルダ</b> 写真/2019 北海道旅行/未整理の RAW データ</span>
+      <button type="button" aria-label="除外 フォルダ 写真/2019 北海道旅行/未整理の RAW データ を外す" style="flex-shrink: 0; border: 0; background: transparent; color: #62625b; padding: 2px; font-size: 12px; line-height: 12px">×</button>
+    </span>
+    <span style="display: inline-flex; align-items: center; gap: 4px; border-radius: 999px; background: #e5e5e0; padding: 2px 4px 2px 8px; font-size: 12px; line-height: 16px">
+      <span><b style="font-weight: 600">タグなし</b></span>
+      <button type="button" aria-label="タグなし を外す" style="border: 0; background: transparent; color: #62625b; padding: 2px; font-size: 12px; line-height: 12px">×</button>
+    </span>
+    <button type="button" style="display: inline-flex; align-items: center; border-radius: 999px; border: 1px dashed #91918c; background: transparent; padding: 4px 10px; font-size: 12px; color: #62625b; font-family: inherit">＋ 条件</button>
+  </div>
+  <div style="flex: 1; display: flex; align-items: center; justify-content: center; color: #62625b; font-size: 14px">該当するファイルはありません</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":375,"height":520}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

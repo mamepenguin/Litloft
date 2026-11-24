@@ -5,14 +5,14 @@ import { Film } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 
 import { AppHeader } from "@/components/appshell/AppHeader";
-import { resolveVideoTarget } from "@/lib/videoAppTarget";
+import { resolveVideoMemberTarget, resolveVideoTarget } from "@/lib/videoAppTarget";
 import type { SmartFolder } from "@/types/smartFolder";
 import type { VideoAppState } from "./useVideoApp";
 
 const VIDEO_KINDS = ["video"] as const;
 
 function isUsableTarget(folder: SmartFolder): boolean {
-  return resolveVideoTarget(folder).usable;
+  return resolveVideoTarget(folder).usable || resolveVideoMemberTarget(folder) !== null;
 }
 
 export function VideoAppHeader({
@@ -22,14 +22,17 @@ export function VideoAppHeader({
   breadcrumb,
   actions,
   tabs,
+  homeEntry,
 }: {
   drive: string;
   state: VideoAppState;
   title?: string;
   breadcrumb?: ReactNode;
-  /** Beside the Target button. */
+  /** Below the tabs on a phone, beside the Target at `sm` and wider. */
   actions?: ReactNode;
   tabs?: ReactNode;
+  /** The key of this app's Home entry. */
+  homeEntry?: string;
 }) {
   const t = useTranslations("videoApp");
   const locale = useLocale();
@@ -54,9 +57,11 @@ export function VideoAppHeader({
       target={{
         drive,
         app: "video",
-        name: state.ready ? (state.folder?.name ?? t("allVideos")) : null,
+        homeEntry: state.targetKnown ? homeEntry : undefined,
+        name: state.targetKnown ? (state.targetName ?? t("allVideos")) : null,
         folders: state.smartFolders,
-        selectedId: state.folder?.id ?? "default",
+        collections: { list: state.collections, retry: state.retryCollections },
+        selectedId: state.targetId,
         currentCount: state.count,
         label: t("target"),
         defaultLabel: t("allVideos"),

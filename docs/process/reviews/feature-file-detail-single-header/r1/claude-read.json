@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "TP-1",
+      "origin": "reviewer",
+      "claim": "The diff adds a new module, frontend/src/components/FileHeaderRowProvider.tsx, which the touch-point list does not name.",
+      "impact": "This module carries the change's core behaviour: the stack of drawers that decides which page owns the row (flow 4, I1), the portal that keeps the row's controls in the page's React tree (I9), clean-up on unmount (I4), rowNeeds/hideHeaderControls (D7, I6) and trail alignment (D2, I2). A reviewer who scopes the work by the touch-point list would not read it, although a fault in it is what the user would hit (the header stuck in the file form, or briefly showing its ordinary form during a swap).",
+      "evidence": "frontend/src/components/FileHeaderRowProvider.tsx:1-184 (new file). AppShell.tsx:25 wraps the shell in it; Header.tsx:13, ChromeButtons.tsx:9, FileDetailChrome.tsx:16, FileDetailFullScreen.tsx:8 and RightPaneFile.tsx:9 import from it. The touch-point list names Header.tsx and AppShell.tsx as gaining 'a place a file page draws into', but not this file. invariants.md has an empty Revisions section, so the list was never amended.",
+      "repro": "Compare the diff's file list with the Touch points section of docs/specs/file-detail-single-header.md: FileHeaderRowProvider.tsx appears in the diff and is absent from the list.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is a scope gap in the declared touch points, not a broken invariant. The invariants that depend on the module (I1, I2, I4, I6, I9) are observed through the listed components and their tests.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add frontend/src/components/FileHeaderRowProvider.tsx to the touch-point list (as a revision in invariants.md), so the drawer stack, the portal and the alignment logic are reviewed as part of the change."
+    },
+    {
+      "id": "TP-2",
+      "origin": "reviewer",
+      "claim": "The diff edits docs/user-guide/keyboard-shortcuts.md, which the touch-point list does not name; the list's Docs entry covers only DESIGN.md and docs/user-guide/viewers-and-players.md.",
+      "impact": "No code impact. A reader who checks user-facing documentation against the list would miss that this second user-guide page also changed.",
+      "evidence": "docs/user-guide/keyboard-shortcuts.md:209 now reads 'On a phone there is no toggle in the row; press the sheet's resting strip instead.' The Touch points 'Docs:' line names only DESIGN.md and docs/user-guide/viewers-and-players.md.",
+      "repro": "Compare the diff's file list with the Touch points section: keyboard-shortcuts.md appears in the diff and is absent from the list.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "The new text matches the code: FileDetailChrome draws no inspector toggle when isMobile, and the strip's name button raises the sheet. Only the touch-point list is incomplete.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Add docs/user-guide/keyboard-shortcuts.md to the Docs touch point, or accept it as a consequential doc update. The text itself needs no change."
+    }
+  ],
+  "specification_compliance": [
+    "Every other file in the diff falls under a listed touch point: Header.tsx, AppShell.tsx, ChromeButtons.tsx, Breadcrumb.tsx, FileDetailChrome.tsx, FileDetailContainer.tsx, FileDetailPresenter.tsx, FileDetailSkeleton.tsx, ShellLayout.tsx, FileDetailShell.tsx, FileDetailFullScreen.tsx, RightPaneFile.tsx, MobileInspectorSheet.tsx, MarkdownDocumentLayout.tsx, EditableTitle.tsx, MarkdownViewModeToggle.tsx, FindButton.tsx, markdownChromeContext.tsx, DESIGN.md and viewers-and-players.md.",
+    "The test and fixture files (e2e-components/*, including projects.ts, spec-viewport.spec.ts, fixtures/fileHeaderRow.tsx and inspector-responsive-layout-desktop.spec.ts; e2e-layout/fixtures/pseudo-fullscreen.html; the unit tests under components/**/__tests__, including headerRowHarness.ts) fall under the listed directories.",
+    "docs/specs/INDEX.md and docs/specs/file-detail-single-header.md are implicit touch points and are not reported.",
+    "In the other direction, several listed touch points are not changed by the diff: DriveTreeToggle.tsx, TreeToggle.tsx, SaveDot.tsx, InboxDetailActions.tsx, FileNavControls.tsx and messages-core/{ja,en}.json. The strip button reuses the existing inspector.expandSheet label, and the single view toggle reuses the knowledge.editor.view labels. This is not an unplanned reach, so no finding is raised."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "FileDetailChrome now calls useSearchParams() (FileDetailChrome.tsx), which adds a router dependency to every host of the chrome. All current hosts (FileDetailShell, FileDetailFullScreen, RightPaneFile) are listed, but any host or test rendering it without a next/navigation context now depends on that context."
+  ],
+  "regression_risks": [
+    "FileHeaderRowProvider now wraps every AppShell screen. A fault in its register/unregister ordering (useLayoutEffect clean-up across file-to-file swaps) would affect the header on all screens, not only file pages."
+  ],
+  "test_coverage": [
+    "FileHeaderRowProvider has no unit test of its own. It is exercised indirectly by FileDetailHeaderRow.test.tsx (flow 4 stacking, I1 swaps, I4 leave), FileDetailFullScreen.headerRow.test.tsx and RightPaneFile.headerRow.test.tsx, and by the Playwright specs file-header-row(.desktop).spec.ts."
+  ],
+  "not_verified": [
+    "Whether the supplied diff matches commit e622215fc itself. Its message ('docs(review): record the third R-5 run') suggests the commit touches only review records; I answered against the diff supplied, because I cannot run git.",
+    "I did not read the bodies of the listed-but-unchanged touch points (DriveTreeToggle, TreeToggle, SaveDot, InboxDetailActions, FileNavControls, messages JSON), so I did not check whether they needed changes.",
+    "I did not run any tests."
+  ],
+  "confidence": 85
+}

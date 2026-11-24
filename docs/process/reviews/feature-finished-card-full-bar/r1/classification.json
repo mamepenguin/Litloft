@@ -1,0 +1,52 @@
+{
+  "risk": "HIGH",
+  "score": 6,
+  "base": 2,
+  "zone_max": "MEDIUM",
+  "modifiers": [],
+  "promotions": [],
+  "zones_touched": [
+    {
+      "path": "DESIGN.md",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "backend/tests/test_api_shelves.py",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/INDEX.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/finished-card-full-bar.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/user-guide/video.md",
+      "level": "LOW"
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/watchedRanges.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/watched-range-cards.spec.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/CardProgress.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/watchedRangesCards.test.tsx",
+      "level": "MEDIUM"
+    }
+  ],
+  "human_zones_touched": [],
+  "protected_paths_touched": [],
+  "docs_only": false,
+  "reasons": [
+    "highest zone MEDIUM (4 points)"
+  ]
+}

@@ -63,12 +63,12 @@ describe("InspectorShell", () => {
     expect(tabs()).toHaveLength(3);
   });
 
-  it("keeps the header out of the region that scrolls", () => {
+  it("keeps the header inside the region that scrolls, at the top of Info", () => {
     renderShell([{ entry: entry("a"), label: "A", content: <p>a body</p> }]);
 
     const header = screen.getByTestId("header");
     const panel = screen.getByRole("tabpanel");
-    expect(panel).not.toContainElement(header);
+    expect(panel).toContainElement(header);
     expect(panel.className).toContain("overflow-auto");
   });
 
@@ -86,7 +86,7 @@ describe("InspectorShell in column mode", () => {
       "column",
     );
 
-  it("declares no scroller of its own, in the root, the header or the panel", () => {
+  it("declares no scroller of its own, in the root or any panel", () => {
     renderColumn();
 
     const scrolls = (el: Element) =>
@@ -95,7 +95,6 @@ describe("InspectorShell in column mode", () => {
       );
 
     expect(scrolls(screen.getByTestId("inspector-shell"))).toBe(false);
-    expect(scrolls(screen.getByTestId("header").parentElement!)).toBe(false);
     for (const panel of screen.getAllByRole("tabpanel", { hidden: true })) {
       expect(scrolls(panel)).toBe(false);
     }
@@ -194,14 +193,16 @@ describe("InspectorShell in column mode", () => {
     );
   });
 
-  it("still puts the header above the strip and the strip above the panel", () => {
+  it("puts the strip first, with the Info panel and its header under it", () => {
     renderColumn();
 
     const root = screen.getByTestId("inspector-shell");
     const children = [...root.children];
-    expect(children.indexOf(screen.getByTestId("header").parentElement!)).toBe(0);
-    expect(children.indexOf(screen.getByTestId("inspector-tabs"))).toBe(1);
-    expect(children.indexOf(screen.getByRole("tabpanel"))).toBe(2);
+    expect(children.indexOf(screen.getByTestId("inspector-tabs"))).toBe(0);
+    expect(children.indexOf(screen.getByRole("tabpanel"))).toBe(1);
+    expect(screen.getByRole("tabpanel")).toContainElement(
+      screen.getByTestId("header"),
+    );
   });
 
   it("keeps every panel mounted, the same as the pinned form", () => {

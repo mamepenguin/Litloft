@@ -35,11 +35,16 @@ const mockFile = (id: string): FileItem => ({
   trust_reviewed_at: null,
   created_at: "2026-01-01T00:00:00Z",
   updated_at: "2026-01-01T00:00:00Z",
+  modified_at: null,
 });
 
 const getDriveFiles = vi.hoisted(() => vi.fn());
+const getCollections = vi.hoisted(() => vi.fn());
+const getSmartFolders = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/api", () => ({
   getDriveFiles: (...args: unknown[]) => getDriveFiles(...args),
+  getCollections: (...args: unknown[]) => getCollections(...args),
+  getSmartFolders: (...args: unknown[]) => getSmartFolders(...args),
 }));
 
 const cache = vi.hoisted(() => ({
@@ -95,6 +100,8 @@ async function open(input: Partial<typeof base> = {}) {
 beforeEach(() => {
   vi.clearAllMocks();
   getDriveFiles.mockResolvedValue(listing);
+  getCollections.mockResolvedValue([{ name: "旅行" }]);
+  getSmartFolders.mockResolvedValue([]);
   cache.read.mockReturnValue(null);
   semantic.available.mockResolvedValue(false);
   semantic.fetch.mockResolvedValue({ ok: true, results: [] });

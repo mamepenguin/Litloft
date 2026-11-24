@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "CRITICAL",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R1",
+      "status": "confirmed",
+      "note": "Reproduced by reading the code. useFolderFiles.ts:302 `if (impossible) return;` leaves inResolution as it is. activeResolution (:350-351) only checks the key, and inNameState (:354-359) has no `impossible` guard; only inNameBlocked (:353) has one. FolderContent.tsx:141-145 renders InNameNotice with onRetry when the state is 'failed'. FolderBrowser.tsx:874 suppresses the no-results EmptyState when inNameState is set. The window's impossible branch calls setInNameError(null) (useFileSearch.ts:131), so the two surfaces diverge. No request is sent in either case, because fetchPage returns empty at :375."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "D3",
+      "status": "confirmed",
+      "note": "Same mechanism as R1. Reading useFolderFiles.ts:302, :350-359, FolderContent.tsx:141-145 and FolderBrowser.tsx:874 confirms that a held failed, tooLarge or refused resolution for an unchanged inKey keeps its notice on screen during an impossible stretch, instead of the empty state."
+    }
+  ],
+  "unspecified_scores": [
+    {
+      "source_reviewer": "claude-read",
+      "index": 0,
+      "frequency": 1,
+      "impact": 2,
+      "reason": "The user edits an in: query through an impossible intermediate key and back to the original key (A → B → A). The page reuses A's earlier resolution and its `now`, which for a modified:-relative Smart Collection can be slightly stale. Otherwise nothing visible changes."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "index": 1,
+      "frequency": 1,
+      "impact": 2,
+      "reason": "A held 'failed' notice is visible during an impossible query and the user presses 再試行. Nothing happens until the query becomes possible again, at which point the retry runs, so the button briefly looks dead."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "index": 2,
+      "frequency": 2,
+      "impact": 5,
+      "reason": "The user mistypes the collection name in -in:. The query is sent as exclude_collection and silently excludes nothing, so the user sees unfiltered results with no warning. Per I28 this is the specified handling of an unknown name."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "index": 0,
+      "frequency": 1,
+      "impact": 2,
+      "reason": "An A → impossible B → A edit reuses A's held resolution and its `now` on both the page and in the window (useFileSearch.ts:209-210 reuses by key). Results stay correct except for a possibly stale relative date inside the Smart Collection."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "index": 1,
+      "frequency": 3,
+      "impact": 1,
+      "reason": "While the window's typed query is impossible, tag and operator suggestions still appear, because useLauncherRows.ts:60-73 does not depend on `impossible`, while page and folder jumps are hidden by `off` (:55). Completing a suggestion is still useful, so this is harmless."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "index": 2,
+      "frequency": 2,
+      "impact": 5,
+      "reason": "A -in: name that matches no collection, for example a typo, is sent as exclude_collection and filters nothing. The user gets broader results than intended with no notice."
+    }
+  ],
+  "specification_compliance": [
+    "I7: an impossible query still requests nothing on the page (useFolderFiles.ts:302 and :375) and in the window (useFileSearch.ts:123-134).",
+    "I28 / I29: the page keeps the resolution for an unchanged inKey across an impossible stretch, so it does not resolve again, as the revised invariants require.",
+    "Display during an impossible stretch differs between the page (held InNameNotice) and the window (empty state). R1 and D3 confirm this."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    {
+      "behavior": "If the query becomes impossible while the page's in: resolution is still in flight, the effect cleanup aborts it and leaves status 'resolving'. When the query becomes possible again, the `held.status !== \"resolving\"` guard lets resolution start again, so the page re-resolves instead of keeping a result.",
+      "frequency": 1,
+      "impact": 1,
+      "reason": "A query that turns impossible mid-resolution just resolves again when it turns possible. The user sees a short extra wait."
+    }
+  ],
+  "regression_risks": [
+    "Page and window now render different states for the same impossible query that has a held in: failure."
+  ],
+  "test_coverage": [
+    "I did not inspect tests for the page's held-resolution display during an impossible stretch."
+  ],
+  "not_verified": [
+    "Did not run the app or tests; verified by reading code only.",
+    "Did not check the backend handling of exclude_collection with an unknown name.",
+    "Did not read the unit tests of useFolderFiles or useFileSearch."
+  ],
+  "confidence": 85
+}

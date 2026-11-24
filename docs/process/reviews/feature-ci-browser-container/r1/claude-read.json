@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [],
+  "specification_compliance": [
+    "Every path the diff touches maps to a declared touch point. `.github/workflows/ci.yml`: the `frontend-layout` job is replaced by `frontend-components` and `frontend-layout-epub` (lines 295-393), and the `bootstrap` install step changes to `pip install pytest PyYAML==6.0.2` (line 494). No other job in ci.yml changed. The other paths are the new `frontend/scripts/check-playwright-browsers.mjs`, the new vitest test `frontend/src/__tests__/check-playwright-browsers.test.ts` (the touch point 'a vitest test for it under frontend/src/'), the new `tests/test_ci_browser_jobs.py`, and the `### Core jobs` table in `docs/developer-guide/testing.md`. The remaining paths are implicit touch points: `docs/specs/ci-browser-container.md`, `docs/specs/INDEX.md` and the review records.",
+    "The diff does not touch the 'read, not changed' files: the three Playwright configs, `frontend/package.json` and `frontend/pnpm-lock.yaml`.",
+    "Answer to the question: no place the diff reaches is outside the touch-point list. The list was complete for this diff.",
+    "The new vitest test sits under `frontend/src/`, so the existing `frontend (vitest k/4)` and `frontend (shuffled order)` jobs also pick it up. This follows from the declared touch point and is not an unplanned reach. The coverage include in `frontend/vitest.config.ts:32` is `src/**/*.{ts,tsx}`, so the new `.mjs` script under `frontend/scripts/` does not enter the coverage denominator."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The new vitest test runs in the existing frontend vitest shards and the shuffled job. Its two cases without `--browsers-json` resolve the real `@playwright/test` → `playwright` → `playwright-core` chain from `frontend/`. This works on the existing runner jobs as long as `pnpm install` ran. The touch point implies this, but it is a new dependency of those jobs on the installed playwright-core layout."
+  ],
+  "regression_risks": [
+    "Branch protection on `develop` is a GitHub setting outside the repository, and the diff cannot show it. It is a declared touch point (I7), and this read did not verify it."
+  ],
+  "test_coverage": [
+    "tests/test_ci_browser_jobs.py asserts the job ids, names, image tag against the lockfile, Node 20, step order, browser-check command and gating, filter flags, the absence of pipes and continue-on-error, fail-fast and the bootstrap PyYAML install. These are the touch-point wiring checks.",
+    "frontend/src/__tests__/check-playwright-browsers.test.ts covers each failure condition of the script and the module-resolution path."
+  ],
+  "not_verified": [
+    "Whether branch protection on `develop` was changed (a GitHub setting, not in the repository).",
+    "That the commit sha eda97893 alone contains exactly the shown diff. I reviewed the diff supplied in the prompt against the working tree and did not inspect git objects.",
+    "The full body of docs/developer-guide/testing.md beyond the diff hunk.",
+    "Runtime behaviour of the container jobs (user 1001 permissions, pnpm cache path)."
+  ],
+  "coverage": [
+    {
+      "path": ".github/workflows/ci.yml",
+      "read": "full",
+      "reason": "Read the whole file (lines 1-549)."
+    },
+    {
+      "path": "frontend/scripts/check-playwright-browsers.mjs",
+      "read": "full",
+      "reason": "Read the whole file (lines 1-88)."
+    },
+    {
+      "path": "frontend/src/__tests__/check-playwright-browsers.test.ts",
+      "read": "full",
+      "reason": "New file; read in full from the diff, which contains the entire file."
+    },
+    {
+      "path": "tests/test_ci_browser_jobs.py",
+      "read": "full",
+      "reason": "New file; read in full from the diff and checked lines 1-40 against the working tree."
+    }
+  ],
+  "confidence": 88
+}

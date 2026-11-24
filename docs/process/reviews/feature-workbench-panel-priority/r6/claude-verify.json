@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R1-unlisted-MediaPlayerBlock",
+      "status": "confirmed",
+      "note": "Reproduced. At HEAD, MediaPlayerBlock.tsx:124 reads `data-preview-actions={showPreviewActions ? \"true\" : undefined}`. The main checkout, which is not on this branch, has `data-preview-actions=\"true\"` at the same line, so the edit is part of this change, and MediaPlayerBlock.tsx is not in the touch-point list. I found no behaviour change from it. FileDetailShell.tsx:238 exits the measurement unless stackedLayout is set. ShellLayout.tsx:190-191 makes workbenchWide false when stackedLayout is set, so actionsInRow (:216) is false and showPreviewActions (:455) is true, and the in-player div still carries the attribute wherever FileDetailShell.tsx:245 measures it. The edit means the WorkbenchPlayerFocus.test.tsx:284 document.querySelector call finds the row element (Workbench.tsx:105) and not the empty in-player div, which comes before it in DOM order. This is a scope deviation, not a defect."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R1-unlisted-e2e-stubs",
+      "status": "confirmed",
+      "note": "Reproduced. frontend/e2e-components/stubs/previewActionSlot.tsx exists and renders a button with data-testid=\"fixture-preview-action\" (lines 2-11). stubs/addons.ts:5 imports it and :24 maps \"fixture-action\": PreviewActionSlot. Neither file exists in the main checkout. The touch points name only fixtures/inspectorResponsive.tsx for the stub. These files are test-only and do not affect the product."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R1-unlisted-floor-rule",
+      "status": "confirmed",
+      "note": "Reproduced. globals.css:926-936 adds `.media-detail-host[data-workbench=\"on\"][data-player-focus=\"on\"] .media-detail-player[data-framed=\"true\"] { min-width: min(100%, 480px, calc(var(--rail-avail, 100dvh) * 0.5 * 16 / 9)) }`. MediaCanvas.tsx:23/46/59 adds the `playerFocused` prop and `data-player-focus={playerFocused ? \"on\" : undefined}`. ShellLayout.tsx:452 passes playerFocused={playerFocusApplies}, which :217-218 defines as playerFramed && playerFocus && shownPanels.length > 0. In the frontend sources, the 480px value is tied to COMPACT_MAX_WIDTH (MediaControls/layout.ts:22) only by the CSS comment at globals.css:926. The touch points describe globals.css only as the trailing element and the icon variant, and MediaCanvas only as taking the share. The revised r5 I2 explains why the rule exists, but the touch-point list was not updated for it."
+    }
+  ],
+  "specification_compliance": [
+    "The r5 I2 floor is implemented as a CSS min-width of min(100%, 480px, rail*0.5*16/9). This matches 'the larger of 30% and 270px, never more than 50%' when the frame is height-limited. 100% lets the canvas width limit the frame first, which the revised I2 allows.",
+    "The floor applies only when playerFocusApplies is true (framed player, store on, at least one panel shown) and only under data-workbench=on, so it agrees with the I7 exclusions for those cases."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The 480px floor is a literal in CSS. It is not derived from COMPACT_MAX_WIDTH, so if the constant changes, the two values drift apart without any error."
+  ],
+  "regression_risks": [
+    "If a future layout lets FileDetailShell's stacked measurement run while showPreviewActions is false, the in-player div would lose data-preview-actions and the measurement would pick up the row element (or nothing). As of this commit, ShellLayout.tsx:190/216 makes the two conditions exclusive."
+  ],
+  "test_coverage": [
+    "WorkbenchPlayerFocus.test.tsx:284 relies on the MediaPlayerBlock attribute change to select the row's data-preview-actions element."
+  ],
+  "not_verified": [
+    "I could not run git diff, so I compared against the main checkout at /Users/libre/Sources/video_share and assumed it reflects origin/develop for these files.",
+    "I did not run the e2e or vitest suites, and I did not measure the floor rule in a browser.",
+    "I did not check that FileDetailShell's stackedLayout comes from the same source as ShellLayout's stackedLayout, beyond the code paths read."
+  ],
+  "confidence": 85
+}

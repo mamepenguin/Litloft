@@ -1,6 +1,20 @@
-import type { ArchiveContents, AuthStatus, BatchRenameRequest, BatchRenameResponse, ChunkResponse, CollectionDetail, CollectionSummary, Comment, CommentsResponse, DashboardResponse, Drive, DriveSummary, DuplicatesResponse, FileExif, FileItem, Folder, FolderCount, FolderTreeNode, Highlight, HighlightInput, Neighbors, PaginatedResponse, PinnedFolder, ListingSortField, SortField, SortOrder, Tag, TrustFilter, TrustTier, FileKind, UnlockResult, UploadInitResponse, WatchHistoryItem, WatchProgress } from "@/types";
+import type { ArchiveContents, AuthStatus, BatchRenameRequest, BatchRenameResponse, ChunkResponse, CollectionDetail, CollectionSummary, Comment, CommentsResponse, DashboardResponse, Drive, DriveSummary, DuplicatesResponse, FileExif, FileItem, Folder, FolderCount, FolderTreeNode, Highlight, HighlightInput, HomeShortcut, HomeShortcutKind, Neighbors, PaginatedResponse, PinnedFolder, ListingSortField, SortField, SortOrder, Tag, TrustTier, FileKind, UnlockResult, UploadInitResponse, WatchHistoryItem, WatchProgress, WatchedRange, PlayedSegmentsResponse } from "@/types";
 import type { SmartFolder, SmartFolderCreate, SmartFolderUpdate } from "@/types/smartFolder";
+import { ApiStatusError } from "@/lib/apiError";
+import { REQUEST_TIMEOUT_MS, type BatchAnswer } from "@/lib/batchChunks";
 import { seedFiles } from "@/lib/fileSeed";
+import {
+  appendListingFilters,
+  listingQueryUrl,
+  listingUrl,
+  readListingPage,
+  type ListingFilters,
+  type ListingRequestParams,
+  type OriginFilters,
+} from "@/lib/listingRequest";
+
+export { ApiStatusError };
+export type { ListingFilters, OriginFilters };
 
 const API_BASE = "/api";
 
@@ -12,8 +26,39 @@ export async function fetchJSON<T>(url: string, options?: RequestInit): Promise<
   return res.json();
 }
 
+/**
+ * `fetchJSON` for a call whose caller reads the status of a failure. The four
+ * name-taking writes use it so a `409` is distinguishable from the rest.
+ */
+async function fetchJSONStatus<T>(url: string, options?: RequestInit): Promise<T> {
+  const res = await fetch(url, { credentials: "include", ...options });
+  if (!res.ok) {
+    throw new ApiStatusError(res.status, `API error: ${res.status} ${res.statusText}`);
+  }
+  return res.json();
+}
+
 export interface RequestOptions {
   signal?: AbortSignal;
+}
+
+/**
+ * A whole-list request has no cancel control, so it must end on its own even
+ * when the caller supplies no signal. A caller-provided signal is authoritative.
+ */
+async function fetchJSONWithDefaultTimeout<T>(
+  url: string,
+  init: RequestInit,
+  options?: RequestOptions,
+): Promise<T> {
+  if (options?.signal) return fetchJSON<T>(url, { ...init, signal: options.signal });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  try {
+    return await fetchJSON<T>(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 export async function getDrives(): Promise<Drive[]> {
@@ -55,85 +100,35 @@ export async function getFolderTree(
   );
 }
 
-type ListingFilters = Pick<
-  Parameters<typeof getDriveFiles>[1],
-  | "search"
-  | "favorite"
-  | "liked"
-  | "tag"
-  | "type"
-  | "folder"
-  | "collection"
-  | "size"
-  | "duration"
-  | "trust"
->;
-
-function appendListingFilters(searchParams: URLSearchParams, params: ListingFilters): void {
-  if (params.search) searchParams.set("search", params.search);
-  if (params.favorite !== undefined) searchParams.set("favorite", String(params.favorite));
-  if (params.liked !== undefined) searchParams.set("liked", String(params.liked));
-  for (const tag of [params.tag ?? []].flat()) if (tag) searchParams.append("tag", tag);
-  for (const kind of [params.type ?? []].flat()) searchParams.append("type", kind);
-  for (const folder of [params.folder ?? []].flat()) {
-    if (folder) searchParams.append("folder", folder);
-  }
-  for (const collection of [params.collection ?? []].flat()) {
-    if (collection) searchParams.append("collection", collection);
-  }
-  for (const size of [params.size ?? []].flat()) {
-    if (size) searchParams.append("size", size);
-  }
-  for (const duration of [params.duration ?? []].flat()) {
-    if (duration) searchParams.append("duration", duration);
-  }
-  if (params.trust) searchParams.set("trust", params.trust);
-}
-
 export async function getDriveFiles(
   drive: string,
-  params: {
-    path?: string;
-    recursive?: boolean;
-    search?: string;
-    favorite?: boolean;
-    liked?: boolean;
-    /** Several tags: every one must be on the file. */
-    tag?: string | readonly string[];
-    /** Several kinds: the file may be any of them. */
-    type?: FileKind | readonly FileKind[];
-    /** Each folder keeps its whole subtree. */
-    folder?: string | readonly string[];
-    /** Each collection name keeps its items. */
-    collection?: string | readonly string[];
-    /** Size comparisons in the wire form (`gt:1073741824`). */
-    size?: string | readonly string[];
-    /** Duration comparisons in the wire form (`gte:1800`). */
-    duration?: string | readonly string[];
-    /**
-     * `verified` / `unverified` select a tier; `unreviewed` is not a tier but
-     * the review queue — files nobody has ruled on, which spans both.
-     */
-    trust?: TrustFilter;
-    sort?: ListingSortField;
-    order?: SortOrder;
-    page?: number;
-    limit?: number;
-  },
+  params: ListingRequestParams,
   options?: RequestOptions,
 ): Promise<PaginatedResponse> {
-  const searchParams = new URLSearchParams();
-  if (params.path !== undefined) searchParams.set("path", params.path);
-  if (params.recursive) searchParams.set("recursive", "true");
-  appendListingFilters(searchParams, params);
-  if (params.sort) searchParams.set("sort", params.sort);
-  if (params.order) searchParams.set("order", params.order);
-  if (params.page) searchParams.set("page", String(params.page));
-  if (params.limit) searchParams.set("limit", String(params.limit));
+  const page = await readListingPage(
+    await fetch(listingUrl(drive, params), {
+      credentials: "include",
+      ...(options?.signal ? { signal: options.signal } : {}),
+    }),
+  );
+  seedFiles(page.data);
+  return page;
+}
 
-  const page = await fetchJSON<PaginatedResponse>(
-    `${API_BASE}/drives/${encodeURIComponent(drive)}/files?${searchParams.toString()}`,
-    options?.signal ? { signal: options.signal } : undefined,
+export async function getDriveFilesWithFileIds(
+  drive: string,
+  params: ListingRequestParams,
+  fileIds: readonly string[],
+  options?: RequestOptions,
+): Promise<PaginatedResponse> {
+  const page = await readListingPage(
+    await fetch(listingQueryUrl(drive, params), {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ file_ids: fileIds }),
+      ...(options?.signal ? { signal: options.signal } : {}),
+    }),
   );
   seedFiles(page.data);
   return page;
@@ -148,6 +143,8 @@ export interface ShelvesParams extends ListingFilters {
   key?: string;
   /** Keep only files in this reading state; needs a viewer identity. */
   watch?: ShelfWatchState;
+  /** Whether the viewer has a history row for the file; needs a viewer identity. */
+  opened?: boolean;
   /** Restrict every shelf to these file ids, repeated on the wire. */
   ids?: readonly string[];
   sort?: ListingSortField | "last_played";
@@ -158,7 +155,10 @@ export interface ShelvesParams extends ListingFilters {
   page?: number;
 }
 
-export type ShelfItem = FileItem & { watch_progress?: WatchProgress };
+export type ShelfItem = FileItem & {
+  watch_progress?: WatchProgress;
+  watched_ranges?: WatchedRange[];
+};
 
 export interface Shelf {
   key: string;
@@ -176,16 +176,13 @@ export interface ShelvesResponse {
   base: string;
 }
 
-export async function getShelves(
-  drive: string,
-  params: ShelvesParams,
-  options?: RequestOptions,
-): Promise<ShelvesResponse> {
+function shelvesSearchParams(params: ShelvesParams): string {
   const searchParams = new URLSearchParams();
   searchParams.set("by", params.by);
   if (params.key !== undefined) searchParams.set("key", params.key);
   appendListingFilters(searchParams, params);
   if (params.watch) searchParams.set("watch", params.watch);
+  if (params.opened !== undefined) searchParams.set("opened", String(params.opened));
   for (const id of params.ids ?? []) searchParams.append("ids", id);
   if (params.sort) searchParams.set("sort", params.sort);
   if (params.order) searchParams.set("order", params.order);
@@ -193,11 +190,10 @@ export async function getShelves(
     const value = params[name];
     if (value !== undefined) searchParams.set(name, String(value));
   }
+  return searchParams.toString();
+}
 
-  const res = await fetch(
-    `${API_BASE}/drives/${encodeURIComponent(drive)}/shelves?${searchParams.toString()}`,
-    { credentials: "include", signal: options?.signal },
-  );
+async function readShelves(res: Response): Promise<ShelvesResponse> {
   if (!res.ok) {
     const body: unknown = await res.json().catch(() => null);
     const detail =
@@ -215,6 +211,37 @@ export async function getShelves(
   return shelves;
 }
 
+export async function getShelves(
+  drive: string,
+  params: ShelvesParams,
+  options?: RequestOptions,
+): Promise<ShelvesResponse> {
+  const res = await fetch(
+    `${API_BASE}/drives/${encodeURIComponent(drive)}/shelves?${shelvesSearchParams(params)}`,
+    { credentials: "include", signal: options?.signal },
+  );
+  return readShelves(res);
+}
+
+export async function getShelvesWithFileIds(
+  drive: string,
+  params: ShelvesParams,
+  fileIds: readonly string[],
+  options?: RequestOptions,
+): Promise<ShelvesResponse> {
+  const res = await fetch(
+    `${API_BASE}/drives/${encodeURIComponent(drive)}/shelves/query?${shelvesSearchParams(params)}`,
+    {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ file_ids: fileIds }),
+      signal: options?.signal,
+    },
+  );
+  return readShelves(res);
+}
+
 export async function getDriveTags(
   drive: string,
   folderPath?: string | null,
@@ -230,9 +257,74 @@ export async function getDriveTags(
   return fetchJSON<Tag[]>(`${API_BASE}/drives/${encodeURIComponent(drive)}/tags${qs ? `?${qs}` : ""}`);
 }
 
-export async function getFolderCounts(drive: string, type?: FileKind): Promise<FolderCount[]> {
-  const query = type ? `?${new URLSearchParams({ type })}` : "";
-  return fetchJSON<FolderCount[]>(`${API_BASE}/drives/${encodeURIComponent(drive)}/folder-counts${query}`);
+export type TagCountsParams = ListingFilters & { watch?: ShelfWatchState };
+
+function tagCountsSearchParams(params: TagCountsParams): string {
+  const searchParams = new URLSearchParams();
+  appendListingFilters(searchParams, params);
+  if (params.watch) searchParams.set("watch", params.watch);
+  return searchParams.toString();
+}
+
+async function readTagCounts(res: Response): Promise<Tag[]> {
+  if (!res.ok) {
+    const body: unknown = await res.json().catch(() => null);
+    const detail =
+      typeof body === "object" && body !== null && "detail" in body
+        ? (body as { detail: unknown }).detail
+        : undefined;
+    throw new ApiStatusError(
+      res.status,
+      `API error: ${res.status} ${res.statusText}`,
+      typeof detail === "string" ? detail : undefined,
+    );
+  }
+  return (await res.json()) as Tag[];
+}
+
+/** The tags of the files matching these conditions, with distinct file counts. */
+export async function getTagCounts(
+  drive: string,
+  params: TagCountsParams,
+  options?: RequestOptions,
+): Promise<Tag[]> {
+  const res = await fetch(
+    `${API_BASE}/drives/${encodeURIComponent(drive)}/tag-counts?${tagCountsSearchParams(params)}`,
+    { credentials: "include", ...(options?.signal ? { signal: options.signal } : {}) },
+  );
+  return readTagCounts(res);
+}
+
+export async function getTagCountsWithFileIds(
+  drive: string,
+  params: TagCountsParams,
+  fileIds: readonly string[],
+  options?: RequestOptions,
+): Promise<Tag[]> {
+  const res = await fetch(
+    `${API_BASE}/drives/${encodeURIComponent(drive)}/tag-counts/query?${tagCountsSearchParams(params)}`,
+    {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ file_ids: fileIds }),
+      ...(options?.signal ? { signal: options.signal } : {}),
+    },
+  );
+  return readTagCounts(res);
+}
+
+export async function getFolderCounts(
+  drive: string,
+  type?: FileKind,
+  filters?: OriginFilters,
+): Promise<FolderCount[]> {
+  const params = new URLSearchParams();
+  if (type) params.set("type", type);
+  if (filters?.origin) params.set("origin", filters.origin);
+  if (filters?.exclude_origin) params.set("exclude_origin", filters.exclude_origin);
+  const qs = params.toString();
+  return fetchJSON<FolderCount[]>(`${API_BASE}/drives/${encodeURIComponent(drive)}/folder-counts${qs ? `?${qs}` : ""}`);
 }
 
 export interface ScanResult {
@@ -241,18 +333,6 @@ export interface ScanResult {
   recovered: number;
   updated: number;
   total: number;
-}
-
-export class ApiStatusError extends Error {
-  constructor(
-    readonly status: number,
-    message: string,
-    /** The `detail` code of an error body, when the server sent a string. */
-    readonly detail?: string,
-  ) {
-    super(message);
-    this.name = "ApiStatusError";
-  }
 }
 
 export async function scanDrive(drive: string): Promise<ScanResult> {
@@ -731,11 +811,15 @@ export async function batchGetFiles(ids: string[]): Promise<FileItem[]> {
   return files;
 }
 
-export async function batchDelete(ids: string[]): Promise<{ deleted: number; errors: { id: string; error: string }[] }> {
+export async function batchDelete(
+  ids: string[],
+  options?: RequestOptions,
+): Promise<BatchAnswer> {
   return fetchJSON(`${API_BASE}/files/batch/delete`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ ids }),
+    ...(options?.signal ? { signal: options.signal } : {}),
   });
 }
 
@@ -798,6 +882,28 @@ export async function getPins(drive: string): Promise<PinnedFolder[]> {
   return fetchJSON<PinnedFolder[]>(`${API_BASE}/drives/${encodeURIComponent(drive)}/pins`);
 }
 
+export async function getHomeShortcuts(drive: string): Promise<HomeShortcut[]> {
+  return fetchJSON<HomeShortcut[]>(
+    `${API_BASE}/drives/${encodeURIComponent(drive)}/home-shortcuts`,
+  );
+}
+
+export async function setHomeShortcut(
+  drive: string,
+  shortcut: { kind: HomeShortcutKind; id: string; app?: string | null; on_home: boolean },
+): Promise<void> {
+  const res = await fetch(
+    `${API_BASE}/drives/${encodeURIComponent(drive)}/home-shortcuts`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(shortcut),
+    },
+  );
+  if (!res.ok) throw new Error(`API error: ${res.status}`);
+}
+
 export async function addPin(drive: string, path: string): Promise<PinnedFolder> {
   return fetchJSON<PinnedFolder>(`${API_BASE}/drives/${encodeURIComponent(drive)}/pins`, {
     method: "POST",
@@ -824,7 +930,7 @@ export async function createSmartFolder(
   drive: string,
   payload: SmartFolderCreate,
 ): Promise<SmartFolder> {
-  return fetchJSON<SmartFolder>(
+  return fetchJSONStatus<SmartFolder>(
     `${API_BASE}/drives/${encodeURIComponent(drive)}/smart-folders`,
     {
       method: "POST",
@@ -839,7 +945,7 @@ export async function updateSmartFolder(
   id: string,
   payload: SmartFolderUpdate,
 ): Promise<SmartFolder> {
-  return fetchJSON<SmartFolder>(
+  return fetchJSONStatus<SmartFolder>(
     `${API_BASE}/drives/${encodeURIComponent(drive)}/smart-folders/${encodeURIComponent(id)}`,
     {
       method: "PATCH",
@@ -868,12 +974,12 @@ export async function createCollection(
   name: string,
   description?: string | null,
 ): Promise<CollectionSummary> {
-  return fetchJSON<CollectionSummary>(
+  return fetchJSONStatus<CollectionSummary>(
     `${API_BASE}/drives/${encodeURIComponent(drive)}/collections`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, description: description ?? null }),
+      body: JSON.stringify(description === undefined ? { name } : { name, description }),
     }
   );
 }
@@ -896,7 +1002,7 @@ export async function updateCollection(
   id: string,
   patch: CollectionUpdate,
 ): Promise<CollectionSummary> {
-  return fetchJSON<CollectionSummary>(
+  return fetchJSONStatus<CollectionSummary>(
     `${API_BASE}/drives/${encodeURIComponent(drive)}/collections/${id}`,
     {
       method: "PUT",
@@ -995,6 +1101,12 @@ export async function getWatchProgress(fileId: string): Promise<WatchProgress> {
   return fetchJSON<WatchProgress>(`${API_BASE}/files/${fileId}/progress`);
 }
 
+export async function getPlayedSegments(fileId: string): Promise<PlayedSegmentsResponse> {
+  return fetchJSON<PlayedSegmentsResponse>(
+    `${API_BASE}/files/${fileId}/played-segments`,
+  );
+}
+
 export async function listHighlights(fileId: string): Promise<Highlight[]> {
   const res = await fetch(`${API_BASE}/files/${fileId}/highlights`, {
     credentials: "include",
@@ -1064,11 +1176,14 @@ export async function getWatchHistory(
   limit?: number,
   filter?: "unfinished" | "all" | "continue" | "not_continue",
   type?: FileKind | null,
+  filters?: OriginFilters,
 ): Promise<WatchHistoryItem[]> {
   const params = new URLSearchParams();
   if (limit) params.set("limit", String(limit));
   if (filter) params.set("filter", filter);
   if (type) params.set("type", type);
+  if (filters?.origin) params.set("origin", filters.origin);
+  if (filters?.exclude_origin) params.set("exclude_origin", filters.exclude_origin);
   const qs = params.toString();
   const result = await fetchJSON<{ data: WatchHistoryItem[] }>(
     `${API_BASE}/drives/${encodeURIComponent(driveName)}/watch-history${qs ? `?${qs}` : ""}`
@@ -1101,10 +1216,14 @@ export async function purgeFile(id: string): Promise<void> {
   if (!res.ok) throw new Error(`API error: ${res.status}`);
 }
 
-export async function emptyTrash(drive: string): Promise<{ purged: number }> {
-  return fetchJSON<{ purged: number }>(
+export async function emptyTrash(
+  drive: string,
+  options?: RequestOptions,
+): Promise<{ purged: number }> {
+  return fetchJSONWithDefaultTimeout<{ purged: number }>(
     `${API_BASE}/drives/${encodeURIComponent(drive)}/trash/empty`,
-    { method: "POST" }
+    { method: "POST" },
+    options
   );
 }
 
@@ -1123,15 +1242,19 @@ export async function getMissing(
   );
 }
 
-export async function purgeAllMissing(drive: string): Promise<{ purged: number }> {
-  return fetchJSON<{ purged: number }>(
+export async function purgeAllMissing(
+  drive: string,
+  options?: RequestOptions,
+): Promise<{ purged: number }> {
+  return fetchJSONWithDefaultTimeout<{ purged: number }>(
     `${API_BASE}/drives/${encodeURIComponent(drive)}/missing/purge-all`,
-    { method: "POST" }
+    { method: "POST" },
+    options
   );
 }
 
 export async function getDriveSummary(drive: string): Promise<DriveSummary> {
-  return fetchJSON<DriveSummary>(
+  return fetchJSONStatus<DriveSummary>(
     `${API_BASE}/drives/${encodeURIComponent(drive)}/summary`
   );
 }
@@ -1144,11 +1267,15 @@ export async function batchRestore(ids: string[]): Promise<{ restored: number; e
   });
 }
 
-export async function batchPurge(ids: string[]): Promise<{ purged: number; errors: { id: string; error: string }[] }> {
+export async function batchPurge(
+  ids: string[],
+  options?: RequestOptions,
+): Promise<BatchAnswer> {
   return fetchJSON(`${API_BASE}/files/batch/purge`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ ids }),
+    ...(options?.signal ? { signal: options.signal } : {}),
   });
 }
 

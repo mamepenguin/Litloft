@@ -1,0 +1,1 @@
+{"verdict":"PASS","reasons":[],"findings":[{"reviewer":"claude-read","id":"R1","state":"open"},{"reviewer":"claude-read","id":"R2","state":"rejected"},{"reviewer":"claude-read","id":"R3","state":"open"}],"needs_human":[]}

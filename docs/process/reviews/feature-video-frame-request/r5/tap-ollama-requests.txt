@@ -1,0 +1,104 @@
+#0 22:58:32 status=200 first=17.54 total=33.98 n_msgs=10 {'model': 'gemma4:e4b', 'think': True, 'options': {'temperature': 0.1, 'num_predict': 4096}, 'stream': True, 'tools': ['get_frames']}
+   [2] user: '[160] 0:10' images=['14453a1878f88a67:121330']
+   [3] user: '[161] 5:00' images=['e602e4fc2ce0bb4f:70486']
+   [4] user: '[162] 11:00' images=['9747533f5e877162:98282']
+   [5] user: '[163] 14:30' images=['90139cb6a4fdd9aa:110154']
+   [6] user: '[164] 18:20' images=['5b67f2d14e28e2a9:118188']
+   [7] user: '[165] 20:40' images=['4490d3ad1facf0a4:80144']
+   [8] user: '[166] 24:30' images=['88ef457ebddaf5ee:85320']
+   [9] user: '[167] 29:00' images=['a02f8e1b2fd190b9:79498']
+#1 23:02:13 status=200 first=18.45 total=35.36 n_msgs=10 {'model': 'gemma4:e4b', 'think': True, 'options': {'temperature': 0.1, 'num_predict': 4096}, 'stream': True, 'tools': ['get_frames']}
+   [2] user: '[160] 0:10' images=['14453a1878f88a67:121330']
+   [3] user: '[161] 5:00' images=['e602e4fc2ce0bb4f:70486']
+   [4] user: '[162] 11:00' images=['9747533f5e877162:98282']
+   [5] user: '[163] 14:30' images=['90139cb6a4fdd9aa:110154']
+   [6] user: '[164] 18:20' images=['5b67f2d14e28e2a9:118188']
+   [7] user: '[165] 20:40' images=['4490d3ad1facf0a4:80144']
+   [8] user: '[166] 24:30' images=['88ef457ebddaf5ee:85320']
+   [9] user: '[167] 29:00' images=['a02f8e1b2fd190b9:79498']
+#2 23:05:09 status=200 first=17.58 total=32.93 n_msgs=10 {'model': 'gemma4:e4b', 'think': True, 'options': {'temperature': 0.1, 'num_predict': 4096}, 'stream': True, 'tools': ['get_frames']}
+   [2] user: '[160] 0:10' images=['14453a1878f88a67:121330']
+   [3] user: '[161] 5:00' images=['e602e4fc2ce0bb4f:70486']
+   [4] user: '[162] 11:00' images=['9747533f5e877162:98282']
+   [5] user: '[163] 14:30' images=['90139cb6a4fdd9aa:110154']
+   [6] user: '[164] 18:20' images=['5b67f2d14e28e2a9:118188']
+   [7] user: '[165] 20:40' images=['4490d3ad1facf0a4:80144']
+   [8] user: '[166] 24:30' images=['88ef457ebddaf5ee:85320']
+   [9] user: '[167] 29:00' images=['a02f8e1b2fd190b9:79498']
+#3 23:06:31 status=200 first=2.61 total=16.76 n_msgs=10 {'model': 'gemma4:e4b', 'think': True, 'options': {'temperature': 0.1, 'num_predict': 4096}, 'stream': True, 'tools': ['get_frames']}
+   [2] user: '[160] 0:10' images=['14453a1878f88a67:121330']
+   [3] user: '[161] 5:00' images=['e602e4fc2ce0bb4f:70486']
+   [4] user: '[162] 11:00' images=['9747533f5e877162:98282']
+   [5] user: '[163] 14:30' images=['90139cb6a4fdd9aa:110154']
+   [6] user: '[164] 18:20' images=['5b67f2d14e28e2a9:118188']
+   [7] user: '[165] 20:40' images=['4490d3ad1facf0a4:80144']
+   [8] user: '[166] 24:30' images=['88ef457ebddaf5ee:85320']
+   [9] user: '[167] 29:00' images=['a02f8e1b2fd190b9:79498']
+#4 23:15:12 status=200 first=13.64 total=24.23 n_msgs=10 {'model': 'gemma4:e4b', 'think': True, 'options': {'temperature': 0.1, 'num_predict': 4096}, 'stream': True, 'tools': ['get_frames']}
+   [2] user: '[100] 0:30' images=['777dd1334e264be3:41538']
+   [3] user: '[101] 1:10' images=['8b39cd669ee922cf:41808']
+   [4] user: '[102] 2:20' images=['4e2e8b2cc6897d1e:72232']
+   [5] user: '[103] 3:30' images=['92758b7e5e2d43d2:38332']
+   [6] user: '[104] 5:37' images=['1c12dfb2185f4725:79322']
+   [7] user: '[105] 6:10' images=['b8b8112675f4e78d:49622']
+   [8] user: '[106] 8:20' images=['c96ca4899b54c0f3:84676']
+   [9] user: '[107] 9:22' images=['f86246da0c095bd6:50238']
+#5 23:16:04 status=200 first=12.46 total=34.16 n_msgs=10 {'model': 'gemma4:e4b', 'think': True, 'options': {'temperature': 0.1, 'num_predict': 4096}, 'stream': True, 'tools': ['get_frames']}
+   [2] user: '[100] 0:30' images=['777dd1334e264be3:41538']
+   [3] user: '[101] 1:10' images=['8b39cd669ee922cf:41808']
+   [4] user: '[102] 2:20' images=['4e2e8b2cc6897d1e:72232']
+   [5] user: '[103] 3:30' images=['92758b7e5e2d43d2:38332']
+   [6] user: '[104] 5:37' images=['1c12dfb2185f4725:79322']
+   [7] user: '[105] 6:10' images=['b8b8112675f4e78d:49622']
+   [8] user: '[106] 8:20' images=['c96ca4899b54c0f3:84676']
+   [9] user: '[107] 9:22' images=['f86246da0c095bd6:50238']
+#6 23:17:47 status=None first=None total=None n_msgs=10 {'model': 'gemma4:e4b', 'think': True, 'options': {'temperature': 0.1, 'num_predict': 4096}, 'stream': True, 'tools': ['get_frames']}
+   [2] user: '[100] 0:30' images=['777dd1334e264be3:41538']
+   [3] user: '[101] 1:10' images=['8b39cd669ee922cf:41808']
+   [4] user: '[102] 2:20' images=['4e2e8b2cc6897d1e:72232']
+   [5] user: '[103] 3:30' images=['92758b7e5e2d43d2:38332']
+   [6] user: '[104] 5:37' images=['1c12dfb2185f4725:79322']
+   [7] user: '[105] 6:10' images=['b8b8112675f4e78d:49622']
+   [8] user: '[106] 8:20' images=['c96ca4899b54c0f3:84676']
+   [9] user: '[107] 9:22' images=['f86246da0c095bd6:50238']
+#7 23:17:47 status=200 first=25.78 total=30.15 n_msgs=10 {'model': 'gemma4:e4b', 'think': False, 'options': {'temperature': 0.1, 'num_predict': 2048}, 'stream': True, 'tools': []}
+   [2] user: '[100] 0:30' images=['777dd1334e264be3:41538']
+   [3] user: '[101] 1:10' images=['8b39cd669ee922cf:41808']
+   [4] user: '[102] 2:20' images=['4e2e8b2cc6897d1e:72232']
+   [5] user: '[103] 3:30' images=['92758b7e5e2d43d2:38332']
+   [6] user: '[104] 5:37' images=['1c12dfb2185f4725:79322']
+   [7] user: '[105] 6:10' images=['b8b8112675f4e78d:49622']
+   [8] user: '[106] 8:20' images=['c96ca4899b54c0f3:84676']
+   [9] user: '[107] 9:22' images=['f86246da0c095bd6:50238']
+#8 23:28:07 status=200 first=13.67 total=15.41 n_msgs=10 {'model': 'gemma4:e4b', 'think': True, 'options': {'temperature': 0.1, 'num_predict': 4096}, 'stream': True, 'tools': ['get_frames']}
+   [2] user: '[100] 0:30' images=['777dd1334e264be3:41538']
+   [3] user: '[101] 1:10' images=['8b39cd669ee922cf:41808']
+   [4] user: '[102] 2:20' images=['4e2e8b2cc6897d1e:72232']
+   [5] user: '[103] 5:37' images=['1c12dfb2185f4725:79322']
+   [6] user: '[104] 5:45' images=['f35fdf5d955379e4:69732']
+   [7] user: '[105] 6:10' images=['b8b8112675f4e78d:49622']
+   [8] user: '[106] 8:20' images=['c96ca4899b54c0f3:84676']
+   [9] user: '[107] 9:22' images=['f86246da0c095bd6:50238']
+#9 23:28:23 status=200 first=3.58 total=9.07 n_msgs=14 {'model': 'gemma4:e4b', 'think': True, 'options': {'temperature': 0.1, 'num_predict': 4096}, 'stream': True, 'tools': ['get_frames']}
+   [2] user: '[100] 0:30' images=['777dd1334e264be3:41538']
+   [3] user: '[101] 1:10' images=['8b39cd669ee922cf:41808']
+   [4] user: '[102] 2:20' images=['4e2e8b2cc6897d1e:72232']
+   [5] user: '[103] 5:37' images=['1c12dfb2185f4725:79322']
+   [6] user: '[104] 5:45' images=['f35fdf5d955379e4:69732']
+   [7] user: '[105] 6:10' images=['b8b8112675f4e78d:49622']
+   [8] user: '[106] 8:20' images=['c96ca4899b54c0f3:84676']
+   [9] user: '[107] 9:22' images=['f86246da0c095bd6:50238']
+   [10] assistant: '' tool_calls=[{"function": {"name": "get_frames", "arguments": {"times": ["3:05", "3:15"]}}}]
+   [11] tool: '2 frames follow.'
+   [12] user: '[108] 3:05' images=['b02d2f4e539d2c6f:29002']
+   [13] user: '[109] 3:15' images=['7eb154808334bc89:36168']
+#0 22:58:32 injected=None think=True first=17.54 total=33.98 thinking_chars=None tool_calls=0
+#1 23:02:13 injected=None think=True first=18.45 total=35.36 thinking_chars=None tool_calls=0
+#2 23:05:09 injected=None think=True first=17.58 total=32.93 thinking_chars=None tool_calls=0
+#3 23:06:31 injected=None think=True first=2.61 total=16.76 thinking_chars=2422 tool_calls=0
+#4 23:15:12 injected=None think=True first=13.64 total=24.23 thinking_chars=1891 tool_calls=0
+#5 23:16:04 injected=None think=True first=12.46 total=34.16 thinking_chars=4088 tool_calls=0
+#6 23:17:47 injected=400 for a request carrying tools think=True first=None total=None thinking_chars=None tool_calls=0
+#7 23:17:47 injected=None think=False first=25.78 total=30.15 thinking_chars=0 tool_calls=0
+#8 23:28:07 injected=None think=True first=13.67 total=15.41 thinking_chars=257 tool_calls=1
+#9 23:28:23 injected=None think=True first=3.58 total=9.07 thinking_chars=963 tool_calls=0

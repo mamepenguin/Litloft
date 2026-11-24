@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>スマートコレクションの検索ページ</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="width: 1200px; height: 560px; box-sizing: border-box; padding: 28px 16px 0; background: #ffffff; font-family: -apple-system, 'Hiragino Sans', 'Noto Sans JP', system-ui, sans-serif; color: #211922; position: relative; display: flex; flex-direction: column; gap: 10px">
+  <label for="q" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">検索</label>
+  <input id="q" type="text" value="tag:あんこ type:video" style="box-sizing: border-box; width: 100%; height: 40px; border-radius: 16px; border: 1px solid rgba(145,145,140,0.35); padding: 0 12px; font-size: 17px; color: #211922; font-family: inherit">
+  <div style="display: flex; gap: 8px; align-items: center">
+    <span style="display: inline-flex; align-items: center; gap: 4px; background: #e5e5e0; border-radius: 12px; padding: 3px 8px; font-size: 12px"><b>タグ</b> あんこ ×</span>
+    <span style="display: inline-flex; align-items: center; gap: 4px; background: #e5e5e0; border-radius: 12px; padding: 3px 8px; font-size: 12px"><b>種類</b> 動画 ×</span>
+    <button type="button" style="border: 1px dashed rgba(98,98,91,0.5); background: none; border-radius: 12px; padding: 3px 10px; font-size: 12px; color: #62625b; font-family: inherit">＋ 条件</button>
+  </div>
+  <div style="display: flex; justify-content: flex-end; align-items: center; gap: 8px; margin-top: 18px">
+    <span style="font-size: 13px; color: #62625b; margin-right: 2px">8件</span>
+    <button type="button" style="display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border-radius: 16px; border: 0; background: #e5e5e0; color: #211922; font-size: 14px; font-weight: 500; font-family: inherit"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="6 3 20 12 6 21 6 3"/></svg>再生</button>
+    <button type="button" style="display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px; border-radius: 16px; border: 1px solid rgba(145,145,140,0.3); background: #ffffff; color: #62625b; font-size: 14px; font-family: inherit"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>グリッド表示</button>
+    <button type="button" style="display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px; border-radius: 16px; border: 1px solid rgba(145,145,140,0.3); background: #ffffff; color: #62625b; font-size: 14px; font-family: inherit"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 16 4 4 4-4M7 20V4M21 8l-4-4-4 4M17 4v16"/></svg>関連度順</button>
+    <button type="button" aria-label="その他" style="display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 16px; border: 1px solid rgba(145,145,140,0.3); background: #ffffff; color: #211922"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg></button>
+  </div>
+  <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-top: 12px">
+    <div style="height: 250px; border-radius: 16px; background: #f6f6f3"></div>
+    <div style="height: 250px; border-radius: 16px; background: #f6f6f3"></div>
+    <div style="height: 250px; border-radius: 16px; background: #f6f6f3"></div>
+    <div style="height: 250px; border-radius: 16px; background: #f6f6f3"></div>
+  </div>
+  <div role="menu" aria-label="その他" style="position: absolute; right: 16px; top: 190px; width: 200px; background: #ffffff; border: 1px solid rgba(145,145,140,0.2); border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.10); padding: 6px 0; font-size: 14px">
+    <div style="padding: 8px 12px; color: #62625b">保存済み: あんこ動画</div>
+    <div role="menuitem" style="display: flex; align-items: center; gap: 10px; padding: 8px 12px; color: #a5a59f"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 3h11l5 5v13H5z"/></svg>上書き保存</div>
+    <div role="menuitem" style="display: flex; align-items: center; gap: 10px; padding: 8px 12px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>名前変更</div>
+    <div role="menuitem" style="display: flex; align-items: center; gap: 10px; padding: 8px 12px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 10 12 3l9 7v11H3z"/></svg>ホームに置く</div>
+    <div role="menuitem" style="display: flex; align-items: center; gap: 10px; padding: 8px 12px; color: #9e0a0a"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>削除</div>
+    <div style="height: 1px; background: rgba(145,145,140,0.2); margin: 6px 0"></div>
+    <div role="menuitem" style="display: flex; align-items: center; gap: 10px; padding: 8px 12px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>ここに質問</div>
+    <div role="menuitem" style="display: flex; align-items: center; gap: 10px; padding: 8px 12px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="m9 12 2 2 4-4"/></svg>選択モード</div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1200,"height":560}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

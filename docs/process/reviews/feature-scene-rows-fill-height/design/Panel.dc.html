@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>シーンのパネル</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+.tile{all:unset;cursor:pointer;display:flex;flex-direction:column;gap:4px;min-width:0;position:relative}
+.tile:focus-visible{outline:2px solid #f5e6e8;outline-offset:2px;border-radius:8px}
+.ghost{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#c4a0a4;padding:6px 10px;border-radius:16px}
+.ghost:hover{background:#3a2023;color:#f5e6e8}
+.scene{all:unset;cursor:pointer;box-sizing:border-box;display:flex;flex-direction:column;gap:4px;padding:10px 12px;border-radius:12px;background:#2f191b;min-height:122px}
+.scene:hover{background:#3a2023}
+.close{all:unset;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:8px;color:#c4a0a4}
+.close:hover{background:#3a2023;color:#f5e6e8}
+</style>
+</helmet>
+<section aria-labelledby="scenes-h" onMouseLeave="{{onLeave}}" style="width: {{pw}}px; height: {{ph}}px; box-sizing: border-box; display: flex; flex-direction: column; overflow: hidden; border-radius: 12px; background: #231216; color: #f5e6e8; font-family: -apple-system, system-ui, 'Hiragino Sans', sans-serif">
+  <sc-if value="{{header}}" hint-placeholder-val="{{true}}">
+  <div style="display: flex; align-items: center; justify-content: space-between; height: 40px; flex-shrink: 0; padding: 0 8px 0 14px; box-sizing: border-box">
+    <h2 id="scenes-h" style="margin: 0; font-size: 13px; font-weight: 600">シーン</h2>
+    <button class="close" aria-label="シーンを閉じる">
+      <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"></path></svg>
+    </button>
+  </div>
+  </sc-if>
+
+  <div style="flex: 1 1 0%; min-height: 0; overflow-y: auto; padding: 8px 14px 14px; box-sizing: border-box; display: flex; flex-direction: column; gap: 14px">
+    <div style="order: 0; display: flex; flex-direction: column; gap: 6px; flex-shrink: 0">
+      <div role="slider" aria-label="フレームの時間軸" aria-valuemin="0" aria-valuemax="1124" aria-valuenow="{{playheadRounded}}" tabindex="0" onMouseMove="{{onMove}}" onClick="{{onSeek}}" style="position: relative; height: 44px; border-radius: 8px; background: #2f191b; overflow: hidden; cursor: pointer">
+        <div style="position: absolute; top: 0; bottom: 0; left: {{bandLeft}}; width: {{bandWidth}}; background: rgba(245,230,232,0.12)"></div>
+        <sc-for list="{{ticks}}" as="t" hint-placeholder-count="40">
+          <div style="position: absolute; top: 16px; bottom: 8px; width: 1px; left: {{t.left}}; background: rgba(196,160,164,0.45)"></div>
+        </sc-for>
+        <sc-for list="{{marks}}" as="m" hint-placeholder-count="6">
+          <div style="position: absolute; top: 5px; width: 7px; height: 7px; margin-left: -3px; border-radius: 9999px; left: {{m.left}}; background: #4caf80"></div>
+          <div style="position: absolute; top: 14px; bottom: 6px; width: 2px; margin-left: -1px; left: {{m.left}}; background: #4caf80"></div>
+        </sc-for>
+        <sc-if value="{{hasHover}}" hint-placeholder-val="{{false}}">
+          <div style="position: absolute; top: 0; bottom: 0; width: 1px; left: {{hoverLeft}}; background: #f5e6e8"></div>
+        </sc-if>
+        <div style="position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; left: {{playLeft}}; background: #e85d5e"></div>
+      </div>
+      <div style="position: relative; height: 14px; font-size: 11px; color: #c4a0a4; font-variant-numeric: tabular-nums">
+        <span style="position: absolute; left: 0">0:00</span>
+        <span style="position: absolute; left: 26.7%; transform: translateX(-50%)">5:00</span>
+        <span style="position: absolute; left: 53.4%; transform: translateX(-50%)">10:00</span>
+        <span style="position: absolute; left: 80.1%; transform: translateX(-50%)">15:00</span>
+        <span style="position: absolute; right: 0">18:44</span>
+      </div>
+    </div>
+
+    <div style="order: 2; flex-shrink: 0; display: grid; grid-template-columns: repeat({{cols}}, minmax(0, 1fr)); gap: 12px 8px">
+      <sc-for list="{{tiles}}" as="tile" hint-placeholder-count="24">
+        <button class="tile" onClick="{{tile.seek}}" aria-label="{{tile.label}} から再生">
+          <div style="aspect-ratio: 16 / 9; border-radius: 8px; background: {{tile.bg}}; {{tile.ring}}"></div>
+          <sc-if value="{{tile.isScene}}" hint-placeholder-val="{{false}}">
+            <span style="position: absolute; top: 6px; left: 6px; width: 8px; height: 8px; border-radius: 9999px; background: #4caf80; box-shadow: 0 0 0 2px rgba(26,14,16,0.8)"></span>
+          </sc-if>
+          <span style="font-size: 12px; line-height: 16px; text-align: center; font-variant-numeric: tabular-nums; color: {{tile.labelColor}}">{{tile.label}}</span>
+        </button>
+      </sc-for>
+    </div>
+
+    <div style="order: 3; flex-grow: {{spacerGrow}}; flex-shrink: 0"></div>
+
+    <sc-if value="{{hasCard}}" hint-placeholder-val="{{true}}">
+      <button class="scene" onClick="{{scene.seek}}" aria-label="{{scene.time}} から再生" style="order: {{cardOrder}}; flex-shrink: 0">
+        <span style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #c4a0a4; font-variant-numeric: tabular-nums">
+          <span style="width: 6px; height: 6px; border-radius: 9999px; background: #4caf80"></span>{{scene.time}}
+        </span>
+        <span style="font-size: 14px; line-height: 1.45; color: #f5e6e8">{{scene.label}}</span>
+        <span style="font-size: 12px; line-height: 1.5; color: #c4a0a4; white-space: pre-line; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden">{{scene.text}}</span>
+      </button>
+    </sc-if>
+
+    <div style="order: 5; flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; min-height: 36px">
+      <button class="ghost" onClick="{{togglePlay}}" aria-label="{{playLabel}}">
+        <sc-if value="{{playing}}" hint-placeholder-val="{{false}}">
+          <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"></rect><rect x="14" y="4" width="4" height="16" rx="1"></rect></svg>
+        </sc-if>
+        <sc-if value="{{paused}}" hint-placeholder-val="{{true}}">
+          <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4v16l13-8z"></path></svg>
+        </sc-if>
+        <span style="font-variant-numeric: tabular-nums">{{playTime}}</span>
+      </button>
+      <button class="ghost">シーンを作り直す</button>
+    </div>
+  </div>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"pw":{"editor":"int","default":1000,"min":300,"max":2000},"ph":{"editor":"int","default":620,"min":240,"max":1400},"cardpos":{"editor":"enum","default":"below","options":["below","bottom","above"]},"hascard":{"editor":"boolean","default":true},"start":{"editor":"float","default":280},"$preview":{"width":1000,"height":620}}'>
+var TIMES = [6.46, 9.44, 12.86, 15.52, 18.78, 21.4, 24.65, 28.95, 34.71, 35.8, 37.71, 38.82, 41.21, 42.57, 44.21, 45.54, 47.87, 51.91, 54.46, 55.63, 56.59, 60.05, 74.97, 77.41, 79.9, 87.88, 89.83, 91.3, 92.77, 96.24, 104.25, 106.21, 110.17, 112.85, 122.35, 125.79, 127.76, 132.23, 134.71, 142.18, 144.17, 144.49, 146.14, 150.58, 154.08, 166.97, 172.93, 174.9, 177.34, 182.82, 186.31, 200.27, 202.24, 204.69, 206.64, 208.63, 212.6, 220.55, 223.02, 225.99, 234.47, 236.44, 242.92, 244.38, 245.85, 248.32, 248.36, 250.29, 256.26, 256.6, 258.25, 264.22, 266.03, 266.08, 273.7, 282.67, 287.12, 289.61, 292.06, 296.05, 299.01, 301.98, 304.96, 307.17, 314.14, 317.08, 319.05, 322.02, 325.49, 327.49, 330.43, 331.9, 337.4, 344.34, 345.84, 347.21, 348.59, 352.05, 356.03, 361.92, 363.26, 366.25, 368.7, 371.18, 372.68, 377.17, 378.9, 380.51, 384.22, 386.19, 391.68, 394.72, 397.66, 401.16, 403.1, 406.6, 412.05, 416.02, 417.99, 429.96, 431.89, 434.4, 435.88, 440.87, 443.83, 445.54, 446.0, 447.79, 452.24, 454.69, 456.45, 458.89, 460.89, 462.33, 469.36, 476.31, 483.65, 488.03, 489.51, 494.46, 497.95, 505.77, 507.21, 510.2, 512.15, 520.15, 527.65, 529.1, 531.09, 540.45, 542.91, 546.4, 548.61, 556.09, 558.56, 561.03, 563.5, 568.99, 571.96, 575.41, 579.4, 581.37, 586.32, 588.79, 592.26, 593.73, 596.2, 605.7, 609.14, 611.55, 614.52, 618.48, 619.95, 624.45, 627.42, 636.37, 643.84, 647.34, 649.79, 652.76, 657.22, 658.69, 663.19, 664.66, 671.1, 679.85, 682.82, 691.79, 694.79, 696.49, 701.46, 703.93, 705.87, 710.68, 722.21, 722.66, 724.12, 729.62, 732.1, 736.07, 739.54, 742.03, 747.0, 751.95, 755.43, 759.72, 761.66, 771.16, 773.63, 781.13, 787.29, 795.27, 798.76, 801.1, 807.35, 810.32, 816.79, 818.76, 824.25, 825.7, 831.37, 835.33, 839.31, 844.8, 848.77, 853.95, 856.43, 862.9, 865.89, 868.83, 876.81, 881.31, 884.78, 886.71, 889.18, 892.12, 897.12, 904.07, 908.07, 915.01, 917.99, 919.95, 921.95, 925.92, 933.87, 937.36, 939.1, 942.04, 947.01, 949.51, 952.98, 955.92, 958.42, 962.37, 968.36, 974.31, 980.78, 982.25, 986.91, 992.92, 996.26, 1028.3, 1032.3, 1048.95, 1054.49, 1056.66, 1060.93, 1063.26, 1065.43, 1093.93, 1096.43, 1102.96, 1105.44, 1113.97, 1116.47, 1119.45];
+var DUR = 1124;
+var SCENES = [
+  { idx: 29, label: '白画面', text: '' },
+  { idx: 75, label: '黄色いシャツの少女が歯科クリニックの看板を見て立っている', text: 'デンタルクリニック\n診療時間\nAM10:00 - PM7:00\n定休日 日曜日・土曜日' },
+  { idx: 134, label: '自転車に乗る少年の顔のアップ', text: '' },
+  { idx: 180, label: '男の子が海草コブの瓶を見つめる', text: '海草コブ' },
+  { idx: 222, label: '窓と壁の換気扇', text: '' },
+  { idx: 261, label: '豹柄の服を着たキャラクターがロープにぶら下がる', text: '' }
+];
+
+function fmt(s) {
+  var m = Math.floor(s / 60);
+  var r = Math.floor(s % 60);
+  return m + ':' + (r < 10 ? '0' : '') + r;
+}
+function indexAt(t) {
+  var i = 0;
+  for (var k = 0; k < TIMES.length; k++) {
+    if (TIMES[k] <= t) i = k; else break;
+  }
+  return i;
+}
+function pct(t) { return (t / DUR * 100).toFixed(3) + '%'; }
+function isScene(i) {
+  for (var k = 0; k < SCENES.length; k++) if (SCENES[k].idx === i) return true;
+  return false;
+}
+function sceneAt(idx) {
+  var s = SCENES[0];
+  for (var k = 0; k < SCENES.length; k++) if (SCENES[k].idx <= idx) s = SCENES[k];
+  return s;
+}
+function tileBg(i) {
+  var shot = Math.floor(i / 7);
+  var hue = (shot * 53) % 360;
+  var light = 20 + (i % 7) * 1.5;
+  return 'hsl(' + hue + ', 22%, ' + light + '%)';
+}
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { playhead: null, hover: null, playing: false };
+    this.timer = null;
+  }
+  componentWillUnmount() { if (this.timer) clearInterval(this.timer); }
+
+  renderVals() {
+    var self = this;
+    var pw = this.props.pw ?? 1000;
+    var ph = this.props.ph ?? 620;
+    var pos = this.props.cardpos ?? 'below';
+    var hasCard = this.props.hascard ?? true;
+    var playhead = this.state.playhead ?? (this.props.start ?? 280);
+
+    var header = !(this.props.noheader ?? false);
+    var iw = pw - 28;
+    var ih = ph - (header ? 40 : 0) - 22;
+    var cols = Math.max(3, Math.floor((iw + 8) / 120));
+    var tileW = (iw - 8 * (cols - 1)) / cols;
+    var rowH = tileW * 9 / 16 + 4 + 16;
+    var fixed = 64 + 14 + (hasCard ? 122 + 14 : 0) + 14 + 36;
+    var avail = ih - fixed;
+    var rows = Math.max(3, Math.floor((avail + 12) / (rowH + 12)));
+    var win = rows * cols;
+
+    var hover = this.state.hover;
+    var hasHover = hover !== null;
+    var focus = hasHover ? hover : playhead;
+    var playIdx = indexAt(playhead);
+    var focusIdx = indexAt(focus);
+    var start = Math.max(0, Math.min(TIMES.length - win, cols * Math.floor(focusIdx / cols) - cols));
+    var end = Math.min(TIMES.length, start + win);
+
+    var tiles = [];
+    for (var i = start; i < end; i++) {
+      (function (i) {
+        var ring = '';
+        var labelColor = '#c4a0a4';
+        if (i === playIdx) {
+          ring = 'outline: 2px solid #e85d5e; outline-offset: 2px;';
+          labelColor = '#f5e6e8';
+        } else if (hasHover && i === focusIdx) {
+          ring = 'outline: 2px solid #f5e6e8; outline-offset: 2px;';
+          labelColor = '#f5e6e8';
+        }
+        tiles.push({
+          bg: tileBg(i),
+          label: fmt(TIMES[i]),
+          ring: ring,
+          labelColor: labelColor,
+          isScene: isScene(i),
+          seek: function () { self.setState({ playhead: TIMES[i], hover: null }); }
+        });
+      })(i);
+    }
+    var sc = sceneAt(focusIdx);
+    var bandEnd = end < TIMES.length ? TIMES[end] : DUR;
+    var cardOrder = pos === 'above' ? 1 : 4;
+
+    return {
+      header: header,
+      pw: pw,
+      ph: ph,
+      cols: cols,
+      tiles: tiles,
+      hasCard: hasCard,
+      cardOrder: cardOrder,
+      spacerGrow: pos === 'bottom' ? 1 : 0,
+      playheadRounded: Math.round(playhead),
+      ticks: TIMES.map(function (t) { return { left: pct(t) }; }),
+      marks: SCENES.map(function (s) { return { left: pct(TIMES[s.idx]) }; }),
+      scene: {
+        time: fmt(TIMES[sc.idx]),
+        label: sc.label,
+        text: sc.text,
+        seek: function () { self.setState({ playhead: TIMES[sc.idx], hover: null }); }
+      },
+      hasHover: hasHover,
+      hoverLeft: hasHover ? pct(hover) : '0%',
+      playLeft: pct(playhead),
+      bandLeft: pct(TIMES[start]),
+      bandWidth: ((bandEnd - TIMES[start]) / DUR * 100).toFixed(3) + '%',
+      playing: this.state.playing,
+      paused: !this.state.playing,
+      playLabel: this.state.playing ? '一時停止' : '再生',
+      playTime: fmt(playhead) + ' / 18:44',
+      togglePlay: function () {
+        if (self.state.playing) {
+          clearInterval(self.timer);
+          self.timer = null;
+          self.setState({ playing: false });
+        } else {
+          self.timer = setInterval(function () {
+            var cur = self.state.playhead ?? (self.props.start ?? 280);
+            var next = cur + 1;
+            self.setState({ playhead: next >= DUR ? 0 : next });
+          }, 250);
+          self.setState({ playing: true });
+        }
+      },
+      onMove: function (e) {
+        var r = e.currentTarget.getBoundingClientRect();
+        var x = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
+        self.setState({ hover: x * DUR });
+      },
+      onLeave: function () { self.setState({ hover: null }); },
+      onSeek: function () {
+        if (self.state.hover !== null) self.setState({ playhead: self.state.hover, hover: null });
+      }
+    };
+  }
+}
+</script>
+</body>
+</html>

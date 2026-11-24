@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type RefObject } from "react";
 import type { MediaController } from "@/lib/mediaController";
 import { useMediaClock } from "@/lib/mediaClock";
 import { isNativeShell } from "@/lib/nativeBridge";
@@ -17,6 +17,11 @@ export interface MiniPlayerInputs {
    * app, and it is the system's own window.
    */
   shell: boolean;
+  /**
+   * The inspector is stacked under the player, which never leaves the screen
+   * there; a floating copy would sit over the inspector.
+   */
+  stacked: boolean;
 }
 
 /**
@@ -26,6 +31,7 @@ export interface MiniPlayerInputs {
  */
 export function shouldShowMini(inputs: MiniPlayerInputs): boolean {
   if (inputs.shell) return false;
+  if (inputs.stacked) return false;
   if (!inputs.desktop) return false;
   if (inputs.fullscreen) return false;
   if (inputs.osPip) return false;
@@ -34,6 +40,13 @@ export function shouldShowMini(inputs: MiniPlayerInputs): boolean {
 }
 
 const DESKTOP_QUERY = "(min-width: 768px)";
+
+/** Read by anything inside the player that must go quiet in the mini box. */
+export const MiniPlayerBoxContext = createContext(false);
+
+export function useInMiniPlayerBox(): boolean {
+  return useContext(MiniPlayerBoxContext);
+}
 
 interface UseMiniPlayerOpts {
   containerRef: RefObject<HTMLElement | null>;
@@ -47,6 +60,7 @@ interface UseMiniPlayerOpts {
    * appears.
    */
   root?: Element | null;
+  stacked?: boolean;
 }
 
 export interface UseMiniPlayerResult {
@@ -60,6 +74,7 @@ export function useMiniPlayer({
   mc,
   mediaEl,
   root,
+  stacked = false,
 }: UseMiniPlayerOpts): UseMiniPlayerResult {
   const [intersecting, setIntersecting] = useState(true);
   // Polling (rather than event subscription) avoids asymmetry between
@@ -126,7 +141,15 @@ export function useMiniPlayer({
 
   const isMini =
     !dismissed &&
-    shouldShowMini({ intersecting, paused, fullscreen, osPip, desktop, shell: isNativeShell() });
+    shouldShowMini({
+      intersecting,
+      paused,
+      fullscreen,
+      osPip,
+      desktop,
+      shell: isNativeShell(),
+      stacked,
+    });
 
   const restore = useCallback(() => {
     const el = containerRef.current;

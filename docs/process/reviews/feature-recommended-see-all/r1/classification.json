@@ -1,0 +1,68 @@
+{
+  "risk": "HIGH",
+  "score": 7,
+  "base": 3,
+  "zone_max": "MEDIUM",
+  "modifiers": [],
+  "promotions": [],
+  "zones_touched": [
+    {
+      "path": "addons/intelligence",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "docs/ADDON-DEVELOPMENT.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/addons/intelligence.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/INDEX.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/recommended-see-all.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/user-guide/video.md",
+      "level": "LOW"
+    },
+    {
+      "path": "frontend/src/app/drive/[name]/apps/video/shelf/page.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/videoapp/VideoShelfPage.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoApp.recommendedSeeAll.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoShelfPage.recommended.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/videoapp/shelfLinks.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/videoapp/useDiscover.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/videoapp/useProviderShelfPage.ts",
+      "level": "MEDIUM"
+    }
+  ],
+  "human_zones_touched": [],
+  "protected_paths_touched": [],
+  "docs_only": false,
+  "reasons": [
+    "highest zone MEDIUM (4 points)"
+  ]
+}

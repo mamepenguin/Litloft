@@ -19,6 +19,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { useFilePicker } from "@/components/useFilePicker";
 import { useClipboard } from "@/components/ClipboardProvider";
 import { useSelection } from "@/hooks/useSelection";
+import { useFolderFilter } from "@/hooks/useFolderFilter";
 import { useDragAndDrop } from "@/hooks/useDragAndDrop";
 import { useFolderSort, useFolderViewMode } from "@/hooks/useFolderViewMode";
 import { useSelectedFile } from "@/hooks/useSelectedFile";
@@ -86,6 +87,11 @@ export function FolderBrowser({
   onImageEdit,
 }: FolderBrowserProps) {
   const isSearch = !!(searchQuery && searchQuery.trim());
+  // The results bar's `…`, which the overwrite button hands focus to.
+  const moreTriggerRef = useRef<HTMLButtonElement>(null);
+  const focusMoreTrigger = useCallback(() => {
+    moreTriggerRef.current?.focus();
+  }, []);
   const [initialSnapshot] = useState(() => {
     const snap = loadListSnapshot(buildListSnapshotKey({ driveName, folderPath, view, tagFilter }));
     return snap?.filters.sort === "random" ? null : snap;
@@ -175,7 +181,14 @@ export function FolderBrowser({
     snapshotKey, hydratedScrollY, continuationState, onShowMore, continuationSentinelRef,
     continuationDrawnIds, updateContinuationFile, removeContinuationFiles,
     passagesApplicable, passageGroups, passagesLoading, passagesFailed, retryPassages,
+    inNameBlocked, inNamePending, inNameState, retryInName,
   } = useFolderFiles({ driveName, folderPath, view, tagFilter, typeFilter, trustFilter, sort, order, refreshKey, searchQuery, includeSceneClip, initialSnapshot });
+
+  const nameFilter = useFolderFilter(files, folders);
+  const visibleFileIds = useMemo(
+    () => nameFilter.files.map((f) => f.id),
+    [nameFilter.files],
+  );
 
   const isWatchHistory = isRecent || isContinue;
 
@@ -312,6 +325,12 @@ export function FolderBrowser({
   // about to come back to.
   useEffect(() => () => { flushSnapshotRef.current?.(); }, []);
 
+  const handleProcessed = useCallback((processed: string[]) => {
+    const dropped = new Set(processed);
+    setFiles((prev) => prev.filter((f) => !dropped.has(f.id)));
+    removeContinuationFiles(processed);
+  }, [setFiles, removeContinuationFiles]);
+
   const handleReshuffle = useCallback(() => {
     reset();
     clearListSnapshot();
@@ -331,8 +350,8 @@ export function FolderBrowser({
     passages: passageTotals.passages,
   });
   const showPassageCount =
-    passagesView && !passagesLoading && !passagesFailed;
-  const { pinnedPaths, handleTogglePin } = usePinnedFolders(driveName);
+    passagesView && !passagesLoading && !passagesFailed && !inNameBlocked;
+  const { pinnedPaths, homePaths, handleTogglePin, handleToggleHome } = usePinnedFolders(driveName);
   const selection = useSelection();
   // `SelectionBar` clears before it reports a completed bulk action, so the
   // ids of that action are kept here for the continuation's own pruning.
@@ -424,6 +443,11 @@ export function FolderBrowser({
     typeFilterRef.current = typeFilter;
   }, [typeFilter]);
 
+  // A ref, not a dependency: `useSearchParams` returns a new object every
+  // render, and the deps must stay the values that change what the URL says.
+  const urlParamsRef = useRef(urlParams);
+  urlParamsRef.current = urlParams;
+
   // URL sync for search mode: sort / order changes update the URL via replace
   // (no history pollution per filter tweak).
   useEffect(() => {
@@ -436,6 +460,9 @@ export function FolderBrowser({
     if (smartFolderId) params.set("smart_folder_id", smartFolderId);
     if (includeSceneClip) params.set("include_scene_clip", "true");
     if (show === "passages") params.set("show", "passages");
+    // A route change already wrote these, so replacing them again would be a
+    // second navigation for the same URL.
+    if (params.toString() === urlParamsRef.current.toString()) return;
     const next = `/drive/${encodeURIComponent(driveName)}/search?${params.toString()}`;
     folderRouter.replace(next);
   }, [isSearch, searchQuery, sort, order, smartFolderId, includeSceneClip, show, driveName, folderRouter]);
@@ -586,7 +613,16 @@ export function FolderBrowser({
   // Depend on the individual callbacks, not on `selection` itself:
   // `useSelection` returns a fresh object literal every render, so
   // `[selection]` would defeat `FileCard`'s memo.
-  const { toggle: toggleSelection, selectRange } = selection;
+  const { toggle: toggleSelection, selectRange, keepOnly } = selection;
+
+  // Keyed on the filter text, not on the rows: a reload empties `files`
+  // for a moment, and pruning against that would clear the selection.
+  const prunedForTextRef = useRef("");
+  useEffect(() => {
+    if (loading || nameFilter.appliedText === prunedForTextRef.current) return;
+    prunedForTextRef.current = nameFilter.appliedText;
+    if (nameFilter.appliedText) keepOnly(visibleFileIds);
+  }, [loading, nameFilter.appliedText, visibleFileIds, keepOnly]);
 
   const handleMetaSelect = useCallback((id: string) => {
     setSelectable(true);
@@ -594,8 +630,8 @@ export function FolderBrowser({
   }, [toggleSelection]);
 
   const handleShiftSelect = useCallback((id: string) => {
-    selectRange(files.map((f) => f.id), id);
-  }, [selectRange, files]);
+    selectRange(visibleFileIds, id);
+  }, [selectRange, visibleFileIds]);
 
   const handlePlayAll = useCallback(() => {
     const firstPlayable = files.find(
@@ -648,7 +684,9 @@ export function FolderBrowser({
   const dragInFlight = dragState.isDragging || isInternalDragging;
 
   const countLabel =
-    settledTotal === null ? null : tCommon("items", { count: settledTotal });
+    inNameBlocked || inNamePending || settledTotal === null
+      ? null
+      : tCommon("items", { count: settledTotal });
 
   const inner = (
     <PageFrame
@@ -694,6 +732,7 @@ export function FolderBrowser({
                 onEdit={onImageEdit}
                 imagePreparing={imagePreparing}
                 onRemoveType={clearTypeFilter}
+                collectionsWithSmart
               />
             ) : undefined
           }
@@ -783,6 +822,9 @@ export function FolderBrowser({
         onReshuffle={handleReshuffle}
         isPinned={isFolderAnchored ? pinnedPaths.has(folderPath!) : undefined}
         onTogglePin={isFolderAnchored ? handleTogglePin : undefined}
+        isOnHome={isFolderAnchored ? homePaths.has(folderPath!) : undefined}
+        onToggleHome={isFolderAnchored ? handleToggleHome : undefined}
+        moreTriggerRef={moreTriggerRef}
       />}
 
       {isSearch &&
@@ -829,7 +871,7 @@ export function FolderBrowser({
         </div>
       )}
 
-      {!passagesView && isSearch && !loading && files.length === 0 && (
+      {!passagesView && isSearch && !loading && !inNameState && files.length === 0 && (
         <EmptyState
           variant="no-results"
           // No primary: the way out of a search that found nothing is a
@@ -852,6 +894,7 @@ export function FolderBrowser({
       <FolderContent
         files={files}
         folders={folders}
+        filter={nameFilter}
         driveName={driveName}
         widenTagScope={widenTagScope}
         onAddFiles={isWriteDestination ? filePicker.open : undefined}
@@ -888,6 +931,7 @@ export function FolderBrowser({
         {...(isSearch
           ? { continuationState, onShowMore, continuationSentinelRef }
           : {})}
+        {...(inNameState ? { inNameState, onRetryInName: retryInName } : {})}
       />
       )}
 
@@ -909,6 +953,8 @@ export function FolderBrowser({
           onClearFilter={
             typeFilter || trustFilter ? clearTypeFilter : undefined
           }
+          inNameState={inNameState}
+          onRetryInName={retryInName}
         />
       )}
 
@@ -916,10 +962,10 @@ export function FolderBrowser({
         <SelectionBar
           count={selection.count}
           selectedIds={selection.selectedIds}
-          totalCount={files.length}
+          totalCount={visibleFileIds.length}
           drive={driveName}
           currentPath={folderPath}
-          onSelectAll={() => selection.selectAll(files.map((f) => f.id))}
+          onSelectAll={() => selection.selectAll(visibleFileIds)}
           onClear={() => {
             clearedSelectionRef.current = [...selection.selectedIds];
             selection.clear();
@@ -933,6 +979,8 @@ export function FolderBrowser({
             if (removed) removeContinuationFiles(cleared);
             if (!onlyContinuation) refresh();
           }}
+          onSelectOnly={selection.replace}
+          onProcessed={handleProcessed}
         />
       )}
       </div>
@@ -949,6 +997,11 @@ export function FolderBrowser({
           smartFolderId={smartFolderId ?? null}
           show={show}
           includeSceneClip={!!includeSceneClip}
+          sort={sort}
+          order={order}
+          hasPlayableFiles={hasPlayableFiles}
+          passagesView={passagesView}
+          focusMoreTrigger={focusMoreTrigger}
         >
           {inner}
         </SmartFolderController>

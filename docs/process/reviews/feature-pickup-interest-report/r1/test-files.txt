@@ -1,0 +1,1 @@
+addons/intelligence/tests/test_z_pickup_interests.py

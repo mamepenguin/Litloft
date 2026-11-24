@@ -1,0 +1,13 @@
+#!/bin/bash
+# usage: run.sh <out> <file_id> <drive> <question> [extra-json]
+F=/Users/libre/Sources/video_share-video-ask/.r5-stack/data/addons/intelligence/frames/$2
+S=<scratchpad>
+{
+echo "# $(date '+%F %T') file $2"
+echo "# ollama ps before: $(curl -s localhost:11434/api/ps | python3 -c 'import json,sys; print([(m["name"]) for m in json.load(sys.stdin)["models"]])')"
+echo "# frames before: $(ls $F 2>/dev/null | tr '\n' ' ')"
+python3 -I $S/ask_harness.py "$2" "$3" "$4" "${5:-null}"
+echo "# frames after: $(ls $F 2>/dev/null | tr '\n' ' ')"
+echo "# ollama ps after: $(curl -s localhost:11434/api/ps | python3 -c 'import json,sys; print([(m["name"]) for m in json.load(sys.stdin)["models"]])')"
+} > $S/$1 2>&1
+cat $S/$1

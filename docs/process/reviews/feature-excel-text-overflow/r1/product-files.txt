@@ -1,0 +1,2 @@
+frontend/src/components/office/excelAdapter.ts
+frontend/src/components/office/excelRunOn.ts

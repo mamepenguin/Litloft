@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 
 import { FileDetailContent } from "../../FileDetailContent";
 import { SHEET_SNAP_HALF_FALLBACK } from "@/lib/sheetSnap";
@@ -10,6 +10,7 @@ import {
   makeFile,
   publishedArchiveState,
   publishedPdfState,
+  raiseSheetFromStrip,
   relationMocks,
   setApiResponses,
   setViewport,
@@ -160,9 +161,6 @@ beforeEach(() => {
   publishedArchiveState.value = null;
   slotMocks.entries.clear();
   window.localStorage.clear();
-  // Clearing storage is not enough: `readMediaLayout` prefers the
-  // attribute the store writes onto <html>, which outlives a test.
-  document.documentElement.removeAttribute("data-media-layout");
   setViewport();
 });
 
@@ -247,11 +245,18 @@ describe.each(KINDS)("%s on the shell", (_name, kind) => {
   });
 
   it("holds back from the inspector only what the canvas itself draws", async () => {
-    // The canvas keeps the detailed summary, whose tables need width a
-    // 384px column has not got. It does *not* draw the Knowledge editor
-    // — that is the other form of this shell — so the inspector must be
-    // asked for it rather than have it withheld. Excluding it here would
-    // send it to neither column.
+    // A file without a player draws the summaries as `document-side` tabs,
+    // so their ids are what Info withholds. The Knowledge editor is not
+    // drawn by this canvas — that is the other form of this shell — so the
+    // inspector must be asked for it rather than have it withheld.
+    claimSlot("document-side", [
+      {
+        id: "detailed-summary",
+        label: "Detailed summary",
+        priority: 30,
+        addonName: "some-addon",
+      },
+    ]);
     await renderKind(kind);
 
     expect(
@@ -262,23 +267,15 @@ describe.each(KINDS)("%s on the shell", (_name, kind) => {
     ).toBeNull();
   });
 
-  it("offers nothing that belongs to a player, on the stored preference that would show it", async () => {
-    // `stacked`, and not the default. On `beside` the companion is in
-    // the tab strip whatever the player gate says, so a missing
-    // `!hasPlayer` is invisible.
+  it("offers nothing that belongs to a player", async () => {
     claimSlot("player-side", [
       { id: "transcript", label: "Transcript", priority: 10, addonName: "some-addon" },
     ]);
-    window.localStorage.setItem("media-layout-preference", "stacked");
     const { container } = await renderKind(kind);
 
-    expect(container.querySelector(".media-detail-below")).toBeNull();
+    expect(container.querySelector(".media-detail-workbench")).toBeNull();
     expect(screen.queryByTestId("slot-entry-transcript")).toBeNull();
-    expect(
-      screen.queryByRole("button", {
-        name: /transcript (beside|below) the player/i,
-      }),
-    ).toBeNull();
+    expect(screen.queryByRole("group", { name: "Panels" })).toBeNull();
   });
 });
 
@@ -382,54 +379,6 @@ describe("the archive's page-list tab", () => {
     expect(tabs()).toEqual([]);
   });
 
-  it("marks an archive's canvas as the one the floor measures", async () => {
-    const { container } = await renderArchive(["001.jpg", "002.jpg"]);
-    expect(
-      container.querySelector('main[data-canvas-floor="true"]'),
-    ).not.toBeNull();
-  });
-
-  it("gives an image's canvas no floor", async () => {
-    // `FilePreview` already caps an image at 70vh; a floor under it would
-    // only add white space around a small photograph.
-    const { container } = await renderKind(IMAGE);
-    expect(container.querySelector('main[data-canvas-floor="true"]')).toBeNull();
-  });
-
-  it("gives a phone's canvas no floor, whatever the kind", async () => {
-    // On a phone the canvas is the whole screen rather than a column
-    // beside an inspector, so a short viewer leaves no empty gutter to
-    // fix. And the player is `position: sticky` under
-    // `[data-sheet-snap]`: a floor there pins 70% of the screen to the
-    // top for the entire scroll, leaving the description and comments a
-    // slot to be read through.
-    setViewport(600);
-    publishedArchiveState.value = {
-      entries: [entry("001.jpg"), entry("002.jpg")],
-      currentPath: "",
-    };
-    const { container } = await renderKind(ARCHIVE);
-    expect(container.querySelector('main[data-canvas-floor="true"]')).toBeNull();
-    // The same file on a wide screen does get one — otherwise this is
-    // just an assertion that nothing anywhere has a floor.
-    cleanup();
-    setViewport();
-    const wide = await renderKind(ARCHIVE);
-    expect(
-      wide.container.querySelector('main[data-canvas-floor="true"]'),
-    ).not.toBeNull();
-  });
-
-  it("never gives a canvas holding a player one", async () => {
-    // `container-type` around a `<video>` renders the whole subtree
-    // rotated and spinning on iOS Safari (`DESIGN.md`).
-    const { container } = await renderKind({
-      mime_type: "video/mp4",
-      file_type: "video",
-    });
-    expect(container.querySelector('main[data-canvas-floor="true"]')).toBeNull();
-  });
-
   it("keeps the sheet's fixed half where there is no player", async () => {
     // `half` is derived from the *player's* bottom edge, and a viewer is
     // not a player: a PDF, an archive and a photograph all draw inside
@@ -448,7 +397,7 @@ describe("the archive's page-list tab", () => {
       publishedPdfState.value = { numPages: 225, outline: [] };
       await renderKind(PDF);
 
-      fireEvent.click(screen.getByTestId("inspector-toggle"));
+      raiseSheetFromStrip();
       const drawer = await screen.findByTestId("mobile-inspector-sheet");
       const published = Number.parseFloat(
         drawer.style.getPropertyValue("--snap-point-height"),
@@ -460,13 +409,5 @@ describe("the archive's page-list tab", () => {
     } finally {
       Element.prototype.getBoundingClientRect = original;
     }
-  });
-
-  it("gives a PDF's canvas the floor too", async () => {
-    publishedPdfState.value = { numPages: 225, outline: [] };
-    const { container } = await renderKind(PDF);
-    expect(
-      container.querySelector('main[data-canvas-floor="true"]'),
-    ).not.toBeNull();
   });
 });

@@ -1,0 +1,840 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-deep",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [
+    {
+      "id": "SCOPE-1",
+      "origin": "reviewer",
+      "claim": "The change adds a new backend module, backend/app/services/mtime.py, that the touch-point list does not name. Every write path and the scanner now depend on it.",
+      "impact": "No user impact. A reader who checks the touch points against the code will not find the single helper that defines how st_mtime is truncated and stored. That helper is where I1, I2 and I14 can break.",
+      "evidence": "backend/app/services/mtime.py:8-17 defines modified_at_from_stat and read_modified_at. They are imported at scanner.py:38, content_write.py:11, upload.py:25, fileops.py:29, markdown_relations.py:23 and drives.py:60. The touch points list scanner, content_write, upload, fileops, drives and markdown_relations, but not mtime.py.",
+      "repro": "Compare the product file list with the Touch points section: mtime.py is the only new backend product file and it appears in neither the Core nor the Addon list.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariant breaks; the list is incomplete.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Add backend/app/services/mtime.py to the spec's Core touch points as the shared whole-second mtime helper."
+    },
+    {
+      "id": "SCOPE-2",
+      "origin": "reviewer",
+      "claim": "The menu's first-level order (Modified between Length and Favorites) is set in frontend/src/components/search/SearchQueryHeader.tsx, which the touch-point list does not name. The list names only ConditionMenu.tsx and SearchFilterChips.tsx.",
+      "impact": "If the entry were left out of SearchQueryHeader's entries array, the 「更新日」 menu entry would not appear on the results page, even though ConditionMenu supports it. The touch-point list would not have directed anyone to this file. The two existing first-level-order tests were updated and would catch that omission.",
+      "evidence": "SearchQueryHeader.tsx:272-281: the entries array now includes \"modified\" between \"duration\" and \"favorite\". The touch points name only `frontend/src/components/search/ConditionMenu.tsx` and `SearchFilterChips.tsx`.",
+      "repro": "Remove \"modified\" from the entries array at SearchQueryHeader.tsx:279. SearchQueryHeader.modified.test, .scope.test and .sizeDuration.test, which assert the eight-entry order, would fail; nothing in the touch-point list points at this file.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "The behaviour is correct and tested; only the planned list misses the file.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add frontend/src/components/search/SearchQueryHeader.tsx (the `entries` list) to the touch points next to ConditionMenu.tsx."
+    },
+    {
+      "id": "SCOPE-3",
+      "origin": "reviewer",
+      "claim": "Five e2e and preview fixture files gain `modified_at: null` in FileItem/ShelfItem literals: e2e-components/fixtures/clipsRow.tsx, justifiedHold.tsx, notesLibrary.tsx, videoCardByline.tsx and e2e-epub/preview/app.tsx. The touch-point list does not name them; for FileItem literals it names only searchMerge.ts and FolderTreePane.tsx.",
+      "impact": "No runtime impact. A future required FileItem field would again need these files, and the list does not record them as FileItem literal sites.",
+      "evidence": "Grep: clipsRow.tsx:53, justifiedHold.tsx:55, notesLibrary.tsx:46, videoCardByline.tsx:41, e2e-epub/preview/app.tsx:48 all hold `modified_at: null`. The touch points say: \"`frontend/src/lib/searchMerge.ts`, `frontend/src/components/folder/FolderTreePane.tsx`: `FileItem` literals gain `modified_at`.\"",
+      "repro": "Compare the product file list with the touch points: these five product files have no entry.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Required by the new non-optional `FileItem.modified_at` type and harmless; the list is incomplete.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Name the e2e-components fixtures and the e2e-epub preview among the FileItem literal sites in the touch points."
+    },
+    {
+      "id": "SCOPE-4",
+      "origin": "reviewer",
+      "claim": "The touch points list `backend/tests/`, the addon's `tests/` and `core-search-vocabulary.test.ts` as test touch points. The diff also reaches about 85 frontend test files (mostly a one-line `modified_at: null` in FileItem fixtures, plus nine new frontend test files) and two mcp-server test files, none of them listed.",
+      "impact": "No user impact. The planned scope understates the frontend and MCP test surface; the new frontend and MCP tests carry I6, I7, I8, I11, I12, I13, I15, I16 and I20.",
+      "evidence": "Examples: frontend/src/components/folder/__tests__/useFolderFiles.modified.test.tsx, frontend/src/app/app-api/__tests__/smartCollectionMembers.modified.test.ts, mcp-server/src/__tests__/modifiedOperator.test.ts, mcp-server/src/__tests__/smartCollections.test.ts:288,326 (expected query now includes tz). None is under a listed touch point.",
+      "repro": "Compare the test-file list of this review with the touch points.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariant breaks; this is a scope-list gap only.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Add `frontend/src/**/__tests__/` (FileItem fixtures and the new modified tests) and `mcp-server/src/__tests__/` to the touch points."
+    },
+    {
+      "id": "SCOPE-5",
+      "origin": "reviewer",
+      "claim": "A test fixture for a SmartFolder (saved Smart Collection) row gains `modified_at: null`. The SmartFolder type has no such field, so the bulk FileItem fixture edit reached a non-FileItem literal.",
+      "impact": "No runtime impact: the object is untyped and the extra key is ignored. A reader could take it as a sign that Smart Collections carry a modification time and add one to the SmartFolder type.",
+      "evidence": "frontend/src/components/__tests__/FileDetailFullScreen.smartCollection.test.tsx:388-401: savedSmartFolder() returns {id, drive, name, query, file_type, sort_by, sort_order, created_at, updated_at, modified_at: null}. frontend/src/types/smartFolder.ts declares updated_at (line 16) and no modified_at.",
+      "repro": "Grep `modified_at` in frontend/src/types/smartFolder.ts: no match.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Test data reads wrong; no behaviour changes.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Delete the `modified_at: null` line from savedSmartFolder() in FileDetailFullScreen.smartCollection.test.tsx."
+    },
+    {
+      "id": "ROBUST-1",
+      "origin": "reviewer",
+      "claim": "read_modified_at catches only OSError. datetime.fromtimestamp raises ValueError or OverflowError for an mtime beyond the platform or datetime range. That conversion now runs for every existing row the scan walks in pass 1, so one file with such an mtime aborts the whole scan.",
+      "impact": "With a file whose mtime lies after year 9999 (an archive with corrupt timestamps, a broken camera clock), a drive scan that previously finished now raises in pass 1, and none of the drive's changes are recorded.",
+      "evidence": "mtime.py:8-17: the conversion in modified_at_from_stat is not inside the try, and read_modified_at's try covers only os.stat. scanner.py:585 calls read_modified_at(item) for every existing walked row with no surrounding handler. Pass 2 (scanner.py:654-662) already had an unguarded datetime.fromtimestamp for new files, so new files were already exposed; existing rows are newly exposed.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Needs a filesystem timestamp far outside normal use, outside the declared threat model's normal use; no invariant names it.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "In read_modified_at and at the scanner's pass-2 stat, treat ValueError/OverflowError from the conversion as a failed stat (return None)."
+    }
+  ],
+  "specification_compliance": [
+    "Scope question answer: product places reached but not in the touch-point list are backend/app/services/mtime.py (SCOPE-1), frontend/src/components/search/SearchQueryHeader.tsx (SCOPE-2) and the five e2e/preview fixtures (SCOPE-3). Frontend and MCP test directories are also unlisted (SCOPE-4). Spec, INDEX.md and docs/process/reviews files are implicit and not reported.",
+    "Listed touch points that the diff does not change: frontend/src/lib/api.ts, FileDetailFullScreen.tsx, SmartFolderSaveButton.tsx, readingAppTarget.ts and VideoAppHeader.tsx. api.ts reaches `modified` through listingRequest.appendListingFilters for GET, POST /files/query and the shelves builder (api.ts:180, listingRequest.ts:79-91, 103-104). readingAppTarget is covered via resolveAppTarget (appTarget.ts:97). The other callers use evaluateSmartCollection with no timeZone, which means the browser zone.",
+    "Server-side Smart Collection evaluation builds its listing through listingUrl (smartCollectionServerIo.ts:60), so `modified` reaches the backend on that path too.",
+    "The .claude/rules/internal-api-policy.md row 15 note and the docs (api.md, ADDON-DEVELOPMENT.md, intelligence.md, user-guide/search.md) are in the touch points and are reached.",
+    "Addon submodule pointer bump to 487c6b8 is listed (\"its own PR, then the pointer bump\")."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "useFolderFiles keys one search run's `now` to the query text plus the type filter (useFolderFiles.ts:183-187). Re-submitting the identical query, or a refreshKey change, does not take a new `now`, so relative bounds stay at the first submission's instant until the text changes.",
+    "The route treats an empty `tz=` as absent (route.ts:52), so `tz=` with an absolute date answers 400 \"tz is required\" rather than \"Unknown time zone\"."
+  ],
+  "regression_risks": [
+    "The commit subject says it points intelligence \"at the modified filter branch for review\". Whether 487c6b8 is reachable from the addon's default branch was not verified. If it is not, the pointer bump could reference an unmerged addon commit, contrary to sending step 6.",
+    "Scanner pass 1 now stats and converts every walked file's mtime; an unconvertible mtime aborts the scan (ROBUST-1).",
+    "_write_modified_at_only issues an ORM-enabled UPDATE with synchronize_session=\"fetch\" per changed row. The upgrade backfill therefore runs one extra UPDATE plus a fetch per existing row on the first scan; on a large drive this adds scan time inside the scan lock."
+  ],
+  "test_coverage": [
+    "I19's third clause (a build from before this change opens the migrated database and lists files) has no test; only the column add and idempotence are tested (test_file_modified_at.py TestMigration).",
+    "No test covers a scan of a file whose mtime cannot be converted to a datetime.",
+    "The POST /files/query path's `modified` parameter is exercised in backend parity tests (TestSurfaceParity). The frontend POST builder is tested only indirectly through useFileSearch mocks, not through listingQueryUrl's URL.",
+    "SearchQueryHeader's eight-entry order is pinned by three tests, so dropping the entry from SearchQueryHeader.tsx would be caught."
+  ],
+  "not_verified": [
+    "No tests were run (read-only review); pass/fail of the new backend, frontend, MCP and addon tests is not known.",
+    "Whether addons/intelligence commit 487c6b8 is on the addon repository's default branch.",
+    "The 375 px layout of the menu and chip (R-5 measured at 338 px only, per decisions.md).",
+    "TypeScript compilation of the whole frontend, e.g. that ConditionMenu's choose() accepts \"modified\" as an operator.",
+    "Behaviour of SQLite string comparison for modified_at values written outside the ORM (only tests do that)."
+  ],
+  "confidence": 78,
+  "perspectives": [
+    {
+      "name": "scope",
+      "notes": "Compared every product path in the diff against the declared touch points. Unlisted: mtime.py, SearchQueryHeader.tsx, the five e2e/preview fixtures, and the frontend and MCP test directories. Listed touch points not changed in the diff were checked to be reached indirectly."
+    },
+    {
+      "name": "submodules",
+      "notes": "The addon pointer moves 6e85c9c→487c6b8. The addon's SearchFilter.modified validator mirrors the core's parse_modified_comparison: same regex, same max and dedup-then-cap order. Branch reachability was not verified."
+    },
+    {
+      "name": "persistence",
+      "notes": "The migration adds a nullable column idempotently. ORM writes store naive UTC whole seconds and comparisons bind naive UTC datetimes, so formats match. The scanner's modified-only write keeps updated_at by assigning it to itself."
+    },
+    {
+      "name": "concurrency",
+      "notes": "The scan runs under the existing scan lock. The ORM-enabled UPDATE autoflushes pending changes first, so any updated_at bump comes from the ORM's own flush of a real change. One `now` per run is held in a ref; `in:` resolution reuses the run's `now` (revised I18)."
+    }
+  ],
+  "coverage": [
+    {
+      "path": "addons/intelligence/app/file_matching.py",
+      "read": "partial",
+      "reason": "Read lines 40-234: constants, the parse helpers including _parse_modified, _normalise_comparisons, apply_filter_normalisation and SearchFilter."
+    },
+    {
+      "path": "backend/app/database.py",
+      "read": "partial",
+      "reason": "Read the modified_at migration block (lines 550-574) only."
+    },
+    {
+      "path": "backend/app/models.py",
+      "read": "partial",
+      "reason": "Read the single changed hunk (File.modified_at column) in the supplied diff; the file itself was not opened."
+    },
+    {
+      "path": "backend/app/routers/drives.py",
+      "read": "partial",
+      "reason": "Read lines 168-292 (wire-form parsers, _apply_range_filters) and 1440-1620 (create_text_file revive and insert). Hunks in apply_file_filters, filtered_drive_files, FileFiltersQuery, _list_drive_files and _folder_counts were read only in the supplied diff."
+    },
+    {
+      "path": "backend/app/routers/internal.py",
+      "read": "partial",
+      "reason": "Read lines 636-735: FileMatchingRequest with its validators, and files_matching."
+    },
+    {
+      "path": "backend/app/routers/shelves.py",
+      "read": "partial",
+      "reason": "Read lines 455-484 (the _shelves call to filtered_drive_files)."
+    },
+    {
+      "path": "backend/app/schemas.py",
+      "read": "partial",
+      "reason": "Read the two one-line hunks (FileResponse.modified_at, file_to_response) in the supplied diff; the file itself was not opened."
+    },
+    {
+      "path": "backend/app/services/content_write.py",
+      "read": "partial",
+      "reason": "Read lines 40-84 of write_text_content, which contain the change."
+    },
+    {
+      "path": "backend/app/services/fileops.py",
+      "read": "partial",
+      "reason": "Read lines 260-319 of copy_file around the new File literal."
+    },
+    {
+      "path": "backend/app/services/markdown_relations.py",
+      "read": "partial",
+      "reason": "Read lines 580-648: rewrite_basename_in_drive's loop and its return."
+    },
+    {
+      "path": "backend/app/services/mtime.py",
+      "read": "full",
+      "reason": "Read the whole file."
+    },
+    {
+      "path": "backend/app/services/scanner.py",
+      "read": "partial",
+      "reason": "Read lines 80-133, 260-419 (_ensure_md_id_for_new_file, register_single_file) and 440-819 (both scan passes, inserts and moves)."
+    },
+    {
+      "path": "backend/app/services/upload.py",
+      "read": "partial",
+      "reason": "Read lines 270-394 of complete_upload."
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/clipsRow.tsx",
+      "read": "partial",
+      "reason": "Read the one-line hunk in the diff; confirmed line 53 by Grep."
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/justifiedHold.tsx",
+      "read": "partial",
+      "reason": "Read the one-line hunk in the diff; confirmed line 55 by Grep."
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/notesLibrary.tsx",
+      "read": "partial",
+      "reason": "Read the one-line hunk in the diff; confirmed line 46 by Grep."
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/videoCardByline.tsx",
+      "read": "partial",
+      "reason": "Read the one-line hunk in the diff; confirmed line 41 by Grep."
+    },
+    {
+      "path": "frontend/e2e-epub/preview/app.tsx",
+      "read": "partial",
+      "reason": "Read the one-line hunk in the diff; confirmed line 48 by Grep."
+    },
+    {
+      "path": "frontend/src/app/app-api/smart-collection-members/route.ts",
+      "read": "full",
+      "reason": "Read the whole file."
+    },
+    {
+      "path": "frontend/src/components/FileListRow.tsx",
+      "read": "partial",
+      "reason": "Read the two changed lines in the diff; confirmed lines 158 and 176 by Grep."
+    },
+    {
+      "path": "frontend/src/components/folder/FolderTreePane.tsx",
+      "read": "partial",
+      "reason": "Read the one-line hunk in nodeToFile in the diff; confirmed line 139 by Grep."
+    },
+    {
+      "path": "frontend/src/components/folder/useFolderFiles.ts",
+      "read": "partial",
+      "reason": "Read lines 170-479: run `now`, resolveModified, in: resolution, fetchPage and filter."
+    },
+    {
+      "path": "frontend/src/components/search/ConditionMenu.tsx",
+      "read": "partial",
+      "reason": "Read lines 400-564 (preset filters, modifiedPresetList). The preset definitions and the root entry (lines 133-145 and 700-720) were read in the diff and by Grep."
+    },
+    {
+      "path": "frontend/src/components/search/SearchFilterChips.tsx",
+      "read": "partial",
+      "reason": "Read the two hunks (chipValue, label) in the diff; confirmed lines 34 and 75 by Grep."
+    },
+    {
+      "path": "frontend/src/components/search/SearchQueryHeader.tsx",
+      "read": "partial",
+      "reason": "Read lines 262-286, the ConditionMenu entries."
+    },
+    {
+      "path": "frontend/src/components/search/useFileSearch.ts",
+      "read": "partial",
+      "reason": "Read lines 95-269 (the run effect). The listingParams hunk was read in the diff."
+    },
+    {
+      "path": "frontend/src/lib/appTarget.ts",
+      "read": "partial",
+      "reason": "Read lines 80-129 (resolveAppTarget)."
+    },
+    {
+      "path": "frontend/src/lib/inNameResolution.ts",
+      "read": "partial",
+      "reason": "Read lines 100-159 (resolveInNames)."
+    },
+    {
+      "path": "frontend/src/lib/listingRequest.ts",
+      "read": "partial",
+      "reason": "Read the hunks in the diff; Grep confirmed lines 30, 79-80 and the listingUrl/listingQueryUrl builders at 87-104."
+    },
+    {
+      "path": "frontend/src/lib/memberTarget.ts",
+      "read": "full",
+      "reason": "Read the whole file."
+    },
+    {
+      "path": "frontend/src/lib/searchMerge.ts",
+      "read": "partial",
+      "reason": "Read the one-line hunk in fileItemFromHit in the diff; confirmed line 219 by Grep."
+    },
+    {
+      "path": "frontend/src/lib/searchQuery.ts",
+      "read": "partial",
+      "reason": "Read lines 225-523 (modified parsing, zone resolution, resolveModified, comparisonsImpossible). The interpret/parseSearchQuery/filter/chips hunks were read in the diff."
+    },
+    {
+      "path": "frontend/src/lib/smartCollectionEval.ts",
+      "read": "full",
+      "reason": "Read the whole file."
+    },
+    {
+      "path": "frontend/src/lib/videoAppTarget.ts",
+      "read": "full",
+      "reason": "Read the whole file."
+    },
+    {
+      "path": "frontend/src/messages-core/en.json",
+      "read": "partial",
+      "reason": "Read the four added keys in the diff; confirmed lines 328 and 335-337 by Grep."
+    },
+    {
+      "path": "frontend/src/messages-core/ja.json",
+      "read": "partial",
+      "reason": "Read the four added keys in the diff; confirmed lines 328 and 335-337 by Grep."
+    },
+    {
+      "path": "frontend/src/types/index.ts",
+      "read": "partial",
+      "reason": "Read the FileItem.modified_at hunk in the diff; confirmed line 66 by Grep."
+    },
+    {
+      "path": "mcp-server/src/tools/ask.ts",
+      "read": "partial",
+      "reason": "Read the import and query hunks in the diff; confirmed lines 6 and 90 by Grep."
+    },
+    {
+      "path": "mcp-server/src/tools/collections.ts",
+      "read": "partial",
+      "reason": "Read the hostTimeZone and query hunks in the diff; confirmed lines 15 and 130 by Grep."
+    },
+    {
+      "path": "mcp-server/src/tools/read.ts",
+      "read": "partial",
+      "reason": "Read the SUMMARY_FIELDS hunk in the diff; confirmed line 129 by Grep."
+    },
+    {
+      "path": "addons/intelligence/tests/test_filtered_search_contract.py",
+      "read": "partial",
+      "reason": "Read only the one-line hunk in the diff."
+    },
+    {
+      "path": "addons/intelligence/tests/test_search_modified_filter.py",
+      "read": "full",
+      "reason": "New file; read its whole content in the diff."
+    },
+    {
+      "path": "backend/tests/test_file_modified_at.py",
+      "read": "full",
+      "reason": "New file; read its whole content in the diff."
+    },
+    {
+      "path": "backend/tests/test_search_modified_operator.py",
+      "read": "full",
+      "reason": "New file; read its whole content in the diff."
+    },
+    {
+      "path": "frontend/src/__tests__/DriveHome.test.tsx",
+      "read": "partial",
+      "reason": "Read only the fixture hunks in the diff."
+    },
+    {
+      "path": "frontend/src/__tests__/DuplicatesSection.test.tsx",
+      "read": "partial",
+      "reason": "Read only the fixture hunk in the diff."
+    },
+    {
+      "path": "frontend/src/__tests__/FileCard.test.tsx",
+      "read": "partial",
+      "reason": "Read only the fixture hunk in the diff."
+    },
+    {
+      "path": "frontend/src/__tests__/accent-budget.test.tsx",
+      "read": "partial",
+      "reason": "Read only the fixture hunk in the diff."
+    },
+    {
+      "path": "frontend/src/__tests__/core-search-vocabulary.test.ts",
+      "read": "partial",
+      "reason": "Read only the count hunks in the diff."
+    },
+    {
+      "path": "frontend/src/__tests__/driveHomeFailureState.test.tsx",
+      "read": "partial",
+      "reason": "Read only the fixture hunk in the diff."
+    },
+    {
+      "path": "frontend/src/__tests__/driveHomeHiddenEntries.test.tsx",
+      "read": "partial",
+      "reason": "Read only the fixture hunk in the diff."
+    },
+    {
+      "path": "frontend/src/__tests__/driveHomeSectionOrder.test.tsx",
+      "read": "partial",
+      "reason": "Read only the fixture hunk in the diff."
+    },
+    {
+      "path": "frontend/src/__tests__/homeAppEntries.test.tsx",
+      "read": "partial",
+      "reason": "Read only the fixture hunk in the diff."
+    },
+    {
+      "path": "frontend/src/__tests__/homeContinueDesk.test.tsx",
+      "read": "partial",
+      "reason": "Read only the fixture hunk in the diff."
+    },
+    {
+      "path": "frontend/src/__tests__/homeResumeRows.test.tsx",
+      "read": "partial",
+      "reason": "Read only the fixture hunk in the diff."
+    },
+    {
+      "path": "frontend/src/__tests__/homeShortcuts.test.tsx",
+      "read": "partial",
+      "reason": "Read only the fixture hunk in the diff."
+    },
+    {
+      "path": "frontend/src/__tests__/matchTimestampPills.parity.test.tsx",
+      "read": "partial",
+      "reason": "Read only the fixture hunk in the diff."
+    },
+    {
+      "path": "frontend/src/__tests__/section-rows.test.tsx",
+      "read": "partial",
+      "reason": "Read only the fixture hunk in the diff."
+    },
+    {
+      "path": "frontend/src/app/app-api/__tests__/smartCollectionMembers.modified.test.ts",
+      "read": "full",
+      "reason": "New file; read its whole content in the diff."
+    },
+    {
+      "path": "frontend/src/app/app-api/__tests__/smartCollectionMembers.test.ts",
+      "read": "partial",
+      "reason": "Read only the fixture hunk in the diff."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/__tests__/MediaPlayerBlock.test.tsx",
+      "read": "partial",
+      "reason": "Read only the fixture hunk in the diff."
+    },
+    {
+      "path": "frontend/src/components/__tests__/AudioPlayer.test.tsx",
+      "read": "partial",
+      "reason": "Read only the fixture hunk in the diff."
+    },
+    {
+      "path": "frontend/src/components/__tests__/CollectionDetail.test.tsx",
+      "read": "partial",
+      "reason": "Read only the fixture hunk in the diff."
+    },
+    {
+      "path": "frontend/src/components/__tests__/CollectionItemsPane.test.tsx",
+      "read": "partial",
+      "reason": "Read only the fixture hunk in the diff."
+    },
+    {
+      "path": "frontend/src/components/__tests__/CollectionPanel.test.tsx",
+      "read": "partial",
+      "reason": "Read only the fixture hunk in the diff."
+    },
+    {
+      "path": "frontend/src/components/__tests__/ContinueWatchingSection.test.tsx",
+      "read": "partial",
+      "reason": "Read only the fixture hunk in the diff."
+    },
+    {
+      "path": "frontend/src/components/__tests__/FileActions.test.tsx",
+      "read": "partial",
+      "reason": "Read only the fixture hunk in the diff."
+    },
+    {
+      "path": "frontend/src/components/__tests__/FileCard.test.tsx",
+      "read": "partial",
+      "reason": "Read only the fixture hunk in the diff."
+    },
+    {
+      "path": "frontend/src/components/__tests__/FileContextMenu.test.tsx",
+      "read": "partial",
+      "reason": "Read only the fixture hunk in the diff."
+    },
+    {
+      "path": "frontend/src/components/__tests__/FileDetailFullScreen.smartCollection.test.tsx",
+      "read": "partial",
+      "reason": "Opened lines 380-410 (the savedSmartFolder fixture); other hunk read in the diff."
+    },
+    {
+      "path": "frontend/src/components/__tests__/FileDetailFullScreen.test.tsx",
+      "read": "partial",
+      "reason": "Read only the fixture hunk in the diff."
+    },
+    {
+      "path": "frontend/src/components/__tests__/FileListRow.modifiedDate.test.tsx",
+      "read": "full",
+      "reason": "New file; read its whole content in the diff."
+    },
+    {
+      "path": "frontend/src/components/__tests__/FilePreview.test.tsx",
+      "read": "partial",
+      "reason": "Read only the fixture hunk in the diff."
+    },
+    {
+      "path": "frontend/src/components/__tests__/FolderBrowser.snapshotScroll.test.tsx",
+      "read": "partial",
+      "reason": "Read only the fixture hunk in the diff."
+    },
+    {
+      "path": "frontend/src/components/__tests__/FolderListRow.test.tsx",
+      "read": "partial",
+      "reason": "Read only the fixture hunk in the diff."
+    },
+    {
+      "path": "frontend/src/components/__tests__/GlobalSearch.inSmartCollection.test.tsx",
+      "read": "partial",
+      "reason": "Read only the fixture hunk in the diff."
+    },
+    {
+      "path": "frontend/src/components/__tests__/GlobalSearch.jump.test.tsx",
+      "read": "partial",
+      "reason": "Read only the fixture hunk in the diff."
+    },
+    {
+      "path": "frontend/src/components/__tests__/GlobalSearch.scope.test.tsx",
+      "read": "partial",
+      "reason": "Read only the fixture hunk in the diff."
+    },
+    {
+      "path": "frontend/src/components/__tests__/GlobalSearch.test.tsx",
+      "read": "partial",
+      "reason": "Read only the fixture hunk in the diff."
+    },
+    {
+      "path": "frontend/src/components/__tests__/ImageGallery.test.tsx",
+      "read": "partial",
+      "reason": "Read only the fixture hunk in the diff."
+    },
+    {
+      "path": "frontend/src/components/__tests__/LikeButton.test.tsx",
+      "read": "partial",
+      "reason": "Read only the fixture hunk in the diff."
+    },
+    {
+      "path": "frontend/src/components/__tests__/MatchOverlay.test.tsx",
+      "read": "partial",
+      "reason": "Read only the fixture hunk in the diff."
+    },
+    {
+      "path": "frontend/src/components/__tests__/SearchPage.filtered.test.tsx",
+      "read": "partial",
+      "reason": "Read only the fixture hunk in the diff."
+    },
+    {
+      "path": "frontend/src/components/__tests__/SearchPage.inSmartCollection.loading.test.tsx",
+      "read": "partial",
+      "reason": "Read only the fixture hunk in the diff."
+    },
+    {
+      "path": "frontend/src/components/__tests__/SearchPage.inSmartCollection.test.tsx",
+      "read": "partial",
+      "reason": "Read only the fixture hunk in the diff."
+    },
+    {
+      "path": "frontend/src/components/__tests__/SearchPage.resultsBar.test.tsx",
+      "read": "partial",
+      "reason": "Read only the fixture hunk in the diff."
+    },
+    {
+      "path": "frontend/src/components/__tests__/SearchPage.semanticContinuation.test.tsx",
+      "read": "partial",
+      "reason": "Read only the fixture hunk in the diff."
+    },
+    {
+      "path": "frontend/src/components/__tests__/SearchPage.smartCollectionPlay.test.tsx",
+      "read": "partial",
+      "reason": "Read only the fixture hunk in the diff."
+    },
+    {
+      "path": "frontend/src/components/__tests__/SearchPage.smartCollectionSlot.test.tsx",
+      "read": "partial",
+      "reason": "Read only the fixture hunk in the diff."
+    },
+    {
+      "path": "frontend/src/components/__tests__/SearchPage.smartFolderOverwrite.test.tsx",
+      "read": "partial",
+      "reason": "Read only the fixture hunk in the diff."
+    },
+    {
+      "path": "frontend/src/components/__tests__/TrustTierControl.test.tsx",
+      "read": "partial",
+      "reason": "Read only the fixture hunk in the diff."
+    },
+    {
+      "path": "frontend/src/components/__tests__/fileActionsMenuFixtureParity.test.tsx",
+      "read": "partial",
+      "reason": "Read only the fixture hunk in the diff."
+    },
+    {
+      "path": "frontend/src/components/__tests__/justifiedGrid.test.tsx",
+      "read": "partial",
+      "reason": "Read only the fixture hunk in the diff."
+    },
+    {
+      "path": "frontend/src/components/__tests__/justifiedGridFixtureParity.test.tsx",
+      "read": "partial",
+      "reason": "Read only the fixture hunk in the diff."
+    },
+    {
+      "path": "frontend/src/components/__tests__/listMetaRendering.test.tsx",
+      "read": "partial",
+      "reason": "Read only the fixture hunk in the diff."
+    },
+    {
+      "path": "frontend/src/components/__tests__/listOrdinals.test.tsx",
+      "read": "partial",
+      "reason": "Read only the fixture hunk in the diff."
+    },
+    {
+      "path": "frontend/src/components/__tests__/primaryMetaRendering.test.tsx",
+      "read": "partial",
+      "reason": "Read only the fixture hunk in the diff."
+    },
+    {
+      "path": "frontend/src/components/__tests__/readingVideoLayoutFixtureParity.test.tsx",
+      "read": "partial",
+      "reason": "Read only the fixture hunk in the diff."
+    },
+    {
+      "path": "frontend/src/components/__tests__/sourceCardExcerpt.test.tsx",
+      "read": "partial",
+      "reason": "Read only the fixture hunk in the diff."
+    },
+    {
+      "path": "frontend/src/components/__tests__/sourceCardExcerptText.test.tsx",
+      "read": "partial",
+      "reason": "Read only the fixture hunk in the diff."
+    },
+    {
+      "path": "frontend/src/components/folder/__tests__/FolderContent.moreMayFollow.test.tsx",
+      "read": "partial",
+      "reason": "Read only the fixture hunk in the diff."
+    },
+    {
+      "path": "frontend/src/components/folder/__tests__/FolderContent.searchFilter.test.tsx",
+      "read": "partial",
+      "reason": "Read only the fixture hunk in the diff."
+    },
+    {
+      "path": "frontend/src/components/folder/__tests__/FolderContent.test.tsx",
+      "read": "partial",
+      "reason": "Read only the fixture hunk in the diff."
+    },
+    {
+      "path": "frontend/src/components/folder/__tests__/RightPaneFile.inboxNav.test.tsx",
+      "read": "partial",
+      "reason": "Read only the fixture hunk in the diff."
+    },
+    {
+      "path": "frontend/src/components/folder/__tests__/RightPaneFile.test.tsx",
+      "read": "partial",
+      "reason": "Read only the fixture hunk in the diff."
+    },
+    {
+      "path": "frontend/src/components/folder/__tests__/useFolderFiles.continue.test.tsx",
+      "read": "partial",
+      "reason": "Read only the fixture hunk in the diff."
+    },
+    {
+      "path": "frontend/src/components/folder/__tests__/useFolderFiles.modified.test.tsx",
+      "read": "full",
+      "reason": "New file; read its whole content in the diff."
+    },
+    {
+      "path": "frontend/src/components/folder/__tests__/useFolderFiles.scope.test.tsx",
+      "read": "partial",
+      "reason": "Read only the fixture hunk in the diff."
+    },
+    {
+      "path": "frontend/src/components/folder/__tests__/useFolderFiles.sizeDuration.test.tsx",
+      "read": "partial",
+      "reason": "Read only the fixture hunk in the diff."
+    },
+    {
+      "path": "frontend/src/components/folder/__tests__/useFolderFiles.sizeDurationStates.test.tsx",
+      "read": "partial",
+      "reason": "Read only the fixture hunk in the diff."
+    },
+    {
+      "path": "frontend/src/components/folder/__tests__/useFolderFiles.test.ts",
+      "read": "partial",
+      "reason": "Read only the fixture hunk in the diff."
+    },
+    {
+      "path": "frontend/src/components/readingapp/__tests__/ReadingCard.test.tsx",
+      "read": "partial",
+      "reason": "Read only the fixture hunk in the diff."
+    },
+    {
+      "path": "frontend/src/components/search/__tests__/MergedResultItem.test.tsx",
+      "read": "partial",
+      "reason": "Read only the fixture hunk in the diff."
+    },
+    {
+      "path": "frontend/src/components/search/__tests__/PassageList.screenText.test.tsx",
+      "read": "partial",
+      "reason": "Read only the fixture hunk in the diff."
+    },
+    {
+      "path": "frontend/src/components/search/__tests__/PassageList.test.tsx",
+      "read": "partial",
+      "reason": "Read only the fixture hunk in the diff."
+    },
+    {
+      "path": "frontend/src/components/search/__tests__/SearchFilterChips.modified.test.tsx",
+      "read": "full",
+      "reason": "New file; read its whole content in the diff."
+    },
+    {
+      "path": "frontend/src/components/search/__tests__/SearchQueryHeader.modified.test.tsx",
+      "read": "full",
+      "reason": "New file; read its whole content in the diff."
+    },
+    {
+      "path": "frontend/src/components/search/__tests__/SearchQueryHeader.scope.test.tsx",
+      "read": "partial",
+      "reason": "Read only the order hunk in the diff."
+    },
+    {
+      "path": "frontend/src/components/search/__tests__/SearchQueryHeader.sizeDuration.test.tsx",
+      "read": "partial",
+      "reason": "Read only the order hunk in the diff."
+    },
+    {
+      "path": "frontend/src/components/search/__tests__/useFileSearch.modified.test.tsx",
+      "read": "full",
+      "reason": "New file; read its whole content in the diff."
+    },
+    {
+      "path": "frontend/src/components/search/__tests__/useFileSearch.scope.test.tsx",
+      "read": "partial",
+      "reason": "Read only the fixture hunk in the diff."
+    },
+    {
+      "path": "frontend/src/components/search/__tests__/useFileSearch.sizeDuration.test.tsx",
+      "read": "partial",
+      "reason": "Read only the fixture hunk in the diff."
+    },
+    {
+      "path": "frontend/src/hooks/__tests__/useCollectionViewMode.test.ts",
+      "read": "partial",
+      "reason": "Read only the fixture hunk in the diff."
+    },
+    {
+      "path": "frontend/src/hooks/__tests__/useFolderFilter.test.ts",
+      "read": "partial",
+      "reason": "Read only the fixture hunk in the diff."
+    },
+    {
+      "path": "frontend/src/lib/__tests__/appTarget.modified.test.ts",
+      "read": "full",
+      "reason": "New file; read its whole content in the diff."
+    },
+    {
+      "path": "frontend/src/lib/__tests__/dominantKind.test.ts",
+      "read": "partial",
+      "reason": "Read only the fixture hunk in the diff."
+    },
+    {
+      "path": "frontend/src/lib/__tests__/listSnapshot.test.ts",
+      "read": "partial",
+      "reason": "Read only the fixture hunk in the diff."
+    },
+    {
+      "path": "frontend/src/lib/__tests__/primaryMeta.test.ts",
+      "read": "partial",
+      "reason": "Read only the fixture hunk in the diff."
+    },
+    {
+      "path": "frontend/src/lib/__tests__/searchCache.test.ts",
+      "read": "partial",
+      "reason": "Read only the fixture hunk in the diff."
+    },
+    {
+      "path": "frontend/src/lib/__tests__/searchCapture.test.ts",
+      "read": "partial",
+      "reason": "Read only the fixture hunk in the diff."
+    },
+    {
+      "path": "frontend/src/lib/__tests__/searchMerge.test.ts",
+      "read": "partial",
+      "reason": "Read only the fixture hunk in the diff."
+    },
+    {
+      "path": "frontend/src/lib/__tests__/searchModifiedOperator.test.ts",
+      "read": "full",
+      "reason": "New file; read its whole content in the diff."
+    },
+    {
+      "path": "frontend/src/lib/__tests__/searchPassages.test.ts",
+      "read": "partial",
+      "reason": "Read only the fixture hunk in the diff."
+    },
+    {
+      "path": "frontend/src/lib/__tests__/smartCollectionEval.modified.test.ts",
+      "read": "full",
+      "reason": "New file; read its whole content in the diff."
+    },
+    {
+      "path": "frontend/src/lib/__tests__/smartCollectionEval.test.ts",
+      "read": "partial",
+      "reason": "Read only the fixture hunk in the diff."
+    },
+    {
+      "path": "mcp-server/src/__tests__/modifiedOperator.test.ts",
+      "read": "full",
+      "reason": "New file; read its whole content in the diff."
+    },
+    {
+      "path": "mcp-server/src/__tests__/smartCollections.test.ts",
+      "read": "partial",
+      "reason": "Read only the two expectation hunks in the diff."
+    }
+  ]
+}

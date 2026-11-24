@@ -1,0 +1,347 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [],
+  "specification_compliance": [
+    "R3-1 (I3, a held card a refresh pushed past page 1 is not counted when trashed) is fixed by c473f33/66cccd6. The `kept` set and the derived `counted` list are removed. usePagedClips.ts:110-115 now leaves out of `unnamed` only the held cards the page menu took out (`menuRemoved`). A card the server still counts stays in `items`, and the drawn count `data.count - lists.removedCount(listKey, data.items)` (Home.tsx CardShelf, ShelfPage.tsx header) drops by one when that card is later trashed. Traced: with 61 unread, after a new clip and a trash of C clip 60, the header reads 61.",
+    "R2-1 (double subtraction after a refresh) stays fixed under the new rule. A menu-trashed card that the refreshed page 1 leaves out is now dropped from `items` (menuRemoved is true), so it is no longer in the removedCount basis while `count` comes from the server, which already excludes it. Traced: with 60 drawn, trash a3, then a new clip arrives; items become [n, a1, a2, a4..a59, a60] and the count reads the server's N with no subtraction.",
+    "Follow-on paging after the change is consistent. Once a refresh drops the trashed card, removedBefore (removedCount over data.items) returns to 0, so loadMore uses the plain path `floor(items.length/pageSize)+1`, and appendUnseen drops the card the refresh kept from page 2. No skip and no repeat was found by trace.",
+    "Earlier open B findings R2-2 (e2e callout assertion guarded, Chromium only), R2-3 (re-read overrides outlive refetches), R2-4 (fetchAlignedPage overlap hidden by dedupe) and R2-6 (an emptied grouped Library draws a blank body) are untouched by these fix commits. They are not re-filed.",
+    "d978f18 changes only review records under docs/process; it changes no product code."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "After a single-page refresh, a Clips shelf page still draws the held card that a new clip pushed onto server page 2, so it shows pageSize+1 cards until the next load. This was already so before the fix, and the count is now correct for it."
+  ],
+  "regression_risks": [
+    "menuRemoved is read from `latest.current`, which is updated in a post-render effect, so a refresh answer uses the menu state of the last committed render. A trash committed in the same tick as the refresh answer is applied on the next refresh, not this one. Under the single-user model this has no visible effect, because the filter still hides the card.",
+    "Clips count correctness now depends on the server excluding trashed files from both `items` and `count` of the shelf answer; this was not checked against the backend."
+  ],
+  "test_coverage": [
+    "The new test 'a clip a refresh pushed past the first page, trashed from the Unread page, lowers its count by one' (clipsCardMenu.test.tsx) kills the previous `kept` implementation: under it the header would stay at 62.",
+    "Removing the `!menuRemoved(...)` term from usePagedClips.ts:114 is killed by the existing 3-clip refresh-after-trash tests on Home and the Unread page (R2-1 cases): the double subtraction returns.",
+    "For the Library Ungrouped grid, `menuRemoved` affects only which held cards remain and whether loadMore takes the reread path. No count is drawn there, and no test isolates it; dropping it would only cause a harmless reread."
+  ],
+  "not_verified": [
+    "Did not run any unit or e2e test; all traces are by reading code.",
+    "Did not confirm the backend's Clips shelf `count` and `items` exclude trashed files.",
+    "Read most product files only through the supplied diff hunks, not whole files.",
+    "Did not re-verify the earlier open B findings R2-2, R2-3, R2-4 and R2-6 against the current tree."
+  ],
+  "coverage": [
+    {
+      "path": "addons/knowledge/frontend/ContinueCard.tsx",
+      "read": "partial",
+      "reason": "changed hunks in supplied diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/NoteRow.tsx",
+      "read": "partial",
+      "reason": "changed hunks in supplied diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/NotesPage.tsx",
+      "read": "partial",
+      "reason": "changed hunks in supplied diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/cardMenu/PageFileMenu.tsx",
+      "read": "full",
+      "reason": "new file, whole content in supplied diff, plus fix diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/clipsapp/ClipCard.tsx",
+      "read": "partial",
+      "reason": "changed hunks in supplied diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/clipsapp/ClipRow.tsx",
+      "read": "partial",
+      "reason": "changed hunks in supplied diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/clipsapp/CoverShelf.tsx",
+      "read": "partial",
+      "reason": "changed hunks in supplied diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/clipsapp/Home.tsx",
+      "read": "partial",
+      "reason": "changed hunks in supplied diff and fix diff (CardShelf, UnverifiedShelf, UnverifiedRows)"
+    },
+    {
+      "path": "addons/knowledge/frontend/clipsapp/Library.tsx",
+      "read": "partial",
+      "reason": "changed hunks in supplied diff and fix diff (GroupShelves, Ungrouped)"
+    },
+    {
+      "path": "addons/knowledge/frontend/clipsapp/ShelfPage.tsx",
+      "read": "partial",
+      "reason": "changed hunks in supplied diff and fix diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/clipsapp/usePagedClips.ts",
+      "read": "full",
+      "reason": "read whole file"
+    },
+    {
+      "path": "addons/knowledge/frontend/clipsapp/useShelfData.ts",
+      "read": "full",
+      "reason": "read whole file"
+    },
+    {
+      "path": "addons/knowledge/frontend/library/LibraryList.tsx",
+      "read": "partial",
+      "reason": "changed hunks in supplied diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/library/NotesLibrary.tsx",
+      "read": "partial",
+      "reason": "changed hunks in supplied diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/library/pane/NotePaneContainer.tsx",
+      "read": "partial",
+      "reason": "changed hunks in supplied diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/library/pane/useNoteData.ts",
+      "read": "full",
+      "reason": "changed function shown whole in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/library/useNotesList.ts",
+      "read": "partial",
+      "reason": "changed hunks in supplied diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/notesapp/ContinueWritingSection.tsx",
+      "read": "partial",
+      "reason": "changed hunks in supplied diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/notesapp/NotesWithSourcesSection.tsx",
+      "read": "partial",
+      "reason": "changed hunks in supplied diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/notesapp/RecentlyUpdatedSection.tsx",
+      "read": "partial",
+      "reason": "changed hunks in supplied diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/pages/clips.tsx",
+      "read": "partial",
+      "reason": "changed hunks in supplied diff"
+    },
+    {
+      "path": "frontend/e2e-components/app-card-menu.spec.ts",
+      "read": "full",
+      "reason": "new file in diff"
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/app.tsx",
+      "read": "partial",
+      "reason": "changed hunks in supplied diff"
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/appCardMenu.tsx",
+      "read": "full",
+      "reason": "new file in diff"
+    },
+    {
+      "path": "frontend/e2e-components/spec-viewport.spec.ts",
+      "read": "partial",
+      "reason": "changed hunk in supplied diff"
+    },
+    {
+      "path": "frontend/src/components/FileContextMenu.tsx",
+      "read": "partial",
+      "reason": "changed hunks in supplied diff"
+    },
+    {
+      "path": "frontend/src/components/appshell/CardFileMenu.tsx",
+      "read": "full",
+      "reason": "new file, whole content in diff"
+    },
+    {
+      "path": "frontend/src/components/appshell/usePaged.ts",
+      "read": "partial",
+      "reason": "changed hunks in supplied diff"
+    },
+    {
+      "path": "frontend/src/components/readingapp/DiscoverFace.tsx",
+      "read": "partial",
+      "reason": "changed hunks in supplied diff"
+    },
+    {
+      "path": "frontend/src/components/readingapp/LibraryFace.tsx",
+      "read": "partial",
+      "reason": "changed hunks in supplied diff"
+    },
+    {
+      "path": "frontend/src/components/readingapp/ReadingApp.tsx",
+      "read": "partial",
+      "reason": "changed hunks in supplied diff"
+    },
+    {
+      "path": "frontend/src/components/readingapp/ReadingCard.tsx",
+      "read": "partial",
+      "reason": "changed hunks in supplied diff"
+    },
+    {
+      "path": "frontend/src/components/readingapp/ReadingShelfPage.tsx",
+      "read": "partial",
+      "reason": "changed hunks in supplied diff"
+    },
+    {
+      "path": "frontend/src/components/readingapp/useReadingApp.ts",
+      "read": "partial",
+      "reason": "changed hunks in supplied diff"
+    },
+    {
+      "path": "frontend/src/components/videoapp/DiscoverFace.tsx",
+      "read": "partial",
+      "reason": "changed hunks in supplied diff"
+    },
+    {
+      "path": "frontend/src/components/videoapp/LibraryFace.tsx",
+      "read": "partial",
+      "reason": "changed hunks in supplied diff"
+    },
+    {
+      "path": "frontend/src/components/videoapp/VideoApp.tsx",
+      "read": "partial",
+      "reason": "changed hunks in supplied diff"
+    },
+    {
+      "path": "frontend/src/components/videoapp/VideoCard.tsx",
+      "read": "partial",
+      "reason": "changed hunks in supplied diff"
+    },
+    {
+      "path": "frontend/src/components/videoapp/VideoPagedGrid.tsx",
+      "read": "partial",
+      "reason": "changed hunks in supplied diff"
+    },
+    {
+      "path": "frontend/src/components/videoapp/VideoShelfPage.tsx",
+      "read": "partial",
+      "reason": "changed hunks in supplied diff"
+    },
+    {
+      "path": "frontend/src/components/videoapp/useDiscover.ts",
+      "read": "partial",
+      "reason": "changed hunk in supplied diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/cardMenuHarness.tsx",
+      "read": "full",
+      "reason": "new file in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/clipsCardMenu.test.tsx",
+      "read": "full",
+      "reason": "new file in diff, including the fix-commit addition"
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/clipsCardMenuStates.test.tsx",
+      "read": "full",
+      "reason": "new file in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/notesCardMenuStates.test.tsx",
+      "read": "full",
+      "reason": "new file in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/notesHomeCardMenu.test.tsx",
+      "read": "full",
+      "reason": "new file in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/notesLibraryCardMenu.test.tsx",
+      "read": "full",
+      "reason": "new file in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/popup-dismissal.test.ts",
+      "read": "partial",
+      "reason": "changed hunk in diff"
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/reachability.test.ts",
+      "read": "partial",
+      "reason": "changed hunk in diff"
+    },
+    {
+      "path": "frontend/src/__tests__/watchHistoryCallSites.test.ts",
+      "read": "partial",
+      "reason": "changed hunk in diff"
+    },
+    {
+      "path": "frontend/src/components/__tests__/FileContextMenu.callbacks.test.tsx",
+      "read": "full",
+      "reason": "new file in diff"
+    },
+    {
+      "path": "frontend/src/components/appshell/__tests__/CardFileMenu.shelf.test.tsx",
+      "read": "full",
+      "reason": "new file in diff"
+    },
+    {
+      "path": "frontend/src/components/appshell/__tests__/usePaged.test.tsx",
+      "read": "full",
+      "reason": "new file in diff"
+    },
+    {
+      "path": "frontend/src/components/readingapp/__tests__/ReadingApp.cardMenu.test.tsx",
+      "read": "full",
+      "reason": "new file in diff"
+    },
+    {
+      "path": "frontend/src/components/readingapp/__tests__/ReadingApp.menuScopes.test.tsx",
+      "read": "full",
+      "reason": "new file in diff"
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoApp.cardMenu.test.tsx",
+      "read": "full",
+      "reason": "new file in diff"
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoApp.itemActions.test.tsx",
+      "read": "partial",
+      "reason": "changed hunks in diff"
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoApp.menuScopes.test.tsx",
+      "read": "full",
+      "reason": "new file in diff"
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoCard.compat.test.tsx",
+      "read": "full",
+      "reason": "new file in diff"
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoShelfPage.cardMenu.test.tsx",
+      "read": "full",
+      "reason": "new file in diff"
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoShelfPage.itemActions.test.tsx",
+      "read": "partial",
+      "reason": "changed hunks in diff"
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoShelfPage.providerPaging.test.tsx",
+      "read": "full",
+      "reason": "new file in diff"
+    }
+  ],
+  "trajectory": "This round removed state rather than adding it. In the knowledge submodule (66cccd6), c473f33 deletes the `kept` set from usePagedClips' held state. The round before had added that set to correct the R2-1 count, and it misclassified counted cards (R3-1). The round also deletes the derived `counted` list and its callers in Home.tsx and ShelfPage.tsx. In their place the hook takes one predicate, `menuRemoved`, which PageFileMenu's new `isRemoved` answers. It filters the existing `unnamed` retention, and the drawn count goes back to the plain `data.count - removedCount(items)`. The predicate is a new input threaded through useShelfData, but it reads the page menu's existing truth rather than predicting what the server counts. It replaces a prediction instead of stacking another one on top. d978f18 is a review record only. The earlier offset and total predictions in fetchAlignedPage, usePagedClips' reread path and useNotesList are unchanged by these commits.",
+  "confidence": 80
+}

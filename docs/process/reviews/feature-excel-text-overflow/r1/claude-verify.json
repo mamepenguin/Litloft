@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R1",
+      "status": "confirmed",
+      "note": "frontend/src/components/office/excelRunOn.ts exists (294 lines) and holds the whole run-on step; runOnTextOverflow is exported at lines 266-294. excelAdapter.ts:3 is its only importer (Grep across frontend/src), and excelAdapter.ts:262 calls it. The spec's Touch points (docs/specs/excel-text-overflow.md:145-172) list only excelAdapter.ts as product code and end with 'No other file. No protected path.' (line 172). docs/process/reviews/feature-excel-text-overflow/invariants.md has an empty Revisions section, so nothing adds the file. The review's classification.json:36 and product-files.txt:2 list excelRunOn.ts as a product file in the diff. I could not run git to confirm the file is absent on origin/develop, but the classification lists it as part of the change."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R2",
+      "status": "confirmed",
+      "note": "excelAdapter.ts:277 calls createSheetSizing(container), and its parameter is named host (line 225). transformData passes that host to runOnTextOverflow (line 262). excelAdapter.ts:310-315 sets up the inputLock MutationObserver on the same container with { attributes, childList, subtree }, and this happens before instance.preview(bytes) at line 364. The library calls options.transformData during preview (node_modules/@js-preview/excel/lib/index.js:36). excelRunOn.ts:278 runs host.appendChild(canvas) and line 292 runs made.canvas?.remove(), both direct childList mutations of the observed container. The observer therefore fires and queues one requestAnimationFrame(lockInputs). The touch points do not name this observer. The effect looks benign: lockInputs only sets readOnly on the grid's inputs and blurs a focused element inside the container, which the grid's own drawing mutations already trigger. The author's R-5 record (decisions.md:10) shows the canvas added and removed in the same task."
+    }
+  ],
+  "specification_compliance": [
+    "The touch-point list in docs/specs/excel-text-overflow.md:145-172 does not cover the new module excelRunOn.ts (R1).",
+    "The measuring canvas is appended to the element the library draws in (excelRunOn.ts:278, host = container), as Touch points line 147-148 says, and it is removed in a finally block (line 292)."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "Appending and removing the measuring canvas triggers the adapter's inputLock MutationObserver once per drawing that measures something. The spec does not mention this, and it appears harmless."
+  ],
+  "regression_risks": [
+    "The inputLock callback runs one extra time during preview. Its work is idempotent: it sets readOnly and blurs only an element inside the container."
+  ],
+  "test_coverage": [
+    "I did not inspect whether the new test file covers the canvas being attached to the container and removed afterwards."
+  ],
+  "not_verified": [
+    "I did not confirm with git diff that excelRunOn.ts is absent on origin/develop. I relied on the review classification.json.",
+    "I did not run any tests or the R-5 in-app checks.",
+    "I did not verify the run-on algorithm against invariants I1-I7 beyond what R1 and R2 need."
+  ],
+  "confidence": 88
+}

@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1",
+      "status": "confirmed",
+      "note": "FolderBrowser.tsx:89-93 declares moreTriggerRef and focusMoreTrigger. :966 passes focusMoreTrigger to SmartFolderController. :432-435 add urlParamsRef, which is assigned during render. :449-451 return before folderRouter.replace when params.toString() equals urlParamsRef.current.toString(). r1/classification.json:42 lists FolderBrowser.tsx among the changed files. docs/specs/smart-folder-overwrite.md never names FolderBrowser, so the file is outside the touch-point list."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F2",
+      "status": "confirmed",
+      "note": "FolderToolbar.tsx:123-127 add the optional moreTriggerRef prop. :138 destructures it as sharedMoreTriggerRef. :158-159 use `sharedMoreTriggerRef ?? ownMoreTriggerRef`. FolderBrowser.tsx:799 passes moreTriggerRef={moreTriggerRef} with no condition. classification.json:114 lists the file as changed. The spec does not name it."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F3",
+      "status": "confirmed",
+      "note": "frontend/src/test/smartFolderServer.ts exists. Line 49 is `if (!match) return json([]);`. classification.json:142 lists it as changed. componentFixtureParity.test.tsx:286 contains 'search-results-bar-smart-folder-changed', and classification.json:110 lists that file as changed. The spec names neither file. I did not confirm the 124-line count or that the file is newly added, because I cannot run git."
+    }
+  ],
+  "specification_compliance": [
+    "Three findings about edits outside the touch-point list were confirmed. FolderBrowser.tsx and FolderToolbar.tsx carry the I10 focus plumbing, and FolderBrowser.tsx also gets a change to the URL sync guard. The test helper and the parity list also changed. docs/specs/smart-folder-overwrite.md names none of these four files."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "FolderBrowser's search-mode URL sync now skips router.replace when the rebuilt params string equals the current URL's. That changes behaviour beyond the declared touch points. It holds only when the existing URL has the same parameters in the same order; any difference, such as order or extra parameters, still triggers a replace as before."
+  ],
+  "regression_risks": [
+    "The replace-skip guard in FolderBrowser.tsx:451 compares serialized strings. If the parameter order differs, it still replaces, which matches the earlier behaviour. If the strings match, a replace that a consumer relied on, for example one that re-triggered navigation side effects, no longer happens."
+  ],
+  "test_coverage": [
+    "Not assessed beyond confirming that the files exist. The parity list includes the new e2e arrangement id."
+  ],
+  "not_verified": [
+    "I did not run git diff against origin/develop. I inferred which files changed from r1/classification.json and the current file contents.",
+    "I did not check whether smartFolderServer.ts is new or exactly 124 lines long.",
+    "I did not run any tests or e2e measurements."
+  ],
+  "confidence": 85
+}

@@ -189,7 +189,7 @@ export function PasswordsSection(): React.ReactElement {
               <button
                 type="button"
                 onClick={() => handleDelete(index)}
-                className="rounded-2xl px-3 py-1 text-xs text-danger hover:bg-danger/10"
+                className="rounded-2xl px-3 py-1 text-xs text-danger hover:bg-danger/10 pointer-coarse:min-h-11"
               >
                 {t("deleteButton")}
               </button>

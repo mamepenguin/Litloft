@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R8-1",
+      "status": "confirmed",
+      "note": "Checked frontend/src/components/appshell/useMemberTarget.ts:38-47. The effect's cleanup sets current=false when key changes, so an evaluation still in flight at a target switch is dropped by the `if (current)` guard at line 42. Without the guard, that stale result would be stored in held (line 42) and, with key K1 again on return, would be shown as the evaluation. The render-time reset at lines 29-35 clears held only when the key changes, so it does not cover a stale resolve that lands after the return. The new test at frontend/src/components/videoapp/__tests__/VideoApp.memberTarget.test.tsx:325-369 waits for targetRequests > 0 (line 329), which needs the first evaluation to have resolved, before switching away (lines 331-335). No evaluation is in flight at the switch, so the guard is not exercised. The other in-flight test, VideoApp.states.test.tsx:189, covers a listing, not the member evaluation. The test at memberTarget.test.tsx:305-322 unmounts before its second visit and so has no in-flight switch either. Conclusion: the test gap is real and removing the guard would not fail the suite as far as these tests show. Severity and bucket are not mine to set."
+    }
+  ],
+  "specification_compliance": [
+    "Only the listed finding was verified. No spec compliance judgement was made beyond it."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "Behaviour when a member evaluation is in flight across a switch away and back to the same target: the guard keeps the stale result out, but no test pins it."
+  ],
+  "regression_risks": [
+    "Removing or changing the `if (current)` guard would not be caught by the new test, so a stale first-visit evaluation could later stand in for a new one."
+  ],
+  "test_coverage": [
+    "frontend/src/components/videoapp/__tests__/VideoApp.memberTarget.test.tsx:325-369 covers a return to a settled target only. No test covers an in-flight evaluation across a switch, as checked by grep of the test directories for useMemberTarget and in-flight test names."
+  ],
+  "not_verified": [
+    "Did not run the test suite or any mutation, since only Read, Glob and Grep are available. The claim that the guard removal survives is from reading the test code, not from a mutation run.",
+    "Did not check the reading app's tests for an in-flight switch in useReadingApp.ts beyond a grep for useMemberTarget and in-flight names.",
+    "Did not check the Reading app's member evaluation path for the same stale-resolve behaviour."
+  ],
+  "confidence": 85
+}

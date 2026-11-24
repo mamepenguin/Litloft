@@ -20,19 +20,46 @@ export default async function buildComponentFixture(): Promise<void> {
     root: FIXTURE_DIR,
     base: "./",
     logLevel: "warn",
-    plugins: [react()],
+    plugins: [
+      react(),
+      {
+        // An addon file sits outside `frontend/`, so its own packages do not
+        // resolve from there; the fixture supplies them from `frontend/`.
+        name: "addon-packages-from-frontend",
+        async resolveId(id, importer, options) {
+          if (!importer || !importer.includes("/addons/knowledge/")) return null;
+          if (!/^(gray-matter|@codemirror\/[a-z-]+)$/.test(id)) return null;
+          return this.resolve(id, join(__dirname, "..", "package.json"), {
+            ...options,
+            skipSelf: true,
+          });
+        },
+      },
+    ],
     resolve: {
       // No `preserveSymlinks`: under pnpm keeping the symlink path stops a
       // dependency's own dependency from resolving (`next-intl` →
       // `use-intl`).
       // Addon slot modules are not part of the fixture: bundling them would
       // assert about whichever addon commits core points at, and they resolve
-      // their packages from outside `frontend/`. The Ask-thread case imports
-      // one addon file by a relative path on purpose, so the package aliases
-      // below let that file's bare imports resolve to the fixture's copies.
+      // their packages from outside `frontend/`. The Ask-thread case and the
+      // Knowledge measurements import addon files by path on purpose, so the
+      // package aliases below let those files' bare imports resolve to the
+      // fixture's copies.
       alias: [
+        { find: /^@\/lib\/addons$/, replacement: resolve(__dirname, "stubs", "addons.ts") },
+        // Knowledge's page and rows are drawn in the fixture so their layout
+        // can be measured; only its slot module stays a stub.
+        {
+          find: /^@\/addons\/knowledge\/(.*)$/,
+          replacement: resolve(__dirname, "..", "src", "addons", "knowledge", "$1"),
+        },
         { find: /^@\/addons\/.*$/, replacement: resolve(__dirname, "stubs", "addon-slots.ts") },
         { find: "@", replacement: resolve(__dirname, "..", "src") },
+        {
+          find: /^next\/link$/,
+          replacement: resolve(__dirname, "..", "node_modules", "next", "link.js"),
+        },
         { find: "next/navigation", replacement: resolve(__dirname, "stubs", "next-navigation.ts") },
         { find: /^react$/, replacement: resolve(__dirname, "..", "node_modules", "react") },
         { find: /^react-dom$/, replacement: resolve(__dirname, "..", "node_modules", "react-dom") },

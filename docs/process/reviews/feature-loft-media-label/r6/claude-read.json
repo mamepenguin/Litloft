@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "MEDIUM",
+  "findings": [],
+  "specification_compliance": [
+    "Answer to the first-review question: the diff reaches no place outside the declared touch points. Every changed path is either a listed touch point (ja.json and en.json at semanticSearch.tasks.loft_media.label, IndexStatusWidgetLoftMedia.test.tsx, docs/addons/intelligence.md, and the addons/intelligence submodule pointer) or an implicit one (docs/specs/loft-media-label.md and docs/specs/INDEX.md).",
+    "I1: IndexStatusWidget.tsx:75 maps loft_media to the lucide Download icon, line 56 puts loft_media right after frame_scan in the row order, and line 143 renders the label with t(`tasks.${kind}.label`) under the semanticSearch namespace. So the label comes from the semanticSearch.tasks.loft_media.label message, as I1 requires.",
+    "Item 9: en.json:154 now reads 'YouTube video analysis' and ja.json:154 now reads 'YouTube の映像解析'. A Grep over everything outside docs/specs finds the old label strings in no product or frontend file.",
+    "Touch point for the test file: the label-value test is deleted, rowOf now finds rows through en.semanticSearch.tasks.*.label with exact matching, the test title cites SPEC-ADDON-117 and SPEC-ADDON-178, and the header comment stating the old label is gone. All of this matches the spec's description."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "The new ja label 「YouTube の映像解析」 is longer than the old one and could wrap differently in the row header on narrow viewports. The r5 screenshots at 375px exist for both locales; I did not open them."
+  ],
+  "test_coverage": [
+    "IndexStatusWidgetLoftMedia.test.tsx:41-68 renders the widget with frame_scan and loft_media tasks. It finds each row through the en message value, checks the .lucide-download icon and the processing filename, and checks that the loft_media row comes immediately after the scan row. A mutation that renders the wrong message key for loft_media (for example frame_scan's) would make getByText fail, because there would be either a duplicate match or no match. A mutation that swaps the icon or the order would fail the assertions at lines 61 and 63-67.",
+    "By design (spec 'Checked, no action'), no test pins the label's wording. Changing either JSON value to any other string still passes. The ja locale is not rendered by this test."
+  ],
+  "not_verified": [
+    "I did not run the vitest suite, so I have not confirmed that the test passes at the submodule commit 24f7859.",
+    "I did not view the r5 screenshots to judge how the ja and en labels wrap at 375px and 1280px.",
+    "I did not confirm that the frontend build merges the addon message files into the generated messages exactly as spec item 4 says."
+  ],
+  "coverage": [
+    {
+      "path": "addons/intelligence/frontend/IndexStatusWidgetLoftMedia.test.tsx",
+      "read": "full",
+      "reason": "Read the whole file (69 lines) at the reviewed state."
+    },
+    {
+      "path": "addons/intelligence/frontend/messages/en.json",
+      "read": "partial",
+      "reason": "Read the changed hunk (lines 151-155, semanticSearch.tasks.loft_media.label) from the diff and confirmed line 154 with Grep. I did not open the rest of the file."
+    },
+    {
+      "path": "addons/intelligence/frontend/messages/ja.json",
+      "read": "partial",
+      "reason": "Read the changed hunk (lines 151-155, semanticSearch.tasks.loft_media.label) from the diff and confirmed line 154 with Grep. I did not open the rest of the file."
+    }
+  ],
+  "confidence": 88
+}

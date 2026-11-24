@@ -26,6 +26,7 @@ export const ARRANGEMENT = {
   passagesScene: "search-results-bar-passages-scene",
   passagesOperator: "search-results-bar-passages-operator",
   sticky: "search-results-bar-sticky",
+  smartFolderChanged: "search-results-bar-smart-folder-changed",
 } as const;
 
 let navigation = 0;
@@ -156,7 +157,7 @@ export function overlapVertically(a: Box, b: Box): boolean {
 /** SPEC-CORE-066 I1: no visible element in the page body sits above the field. */
 export function nothingAboveTheField(width: number): void {
   for (const id of Object.values(ARRANGEMENT)) {
-    if (id === ARRANGEMENT.sticky) continue;
+    if (id === ARRANGEMENT.sticky || id === ARRANGEMENT.smartFolderChanged) continue;
     test(`SPEC-CORE-066 I1 ${id} at ${width}px: nothing sits above the query field`, async ({ page }) => {
       await open(page, id, width);
       const m = await measure(page);
@@ -206,4 +207,57 @@ export function positionsHoldWithoutTheCheckbox(width: number): void {
     expect(xs(withBox).more).toHaveLength(1);
     expect(xs(without)).toEqual(xs(withBox));
   });
+}
+
+export const OVERWRITE_NAME = "Overwrite “Fixture folder”";
+
+export interface OverwriteMeasured {
+  button: Box;
+  addFilter: Box;
+  row: Box;
+  lastInRow: boolean;
+  others: Box[];
+}
+
+export async function openChanged(page: Page, width: number): Promise<void> {
+  await open(page, ARRANGEMENT.smartFolderChanged, width);
+  await expect(page.getByRole("button", { name: OVERWRITE_NAME, exact: true })).toBeVisible();
+}
+
+export function measureOverwrite(page: Page): Promise<OverwriteMeasured> {
+  return page.evaluate((overwriteName) => {
+    const box = (el: Element) => {
+      const r = el.getBoundingClientRect();
+      return { left: r.left, right: r.right, top: r.top, bottom: r.bottom, height: r.height };
+    };
+    const visible = (el: Element) => {
+      const r = el.getBoundingClientRect();
+      return r.width > 1 && r.height > 1 && getComputedStyle(el).visibility !== "hidden";
+    };
+    const name = (el: Element) => (el.getAttribute("aria-label") ?? el.textContent ?? "").trim();
+    const buttons = [...document.querySelectorAll("button")];
+    const button = buttons.find((b) => name(b) === overwriteName)!;
+    const addFilter = buttons.find((b) => name(b) === "Add filter")!;
+
+    let row: Element | null = addFilter;
+    while (row && !row.contains(button)) row = row.parentElement;
+    const rowRect = row!.getBoundingClientRect();
+    const style = getComputedStyle(row!);
+    const rowBox = {
+      left: rowRect.left + parseFloat(style.paddingLeft),
+      right: rowRect.right - parseFloat(style.paddingRight),
+      top: rowRect.top,
+      bottom: rowRect.bottom,
+      height: rowRect.height,
+    };
+    const inRow = [...row!.querySelectorAll("button")].filter(visible);
+    const others = inRow.filter((b) => b !== button);
+    return {
+      button: box(button),
+      addFilter: box(addFilter),
+      row: rowBox,
+      lastInRow: inRow[inRow.length - 1] === button,
+      others: others.map(box),
+    };
+  }, OVERWRITE_NAME);
 }

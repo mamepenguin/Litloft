@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "R2-drive-detection-by-exact-target",
+      "origin": "reviewer",
+      "claim": "Both the read-only rewrite in plan_overlay and the drive clause in shared_writes recognise a drive only when a backend bind's target equals a drives.json `path` exactly (drive_sources, scripts/dev/r5_stack.py:231-238). A drive mounted through a parent bind, such as `/host/drives:/app/drives` with drives.json paths `/app/drives/<slug>` (the layout drive_seed.seed_drives_from_mounts is built for), is therefore not treated as a drive. It stays read-write and the pre-run check does not flag it.",
+      "impact": "With that mount layout, a clone stack without --with-drives keeps the shared drives writable. The startup and daily trash purge from r1 can then unlink files on the shared drive that the main checkout restored, and neither `clone` nor `up` reports anything. The layout in use today (decisions.md: per-drive targets /app/drives/default and /app/drives/test_images) is not affected.",
+      "evidence": "r5_stack.py:237 uses `vol[\"target\"] in targets`. plan_overlay:263 and shared_writes:296 test only `is_under(src, d)` against those sources. A directory bind under the main checkout that is not data/ and not a matched drive falls through every branch at :265-275 and every clause at :293-297. backend/app/services/drive_seed.py:52-71 seeds drives.json as `{root}/{slug}` from subdirectories of DRIVES_MOUNT_ROOT (/app/drives), so a single parent mount is a layout the app supports.",
+      "repro": "not_reproduced: in docker-compose.override.yml, bind a host directory that holds drive folders to /app/drives, with drives.json listing /app/drives/a. Then `r5_stack.py clone` and `compose config`: the /app/drives bind has no read_only and clone succeeds.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariant is declared, and the layout that currently runs is handled. This is a gap in how a supported mount layout is classified, not a design error.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Treat a bind as a drive when its target equals a drives.json path or is an ancestor of one. Or, without --with-drives, make every backend bind outside data/ and outside the single files read-only."
+    },
+    {
+      "id": "R2-compose-passthrough-down-still-gated",
+      "origin": "reviewer",
+      "claim": "8fbe25c removes the mount check from `down` and `destroy` only. `r5_stack.py compose down`, `compose stop` and `compose rm` still go through verified_env and are refused while the overlay fails the check.",
+      "impact": "A user who stops the stack through the documented `compose ARGS...` passthrough gets 'the stack would still write the main checkout's state' and the stack keeps running. This is the case 8fbe25c meant to fix, reached through another command. It fails loudly.",
+      "evidence": "r5_stack.py:362-364 `compose()` always calls verified_env. main() at :416-417 sends `compose` to it whatever the arguments are. Only the `down` and `destroy` paths call stop() (:368-371, :389, :419).",
+      "repro": "not_reproduced: make the overlay fail the check (as in decisions.md step 7), then run `r5_stack.py compose down`. Expected exit 1 with the refusal, and the containers stay up.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "An inconsistency that fails loudly; `down` itself works.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Skip the check in the passthrough for subcommands that do not start containers (down, stop, kill, rm, ps, logs), or document that `down` is the only way to stop a stack whose overlay fails the check."
+    }
+  ],
+  "specification_compliance": [
+    "r1 finding R1-autopurge-shared-drives is resolved for the per-drive mount layout used today. In plan_overlay (r5_stack.py:269-270), every uncloned drive bind becomes read_only. In _run_purge_batch (backend/app/main.py:94-119), physical_delete calls unlink (fileops.py:674-675) before db.delete; on a read-only mount that unlink raises EROFS, the row is rolled back and skipped, and no shared file is removed. decisions.md step (3) records 'Read-only file system' inside the backend and a purge that reached no drive file.",
+    "r1 unspecified behaviour 'down/destroy refuse when the check fails' is resolved for the `down` and `destroy` commands by stop() (r5_stack.py:367-371). It is still open for the `compose` passthrough (R2-compose-passthrough-down-still-gated).",
+    "The PROJECT.md bullet now says uploads, moves, renames and purges fail without --with-drives. This matches the read-only mounts. No prose was found that would lead to a wrong code change.",
+    "No invariants file exists, so compliance with a declared touch-point list cannot be assessed."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "With --with-drives, shared_writes drops every drive source under .r5-stack (r5_stack.py:286). The merged backend config then points only at clones, so the drive list is empty and the pre-run check no longer guards any original drive path. The only protection for a non-backend service that writes an original drive is plan_overlay's redirect.",
+    "Without --with-drives, file operations in the clone (rename, upload, move) fail as HTTP 500s. decisions.md step (5) records that the rename dialog stays open with no error message. The developer sees a raw failure, not a message that the drives are read-only.",
+    "Without --with-drives, every startup and daily purge in the clone logs one exception per expired trash row and a 'left N file(s) behind' warning, because unlink raises EROFS. This log noise is expected, but nothing in the script mentions it."
+  ],
+  "regression_risks": [
+    "Drive classification depends on an exact target match against drives.json (R2-drive-detection-by-exact-target). A change in the mount layout of the untracked docker-compose.override.yml silently turns the read-only protection off.",
+    "A read-write directory bind under the main checkout that is neither data/ nor a matched drive is still not flagged by shared_writes. This was noted in r1 and is unchanged."
+  ],
+  "test_coverage": [
+    "There are still no automated tests for scripts/dev/r5_stack.py. Some mutations would go unnoticed: removing the `rw and any(is_under(src, d) for d in drives)` clause in shared_writes, or turning the `drive is not None and not read_only` branch in plan_overlay into a no-op (the second is caught only at run time, by verified_env during `clone`). Changing drive_sources to miss parent-target mounts would also not be caught. stop() bypassing the check has no test either.",
+    "The only evidence is the manual run in decisions.md. That run did not exercise --with-drives, the live-DB snapshot, or the refusal in the main checkout."
+  ],
+  "not_verified": [
+    "I did not run the script, docker or compose. All checks are static reading.",
+    "I could not read docker-compose.override.yml (untracked in this worktree), so the drive mount layout comes from decisions.md.",
+    "I did not check whether the intelligence or other addon services fail or degrade on a read-only drive, beyond decisions.md saying all 4 containers were healthy.",
+    "I did not check where upload temp files and HEIC conversion caches are written for every code path, beyond physical_delete and decisions.md step (6)."
+  ],
+  "confidence": 78,
+  "trajectory": "672b795 replaced two parallel mechanisms with one shared helper, drive_sources. The first was the with_drives-only target set in plan_overlay; the second was the backend-name/target clause in shared_writes. The commit also removed the with_drives parameter from shared_writes, which is one less state. It added one branch: an uncloned rw drive becomes ro. On balance that round consolidated rather than patched. 8fbe25c added a second path, stop(), that goes around the check that the round before had tightened, because the stricter check made `down` unreachable. That fixes a consequence of the earlier round with a special case per command: the `compose` passthrough still has the old behaviour. So the second round shows mild patching around the check's scope ('guard only what starts'), and the rule is applied per entry point, not by what the compose subcommand does. Neither round added a new prediction about runtime state."
+}

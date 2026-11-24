@@ -14,7 +14,6 @@ import {
   JG_MIN_RATIO,
 } from "@/lib/justifiedGrid";
 import { MENU_SCRIM } from "@/components/DismissScrim";
-import { viewerTakesCanvasFloor } from "@/lib/fileDetailShell";
 import type { ArchiveEntry } from "@/types";
 
 vi.mock("@/lib/api", () => ({
@@ -198,9 +197,13 @@ describe("archive grid cells", () => {
   });
 });
 
-describe("the canvas viewer's floor", () => {
+describe("the canvas viewer's fill", () => {
   const css = readFileSync(
     join(__dirname, "..", "..", "..", "app", "globals.css"),
+    "utf8",
+  );
+  const fill = readFileSync(
+    join(__dirname, "..", "..", "..", "hooks", "useFillHeight.ts"),
     "utf8",
   );
 
@@ -217,44 +220,28 @@ describe("the canvas viewer's floor", () => {
   });
 
   it("takes its height from a measurement, not a container query", () => {
-    expect(css).toContain(
-      "min-height: max(320px, calc(var(--canvas-h, 0px) * 0.7))",
-    );
+    // The floor and its `--canvas-h` are gone; the viewer's height is read
+    // from the canvas it sits in, on every render that matters.
+    expect(css).not.toMatch(/data-canvas-floor/);
+    expect(fill).toMatch(/closest\("main"\)/);
+    expect(fill).toMatch(/new ResizeObserver/);
+    expect(fill).not.toMatch(/container-type/);
   });
 
-  it("stretches the viewer into the height it reserves", () => {
-    // `min-height` on the wrapper alone reserves the space and stops:
-    // a block box does not stretch its in-flow children, so the viewer
-    // kept its content height and the reserved space became emptiness
-    // inside the wrapper.
-    const wrapper = css.match(
-      /main\[data-canvas-floor="true"\] \.media-detail-player \{([^}]*)\}/,
-    );
-    expect(wrapper).not.toBeNull();
-    expect(wrapper![1]).toMatch(/display:\s*flex/);
-    expect(wrapper![1]).toMatch(/flex-direction:\s*column/);
-
-    const child = css.match(
-      /main\[data-canvas-floor="true"\] \.media-detail-player > :first-child \{([^}]*)\}/,
-    );
-    expect(child).not.toBeNull();
-    expect(child![1]).toMatch(/flex:\s*1 1 auto/);
+  it("measures again when the canvas gains or loses a child", () => {
+    // The find bar is inserted after the viewer has mounted, moving the
+    // viewer's top down; a height measured only on mount would leave the
+    // bar's height as scrolling.
+    expect(fill).toMatch(/new MutationObserver/);
+    expect(fill).toMatch(/childList: true/);
   });
 
   it("establishes no containment context on the canvas", () => {
     // `container-type: size` implies
     // `contain: layout`, which makes the canvas the containing block for
-    // every `position: fixed` descendant — and the toolbar's overflow
-    // backdrop is one that is not portalled. Under containment it covers
-    // the column instead of the viewport.
-    const floorRules = [
-      ...css.matchAll(/main\[data-canvas-floor="true"\][^{]*\{([^}]*)\}/g),
-    ];
-    expect(floorRules.length).toBeGreaterThan(0);
-    for (const [, body] of floorRules) {
-      expect(body).not.toMatch(/container-type/);
-      expect(body).not.toMatch(/\bcontain\s*:/);
-    }
+    // every `position: fixed` descendant — and the archive's overflow
+    // backdrop is one that is not portalled.
+    expect(css).not.toMatch(/main\[[^\]]*\]\s*\{[^}]*container-type/);
   });
 
   it("keeps the unportalled fixed overlay that the containment would have caught", () => {
@@ -274,17 +261,16 @@ describe("the canvas viewer's floor", () => {
   });
 });
 
-describe("which viewers get a floor", () => {
-  it("names them, rather than matching a mime prefix", () => {
-    // Not `startsWith("text/")`: it also matches `text/html`, which is rendered in a sandboxed
-    // (opaque-origin) iframe.
-    expect(viewerTakesCanvasFloor("archive", "application/zip")).toBe(true);
-    expect(viewerTakesCanvasFloor("document", "application/pdf")).toBe(true);
-    expect(viewerTakesCanvasFloor("document", "text/html")).toBe(false);
-    expect(viewerTakesCanvasFloor("document", "text/plain")).toBe(false);
-    expect(viewerTakesCanvasFloor("document", "text/markdown")).toBe(false);
-    expect(viewerTakesCanvasFloor("image", "image/jpeg")).toBe(false);
-    expect(viewerTakesCanvasFloor("video", "video/mp4")).toBe(false);
-    expect(viewerTakesCanvasFloor("audio", "audio/mpeg")).toBe(false);
+describe("which viewers fill the canvas", () => {
+  it("names the PDF and the archive, which take the page's own height", () => {
+    // The book measures its own height and always fills. The other kinds
+    // keep their natural height, so their canvas may scroll.
+    const preview = readFileSync(
+      join(__dirname, "..", "..", "FilePreview.tsx"),
+      "utf8",
+    );
+    expect(preview).toMatch(/<PdfPreview[\s\S]*?fillCanvas=\{fillCanvas\}/);
+    expect(preview).toMatch(/<ArchivePreview[\s\S]*?fillCanvas=\{fillCanvas\}/);
+    expect(preview).toMatch(/<EpubPreview/);
   });
 });

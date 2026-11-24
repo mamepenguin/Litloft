@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [],
+  "specification_compliance": [
+    "Commit 29a43fe3a changes only docs/developer-guide/testing.md § The bootstrap script (lines 78-85). It addresses r1 finding CD-1. The local instruction now reads `python3 -m pip install pytest PyYAML==6.0.2`, which is the same install line as ci.yml:494 (`pip install pytest PyYAML==6.0.2`), and the prose no longer says 'with only pytest installed'.",
+    "The commit touches neither product file: .github/workflows/ci.yml and frontend/scripts/check-playwright-browsers.mjs are unchanged by it. I re-read both in the working tree to confirm the state the doc now describes. ci.yml:302-393 holds the two browser jobs, and ci.yml:493-497 holds the bootstrap install and test.",
+    "The edited section is outside the `### Core jobs` table, which is the only part of testing.md the touch-point list names. The spec's §7 says the rest of the document is unchanged apart from the Browser suites section. This doc edit is the one r1 asked for (CD-1 proposed_fix), and it describes the code correctly. It does not lead a reader to a wrong code change.",
+    "r1 finding CD-2 (the new vitest test reaches addon CI pipelines) is not addressed by this commit. It stays as it was in r1: bucket B, INFO."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    "The PyYAML pin is now written in two places, docs/developer-guide/testing.md:83 and .github/workflows/ci.yml:494. tests/test_ci_browser_jobs.py asserts only the ci.yml line, so if one pin is bumped the doc can silently fall out of step. This affects only local-run documentation and is not a code defect."
+  ],
+  "regression_risks": [
+    "None from this commit: it changes documentation only, and no code, test or workflow file."
+  ],
+  "test_coverage": [
+    "No test checks that the local bootstrap instructions in testing.md match the bootstrap job's install line. test_bootstrap_installs_pyyaml_and_runs_tests (tests/test_ci_browser_jobs.py) pins only the ci.yml side.",
+    "The commit changes no product code, so no mutant of product code is in scope for it."
+  ],
+  "not_verified": [
+    "I did not run any command. pytest and vitest were not executed, and I did not check that `pip install PyYAML==6.0.2` succeeds locally on the developer's Python version.",
+    "I did not inspect git objects to confirm that commit 29a43fe3a contains only the testing.md hunk shown. I compared the shown diff against the working tree.",
+    "I did not check branch protection on develop (I7).",
+    "I did not check how the container jobs behave at runtime (user 1001, the pnpm cache path, or the contents of the image's /ms-playwright)."
+  ],
+  "coverage": [
+    {
+      "path": ".github/workflows/ci.yml",
+      "read": "partial",
+      "reason": "Read lines 280-509 in the working tree. That range covers both browser jobs (302-393) and the bootstrap job (480-497), which are all the hunks of the branch diff. The commit under review does not change this file."
+    },
+    {
+      "path": "frontend/scripts/check-playwright-browsers.mjs",
+      "read": "full",
+      "reason": "Read the whole file (lines 1-88) in the working tree. The commit under review does not change it."
+    },
+    {
+      "path": "frontend/src/__tests__/check-playwright-browsers.test.ts",
+      "read": "full",
+      "reason": "Read the entire new file as quoted in the branch diff; I did not open it in the working tree. The commit under review does not change it."
+    },
+    {
+      "path": "tests/test_ci_browser_jobs.py",
+      "read": "full",
+      "reason": "Read the entire new file as quoted in the branch diff; I did not open it in the working tree. The commit under review does not change it."
+    }
+  ],
+  "confidence": 88,
+  "trajectory": "There is one fix round since r1: commit 29a43fe3a, a documentation-only edit to testing.md § The bootstrap script. It adds no branch, state or prediction to the code, and the round before it (the original implementation) has no prior fix to repeat. It aligns one prose instruction with the existing ci.yml install line. This is not a pattern of patching the design. Nothing was removed."
+}

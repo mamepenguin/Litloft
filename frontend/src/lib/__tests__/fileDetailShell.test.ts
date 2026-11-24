@@ -4,7 +4,6 @@ import type { FileType } from "@/types";
 import {
   ridesFileDetailShell,
   usesDocumentShell,
-  viewerTakesCanvasFloor,
 } from "../fileDetailShell";
 
 describe("usesDocumentShell", () => {
@@ -215,19 +214,5 @@ describe("ridesFileDetailShell", () => {
     expect(canonical({})).toBe(false);
     expect(collection({})).toBe(false);
     expect(canonical({ mimeType: "application/pdf" })).toBe(false);
-  });
-});
-
-describe("viewerTakesCanvasFloor", () => {
-  it.each([
-    ["document", "application/pdf", true],
-    // The EPUB reader measures its own height to fill the canvas.
-    ["document", "application/epub+zip", false],
-    ["archive", "application/zip", true],
-    ["document", "text/plain", false],
-    ["document", "text/html", false],
-    ["image", "image/png", false],
-  ])("%s %s → %s", (fileType, mimeType, expected) => {
-    expect(viewerTakesCanvasFloor(fileType, mimeType)).toBe(expected);
   });
 });

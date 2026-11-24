@@ -50,7 +50,8 @@ describe("FileDetailChrome", () => {
     );
   });
 
-  it("keeps one step of it on a narrow one", () => {
+  it("SPEC-CORE-094 D5 (narrow): line 1 is the parent folder as a link, and the wide trail's ancestors are hidden", () => {
+    setViewportWidth(400);
     render(
       <FileDetailChrome
         drive="main"
@@ -61,10 +62,12 @@ describe("FileDetailChrome", () => {
 
     expect(back()).toHaveTextContent("clips");
     expect(back()).toHaveAttribute("href", "/drive/main/videos/clips");
-    expect(back().parentElement?.className).toContain("md:hidden");
-    expect(screen.getByRole("navigation").parentElement?.className).toContain(
-      "hidden",
-    );
+    // The trail still draws its ancestors for the wide form; below `md`
+    // they are hidden, so line 1 is the only way up.
+    for (const link of screen.getAllByRole("link", { name: /^(main|videos)$/ })) {
+      expect(link.parentElement?.className).toContain("hidden");
+    }
+    expect(screen.getByText("holiday.mp4")).toBeInTheDocument();
   });
 
   it("treats the drive as the parent for a file at its root", () => {
@@ -157,6 +160,49 @@ describe("FileDetailChrome", () => {
     expect(screen.queryAllByRole("button", { name: /tree/i })).toHaveLength(0);
   });
 
+  it("draws the bottom form's icon where the inspector is under the player", () => {
+    // The button says what the press does: the pane it opens is below.
+    const cases = [
+      { open: true, icon: "lucide-panel-bottom-close" },
+      { open: false, icon: "lucide-panel-bottom" },
+    ];
+    for (const { open, icon } of cases) {
+      const { unmount } = render(
+        <FileDetailChrome
+          drive="main"
+          title="x.mp4"
+          inspector={{ open, onToggle: vi.fn(), stacked: true }}
+        />,
+      );
+      const svg = screen.getByTestId("inspector-toggle").querySelector("svg")!;
+      expect({ open, icon: [...svg.classList].find((c) => c.startsWith("lucide-panel")) }).toEqual(
+        { open, icon },
+      );
+      unmount();
+    }
+  });
+
+  it("keeps the side icon in every other form", () => {
+    const cases = [
+      { open: true, icon: "lucide-panel-right-close" },
+      { open: false, icon: "lucide-panel-right" },
+    ];
+    for (const { open, icon } of cases) {
+      const { unmount } = render(
+        <FileDetailChrome
+          drive="main"
+          title="x.mp4"
+          inspector={{ open, onToggle: vi.fn() }}
+        />,
+      );
+      const svg = screen.getByTestId("inspector-toggle").querySelector("svg")!;
+      expect({ open, icon: [...svg.classList].find((c) => c.startsWith("lucide-panel")) }).toEqual(
+        { open, icon },
+      );
+      unmount();
+    }
+  });
+
   it("puts a caller's own leaf where the file name would go", () => {
     render(
       <FileDetailChrome
@@ -191,9 +237,10 @@ describe("FileDetailChrome", () => {
     expect(screen.getAllByTestId("rename")).toHaveLength(1);
   });
 
-  it("keeps the leaf's control on the narrow form, where the path is hidden", () => {
+  it("SPEC-CORE-094 D5 / I6 (narrow): the leaf's rename control stays, once, inside the heading", () => {
     // A Markdown note's leaf is its rename control, and this row is the
-    // only place rename exists.
+    // only place rename exists. It is one instance at both widths, so a
+    // rotation cannot fire a second copy's `blur` and commit the rename.
     setViewportWidth(400);
     render(
       <FileDetailChrome
@@ -205,8 +252,9 @@ describe("FileDetailChrome", () => {
     );
 
     const rename = screen.getByTestId("rename");
-    expect(screen.getByRole("navigation")).not.toContainElement(rename);
-    expect(rename.closest("[class*='md:hidden']")).not.toBeNull();
+    expect(screen.getAllByTestId("rename")).toHaveLength(1);
+    expect(screen.getByRole("navigation")).toContainElement(rename);
+    expect(screen.getByText("note.md")).toBe(rename);
   });
 
   it("says only 'Back' when back is not up", () => {
@@ -263,19 +311,19 @@ describe("what makes this a chrome bar rather than a page header", () => {
     expect([...row.classList].filter((c) => /^py-/.test(c))).toEqual([]);
   });
 
-  it("renders both width forms of the path and hides one in CSS", () => {
-    const { container } = render(
+  it("SPEC-CORE-094 D5: the trail's ancestors are drawn once and hidden below md", () => {
+    render(
       <FileDetailChrome drive="main" folderPath="videos" title="a.mp4" />,
     );
-    // Three classes, not two: the tree-toggle wrapper is also `hidden md:flex`.
-    const wide = [...container.querySelectorAll("div")].find(
-      (el) =>
-        el.classList.contains("hidden") &&
-        el.classList.contains("md:flex") &&
-        el.classList.contains("flex-1"),
-    );
-    expect(wide).toBeDefined();
-    expect(wide!.textContent).toContain("videos");
+    // One leaf at both widths: what changes is which parts of the trail
+    // are visible, never whether the leaf exists.
+    const trail = screen.getByRole("navigation");
+    expect(trail).toHaveTextContent("videos");
+    expect(trail).toHaveTextContent("a.mp4");
+    for (const link of screen.getAllByRole("link", { name: /^(main|videos)$/ })) {
+      expect(link.parentElement?.className).toContain("hidden");
+      expect(link.parentElement?.className).toContain("md:flex");
+    }
     expect(screen.getByTestId("file-detail-back")).toBeInTheDocument();
   });
 });

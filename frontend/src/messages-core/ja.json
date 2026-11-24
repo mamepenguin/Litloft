@@ -9,9 +9,12 @@
     "create": "作成",
     "apply": "適用",
     "change": "変更",
+    "nameInUse": "同じ名前のコレクションがあります",
     "refresh": "更新",
     "seeAll": "すべて見る",
     "seeAllCount": "すべて見る（{count}）",
+    "folderPosition": "フォルダの位置",
+    "folderTop": "一番上",
     "download": "ダウンロード",
     "rename": "名前を変更",
     "move": "移動",
@@ -23,6 +26,10 @@
     "loadContent": "読み込む",
     "fileSizeLarge": "ファイルサイズが大きすぎます ({size})",
     "loadFailed": "読み込みに失敗しました: {error}",
+    "working": "処理中",
+    "wholeListFailed": "処理できませんでした。もう一度お試しください。",
+    "undo": "元に戻す",
+    "saveFailed": "変更を保存できませんでした",
     "discardUnsaved": {
       "title": "未保存の変更があります",
       "message": "このファイルには保存されていない編集があります。移動すると失われる可能性があります。",
@@ -33,8 +40,10 @@
     "manage": "管理…",
     "manageTitle": "表示する対象",
     "done": "完了",
-    "searchTargets": "スマートフォルダを検索",
-    "seeAllIn": "すべて見る: {name}"
+    "searchTargets": "対象を検索",
+    "seeAllIn": "すべて見る: {name}",
+    "putOnHome": "ホームに置く",
+    "removeFromHome": "ホームから外す"
   },
   "metadata": {
     "description": "自宅LAN向けファイル管理＆メディアストリーミング"
@@ -85,9 +94,9 @@
   },
   "drive": {
     "appsNav": "アプリ",
+    "appShortcutLabel": "{app}・{target}",
     "empty": "ドライブがありません",
     "emptyDescription": "drives.jsonを設定してドライブを追加してください。",
-    "pickup": "ピックアップ",
     "recentAdded": "最近追加",
     "favorites": "お気に入り",
     "liked": "Liked",
@@ -97,7 +106,8 @@
     "fileCount": "{count, plural, other {#件のファイル}}",
     "emptyDrive": "まだファイルがありません",
     "unlockAccess": "パスワードを入力",
-    "couldNotRemoveFromContinue": "続きから外せませんでした"
+    "couldNotRemoveFromContinue": "続きから外せませんでした",
+    "homeShortcutFailed": "ホームの入口を変更できませんでした"
   },
   "folder": {
     "items": "{count}件",
@@ -200,6 +210,7 @@
     "actionsFor": "{name} の操作",
     "pdfThumbnails": "ページのサムネイル",
     "officeExcerpt": "抽出テキストの冒頭",
+    "officeViewer": "文書",
     "pdfZoomMode": "表示倍率",
     "pdfZoomMode_fit-width": "幅に合わせる",
     "pdfZoomMode_fit-page": "ページ全体",
@@ -294,6 +305,9 @@
     "filters": "条件",
     "removeFilter": "{label} {value} を外す",
     "removeFilterOnly": "{label} を外す",
+    "exclude": "除外",
+    "removeExcludedFilter": "除外 {label} {value} を外す",
+    "removeExcludedFilterOnly": "除外 {label} を外す",
     "addFilter": "条件を追加",
     "addFilterWord": "条件",
     "filterTag": "タグ",
@@ -301,6 +315,12 @@
     "filterPath": "フォルダ",
     "filterCollection": "コレクション",
     "filterFavorite": "お気に入り",
+    "filterUntagged": "タグなし",
+    "filterNoCollection": "コレクション未登録",
+    "hasTag": "タグあり",
+    "hasNoTag": "タグなし",
+    "hasCollection": "コレクションあり",
+    "hasNoCollection": "コレクション未登録",
     "filterBack": "戻る",
     "filterTagSearch": "タグを絞り込む",
     "filterTagsLoading": "タグを読み込んでいます…",
@@ -319,12 +339,16 @@
     "filterCollectionsNoMatch": "一致するコレクションはありません",
     "filterSize": "サイズ",
     "filterLength": "長さ",
+    "filterModified": "更新日",
     "filterSizeUnder10MB": "10 MB 未満",
     "filterSize100MBOrMore": "100 MB 以上",
     "filterSize1GBOrMore": "1 GB 以上",
     "filterDurationUnder5Min": "5 分未満",
     "filterDuration30MinOrMore": "30 分以上",
     "filterDuration1HourOrMore": "1 時間以上",
+    "filterModifiedLast30Days": "30 日以内",
+    "filterModifiedOverAYear": "1 年以上前",
+    "filterModifiedOver3Years": "3 年以上前",
     "filterNoPreset": "追加できる条件はありません",
     "viewLabel": "表示",
     "viewFiles": "ファイル",
@@ -338,6 +362,9 @@
     "moreInFile": "このファイルの他の箇所 →",
     "moreInFileName": "{file} の他の箇所",
     "passagesFailed": "箇所を読み込めませんでした",
+    "inNameFailed": "コレクションを読み込めませんでした",
+    "inNameTooLarge": "範囲が大きすぎます（1万件まで）。条件を絞ってください。",
+    "inNameRefused": "スマートコレクションは除外に使えません",
     "showFiles": "ファイルで表示",
     "clearFilter": "フィルタを解除",
     "retry": "再試行",
@@ -366,31 +393,35 @@
     "imageScopeSeparator": "・"
   },
   "smartFolder": {
-    "sectionTitle": "スマートフォルダ",
-    "save": "スマートフォルダに保存",
+    "sectionTitle": "スマートコレクション",
+    "save": "スマートコレクションに保存",
     "saved": "保存済み: {name}",
-    "update": "更新",
+    "update": "上書き保存",
+    "overwriteLabel": "「{name}」に上書き保存",
     "delete": "削除",
     "rename": "名前変更",
     "menu": "メニュー",
-    "saveTitle": "スマートフォルダを保存",
+    "saveTitle": "スマートコレクションを保存",
     "saveDescription": "現在の検索条件を保存します。",
-    "renameTitle": "スマートフォルダの名前を変更",
+    "renameTitle": "スマートコレクションの名前を変更",
     "nameLabel": "名前",
     "namePlaceholder": "例: 最近の動画",
     "saveAction": "保存",
-    "saveSuccess": "スマートフォルダを保存しました",
-    "saveFailed": "スマートフォルダの保存に失敗しました",
-    "updateConfirmTitle": "スマートフォルダを更新",
-    "updateConfirmMessage": "「{name}」を現在の検索条件で上書きしますか？",
-    "updateSuccess": "スマートフォルダを更新しました",
-    "updateFailed": "スマートフォルダの更新に失敗しました",
-    "deleteConfirmTitle": "スマートフォルダを削除",
+    "saveSuccess": "スマートコレクションを保存しました",
+    "saveFailed": "スマートコレクションの保存に失敗しました",
+    "inSmartCollection": "スマートコレクションを含む検索は保存できません",
+    "updateSuccess": "スマートコレクションを更新しました",
+    "updateFailed": "スマートコレクションの更新に失敗しました",
+    "deleteConfirmTitle": "スマートコレクションを削除",
     "deleteConfirmMessage": "「{name}」を削除しますか？",
-    "deleteSuccess": "スマートフォルダを削除しました",
-    "deleteFailed": "スマートフォルダの削除に失敗しました",
-    "renameSuccess": "スマートフォルダの名前を変更しました",
-    "renameFailed": "スマートフォルダの名前変更に失敗しました"
+    "deleteSuccess": "スマートコレクションを削除しました",
+    "deleteFailed": "スマートコレクションの削除に失敗しました",
+    "renameSuccess": "スマートコレクションの名前を変更しました",
+    "renameFailed": "スマートコレクションの名前変更に失敗しました",
+    "playing": "再生を準備しています…",
+    "playIncomplete": "結果をすべて読み込めなかったため、再生できません。もう一度お試しください。",
+    "playFailed": "再生を始められませんでした",
+    "playNothing": "再生できる動画や音声がありません"
   },
   "sort": {
     "label": "ソート",
@@ -412,7 +443,13 @@
     "tag": "タグ",
     "tagging": "タグ付け",
     "collection": "コレクション",
-    "rename": "名前変更"
+    "rename": "名前変更",
+    "progress": "処理中 {done} / {total} 件",
+    "partial": "{done} 件を処理し、{failed} 件は処理できませんでした。",
+    "stopped": "{done} 件を処理したあと止まりました。{remaining} 件は選択に残しています。",
+    "retryNote": "前回の処理で処理済みの file が含まれることがあります。",
+    "processRemaining": "残りを処理",
+    "retryMessage": "{remaining} 件を処理しますか？"
   },
   "favorite": {
     "add": "お気に入りに追加",
@@ -454,8 +491,8 @@
     "title": "アップロード",
     "processing": "{count}件処理中",
     "clear": "クリア",
-    "files": "ファイル",
-    "folder": "フォルダ",
+    "files": "ファイルをアップロード",
+    "folder": "フォルダをアップロード",
     "dropToUpload": "ファイルをドロップしてアップロード",
     "dropToUploadFolder": "フォルダをドロップしてアップロード",
     "statusPending": "待機中",
@@ -506,7 +543,12 @@
     "loopOn": "ループON",
     "loopOff": "ループOFF",
     "expand": "展開",
-    "collapse": "折りたたみ"
+    "collapse": "折りたたみ",
+    "queueLoading": "キューを読み込み中…",
+    "queueFailed": "キューを読み込めませんでした",
+    "moveUp": "上へ移動",
+    "moveDown": "下へ移動",
+    "removeFromCollection": "コレクションから削除"
   },
   "player": {
     "videoNotSupported": "お使いのブラウザは動画再生に対応していません。",
@@ -541,6 +583,8 @@
     "seek": "シーク",
     "skipBack10": "10秒戻す",
     "skipForward10": "10秒進む",
+    "jumpToMostWatched": "よく観た所へ",
+    "mostWatchedPosition": "よく観た所 {index} / {count}",
     "adBreak": "広告",
     "speedBoost": "{rate}x で再生中",
     "skipSeconds": "{seconds}秒",
@@ -1153,6 +1197,7 @@
     "seekForward10": "+10秒",
     "seekForward60": "+60秒",
     "seekBack60": "−60秒",
+    "jumpToMostWatched": "よく観た所へ移動",
     "mute": "ミュート切替",
     "fullscreen": "フルスクリーン",
     "prevImage": "前の画像",
@@ -1404,8 +1449,11 @@
       "home": "ほーむ,home,start",
       "inbox": "受信箱,新着,arrivals,new",
       "library": "フォルダ,library,folders",
+      "app-video": "どうが,ムービー,video,videos,movies",
+      "app-reading": "本,よむ,読書,reading,books,reader",
       "favorites": "おきにいり,favorites,favourites,star",
       "liked": "いいね,like,liked",
+      "continue": "つづき,再開,continue,resume",
       "recent": "履歴,さいきん,history,recently viewed",
       "recentAdded": "新着,追加,さいきん,recently added,new",
       "allFiles": "全て,すべて,全部,all,all files",
@@ -1421,6 +1469,10 @@
     "browseUp": "1 つ上へ",
     "suggestions": "候補"
   },
+  "appView": {
+    "groupBy": "分類",
+    "sortBy": "並び順"
+  },
   "videoApp": {
     "title": "動画",
     "tabsLabel": "動画の表示",
@@ -1430,13 +1482,13 @@
     "target": "対象",
     "allVideos": "すべての動画",
     "targetUnavailable": "対象にできません",
-    "classification": "分類",
+    "targetUnusable": "この対象は使えません",
     "classifications": {
       "folder": "フォルダ",
       "tag": "タグ",
-      "month": "追加した月",
+      "month": "追加日",
       "duration": "長さ",
-      "watch": "視聴状態"
+      "all": "なし"
     },
     "shelves": {
       "continue": "続きから",
@@ -1455,14 +1507,20 @@
       "30m_plus": "30分以上"
     },
     "sort": {
-      "label": "並べ替え",
-      "lastOpened": "最後に開いた順",
+      "label": "並び順",
+      "lastOpened": "最後に開いた日",
       "addedNewest": "追加日（新しい順）",
       "addedOldest": "追加日（古い順）",
       "title": "タイトル",
       "size": "サイズ"
     },
-    "seeAllIn": "すべて見る: {name}"
+    "seeAllIn": "すべて見る: {name}",
+    "state": {
+      "all": "すべて",
+      "unwatched": "未視聴",
+      "in_progress": "視聴中",
+      "finished": "視聴済み"
+    }
   },
   "readingApp": {
     "title": "読む",
@@ -1483,26 +1541,22 @@
       "unwatched": "まだ読んでいない本",
       "finished": "読了"
     },
-    "all": "すべて",
     "group": {
-      "label": "まとめ方",
-      "none": "なし",
-      "byTag": "タグ別"
+      "tag": "タグ",
+      "folder": "フォルダ",
+      "month": "追加日",
+      "none": "なし"
     },
     "state": {
-      "label": "状態",
       "all": "すべて",
       "unwatched": "未読",
       "in_progress": "読書中",
       "finished": "読了"
     },
-    "tag": "タグ",
-    "tagNone": "指定なし",
-    "noTags": "タグがありません",
     "noTag": "タグなし",
     "sort": {
       "label": "並び順",
-      "lastOpened": "最後に開いた順",
+      "lastOpened": "最後に開いた日",
       "addedNewest": "追加日（新しい順）",
       "addedOldest": "追加日（古い順）",
       "title": "タイトル",
@@ -1513,5 +1567,40 @@
       "pdf": "PDF",
       "archive": "書庫"
     }
+  },
+  "workbench": {
+    "panels": "パネル",
+    "note": "ノート",
+    "close": "{label}を閉じる",
+    "showMore": "もっと見る",
+    "showLess": "折りたたむ",
+    "enlargePanels": "パネルを広げる",
+    "splitPanels": "パネルを横に並べる"
+  },
+  "driveUnavailable": {
+    "title": "ドライブ「{name}」を開けません",
+    "allDrives": "ドライブ一覧へ",
+    "unlock": "ロックを解除"
+  },
+  "focusMode": {
+    "enter": "集中モード (T)",
+    "exit": "集中モードを終える (T)",
+    "reveal": "ヘッダーを表示",
+    "title": "集中モード",
+    "toggle": "集中モードの切り替え"
+  },
+  "appFilters": {
+    "tag": "タグ",
+    "tagNone": "指定なし",
+    "state": "状態",
+    "any": "指定なし",
+    "searchTags": "タグを検索",
+    "noMatchingTags": "一致するタグはありません",
+    "noTags": "タグはありません",
+    "tryAgain": "再試行",
+    "filterEmpty": "条件に合う項目はありません",
+    "nameFilter": "名前で絞り込み",
+    "nameFilterPlaceholder": "名前で絞り込み...",
+    "clearName": "入力をクリア"
   }
 }

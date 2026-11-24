@@ -16,6 +16,7 @@ import {
 
 import { builtinApps } from "./builtinApps";
 import { driveHref } from "./driveViews";
+import { EMPTY_HIDDEN_KEYS, isEntryShown } from "./entryVisibility";
 
 export const JUMP_LIMIT = 3;
 
@@ -26,6 +27,8 @@ export interface FixedJump {
   icon: LucideIcon;
   href: (drive: string) => string;
   visible?: (ctx: FixedJumpContext) => boolean;
+  /** The `drives.json` `hidden_entries` key, for an entry the operator may hide. */
+  hiddenKey?: string;
 }
 
 export interface FixedJumpContext {
@@ -46,6 +49,7 @@ export const FIXED_JUMPS: readonly FixedJump[] = [
     labelKey: app.labelKey,
     icon: app.icon,
     href: app.route,
+    hiddenKey: app.id,
   })),
   { key: "favorites", labelKey: "sidebar.favorites", icon: Star, href: view("favorites") },
   { key: "liked", labelKey: "sidebar.liked", icon: ThumbsUp, href: view("liked") },
@@ -70,8 +74,15 @@ export const FIXED_JUMPS: readonly FixedJump[] = [
   },
 ];
 
-export function visibleFixedJumps(ctx: FixedJumpContext): FixedJump[] {
-  return FIXED_JUMPS.filter((jump) => jump.visible?.(ctx) ?? true);
+export function visibleFixedJumps(
+  ctx: FixedJumpContext,
+  hiddenKeys: ReadonlySet<string> | null = EMPTY_HIDDEN_KEYS,
+): FixedJump[] {
+  return FIXED_JUMPS.filter(
+    (jump) =>
+      (jump.visible?.(ctx) ?? true) &&
+      (jump.hiddenKey === undefined || isEntryShown(jump.hiddenKey, hiddenKeys)),
+  );
 }
 
 export function normalise(text: string): string {

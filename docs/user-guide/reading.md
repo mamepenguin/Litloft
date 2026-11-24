@@ -4,8 +4,9 @@
 archive files. It sits in the sidebar right after **動画** / **Video** and before the rows
 that addons add. It is selected only on its own pages.
 
-The header shows the drive, how many books are under the current target, and a **Target**
-button. Two tabs under it switch the page between **発見** / **Discover** and
+The header shows the drive, how many books are under the current target, and a control
+showing the target's name with a target icon, at the title row's end or under the title on a
+phone. Two tabs under it switch the page between **発見** / **Discover** and
 **ライブラリ** / **Library**. Litloft remembers, per drive, which tab you used last, and it
 opens there.
 
@@ -20,10 +21,15 @@ Up to three shelves of 12 books, each loading on its own:
   The sample stays while you switch tabs and back; reloading the page draws a new one.
 - **新着** / **New**: the most recently added books.
 
+Right-click or long-press any card to open the file menu: download, add to a
+collection, copy, cut, copy the ID, rename, move and move to trash. On a
+**Continue reading** card with a profile the menu also has **Remove from
+Continue** and **Remove from history**.
+
 A shelf with no books is not shown, and **Continue reading** is not shown without a
 profile. Each shelf's **See all** opens it as a grid, 60 books at a time. **Not read yet**
 has no **See all** without a profile. **Continue reading**'s page opens most recently
-opened first, with **最後に開いた順** / **Last opened** in its sort menu.
+opened first, with **最後に開いた日** / **Date Last Opened** in its sort menu.
 
 Covers are portrait. The badge says **EPUB**, **PDF** or **書庫** / **Archive**, the title
 runs to two lines, and the line under it is the book's folder (the drive name at the root)
@@ -32,58 +38,95 @@ reading, resume and history work as they do everywhere else.
 
 ## Library
 
-The chip row at the top is **すべて** / **All** followed by the drive's book folders,
-most books first. On a computer the chips wrap onto lines and the frame scrolls down when
-there are more than three lines; on a touch screen they scroll sideways. Choosing a chip
-narrows the page to that folder. It does not widen a target that is already limited to a
-folder. The chip goes back to **All** when you reload, leave the page, come back from
-**See all**, or choose another target.
+Under the tabs the Library shows where in the folders you are: a breadcrumb trail ending at
+the current folder, and under it one chip per child folder with how many books it holds,
+most books first. Choosing a chip walks one level down; choosing a crumb or the home button
+walks back up. On a computer the chips wrap onto lines and the frame scrolls down when
+there are more than three lines; on a touch screen the rows scroll sideways. The position
+is kept in the address, so **Back** returns to the previous folder and reloading keeps it.
+Choosing another target starts again at that target's top folder.
 
-Below the chips:
+Below the folder rows:
 
 - **タグ** / **Tag** keeps only books carrying the chosen tags. Every chosen tag must be on
-  the book. Under **By tag** it only chooses which books appear; the shelves still follow
-  the books' tags.
+  the book. The menu lists the tags reachable under the current target, folder position
+  and state, with how many books carry each, and has a search field; **指定なし** / **Any**
+  clears the choice. Under **タグ** grouping it only chooses which books appear; the
+  shelves still follow the books' tags.
 - **状態** / **State** keeps **未読** / **Unread**, **読書中** / **In progress** or
   **読了** / **Finished** books. It needs a profile. With no profile the control is not
   drawn, and clearing the profile also clears a state you had chosen.
-- **まとめ方** / **Group** is **なし** / **None** (the default) or **タグ別** / **By tag**.
-  None is one grid of every matching book, 60 at a time, loading as you scroll. By tag is
-  one shelf per tag, each showing its first books with **See all**; books with no tag are
-  in a last shelf **タグなし** / **No tag**, and a book with several tags is in each of
-  them. The choice is remembered for the drive.
-- **並び順** / **Sort** is added newest first (the default), added oldest first, title or
-  size. It orders the books inside every shelf and in the grid. It is not saved.
+- **分類** / **Group By** is **タグ** / **Tag**, **フォルダ** / **Folder**, **追加日** /
+  **Date Added** or **なし** / **None** (the default). None is one grid of every matching
+  book, 60 at a time, loading as you scroll. Tag is one shelf per tag, each showing its
+  first books with **See all**; books with no tag are in a last shelf **タグなし** / **No
+  tag**, and a book with several tags is in each of them. Folder is one shelf per folder,
+  titled by the folder's last segment (the drive name at the root). Date Added is one shelf
+  per month, newest first.
+- **並び順** / **Sort By** is **追加日（新しい順）** / **Date Added (Newest First)** (the
+  default), **追加日（古い順）** / **Date Added (Oldest First)**, **タイトル** / **Title**
+  or **サイズ** / **Size**. It orders the books inside every shelf and in the grid.
 
-**See all** on a tag shelf opens that shelf as a grid, 60 books at a time, under the same
-target, chips, tag and state, and with the sort you had chosen. The shelf page has its own
-sort menu and its own **Target** button; choosing another target keeps the shelf.
+The grouping and the sort are remembered for each target in this browser, so a Smart
+Collection can open grouped by tag while **All books** opens as one grid. A target you
+have not configured opens on None and Date Added (newest first). **All books** opens on
+the grouping the drive used before this change.
+
+The chosen tags and state are not saved: they last while the page is open, through the
+Discover/Library switch and a round trip through **See all**, and they reset on a full page
+load, when you open Reading on another drive, and when you choose another target.
+
+A name filter beside the view menus narrows the same shelves about 300 ms after you stop
+typing: books whose title or folder path contains the text, chosen from a field that the
+search icon at the right end of the tab row opens. A **See all** page opened from the
+Library carries the text with it, and the text lasts with the tag and state filters.
+
+**See all** on a shelf opens it as a grid, 60 books at a time, under the same target,
+folder position, tag, state and sort. The shelf page has its own sort menu and its own target
+control; choosing another target keeps the shelf.
 
 ## Target
 
-**Target** chooses which books the page works on. **すべての本** / **All books** is every
-PDF, EPUB and archive in the drive. A smart folder can replace it, and the choice is
-remembered for the drive. A smart folder's own sort is not used here.
+The target control shows the target's name with a target icon, at the title row's end or
+under the title on a phone. It chooses which books the page works on. **すべての本** /
+**All books** is every PDF, EPUB and archive in the drive. A collection or a Smart
+Collection can replace it, and the choice is remembered for the drive. A Smart Collection's
+own sort is not used here.
 
-- The menu lists **All books**, then the smart folders you chose to show, then
-  **管理…** / **Manage…**. **Manage…** opens a searchable list of the drive's smart
-  folders; tick the ones you want in this menu. The set is kept per app and per drive. A
-  new smart folder stays out of the menu until you tick it there.
-- A smart folder the Reading page cannot use is listed disabled. This includes one whose
-  kinds are not books (images, for example), one that filters by length, and one that uses
-  a negated condition. It cannot be chosen.
-- A smart folder whose kinds miss every book shows **この対象は使えません** / **This target
-  cannot be used**, and the page asks the server for nothing.
-- A smart folder that has been deleted is replaced by **All books** without a message. If
-  the smart folders cannot be loaded, the menu offers **All books** and **Manage…**; the
-  Manage list shows a retry.
+- The menu lists **All books**, then the collections and Smart Collections you chose to
+  show, by name, then **管理…** / **Manage…**. **Manage…** opens a searchable list of both
+  kinds; tick the ones you want in this menu. The set is kept per app and per drive. A new
+  collection or Smart Collection stays out of the menu until you tick it there; a shown set
+  you saved before collections could be targets starts with every collection unchecked.
+- A collection is always usable as a target: the page shows the books it holds.
+- A Smart Collection whose query has search text (a word, or a condition written with `-`
+  or `!`) is a **member target**: the page lists the books among the files that Smart
+  Collection's search page lists. One whose search page matches more than 10,000 files
+  cannot be used as a target: the page shows **この対象は使えません** / **This target
+  cannot be used** and asks the server for nothing.
+- A Smart Collection without search text that the Reading page cannot use is listed
+  disabled. This includes one whose kinds are not books (images, for example) and one that
+  filters by length. It cannot be chosen.
+- If a member target's files cannot be worked out, the page shows **Retry**.
+- A Smart Collection whose kinds miss every book shows **この対象は使えません** / **This
+  target cannot be used**, and the page asks the server for nothing.
+- With a Target other than **All books** in force, the menu has **ホームに置く** / **Put on
+  Home** after the separator and before **Manage…**. Choosing it puts this app on that
+  Target on Home, where one tap opens Reading with the Target in force. When the pair is
+  already there the row reads **ホームから外す** / **Remove from Home**.
+- A Smart Collection that has been deleted is replaced by **All books** without a message.
+  The same holds for a collection.
+- If one of the two lists cannot be loaded, the menu offers **All books**, the other
+  list's entries and **Manage…**; the Manage list shows a retry that asks again for the
+  list that failed.
 
 ## Empty states and failures
 
-**本がありません** / **No books** means nothing matches the current target, folder chip, tag
-or state. A shelf that fails to load shows **Retry** and the other shelves still draw. If
-the cover of a book cannot be drawn, the card shows a placeholder and the book still
-opens.
+**本がありません** / **No books** means nothing matches the current target or folder position.
+When a chosen tag or a state other than **すべて** / **All** leaves no book, the page says
+**条件に合う項目はありません** / **Nothing matches these filters** instead. A shelf that
+fails to load shows **Retry** and the other shelves still draw. If the cover of a book
+cannot be drawn, the card shows a placeholder and the book still opens.
 
 ## Without a profile
 

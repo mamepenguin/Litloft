@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "CRITICAL",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "CD-1",
+      "status": "confirmed",
+      "note": "Confirmed by reading the code. tests/test_ci_browser_jobs.py:11 has an unconditional `import yaml`, and it is the only yaml import under tests/. docs/developer-guide/testing.md:78-84 (§ The bootstrap script) still says the tests 'run on a bare interpreter with only pytest installed, as CI runs them' and shows `python3 -m pip install pytest` / `python3 -m pytest tests -v`. On a bare interpreter, collecting this module raises ModuleNotFoundError. pytest then reports a collection error and interrupts the session, so none of the bootstrap tests run locally, including the existing configure.py tests. CI is fine: ci.yml:493-497 installs `pytest PyYAML==6.0.2`. The step name still reads 'Install pytest'. Spec §7 (docs/specs/ci-browser-container.md:157-161) names only the Core jobs table and the Browser suites section of testing.md, so the outdated local instruction is outside the declared touch points. The developer would see the failure loudly. Nothing passes silently."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "CD-2",
+      "status": "confirmed",
+      "note": "Confirmed by reading the code. frontend/src/__tests__/check-playwright-browsers.test.ts is a vitest test. vitest.config.ts:13-18 excludes only e2e-*/** and node_modules/**, so the test is collected by the default include. The coverage exclude at :34 covers only the coverage population, not collection. Core's vitest shards, shuffled-order job and tsc/eslint job will therefore run or typecheck it. testing.md:372-374 says addon frontend jobs run 'core's whole suite', so the test reaches addon CI as well. frontend/scripts/check-coverage-denominator.mjs:9-10 states the convention the claim cites: script checks are scripts, not vitest tests, for exactly this reason. The test resolves @playwright/test → playwright → playwright-core from frontend/package.json (lines 31-37) and uses those in the tests at 231-255. In addon CI this should work as long as core's frontend devDependencies are installed, but I did not run it. The spec itself chooses a vitest under frontend/src/ (spec item 7, line 85; touch point line 196), and §7 line 159 says 'The other CI jobs are untouched'. So the conflict with the convention and the undeclared reach into addon CI come from the spec, not only from the implementation."
+    }
+  ],
+  "specification_compliance": [
+    "Spec item 6 (import yaml directly; bootstrap installs `pytest PyYAML==6.0.2`) is implemented as written: tests/test_ci_browser_jobs.py:11 and ci.yml:494.",
+    "Spec item 7 (a vitest test under frontend/src/) is implemented at frontend/src/__tests__/check-playwright-browsers.test.ts.",
+    "testing.md Core jobs table (lines 338-339) names the two new browser job rows and no longer names the removed job, per I11."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    "The local bootstrap-test instructions in testing.md:78-84 now produce a collection error without PyYAML. The spec does not cover this.",
+    "The new vitest test runs in addon repositories' frontend CI. The spec's §7 does not declare this reach."
+  ],
+  "regression_risks": [
+    "Developers following testing.md § The bootstrap script get a pytest collection error, and no bootstrap tests run locally.",
+    "The new vitest test depends on resolving @playwright/test → playwright → playwright-core from frontend/. A future dependency layout change could turn core and addon vitest runs red."
+  ],
+  "test_coverage": [
+    "No test asserts that testing.md's local bootstrap instructions match the bootstrap job's install line in ci.yml."
+  ],
+  "not_verified": [
+    "Did not run pytest or vitest; the collection error and the addon-CI behavior are inferred from the code.",
+    "Did not read the addon repositories' workflows directly; their reach is taken from testing.md:372-374.",
+    "Did not read check-playwright-browsers.mjs or the rest of ci.yml in full for other defects."
+  ],
+  "confidence": 88
+}

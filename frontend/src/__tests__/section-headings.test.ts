@@ -29,11 +29,7 @@ const CARD_ICON_SIZE = 18;
 
 const SECTION_COMPONENTS = ["CarouselSection", "ContinueWatchingSection"];
 
-const DRIVE_HOME_GLYPHS = existsSync(
-  resolve(REPO_ROOT, "addons/intelligence/frontend"),
-)
-  ? 5
-  : 4;
+const DRIVE_HOME_GLYPHS = 4;
 
 const REQUIRED_COLOUR = "text-text-muted";
 const REQUIRED_SIZE = 20;
@@ -156,7 +152,7 @@ describe("section heading icons", () => {
     expect(perRoot.get("frontend/src")).toBe(6);
 
     const EXPECTED_ADDON_ICONS: Record<string, number> = {
-      "addons/intelligence": 2,
+      "addons/intelligence": 1,
       "addons/knowledge": 0,
       "addons/media_import": 0,
       "addons/cloud-sync": 0,
@@ -199,7 +195,6 @@ describe("section heading icons", () => {
     const DRIVE_HOME = new Set([
       "frontend/src/components/DriveHome.tsx",
       "frontend/src/components/ContinueWatchingSection.tsx",
-      "addons/intelligence/frontend/PickupWidget.tsx",
     ]);
     const column = icons.filter((i) => DRIVE_HOME.has(i.where.split(":")[0]));
     const glyphs = column.map((i) => i.glyph);

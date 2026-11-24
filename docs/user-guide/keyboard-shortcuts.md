@@ -106,18 +106,19 @@ Also works for YouTube videos imported with the media_import addon.
 | `↓` | Back 60 s |
 | `M` | Mute / unmute |
 | `F` | Full screen |
+| `P` | Jump to the next part you watched most |
 
 Media keys on your keyboard and the lock screen also control playback.
 
 ### Scenes timeline (intelligence addon)
 
-On a video's page, the ruler in the **Scenes** section is one tab stop; these keys work while it has focus and stay out of the page's other shortcuts.
+On a video's page, the ruler in the **Scenes** panel is one tab stop; these keys work while it has focus and stay out of the page's other shortcuts.
 
 | Key | Action |
 |---|---|
-| `←` / `→` | Move the point you are browsing one frame back / forward (the first press starts from the playing frame) |
-| `Home` / `End` | Move it to the first / last frame |
-| `Enter` | Play from the point you are browsing; with none set, nothing happens |
+| `←` / `→` | Move the ruler point one frame back / forward and scroll the list to it (the first press starts from the playing frame while following, otherwise from the list's top row) |
+| `Home` / `End` | Move the point to the first / last frame |
+| `Enter` | Play from the ruler point; with none set, nothing happens |
 
 ## File navigation
 
@@ -126,7 +127,7 @@ On a video's page, the ruler in the **Scenes** section is one tab stop; these ke
 | `←` | Previous file in the folder |
 | `→` | Next file in the folder |
 
-On video and audio pages the arrows seek instead. On PDF and EPUB pages they turn pages; use the previous / next buttons to change file.
+On video and audio pages the arrows seek instead. On PDF and EPUB pages they turn pages; use the previous / next buttons to change file. On an Excel file, after you click the grid the arrows move the selected cell; click outside the grid to step files again.
 
 ## PDF viewer
 
@@ -205,8 +206,9 @@ While zoomed, swipes and edge taps do not turn the page. In right-to-left mode t
 | Key | Action |
 |---|---|
 | `Cmd/Ctrl+\` | Show / hide the inspector |
+| `T` | Enter or leave focus mode on a file page |
 
-Works on every file page, even while you are editing a note. On a phone, use the toggle in the page row instead.
+Works on every file page, even while you are editing a note. On a phone there is no toggle in the row; press the sheet's resting strip instead.
 
 ### Markdown editor (Knowledge addon)
 
@@ -222,13 +224,22 @@ While editing a note:
 | `Cmd/Ctrl+Shift+K` | Code block |
 | `Cmd/Ctrl+Shift+\` | Switch between Edit, Split and Preview (on a `.txt` file: between Edit and Preview) |
 
-Notes save automatically. `Cmd/Ctrl+S` marks the current text as a version to keep. In the editor `Cmd/Ctrl+K` inserts a link instead of opening search.
+Notes save automatically. `Cmd/Ctrl+S` marks the current text as a version to keep. In the editor `Cmd/Ctrl+K` inserts a link instead of opening search. In the editor beside the list in the [Notes Library](notes.md#the-note-beside-the-list), `Cmd/Ctrl+Shift+\` does nothing: that editor has no Split or Preview.
 
 ### Connections graph (Knowledge addon)
 
 | Key | Action |
 |---|---|
 | `+` or `=` / `-` | Zoom in / out |
+
+## Ask
+
+In the question field on a file page's Ask tab and on the Ask page.
+
+| Key | Action |
+|---|---|
+| `Enter` | Send the question |
+| `Shift+Enter` or `Option+Enter` | Insert a newline |
 
 ## Dialogs
 
@@ -243,11 +254,14 @@ Notes save automatically. `Cmd/Ctrl+S` marks the current text as a version to ke
 | Action | Result |
 |---|---|
 | Right-click a file or folder | Menu (rename, move, copy, delete, pin, and more) |
+| Right-click a card in Video or Reading | The file menu for that card |
 | Long-press (touch) | Same as right-click |
 | `Shift`+click a file | Select a range |
 | `Cmd/Ctrl`+click a file | Add or remove it from the selection |
 | Drag a file onto a folder | Move it there |
 | Hold a drag over a closed folder in the tree | Open it, so you can drop inside |
+
+On the video app's **Recommended** cards, right-click or long-press opens the addon's actions (**Not interested**) first, one divider, then the file menu instead of the browser's own.
 
 ## Video player gestures
 
@@ -256,7 +270,7 @@ Notes save automatically. `Cmd/Ctrl+S` marks the current text as a version to ke
 | Gesture | Action |
 |---|---|
 | Tap | Show / hide the controls |
-| Double-tap the left or right half | Back / forward 10 s |
+| Double-tap the left or right half | Back / forward 10 s, and show the seek bar with its watched band |
 | Keep tapping the same side | Skip further (20 s, 30 s …) |
 | Press and hold | Play at 2x until you let go |
 | Swipe up or down, or pinch | Enter / leave full screen |
