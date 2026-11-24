@@ -121,8 +121,19 @@ function install(drive: string, page: string, target: TargetKey | null, bothKind
     }
     if (url.pathname.endsWith("/shelves") && library) {
       const by = url.searchParams.get("by") ?? "";
-      const key = by === "all" ? "all" : "Shelf";
-      return json({ by, base: "", total_shelves: 1, shelves: [{ key, label: key, count: 1, items: [libraryItem(drive, by)] }] });
+      if (by === "all") {
+        const key = url.searchParams.get("key") === "all" ? "all" : "Shelf";
+        return json({ by, base: "", total_shelves: 1, shelves: [{ key, label: key, count: 1, items: [libraryItem(drive, by)] }] });
+      }
+      return json({
+        by,
+        base: "",
+        total_shelves: 2,
+        shelves: [
+          { key: "Shelf", label: "Shelf", count: 1, items: [libraryItem(drive, `${by}-1`)] },
+          { key: "Other", label: "Other", count: 1, items: [libraryItem(drive, `${by}-2`)] },
+        ],
+      });
     }
     if (url.pathname.endsWith("/shelves")) {
       return json({ by: url.searchParams.get("by") ?? "", base: "", total_shelves: 0, shelves: [] });

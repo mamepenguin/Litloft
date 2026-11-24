@@ -93,9 +93,12 @@ function shelves(_drive: string, params: Params) {
   if (params.by === "folder") {
     return {
       by: "folder",
-      total_shelves: 1,
+      total_shelves: 2,
       base: "",
-      shelves: [{ key: "Movies", label: "Movies", count: 7, items: [item("m1", "Movie one")] }],
+      shelves: [
+        { key: "Movies", label: "Movies", count: 7, items: [item("m1", "Movie one")] },
+        { key: "Shorts", label: "Shorts", count: 1, items: [item("m2", "Movie two")] },
+      ],
     };
   }
   return { by: params.by, total_shelves: 0, shelves: [] };

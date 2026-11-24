@@ -1,0 +1,9 @@
+frontend/src/__tests__/appFolderPosition.test.tsx
+frontend/src/__tests__/appSingleShelf.test.tsx
+frontend/src/components/readingapp/__tests__/ReadingApp.targetView.test.tsx
+frontend/src/components/videoapp/__tests__/VideoApp.cardMenu.test.tsx
+frontend/src/components/videoapp/__tests__/VideoApp.libraryFilters.test.tsx
+frontend/src/components/videoapp/__tests__/VideoApp.nameFilter.test.tsx
+frontend/src/components/videoapp/__tests__/VideoApp.navigation.test.tsx
+frontend/src/components/videoapp/__tests__/VideoApp.targetView.test.tsx
+frontend/src/components/videoapp/__tests__/VideoApp.viewResolution.test.tsx

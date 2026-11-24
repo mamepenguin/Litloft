@@ -17,7 +17,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { type Shelf, type ShelfGrouping, type ShelfItem, type ShelfWatchState } from "@/lib/api";
 import type { AppRequests } from "@/lib/memberTarget";
 import type { VideoTargetParams } from "@/lib/videoAppTarget";
-import { narrowFolders, normalizeFolder } from "@/components/appshell/folders";
+import { baseShelfKey, narrowFolders, normalizeFolder } from "@/components/appshell/folders";
 import { useFolderChips } from "@/components/appshell/useFolderChips";
 import { SORT_CHOICES, VIDEO_GROUPS, shelfTitle, type SortId, type VideoGroup } from "./labels";
 import { videoShelfHref, type ShelfLinkConditions } from "./shelfLinks";
@@ -181,9 +181,13 @@ export function LibraryFace({
   const shelves = usePaged<Shelf>(fetchGrouped, lists.version);
   const sentinel = useNearEnd(shelves.hasMore && shelves.more === "idle", shelves.loadMore);
 
+  const showGrid = none || (shelves.phase === "ready" && shelves.total === 1);
+  const thisFolderKey =
+    chips.state.status === "ready" ? baseShelfKey(chips.state.base) : null;
+
   const fetchFlat = useMemo(
     () =>
-      query === null || !none || blocked
+      query === null || !showGrid || blocked
         ? null
         : (page: number) =>
             fetchAlignedPage<ShelfItem>(page, removedBefore.current, LIBRARY_NONE_PAGE_SIZE, (n) =>
@@ -208,7 +212,7 @@ export function LibraryFace({
                   },
                 ),
             ),
-    [drive, query, requests, none, blocked, sort.sort, sort.order, onViewerRejected],
+    [drive, query, requests, showGrid, blocked, sort.sort, sort.order, onViewerRejected],
   );
   const flat = usePaged(fetchFlat, lists.version);
   removedBefore.current = lists.removedCount("grid", flat.items);
@@ -280,7 +284,7 @@ export function LibraryFace({
       </LibraryControlRow>
 
       <div>
-        {none ? (
+        {showGrid ? (
           <VideoPagedGrid
             paged={{ ...flat, items: flatItems }}
             empty={empty || blocked}
@@ -300,7 +304,11 @@ export function LibraryFace({
                 <VideoGroupShelf
                   key={shelf.key}
                   shelf={shelf}
-                  title={shelfTitle({ by: group, shelf, drive, locale, t: (key) => t(key) })}
+                  title={
+                    group === "folder" && thisFolderKey !== null && shelf.key === thisFolderKey
+                      ? t("shelves.thisFolder")
+                      : shelfTitle({ by: group, shelf, drive, locale, t: (key) => t(key) })
+                  }
                   seeAllHref={seeAllHref(drive, group, shelf.key, sortId, conditions)}
                   onRetry={shelves.retry}
                   formatCount={number.format}

@@ -60,9 +60,11 @@ Below the folder rows:
   **Date Added** or **なし** / **None** (the default). None is one grid of every matching
   book, 60 at a time, loading as you scroll. Tag is one shelf per tag, each showing its
   first books with **See all**; books with no tag are in a last shelf **タグなし** / **No
-  tag**, and a book with several tags is in each of them. Folder is one shelf per folder,
-  titled by the folder's last segment (the drive name at the root). Date Added is one shelf
-  per month, newest first.
+  tag**, and a book with several tags is in each of them. Folder is one shelf per folder;
+  the shelf of books directly in the folder the breadcrumb ends at is titled **このフォルダ**
+  / **This folder**, and other shelves by the folder's last segment. Date Added is one shelf
+  per month, newest first. A grouping that yields a single shelf shows the **なし** /
+  **None** grid instead of the shelf.
 - **並び順** / **Sort By** is **追加日（新しい順）** / **Date Added (Newest First)** (the
   default), **追加日（古い順）** / **Date Added (Oldest First)**, **タイトル** / **Title**
   or **サイズ** / **Size**. It orders the books inside every shelf and in the grid.

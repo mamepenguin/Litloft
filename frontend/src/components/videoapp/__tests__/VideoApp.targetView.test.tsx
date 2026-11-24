@@ -102,15 +102,38 @@ function shelf(key: string, label: string, title: string) {
 function defaultShelves(_drive: string, params: Params) {
   switch (params.by) {
     case "folder":
-      return { by: "folder", total_shelves: 1, shelves: [shelf("Movies", "Movies", "Movie one")] };
+      return {
+        by: "folder",
+        total_shelves: 2,
+        shelves: [shelf("Movies", "Movies", "Movie one"), shelf("Shorts", "Shorts", "Movie two")],
+      };
     case "tag":
-      return { by: "tag", total_shelves: 1, shelves: [shelf("Trip", "Trip", "Trip one")] };
+      return {
+        by: "tag",
+        total_shelves: 2,
+        shelves: [shelf("Trip", "Trip", "Trip one"), shelf("Kyoto", "Kyoto", "Trip two")],
+      };
     case "month":
-      return { by: "month", total_shelves: 1, shelves: [shelf("2026-03", "2026-03", "March one")] };
+      return {
+        by: "month",
+        total_shelves: 2,
+        shelves: [
+          shelf("2026-03", "2026-03", "March one"),
+          shelf("2026-02", "2026-02", "February one"),
+        ],
+      };
     case "duration":
-      return { by: "duration", total_shelves: 1, shelves: [shelf("long", "long", "Long one")] };
+      return {
+        by: "duration",
+        total_shelves: 2,
+        shelves: [shelf("long", "long", "Long one"), shelf("short", "short", "Short one")],
+      };
     case "watch":
-      return { by: "watch", total_shelves: 1, shelves: [shelf("unwatched", "", "Watch one")] };
+      return {
+        by: "watch",
+        total_shelves: 2,
+        shelves: [shelf("unwatched", "", "Watch one"), shelf("finished", "", "Watch two")],
+      };
     case "all": {
       const page = Number(params.page) || 1;
       return {

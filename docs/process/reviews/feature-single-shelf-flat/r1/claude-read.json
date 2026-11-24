@@ -1,0 +1,168 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "TP-1",
+      "origin": "reviewer",
+      "claim": "The diff changes frontend/e2e-components/fixtures/appHeader.tsx, which is not in the declared touch-point list.",
+      "impact": "No user can hit this. It is a component-test fixture: every grouped shelves answer (by != all) now returns two shelves, Shelf and Other, instead of one. This keeps the app-header e2e component specs drawing shelves under the new single-shelf rule. Folder-grouping chips requests also get the two-shelf answer, so the header fixture now draws two chips where it drew one before. Any e2e screenshot or layout assertion that depends on the Library body may move.",
+      "evidence": "frontend/e2e-components/fixtures/appHeader.tsx:122-137: the `by === \"all\"` branch keeps one shelf, and every other `by` now answers `total_shelves: 2` with shelves `Shelf` and `Other`.",
+      "repro": "not_reproduced; I found this by comparing the diff with the touch-point list.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "The fixture was changed to keep existing component tests measuring shelves. It breaks no invariant, but the touch-point list does not name it."
+      },
+      "severity": "INFO"
+    },
+    {
+      "id": "TP-2",
+      "origin": "reviewer",
+      "claim": "The diff rewrites the shelves fixtures of seven existing unit-test suites from one shelf to two, and none of those files is in the touch-point list.",
+      "impact": "No user can hit this. The suites now never send a grouped answer with total_shelves = 1, so they keep exercising the shelf path. None of them checks the new grid switch any more. That coverage rests only on the new appSingleShelf.test.tsx.",
+      "evidence": "The touched files are appFolderPosition.test.tsx:291-299, ReadingApp.targetView.test.tsx:136-153, VideoApp.cardMenu.test.tsx:197-209, VideoApp.libraryFilters.test.tsx:107-115, VideoApp.nameFilter.test.tsx:111-119, VideoApp.navigation.test.tsx:93-102, VideoApp.targetView.test.tsx:102-137 and VideoApp.viewResolution.test.tsx:99-117. Each goes from `total_shelves: 1` to `total_shelves: 2`, except where `by` is `all` or `watch`. ReadingApp.targetView.test.tsx also changes one assertion from the drive-name heading to `This folder`, which follows SPEC-CORE-176.",
+      "repro": "not_reproduced; I found this by comparing the diff with the touch-point list.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "These are test-only adjustments that the new rule makes necessary. They are not product reach outside the plan."
+      },
+      "severity": "INFO"
+    },
+    {
+      "id": "TP-3",
+      "origin": "reviewer",
+      "claim": "The This folder title now depends on two shared appshell helpers outside the touch-point list: baseShelfKey in frontend/src/components/appshell/folders.ts, and the `status`/`base` contract of useFolderChips in frontend/src/components/appshell/useFolderChips.ts.",
+      "impact": "Both helpers are unchanged. The title's correctness (I5) now depends on their behaviour, which the touch points do not name. useFolderChips reports `ready` after the first page arrives, including a first page with zero child folders (a leaf folder, the spec's 中国語 example). It also reports `ready` while a retry reloads once chips are held. A later change to either helper would silently change the Library title.",
+      "evidence": "frontend/src/components/videoapp/LibraryFace.tsx:20 and :185-186, and frontend/src/components/readingapp/LibraryFace.tsx:30 and :187-188, import baseShelfKey and read chips.state.status/base. useFolderChips.ts:102-109 derives the status. folders.ts:9-12 builds `<normal>/`, or `\"\"` at the root.",
+      "repro": "not_reproduced; I traced this by reading the code.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "These are dependencies the new code reads but does not change. The touch-point list could name them, but no invariant is broken."
+      },
+      "severity": "INFO"
+    }
+  ],
+  "specification_compliance": [
+    "The diff reaches these places outside the declared touch points: frontend/e2e-components/fixtures/appHeader.tsx (TP-1); seven existing unit-test suites whose fixtures were rewritten (TP-2); and, read but unchanged, appshell/folders.ts baseShelfKey and appshell/useFolderChips.ts (TP-3). I did not count the spec, INDEX.md or review records, as instructed.",
+    "Two listed touch points are not changed by the diff: frontend/src/components/videoapp/labels.ts and frontend/src/components/readingapp/labels.ts. The This folder title is chosen in LibraryFace instead, so shelfTitle and the See all pages are untouched, which is consistent with I9.",
+    "I7: usePaged derives `phase` from whether the held answer belongs to the current fetchPage (usePaged.ts:88,125). On any condition change the grouped phase turns to `loading` in the same render, so showGrid is false and fetchFlat is null. No grid request is sent before the new shelves answer.",
+    "I6: the same `own` check drops a late shelves answer for old conditions (`held.fetchPage === fetchPage`), so it cannot switch the view.",
+    "I8: the grouped retry (grouped.retry / shelves.retry) bumps only the grouped attempt. The grid retry (flat.retry) bumps only the flat attempt, and fetchGrouped does not depend on it.",
+    "I4: no new writes to the URL, target view or group. GroupMenu still receives `group`.",
+    "I5: thisFolderKey is non-null only when chips.state.status is `ready`, which needs a first page. It is compared to shelf.key only under the folder grouping (video LibraryFace.tsx:307-311, reading LibraryFace.tsx:355-361).",
+    "I3 and I2: the 0-shelf and 2+-shelf branches are reached only when showGrid is false, and are otherwise unchanged.",
+    "i18n: the new key `shelves.thisFolder` is added only in messages-core/en.json and ja.json, under both the videoApp and readingApp namespaces, per frontend-conventions."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    {
+      "behavior": "When the shelves answer reports one shelf, the viewer sees the shelf skeleton and then, after a second request, the grid's own loading view (video VideoPagedGrid loading; reading a book ShelfBlock skeleton) before the cards.",
+      "frequency": 3,
+      "impact": 1,
+      "reason": "Opening a leaf folder under any non-None grouping shows two loading views in a row before the grid appears; the spec names the two requests but not the two skeletons."
+    },
+    {
+      "behavior": "The decision to show the grid uses only `total_shelves` from the first shelves page; if the grid request for the same conditions then returns zero items, the None grid's empty state is shown under a grouping.",
+      "frequency": 0,
+      "impact": 1,
+      "reason": "It needs the files to change between the shelves request and the grid request; the user would see the empty state instead of a shelf."
+    }
+  ],
+  "regression_risks": [
+    "VideoPagedGrid and ReadingGrid now render under non-None groupings. Any behaviour they key on `none` or the None grouping elsewhere would now apply under single-shelf groupings too. I did not read VideoPagedGrid.",
+    "The e2e-components app-header fixture now draws two shelves and two folder chips under grouped Library faces. Playwright layout or screenshot specs that use this fixture may change, and their baselines are not part of the diff.",
+    "The video `sentinel` for shelves paging is no longer attached when showGrid is true. The reading groupedSentinel is gated by `!showGrid`. Both look correct, but they are a new coupling."
+  ],
+  "test_coverage": [
+    "appSingleShelf.test.tsx covers I1/I7 for every grouping in both apps, comparing the grid request parameters with the None request and the card order. It also covers I4 (Group By, stored view, URL), paging to 60, I7/I8 shelves failure and retry, I8 grid-only retry, I6 a late two-shelf answer, the sort-change skeleton, I2 and I3 transitions from the grid, and I5 at the breadcrumb, at the root, while chips load, on chips failure and retry, and across a position change. It covers I9 See all keys and the en/ja message pairing.",
+    "No test checks I9 for the See all page titles or the Reading card folder line, but that code is unchanged.",
+    "No test covers chips that span more than one page, or a chips retry after a later-page failure, where status stays `ready` with the held base."
+  ],
+  "not_verified": [
+    "I did not run any test, the type checker or the e2e component specs.",
+    "I did not read VideoPagedGrid.tsx or ReadingGrid.tsx to confirm they behave the same under a grouping as under None.",
+    "I did not check whether Playwright baselines depend on the appHeader fixture's Library body.",
+    "I reviewed the supplied diff, which covers the branch's commits, rather than isolating the docs-only commit 7c58cf4 itself."
+  ],
+  "coverage": [
+    {
+      "path": "frontend/e2e-components/fixtures/appHeader.tsx",
+      "read": "full",
+      "reason": "Read the changed hunk with the whole enclosing install() function (lines 90-160)."
+    },
+    {
+      "path": "frontend/src/components/readingapp/LibraryFace.tsx",
+      "read": "full",
+      "reason": "Read lines 100-400, covering the whole LibraryFace body and every changed hunk; the import hunk is from the diff."
+    },
+    {
+      "path": "frontend/src/components/videoapp/LibraryFace.tsx",
+      "read": "full",
+      "reason": "Read the whole file."
+    },
+    {
+      "path": "frontend/src/messages-core/en.json",
+      "read": "full",
+      "reason": "Read both changed hunks, the shelves objects of the videoApp and readingApp namespaces, from the diff."
+    },
+    {
+      "path": "frontend/src/messages-core/ja.json",
+      "read": "full",
+      "reason": "Read both changed hunks from the diff."
+    },
+    {
+      "path": "frontend/src/__tests__/appFolderPosition.test.tsx",
+      "read": "partial",
+      "reason": "Read only the diff hunk around lines 291-299."
+    },
+    {
+      "path": "frontend/src/__tests__/appSingleShelf.test.tsx",
+      "read": "full",
+      "reason": "New file, read in full in the diff."
+    },
+    {
+      "path": "frontend/src/components/readingapp/__tests__/ReadingApp.targetView.test.tsx",
+      "read": "partial",
+      "reason": "Read only the diff hunks at lines 136-153 and 347-370."
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoApp.cardMenu.test.tsx",
+      "read": "partial",
+      "reason": "Read only the diff hunk at lines 197-209."
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoApp.libraryFilters.test.tsx",
+      "read": "partial",
+      "reason": "Read only the diff hunk at lines 107-115."
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoApp.nameFilter.test.tsx",
+      "read": "partial",
+      "reason": "Read only the diff hunk at lines 111-119."
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoApp.navigation.test.tsx",
+      "read": "partial",
+      "reason": "Read only the diff hunk at lines 93-102."
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoApp.targetView.test.tsx",
+      "read": "partial",
+      "reason": "Read only the diff hunk at lines 102-137."
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoApp.viewResolution.test.tsx",
+      "read": "partial",
+      "reason": "Read only the diff hunk at lines 99-117."
+    }
+  ],
+  "confidence": 80
+}

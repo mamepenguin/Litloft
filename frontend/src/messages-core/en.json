@@ -1493,7 +1493,8 @@
     "shelves": {
       "continue": "Continue",
       "recommended": "Recommended",
-      "new": "New"
+      "new": "New",
+      "thisFolder": "This folder"
     },
     "noTag": "No tag",
     "watch": {
@@ -1539,7 +1540,8 @@
       "new": "New",
       "in_progress": "Continue reading",
       "unwatched": "Not read yet",
-      "finished": "Finished"
+      "finished": "Finished",
+      "thisFolder": "This folder"
     },
     "group": {
       "tag": "Tag",

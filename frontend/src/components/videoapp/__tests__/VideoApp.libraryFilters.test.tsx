@@ -107,8 +107,11 @@ function shelves(_drive: string, params: Params) {
   const key = by === "folder" ? "Movies" : by === "tag" ? "Trip" : by === "month" ? "2026-03" : "under_10m";
   return {
     by,
-    total_shelves: 1,
-    shelves: [{ key, label: key, count: 3, items: [item(`i-${by}`, `${by} card`)] }],
+    total_shelves: 2,
+    shelves: [
+      { key, label: key, count: 3, items: [item(`i-${by}`, `${by} card`)] },
+      { key: `${key} again`, label: `${key} again`, count: 1, items: [item(`i-${by}-2`, `${by} other`)] },
+    ],
   };
 }
 
