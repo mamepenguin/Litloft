@@ -132,6 +132,8 @@ const AT_THE_DESKTOP_WIDTH = [
   "scenes-scroll-list-card-form-desktop.spec.ts",
   "scenes-scroll-list-desktop.spec.ts",
   "scenes-scroll-list-scrollbar-desktop.spec.ts",
+  "pdf-pages-grid-desktop.spec.ts",
+  "pdf-pages-grid-scrollbar-desktop.spec.ts",
   "video-card-byline-desktop.spec.ts",
   "video-card-spacing-desktop.spec.ts",
   "inspector-responsive-layout-desktop.spec.ts",
