@@ -1,0 +1,98 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-1",
+      "status": "confirmed",
+      "note": "frontend/e2e-components/fixtures/appHeader.tsx:122-137: `by === \"all\"` returns total_shelves 1 with one shelf, and every other `by` returns total_shelves 2 with shelves `Shelf` and `Other`. The file is not in the declared touch points. I could not run git diff, so I judged from the current content and the line numbers, which match the claim exactly."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-2",
+      "status": "confirmed",
+      "note": "Each listed file now has total_shelves: 2 for its grouped fixture: appFolderPosition.test.tsx:294, ReadingApp.targetView.test.tsx:130/139/148, VideoApp.cardMenu.test.tsx:202, VideoApp.libraryFilters.test.tsx:110, VideoApp.nameFilter.test.tsx:114, VideoApp.navigation.test.tsx:96, VideoApp.targetView.test.tsx:107-134 and VideoApp.viewResolution.test.tsx:111. The `all` and `watch` fixtures keep 1. ReadingApp.targetView.test.tsx:370 asserts the heading `This folder`. The claim says seven suites but the evidence lists eight files. None of them is in the touch-point list. I did not diff against the base, so I could not confirm which of these lines changed in this commit."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-3",
+      "status": "confirmed",
+      "note": "videoapp/LibraryFace.tsx:20 imports baseShelfKey, :185-186 computes thisFolderKey from chips.state.status === 'ready' and chips.state.base, and :308 uses it. readingapp/LibraryFace.tsx:30 and :187-188 do the same, with the group === 'folder' check inline. useFolderChips.ts:102-109 derives the status: idle, loading or failed while it holds no shelves, otherwise ready. folders.ts:9-12 returns `${normal}/`, or \"\" at the root. Neither appshell file is in the touch points."
+    }
+  ],
+  "unspecified_scores": [
+    {
+      "source_reviewer": "claude-read",
+      "index": 0,
+      "frequency": 5,
+      "impact": 1,
+      "reason": "Opening a grouping that answers one shelf, such as Folder inside a leaf folder, shows the shelf skeleton and then the grid's own loading view before the cards. This is a brief two-step loading flicker and nothing more."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "index": 1,
+      "frequency": 0,
+      "impact": 2,
+      "reason": "It needs the files to disappear between the shelves request and the grid request. Even then the user sees only the None-style empty state under a grouping that is no longer populated, which is accurate."
+    }
+  ],
+  "specification_compliance": [
+    "I1/I2: showGrid = none || (phase ready && total === 1) in both LibraryFace files (video :184, reading :186). Otherwise shelves are drawn as before.",
+    "I7: fetchFlat is null unless showGrid is true, so the by=all&key=all grid request is sent only after a ready answer with total 1. A failed answer has phase 'failed' and total 0, and sends no grid request.",
+    "I6: usePaged ties held results to the fetchPage that made them (usePaged.ts:88). A stale answer for old conditions yields phase 'loading' and cannot set showGrid.",
+    "I5: the This folder title is used only when chips status is 'ready' and the shelf key equals baseShelfKey(base), and only under the folder grouping."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "Changing baseShelfKey or the useFolderChips status contract in appshell would silently change the This folder title in both apps, and neither file is a declared touch point.",
+    "Test fixtures were switched to two shelves so that they keep exercising the shelves path. A fixture that still answers one shelf for a grouping, such as VideoApp.menuScopes.test.tsx:152 for folder, now exercises the grid path instead."
+  ],
+  "test_coverage": [
+    "appSingleShelf.test.tsx covers SPEC-CORE-176 I5: This folder at the root and in a subfolder, the old title while chips load or fail, and the I9 See all link.",
+    "ReadingApp.targetView.test.tsx:370 asserts the This folder heading."
+  ],
+  "not_verified": [
+    "Running git diff against origin/develop to confirm exactly which lines this commit changed: I had no shell, so I checked the current file contents only.",
+    "Running the test suites.",
+    "I3 and I8 rendering paths in the Reading LibraryFace beyond lines 155-215.",
+    "The i18n JSON keys beyond the presence of shelves.thisFolder in en.json."
+  ],
+  "confidence": 80,
+  "coverage": [
+    {
+      "path": "frontend/src/components/videoapp/LibraryFace.tsx",
+      "read": "partial",
+      "reason": "Lines 120-339, which hold the showGrid, thisFolderKey and fetchFlat logic"
+    },
+    {
+      "path": "frontend/src/components/readingapp/LibraryFace.tsx",
+      "read": "partial",
+      "reason": "Lines 155-215"
+    },
+    {
+      "path": "frontend/src/components/appshell/usePaged.ts",
+      "read": "full",
+      "reason": "Stale-answer handling for I6"
+    },
+    {
+      "path": "frontend/src/components/appshell/useFolderChips.ts",
+      "read": "partial",
+      "reason": "Status derivation for TP-3"
+    },
+    {
+      "path": "frontend/src/components/appshell/folders.ts",
+      "read": "partial",
+      "reason": "baseShelfKey for TP-3"
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/appHeader.tsx",
+      "read": "partial",
+      "reason": "TP-1 fixture lines"
+    }
+  ]
+}

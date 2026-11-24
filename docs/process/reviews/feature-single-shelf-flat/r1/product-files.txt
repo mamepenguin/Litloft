@@ -1,0 +1,5 @@
+frontend/e2e-components/fixtures/appHeader.tsx
+frontend/src/components/readingapp/LibraryFace.tsx
+frontend/src/components/videoapp/LibraryFace.tsx
+frontend/src/messages-core/en.json
+frontend/src/messages-core/ja.json
