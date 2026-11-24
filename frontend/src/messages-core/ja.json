@@ -1493,7 +1493,8 @@
     "shelves": {
       "continue": "続きから",
       "recommended": "おすすめ",
-      "new": "新着"
+      "new": "新着",
+      "thisFolder": "このフォルダ"
     },
     "noTag": "タグなし",
     "watch": {
@@ -1539,7 +1540,8 @@
       "new": "新着",
       "in_progress": "続きを読む",
       "unwatched": "まだ読んでいない本",
-      "finished": "読了"
+      "finished": "読了",
+      "thisFolder": "このフォルダ"
     },
     "group": {
       "tag": "タグ",

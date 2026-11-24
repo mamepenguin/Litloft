@@ -95,11 +95,13 @@ you scroll.
 
 | Grouping | Shelves |
 |---|---|
-| **フォルダ** / **Folder** (default) | One per top-level folder. Videos at the root of the drive are under the drive's name. |
+| **フォルダ** / **Folder** (default) | One per folder. The shelf of videos directly in the folder the breadcrumb ends at is titled **このフォルダ** / **This folder**; other shelves are titled by their folder's last segment. |
 | **タグ** / **Tag** | One per tag, most videos first. A video with several tags is in each of them. Videos with no tag are in **タグなし** / **No tag**. |
 | **追加日** / **Date Added** | One per month, newest first. Months are counted in UTC, so a video added late in the evening can land in the next month. |
 | **長さ** / **Length** | Under 10 min, 10 to 30 min, 30 min or more. A video whose length is unknown is in none of them. |
 | **なし** / **None** | One grid of every video under the target, 60 at a time, loading as you scroll. |
+
+A grouping that yields a single shelf shows the **なし** / **None** grid instead of the shelf.
 
 The grouping and the sort are remembered for each target in this browser, so a Smart
 Collection can open grouped by tag while **All videos** opens grouped by folder. A target

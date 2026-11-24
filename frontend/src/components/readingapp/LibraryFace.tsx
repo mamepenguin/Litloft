@@ -27,7 +27,7 @@ import {
 } from "./labels";
 import { ReadingCard } from "./ReadingCard";
 import { ReadingGrid } from "./ReadingGrid";
-import { narrowFolders, normalizeFolder } from "@/components/appshell/folders";
+import { baseShelfKey, narrowFolders, normalizeFolder } from "@/components/appshell/folders";
 import { readingShelfHref } from "./shelfLinks";
 import { useFolderChips } from "@/components/appshell/useFolderChips";
 import { isViewerRequired } from "./useReadingApp";
@@ -155,36 +155,6 @@ export function LibraryFace({
   const lists = useCardFileLists();
   const removedBefore = useRef(0);
 
-  const fetchFlat = useMemo(
-    () =>
-      query === null || blocked
-        ? null
-        : (page: number) =>
-            fetchAlignedPage<ShelfItem>(page, removedBefore.current, LIBRARY_PAGE_SIZE, (n) =>
-              requests
-                .shelves(drive, {
-                  ...query,
-                  by: "all",
-                  key: "all",
-                  sort: sort.sort,
-                  order: sort.order,
-                  per_shelf: LIBRARY_PAGE_SIZE,
-                  page: n,
-                })
-                .then(
-                  (response) => {
-                    const shelf = response.shelves[0];
-                    return { items: shelf?.items ?? [], total: shelf?.count ?? 0 };
-                  },
-                  (error: unknown) => {
-                    if (isViewerRequired(error)) onViewerRejected();
-                    throw error;
-                  },
-                ),
-            ),
-    [drive, query, requests, blocked, sort.sort, sort.order, onViewerRejected],
-  );
-
   const groupedBy = group === "none" ? null : group;
 
   const fetchGrouped = useMemo(
@@ -212,13 +182,47 @@ export function LibraryFace({
     [drive, query, requests, blocked, groupedBy, sort.sort, sort.order, onViewerRejected],
   );
 
-  const flat = usePaged<ShelfItem>(groupedBy === null ? fetchFlat : null, lists.version);
+  const grouped = usePaged<Shelf>(groupedBy === null ? null : fetchGrouped, lists.version);
+  const showGrid = groupedBy === null || (grouped.phase === "ready" && grouped.total === 1);
+  const thisFolderKey =
+    group === "folder" && chips.state.status === "ready" ? baseShelfKey(chips.state.base) : null;
+
+  const fetchFlat = useMemo(
+    () =>
+      query === null || !showGrid || blocked
+        ? null
+        : (page: number) =>
+            fetchAlignedPage<ShelfItem>(page, removedBefore.current, LIBRARY_PAGE_SIZE, (n) =>
+              requests
+                .shelves(drive, {
+                  ...query,
+                  by: "all",
+                  key: "all",
+                  sort: sort.sort,
+                  order: sort.order,
+                  per_shelf: LIBRARY_PAGE_SIZE,
+                  page: n,
+                })
+                .then(
+                  (response) => {
+                    const shelf = response.shelves[0];
+                    return { items: shelf?.items ?? [], total: shelf?.count ?? 0 };
+                  },
+                  (error: unknown) => {
+                    if (isViewerRequired(error)) onViewerRejected();
+                    throw error;
+                  },
+                ),
+            ),
+    [drive, query, requests, showGrid, blocked, sort.sort, sort.order, onViewerRejected],
+  );
+
+  const flat = usePaged<ShelfItem>(fetchFlat, lists.version);
   removedBefore.current = lists.removedCount("grid", flat.items);
   const flatItems = lists.filter("grid", flat.items);
-  const grouped = usePaged<Shelf>(groupedBy === null ? null : fetchGrouped, lists.version);
-  const flatSentinel = useNearEnd(flat.hasMore && flat.more === "idle", flat.loadMore);
+  const flatSentinel = useNearEnd(showGrid && flat.hasMore && flat.more === "idle", flat.loadMore);
   const groupedSentinel = useNearEnd(
-    grouped.hasMore && grouped.more === "idle",
+    !showGrid && grouped.hasMore && grouped.more === "idle",
     grouped.loadMore,
   );
 
@@ -279,7 +283,10 @@ export function LibraryFace({
   let body: ReactNode;
   if (blocked) {
     body = <EmptyState icon={BookOpen} title={t("noBooks")} />;
-  } else if (groupedBy === null) {
+  } else if (
+    groupedBy === null ||
+    (grouped.phase === "ready" && grouped.total === 1)
+  ) {
     if (flat.phase === "failed") {
       body = <RetryButton onRetry={flat.retry} />;
     } else if (flat.phase === "ready") {
@@ -345,7 +352,13 @@ export function LibraryFace({
               <ReadingGroupShelf
                 key={shelf.key}
                 shelf={shelf}
-                title={shelfTitle({ by: groupedBy, key: shelf.key, drive, locale, t: (key) => t(key) })}
+                title={
+                  groupedBy === "folder" &&
+                  thisFolderKey !== null &&
+                  shelf.key === thisFolderKey
+                    ? t("shelves.thisFolder")
+                    : shelfTitle({ by: groupedBy, key: shelf.key, drive, locale, t: (key) => t(key) })
+                }
                 seeAllHref={readingShelfHref(drive, groupedBy, shelf.key, sortId, conditions, "library")}
                 onRetry={grouped.retry}
                 formatCount={number.format}
