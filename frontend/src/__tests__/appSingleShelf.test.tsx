@@ -237,7 +237,7 @@ const defaultGrid: Answer = (call) => {
 };
 
 function chipsFor(base: string): Answer {
-  const children = base === "" ? ["Videos", "Music"] : [`${base}/Math`, `${base}/Physics`];
+  const children = base === "" ? ["Videos", "Music"] : [`${base}/Math`, `${base}/Art`];
   return () =>
     json({
       by: "folder",
@@ -577,7 +577,7 @@ describe.each(APPS)("SPEC-CORE-176 $id: the Folder grouping's This folder shelf"
     shelvesAnswer("folder", "Videos/Study", [
       { key: "Videos/Study/Math", label: "Math", count: 5 },
       { key: "Videos/Study/", label: "Study", count: 3 },
-      { key: "Videos/Study/Physics", label: "Physics", count: 2 },
+      { key: "Videos/Study/Art", label: "Art", count: 2 },
     ]);
 
   const ROOT_SHELVES: Answer = () =>
@@ -593,7 +593,7 @@ describe.each(APPS)("SPEC-CORE-176 $id: the Folder grouping's This folder shelf"
     open(STUDY);
 
     expect(await screen.findByRole("heading", { level: 2, name: "This folder" })).toBeInTheDocument();
-    expect(named(["Math", "This folder", "Physics", "Study"])).toEqual(["Math", "This folder", "Physics"]);
+    expect(named(["Math", "This folder", "Art", "Study"])).toEqual(["Math", "This folder", "Art"]);
   });
 
   it("SPEC-CORE-176 I5 at the drive root the shelf with the empty key is This folder, not the drive's name", async () => {
