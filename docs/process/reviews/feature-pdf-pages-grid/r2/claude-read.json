@@ -1,0 +1,94 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [],
+  "trajectory": "There has been one fix round since r1: 6c2df3e38, followed by the docs-only commit 5053f4bbb. The round removed a branch and added no branch, state or prediction. It deleted the `setPageRatios` deletion from the eviction effect (PdfPagesPanel.tsx:197-219 now calls only `setDrawn` and `setEntered`), so a page's kept proportion now lives for the whole mount, as spec §4 says. It also added one unit test that pins the behaviour. With only one round there is nothing to compare it to, and the round simplifies the design rather than patching it.",
+  "specification_compliance": [
+    "CR-1 (r1) is fixed. The eviction effect at PdfPagesPanel.tsx:197-219 no longer touches `pageRatios`. `boxRatio` (236-246) keeps returning the page's own ratio for an evicted page more than 2% off, so its `aspectRatio` (337) does not change on eviction. `markDrawn` (248-256) is a no-op for the ratio on a redraw (`prev.get(page) === ratio`), so the box does not change on the redraw either. I8's 'no row changes height except when such a page is first drawn' and §3's per-cell 'Never' now hold through the 120-page cap.",
+    "I8: the kept map now grows to at most one entry per page ever drawn in the mount and is released by `key={state.src}` (line 79), consistent with I11.",
+    "I3 after the fix: an evicted page is removed from `entered` and `drawn` and returns to `placeholder`. The IntersectionObserver keeps observing every cell (it is never unobserved), so the page re-enters `drawing` on its next intersection transition, as §1.7 says.",
+    "I6/I10: I checked that InspectorShell.tsx changes the `InspectorActiveTabContext` value (line 162) and the tabpanel `hidden` attribute (line 242) in the same render. So when the follow `useLayoutEffect` runs on `shown` becoming true, the panel is already laid out, and it does not record `lastFollowed` against a zero-size box.",
+    "I1, I2, I4, I5, I7, I9, I11, I12: these code paths are unchanged since r1. The r1 reading stands (grid template at line 308, all cells rendered at 310, `aria-current` and the outline on the picture at 327-336, `goToPage` only in onClick at 282 and 326, failed takes precedence and the `<Page>` slots are null)."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    {
+      "behavior": "The drawing margin (half the scroller's height) is computed once, when the IntersectionObserver is created (dependencies `[firstRatio, numPages]`), and is never recomputed when the window is resized or the phone sheet changes height.",
+      "frequency": 2,
+      "impact": 2,
+      "reason": "After the reader resizes the window or raises the sheet, pages are pre-drawn with a margin sized for the old height, so more white faces flash briefly while scrolling."
+    },
+    {
+      "behavior": "Cells in `drawing` (entered the margin but not yet rendered) do not count toward the 120-page cap. Only `drawn` cells are evicted, so a fast scroll can mount more `<Page>` renders than the cap for a while.",
+      "frequency": 2,
+      "impact": 1,
+      "reason": "Fast scrolling through a long PDF can briefly hold more than 120 rasters in memory. Nothing visible changes."
+    }
+  ],
+  "regression_risks": [
+    "The fix keeps off-proportion ratios for the whole mount. That is bounded by numPages and released on unmount or on a `src` change, so there is no memory risk worth noting.",
+    "Desktop scroll preservation across `display:none` (I10) is still checked only in Chromium."
+  ],
+  "test_coverage": [
+    "The new unit test 'keeps an off-proportion page's own box when the cap returns it to placeholder' (PdfPagesPanel.test.tsx:504-518) kills the r1 mutation: if the evicted ratio were deleted, `aspectRatio` would fall back to `1 / (792/612)` and the last assertion would fail. In jsdom every distance is 0, so the test depends on the stable sort evicting the earliest-drawn page (page 2 was drawn first). A change in the eviction tie-break would make it fail on `stateOf(2)`, not silently pass.",
+    "The test does not cover the redraw step (re-intersecting page 2 after eviction and checking that the box is unchanged). It passes by construction because `markDrawn` sets the same ratio, but nothing asserts it.",
+    "No e2e case evicts a page taller than page 1. The `long-near` fixture is used only for the 2% tolerance check, not in the 120-cap scroll test. Only the jsdom test protects the fix.",
+    "Still open from r1: the jsdom I6/I10 scroll tests pass vacuously because every bounding rect is zero. Only the desktop e2e tests protect centring and the 'no write while hidden' behaviour."
+  ],
+  "not_verified": [
+    "Nothing was executed. No unit test or Playwright spec was run, and the mutation against the new test was reasoned through, not applied.",
+    "Did not verify that jsdom's CSSStyleDeclaration keeps `aspect-ratio`. The test's exact-string assertion would fail rather than pass vacuously if it did not.",
+    "Did not open the design artboards or the R-5 screenshots added in 5053f4bbb.",
+    "Did not re-check react-pdf's `onRenderSuccess` payload (`originalHeight`/`originalWidth`) in this round; I relied on r1's reading."
+  ],
+  "coverage": [
+    {
+      "path": "frontend/e2e-components/fixtures/inspectorResponsive.tsx",
+      "read": "full",
+      "reason": "Read lines 1-160, which hold both changed hunks (the import at 26 and the PDF_BYTES selection at 140-146), with their context."
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/pdfPagesGrid.ts",
+      "read": "full",
+      "reason": "A new file, read in full from the diff."
+    },
+    {
+      "path": "frontend/e2e-components/pdf-pages-grid-desktop.spec.ts",
+      "read": "full",
+      "reason": "A new file, read in full from the diff."
+    },
+    {
+      "path": "frontend/e2e-components/pdf-pages-grid-scrollbar-desktop.spec.ts",
+      "read": "full",
+      "reason": "A new file, read in full from the diff."
+    },
+    {
+      "path": "frontend/e2e-components/pdf-pages-grid.measure.ts",
+      "read": "full",
+      "reason": "A new file, read in full from the diff."
+    },
+    {
+      "path": "frontend/e2e-components/projects.ts",
+      "read": "full",
+      "reason": "Read the whole file."
+    },
+    {
+      "path": "frontend/e2e-components/spec-viewport.spec.ts",
+      "read": "partial",
+      "reason": "Read the changed hunk and the consistency test that uses AT_THE_DESKTOP_WIDTH (lines 103-188) through a grep with context."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/pdf/PdfPagesPanel.tsx",
+      "read": "full",
+      "reason": "Read the whole file, lines 1-457, at HEAD."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/pdf/__tests__/PdfPagesPanel.test.tsx",
+      "read": "full",
+      "reason": "Read every changed hunk from the diff and lines 340-519 at HEAD, including the new eviction test."
+    }
+  ],
+  "confidence": 82
+}

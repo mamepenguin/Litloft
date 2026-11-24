@@ -9,3 +9,8 @@ evidence-extra: D-3 hover (r5-hover-1440x900-light.png): hovered non-current cel
 pending: none of the agent_cannot_verify items touch this change. Left for the human: the design check against the artboards, a landscape page in a portrait book (no test PDF has one), failure cases (a page failing to render, document failing to load) not produced.
 
 D-1: accepted by the human on 2026-11-24. The 16px band under the rail on desktop is the inspector tabpanel's existing p-4, the same cause as the 24px inset accepted with the spec; removing it means editing InspectorShell for every tab.
+
+author_resolutions:
+- claude-read:1 accept: the drawing margin is sized when the observer is created; after a resize or a sheet raise pages inside the visible box still draw, only the pre-draw distance is off (F3 × I1 at most).
+- claude-read:2 accept: cells still rendering do not count toward the 120 cap, so a fling can briefly hold more renders; the set is trimmed back to 120 once they finish and nothing visible changes.
+- claude-verify:3 accept: pages passed over in a fling are still rendered; the R-5 timing (first row 0.4 s, PageDown under 170 ms while drawing) leaves this without a visible delay.
