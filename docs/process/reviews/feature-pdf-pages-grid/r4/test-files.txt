@@ -1,0 +1,1 @@
+frontend/src/components/FileDetail/pdf/__tests__/PdfPagesPanel.test.tsx
