@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>PDF ページ一覧 現状</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:#62625b}a:hover{color:#211922}
+</style>
+</helmet>
+<div style="width: 384px; height: 820px; box-sizing: border-box; background: #ffffff; font-family: Inter, 'Hiragino Sans', 'Noto Sans JP', system-ui, sans-serif; color: #211922; display: flex; flex-direction: column; border-left: 1px solid rgba(145,145,140,0.2)">
+  <div style="display: flex; gap: 4px; padding: 0 8px; border-bottom: 1px solid rgba(145,145,140,0.2)">
+    <button style="all: unset; padding: 10px 12px; font-size: 12px; font-weight: 500; color: #62625b; border-bottom: 2px solid transparent">Info</button>
+    <button style="all: unset; padding: 10px 12px; font-size: 12px; font-weight: 500; color: #211922; border-bottom: 2px solid #d63031">Pages</button>
+    <button style="all: unset; padding: 10px 12px; font-size: 12px; font-weight: 500; color: #62625b; border-bottom: 2px solid transparent">Related</button>
+    <button style="all: unset; padding: 10px 12px; font-size: 12px; font-weight: 500; color: #62625b; border-bottom: 2px solid transparent">Ask</button>
+  </div>
+  <ol style="list-style: none; margin: 0; padding: 24px 8px; display: flex; flex-direction: column; align-items: center; gap: 8px; overflow: hidden; flex: 1">
+    <sc-for list="{{pages}}" as="p" hint-placeholder-count="6">
+      <li>
+        <button aria-label="{{p.label}}" style="{{p.tileStyle}}">
+          <div style="width: 72px; height: 102px; background: #ffffff; overflow: hidden">
+            <div style="padding: 10px 8px; display: flex; flex-direction: column; gap: 3px">
+              <div style="height: 3px; width: 60%; background: #211922; opacity: .7; margin-bottom: 2px"></div>
+              <div style="height: 1px; background: #c9c9c4"></div>
+              <div style="height: 1px; background: #c9c9c4"></div>
+              <div style="height: 1px; width: 80%; background: #c9c9c4"></div>
+              <sc-if value="{{p.full}}" hint-placeholder-val="{{true}}">
+                <div style="height: 1px; background: #c9c9c4"></div>
+                <div style="height: 1px; width: 70%; background: #c9c9c4"></div>
+                <div style="height: 1px; background: #c9c9c4"></div>
+              </sc-if>
+            </div>
+          </div>
+          <span style="font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; line-height: 16px">{{p.n}}</span>
+        </button>
+      </li>
+    </sc-for>
+  </ol>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":384,"height":820}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const pages = [1, 2, 3, 4, 5, 6].map((n) => {
+      const cur = n === 1;
+      return {
+        n,
+        label: n + ' ページへ移動',
+        full: n !== 5,
+        tileStyle: 'all: unset; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 4px; border-radius: 8px; border: 1px solid ' + (cur ? '#d63031; color: #211922' : 'transparent; color: #62625b')
+      };
+    });
+    return { pages };
+  }
+}
+</script>
+</body>
+</html>

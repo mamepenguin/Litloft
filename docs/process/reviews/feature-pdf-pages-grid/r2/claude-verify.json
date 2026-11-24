@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [],
+  "unspecified_scores": [
+    {
+      "source_reviewer": "claude-read",
+      "index": 0,
+      "frequency": 3,
+      "impact": 1,
+      "reason": "Confirmed at PdfPagesPanel.tsx:139-157. The rootMargin uses the scroller's visible height when the observer is created, and the dependencies are only [firstRatio, state.numPages]. Resizing the window, or a phone sheet that is still moving when the rail mounts, leaves the pre-draw margin too large or too small. The only effect is that thumbnails start drawing a little earlier or later than intended; pages inside the visible box still intersect and are drawn."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "index": 1,
+      "frequency": 3,
+      "impact": 2,
+      "reason": "Confirmed at PdfPagesPanel.tsx:197-219 and 311-319. The cap check reads only `drawn.size`, and an `entered` page leaves only through eviction or failure. A fast scroll through a 200+ page PDF can therefore mount more than 120 <Page> renders at once. The user may see a short CPU or memory spike and slower drawing, and the effect trims the drawn set back to 120 once those renders finish."
+    }
+  ],
+  "specification_compliance": [
+    "I3: the observer at PdfPagesPanel.tsx:142-151 uses the scroller from scrollerOf with a rootMargin of half the visible height. This matches the rule as written, but the margin is fixed when the observer is created (unspecified index 0).",
+    "I3/I8 cap: eviction at PdfPagesPanel.tsx:197-219 trims `drawn` to 120 in an effect after commit. Cells in `drawing` are not capped (unspecified index 1)."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    {
+      "behavior": "A page enters `entered` when it intersects the extended box and only leaves through eviction or failure (PdfPagesPanel.tsx:148, 218, 260). Scrolling past a page without stopping still commits it to a full render.",
+      "frequency": 3,
+      "impact": 2,
+      "reason": "Flinging the rail of a long PDF queues renders for every page passed over, so the pages the user lands on can be drawn later than they would otherwise be."
+    }
+  ],
+  "regression_risks": [
+    "Changing the observer effect's dependencies, for example adding the scroller height, would recreate the observer. The new observer re-reports every intersecting cell; that is harmless because adding a page to `entered` is idempotent."
+  ],
+  "test_coverage": [
+    "I did not read the unit tests or the e2e specs to see whether the transient overshoot of the 120 cap, or a resize after mount, is exercised."
+  ],
+  "not_verified": [
+    "Rendering behaviour in a real browser: I could not run the code or the tests.",
+    "The e2e fixture and spec under frontend/e2e-components/.",
+    "The details of the MobileInspectorSheet animation and its height when the rail mounts.",
+    "PdfPagesPanel.tsx outside lines 100-339 (the helpers scrollerOf, visibleBox and the visibility hook)."
+  ],
+  "confidence": 80
+}

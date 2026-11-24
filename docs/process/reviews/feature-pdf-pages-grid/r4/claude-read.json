@@ -1,0 +1,96 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [],
+  "trajectory": "Read in order, the rounds are: r1→r2, 6c2df3e38 (product): it removed a branch, so the eviction stopped deleting `pageRatios`. r2→r3, 85e72d6cc (test only): it added `intersectPages`, which delivers many intersections in one callback, plus 8e358b827 (INDEX status only). r3→r4, be85848f7 (review docs only; its diff was not shown) and d49bdb3fb. d49bdb3fb changes one hook kind in the product code: the cap-eviction effect at PdfPagesPanel.tsx:199 moves from `useEffect` to `useLayoutEffect`. It adds no branch, no state and no prediction; the body of the effect is the same. In the test, `ready()` (PdfPagesPanel.test.tsx:329-340) adds a wait until a fake observer watches a cell. No product round adds a branch, state or prediction that an earlier round also added, so the product design is not being patched. One pattern is worth recording. Every round since r1 has touched the 120-page cap: its ratio bookkeeping in r1→r2, its test delivery timing in r2→r3, and its commit timing plus the test harness's observer timing now. Twice in a row the test harness's intersection timing has been adjusted (`intersectPages`, then the `ready()` wait). These are changes to the harness, not to the design.",
+  "specification_compliance": [
+    "I3 cap ('never more than 120 cells are `drawn`'), after d49bdb3fb: react-pdf 10 calls `onRenderSuccess` from a promise `.then` (node_modules/react-pdf/dist/Page/Canvas.js:74-77). Several `markDrawn` calls that resolve together are therefore batched by React 19.2 into one commit with `drawn.size` > 120. With `useLayoutEffect` (PdfPagesPanel.tsx:199-221), the eviction's `setDrawn`/`setEntered` run during that commit's layout phase. React re-renders those updates synchronously before the browser paints or yields to another task, so no paint and no `page.evaluate` can see more than 120 `data-page-state=\"drawn\"` cells. With the old passive effect, a task could run between the commit and the trim, which is how CI saw 129.",
+    "The eviction loop terminates. After the trim `drawn.size` is 120, the effect re-runs on the new `drawn` and returns at line 200. An evicted page is far from the visible centre, so it is not intersecting and the IntersectionObserver does not re-add it until a later transition. This matches §1.7.",
+    "I8 (kept proportions through the cap) is unchanged: the eviction still touches only `drawn` and `entered` (219-220), never `pageRatios`. The r1 fix holds.",
+    "The new comment at PdfPagesPanel.tsx:197-198 says why the obvious alternative (`useEffect`) was not taken. docs/process/testing-and-comments.md allows that kind of comment. The test comment in `ready()` explains a setup choice, which is also allowed.",
+    "I1, I2, I4-I7, I9-I12: their code paths are not touched by this commit. The r1-r3 readings stand: the grid template, every cell rendered, `aria-current` and the outline on the picture, `goToPage` only in onClick, the follow layout effect gated on `shown`/`lastFollowed`, and the `key={state.src}` reset.",
+    "Touch points: the commit changes only PdfPagesPanel.tsx and its test, and both are listed."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    {
+      "behavior": "The drawing margin (half the scroller's visible height) is computed once, when the IntersectionObserver is created (dependencies `[firstRatio, state.numPages]`, PdfPagesPanel.tsx:134-157). It is not recomputed when the window is resized or the phone sheet changes height.",
+      "frequency": 2,
+      "impact": 2,
+      "reason": "After a resize or a change in sheet height, thumbnails start drawing earlier or later than the half-height rule says, so white faces show briefly while scrolling."
+    },
+    {
+      "behavior": "Cells in `drawing` do not count toward the 120-page cap (PdfPagesPanel.tsx:200 reads only `drawn.size`). A fast scroll can therefore mount more than 120 `<Page>` renders before eviction trims `drawn`; the layout-effect change only removes the one-frame overshoot of `drawn` itself.",
+      "frequency": 2,
+      "impact": 1,
+      "reason": "Flinging through a long PDF briefly holds more rasters in memory than the cap. Nothing visible changes."
+    }
+  ],
+  "regression_risks": [
+    "The eviction now runs before paint and calls `getBoundingClientRect` on up to every drawn cell (line 208), which forces a synchronous layout inside the commit. This runs once per commit that crosses the cap, as the passive effect did, but the cost now delays that frame's paint. The effect is bounded by about 125 cells and is unlikely to be noticeable.",
+    "Still open from earlier rounds: desktop scroll preservation across `display:none` (I10) is checked only in Chromium."
+  ],
+  "test_coverage": [
+    "Reverting the fix (changing `useLayoutEffect` back to `useEffect` at PdfPagesPanel.tsx:199) would survive the unit suite. The cap tests ('never holds more than 120 drawn pages', 'keeps an off-proportion page's own box…', lines 532-554) deliver their intersections inside `act()`, which flushes passive effects before the assertions, so `drawnCount()` is 120 either way. Only the e2e cap loop (pdf-pages-grid-desktop.spec.ts, 'never holds more than 120 drawn pages') can kill that mutation, and only through timing: whether a `measure()` lands between the commit and a passive trim. The fix is therefore guarded nondeterministically. Under docs/process/testing-and-comments.md, a timing property that jsdom cannot show belongs in the real environment, so this is a known limit, not a defect.",
+    "The `ready()` wait (PdfPagesPanel.test.tsx:333-339) makes the tests that report intersections wait until an observer actually holds a cell. Without it, `intersectPages` (which has no 'nothing observes' guard) could deliver to nobody. The tests that assert a positive state would then fail rather than pass, so the wait closes a flake and does not hide a vacuous pass. In the src-change tests (I5, I11) the old observer's `disconnect` clears its `els`, so the wait really does wait for the new content's observer.",
+    "Still open: the jsdom I6/I10 scroll tests pass vacuously because every rect is zero and the 'wholly visible' early return (line 188) always fires. Centring and 'no write while hidden' are protected only by the desktop e2e specs.",
+    "Still open: no e2e case evicts a page taller than page 1, so only the jsdom test protects the kept-ratio fix."
+  ],
+  "not_verified": [
+    "Nothing was executed. The vitest suite and the Playwright specs were not run, and the revert mutation was reasoned through, not applied.",
+    "I relied on React 19's documented behaviour that updates scheduled in a layout effect are processed synchronously before paint; I did not read the react-dom source.",
+    "The diff of be85848f7 (review docs) was not shown and was not inspected.",
+    "The design artboards and pdfController.ts were not opened.",
+    "The e2e files other than inspectorResponsive.tsx, projects.ts and the hunk of spec-viewport.spec.ts were read from the diff, not reopened at HEAD."
+  ],
+  "coverage": [
+    {
+      "path": "frontend/e2e-components/fixtures/inspectorResponsive.tsx",
+      "read": "full",
+      "reason": "Read lines 1-160 at HEAD, which hold both changed hunks (the import at 26 and the PDF_BYTES selection at 140-146) with their context."
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/pdfPagesGrid.ts",
+      "read": "full",
+      "reason": "A new file, read in full from the diff."
+    },
+    {
+      "path": "frontend/e2e-components/pdf-pages-grid-desktop.spec.ts",
+      "read": "full",
+      "reason": "A new file, read in full from the diff."
+    },
+    {
+      "path": "frontend/e2e-components/pdf-pages-grid-scrollbar-desktop.spec.ts",
+      "read": "full",
+      "reason": "A new file, read in full from the diff."
+    },
+    {
+      "path": "frontend/e2e-components/pdf-pages-grid.measure.ts",
+      "read": "full",
+      "reason": "A new file, read in full from the diff."
+    },
+    {
+      "path": "frontend/e2e-components/projects.ts",
+      "read": "full",
+      "reason": "Read the whole file at HEAD."
+    },
+    {
+      "path": "frontend/e2e-components/spec-viewport.spec.ts",
+      "read": "partial",
+      "reason": "Read lines 140-199 at HEAD: the changed AT_THE_DESKTOP_WIDTH additions and the consistency test that checks them against DESKTOP_ONLY."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/pdf/PdfPagesPanel.tsx",
+      "read": "full",
+      "reason": "Read lines 95-274 at HEAD, which hold the changed eviction effect (197-221) and all the hooks and helpers around it. The rest (the render body, helpers and PdfPagesTab) was read from the full diff."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/pdf/__tests__/PdfPagesPanel.test.tsx",
+      "read": "partial",
+      "reason": "Read lines 300-559 at HEAD, which include the changed `ready()` helper (329-340) and the cap tests. The other hunks were read from the full diff."
+    }
+  ],
+  "confidence": 84
+}

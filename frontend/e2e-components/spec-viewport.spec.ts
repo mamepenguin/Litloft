@@ -157,6 +157,8 @@ const AT_THE_DESKTOP_WIDTH = [
   "pdf-toolbar-row-desktop.spec.ts",
   "watched-band-desktop.spec.ts",
   "peak-jump-desktop.spec.ts",
+  "pdf-pages-grid-desktop.spec.ts",
+  "pdf-pages-grid-scrollbar-desktop.spec.ts",
 ] as const;
 
 test.describe("the component fixture lays out at the width it was given", () => {

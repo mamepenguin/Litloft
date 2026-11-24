@@ -23,6 +23,7 @@ import type { FileItem } from "@/types";
 import enMessages from "@/messages-core/en.json";
 
 import intelligenceEn from "../../src/addons/intelligence/messages/en.json";
+import { buildLongPdf } from "./pdfPagesGrid";
 import { scenesFrames, scenesVisualIndex } from "./scenesSectionData";
 
 const DRIVE = "fixture";
@@ -136,7 +137,13 @@ const FILES: Record<string, FileItem> = {
   [ARCHIVE_ID]: ARCHIVE,
 };
 
-const PDF_BYTES = buildPdf(["Quarterly report", "Second page", "Third page"]);
+/** `pdf=long` swaps in the long document; `long-outline` and `long-near` are its variants. */
+const PDF_BYTES = FIXTURE_QUERY.get("pdf")?.startsWith("long")
+  ? buildLongPdf({
+      outline: FIXTURE_QUERY.get("pdf") === "long-outline",
+      near: FIXTURE_QUERY.get("pdf") === "long-near",
+    })
+  : buildPdf(["Quarterly report", "Second page", "Third page"]);
 
 /**
  * The catalogue only has to answer two questions here: whether in-file find

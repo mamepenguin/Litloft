@@ -57,6 +57,8 @@ export const DESKTOP_ONLY = [
   "**/pdf-toolbar-row-desktop.spec.ts",
   "**/watched-band-desktop.spec.ts",
   "**/peak-jump-desktop.spec.ts",
+  "**/pdf-pages-grid-desktop.spec.ts",
+  "**/pdf-pages-grid-scrollbar-desktop.spec.ts",
 ];
 
 /** Literals rather than a device preset, which can change under it. */
