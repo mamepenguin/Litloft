@@ -167,7 +167,7 @@ SPEC-CORE-063 I19. Group None lists books by `all`, Tag by `tag` with `no_tag` l
 ## Checked, no action
 
 - Zero shelves under Length while None has videos (every video's length unknown): the
-  Library keeps today's empty state. the scanner reads each video's length with ffprobe
+  Library keeps today's empty state. The scanner reads each video's length with ffprobe
   (`get_video_duration`), so an unknown length means the probe failed; drawing the grid here would be a
   separate change to the 0-shelf rule.
 - Switching to the grid after card-menu removals leave one shelf: it would need a shelves
