@@ -29,7 +29,7 @@
   <meta property="og:image" content="https://mamepenguin.github.io/Litloft/og-ja.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
-  <meta property="og:image:alt" content="Litloftのホーム画面。「続きを見る」と「ピックアップ」を表示。">
+  <meta property="og:image:alt" content="Litloftのホーム画面。アプリへのショートカットと「続きから」、左側にサイドバー。">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Litloft | 自宅LANで使えるセルフホスト型メディアライブラリ">
   <meta name="twitter:description" content="動画やPDFの閲覧から、ノートの作成、ファイルの内容の検索まで。Dockerで自宅のPCやサーバーに導入できます。">
@@ -104,7 +104,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <div class="hero-shot reveal">
       <div class="frame">
         <div class="frame-bar"><i></i><i></i><i></i><span class="url">localhost:3000 · Home</span></div>
-        <img src="../img/home.webp" width="2200" height="1375" alt="Litloftのホーム画面。「続きを見る」と「ピックアップ」に動画や写真を表示。左側にはドライブ一覧。">
+        <img src="../img/home.webp" width="2560" height="1600" alt="Litloftのホーム画面。アプリへのショートカットと、途中まで見た動画が並ぶ「続きから」。左側にサイドバー。">
       </div>
     </div>
   </div>
@@ -122,7 +122,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       <article class="new-card reveal">
         <span class="tag">アプリ</span>
         <h3>「動画」と「読む」ページ</h3>
-        <p>ドライブごとに、動画のページと、PDF・EPUB・書庫のページを用意しました。「発見」には「続きを見る」「新着」と、Intelligenceアドオンがあれば「おすすめ」を表示。「ライブラリ」ではフォルダをたどり、名前・タグ・視聴状況で絞り込めます。分類と並び順は対象ごとに記憶します。</p>
+        <p>ドライブごとに、動画のページと、PDF・EPUB・書庫のページを用意しました。「動画」の「発見」には「続きから」「新着」と、Intelligenceアドオンがあれば「おすすめ」を、「読む」の「発見」には「続きを読む」「まだ読んでいない本」「新着」を表示します。「ライブラリ」ではフォルダをたどり、名前・タグ・視聴や読書の状態で絞り込めます。分類と並び順は対象ごとに記憶します。</p>
       </article>
       <article class="new-card reveal">
         <span class="tag">コレクション</span>
@@ -137,7 +137,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       <article class="new-card reveal">
         <span class="tag">プレーヤー</span>
         <h3>プレーヤー下のパネル</h3>
-        <p>文字起こし・シーン・詳細要約・ノートを、プレーヤーの下に2つまで並べて開けます。広い画面ではプレーヤーの横にも配置可能です。フォーカスモードでは、ヘッダーとサイドバーを隠してファイルとパネルを広く表示します。</p>
+        <p>文字起こし・シーン・詳細要約・ノートを、プレーヤーの下に2つまで並べて開けます。広い画面ではプレーヤーの横にも配置可能です。集中モードでは、ヘッダーとサイドバーを隠してファイルとパネルを広く表示します。</p>
       </article>
       <article class="new-card reveal">
         <span class="tag">再生</span>
@@ -176,19 +176,27 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       <div class="copy reveal">
         <span class="eyebrow">見る・聴く</span>
         <h2>動画・音声の再生と文字起こし</h2>
-        <p>登録したフォルダのファイルを、同じLAN内のスマートフォン・タブレット・PCからブラウザで再生できます。動画は前回の続きから再生でき、プレーヤーの横でチャプターやタイムスタンプ付きの文字起こしを確認できます。</p>
+        <p>登録したフォルダのファイルを、同じLAN内のスマートフォン・タブレット・PCからブラウザで再生できます。動画は前回の続きから再生できます。チャプターはプレーヤーの横に、タイムスタンプ付きの文字起こしはプレーヤーの下に表示します。</p>
         <ul class="points">
           <li>続きからの再生、字幕、チャプター、シークバーのプレビューに対応</li>
-          <li>視聴済みの範囲をシークバーに表示。文字起こし・シーン・要約・ノートをプレーヤーの下に表示</li>
+          <li>視聴済みの範囲をシークバーに表示。文字起こし・シーン・詳細要約・ノートをプレーヤーの下に表示</li>
           <li>文字起こしには、ローカルで動作するWhisper、または指定したクラウド音声認識サービスを使用</li>
           <li>LLMによるチャプター候補の作成に対応。内容を確認し、承認した候補を反映</li>
           <li>YouTubeやVimeoの動画情報を <code>.loft</code> ファイルに保存し、埋め込みプレーヤーで再生</li>
         </ul>
       </div>
       <div class="visual reveal">
-        <div class="frame">
-          <div class="frame-bar"><i></i><i></i><i></i><span class="url">localhost:3000 · file page</span></div>
-          <img src="../img/transcript.webp" width="2200" height="1375" loading="lazy" alt="動画の詳細画面。左側にプレーヤー、右側の詳細パネルにタイムスタンプ付きの文字起こしを表示。">
+        <div class="shot-tabs" role="tablist" aria-label="動画のスクリーンショット">
+          <button class="shot-tab" role="tab" aria-selected="true" aria-controls="shot-player" id="tab-player">プレーヤー</button>
+          <button class="shot-tab" role="tab" aria-selected="false" aria-controls="shot-video" id="tab-video" tabindex="-1">動画ページ</button>
+        </div>
+        <div class="frame" id="shot-player" role="tabpanel" aria-labelledby="tab-player">
+          <div class="frame-bar"><i></i><i></i><i></i><span class="url">localhost:3000 · WWDC26 SwiftData Group Lab</span></div>
+          <img src="../img/transcript.webp" width="2560" height="1600" loading="lazy" alt="動画の詳細画面。プレーヤーの下に、再生中の行を追う文字起こしのパネル。右側にインスペクター。">
+        </div>
+        <div class="frame" id="shot-video" role="tabpanel" aria-labelledby="tab-video" hidden>
+          <div class="frame-bar"><i></i><i></i><i></i><span class="url">localhost:3000 · Video</span></div>
+          <img src="../img/video-app.webp" width="2560" height="1600" loading="lazy" alt="「動画」ページの「発見」タブ。「続きから」に途中まで見た動画、「新着」に最近取り込んだ動画。">
         </div>
       </div>
     </div>
@@ -203,6 +211,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
           <li>画像のスワイプ操作、見開き表示、スライドショーに対応。ZIP書庫も展開せずに閲覧可能</li>
           <li>MarkdownはMermaid図とシンタックスハイライトに対応。PDF・ノート・テキストにハイライトを保存</li>
           <li>WordとExcelはページ内で表示。PowerPointは本文の抜粋を表示</li>
+          <li>EPUBはページ幅に合わせて表示し、日本語の縦書きにも対応。目次と文字の設定も利用可能</li>
         </ul>
       </div>
       <div class="visual reveal">
@@ -212,11 +221,11 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         </div>
         <div class="frame" id="shot-pdf" role="tabpanel" aria-labelledby="tab-pdf">
           <div class="frame-bar"><i></i><i></i><i></i><span class="url">localhost:3000 · Litloft User Guide.pdf</span></div>
-          <img src="../img/pdf.webp" width="2200" height="1375" loading="lazy" alt="全48ページのPDFの3ページ目を表示。「ページ」タブには各ページのサムネイル。">
+          <img src="../img/pdf.webp" width="2560" height="1600" loading="lazy" alt="全48ページのPDFの表紙を表示。「ページ」タブには各ページのサムネイル。">
         </div>
         <div class="frame" id="shot-photos" role="tabpanel" aria-labelledby="tab-photos" hidden>
           <div class="frame-bar"><i></i><i></i><i></i><span class="url">localhost:3000 · Library</span></div>
-          <img src="../img/photos.webp" width="2200" height="1375" loading="lazy" alt="写真フォルダの一覧。各写真の縦横比を保ち、画面の幅に合わせて配置。">
+          <img src="../img/photos.webp" width="2560" height="1600" loading="lazy" alt="写真フォルダの一覧。各写真の縦横比を保ち、画面の幅に合わせて配置。">
         </div>
       </div>
     </div>
@@ -225,7 +234,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       <div class="copy reveal">
         <span class="eyebrow">検索 · Intelligenceアドオン</span>
         <h2>ファイルの内容を検索し、出典を確認</h2>
-        <p>Findでは、ファイル名やタグに加え、文字起こし、文書の本文、画像の内容をまとめて検索できます。Askは関連する箇所をLLMで処理し、出典番号付きで回答します。引用から元のファイルや該当する再生位置を確認できます。</p>
+        <p>検索では、ファイル名やフォルダに加え、文字起こし、文書の本文、画像の内容をまとめて検索できます。Askは関連する箇所をLLMで処理し、出典番号付きで回答します。引用から元のファイルや該当する再生位置を確認できます。</p>
         <ul class="points">
           <li>キーワード検索と意味に基づく検索をSQLite上で実行。専用のベクトルデータベースは不要</li>
           <li><code>tag:</code>・<code>in:</code>・<code>modified:</code> などの検索演算子に対応。検索条件はスマートコレクションとして保存可能</li>
@@ -238,15 +247,15 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       <div class="visual reveal">
         <div class="shot-tabs" role="tablist" aria-label="検索のスクリーンショット">
           <button class="shot-tab" role="tab" aria-selected="true" aria-controls="shot-ask" id="tab-ask">Ask</button>
-          <button class="shot-tab" role="tab" aria-selected="false" aria-controls="shot-find" id="tab-find" tabindex="-1">Find</button>
+          <button class="shot-tab" role="tab" aria-selected="false" aria-controls="shot-find" id="tab-find" tabindex="-1">検索</button>
         </div>
         <div class="frame" id="shot-ask" role="tabpanel" aria-labelledby="tab-ask">
           <div class="frame-bar"><i></i><i></i><i></i><span class="url">localhost:3000 · Ask</span></div>
-          <img src="../img/ask-ja.webp" width="2200" height="1375" loading="lazy" alt="Askの回答画面。日本語の質問に対し、WWDCのSwiftDataセッションの英語の文字起こし（25分43秒）を引用して日本語で回答。">
+          <img src="../img/ask-ja.webp" width="2560" height="1600" loading="lazy" alt="Askの回答画面。日本語の質問に対し、WWDCのSwiftDataセッションの英語の文字起こし（22分25秒など）を引用して日本語で回答。">
         </div>
         <div class="frame" id="shot-find" role="tabpanel" aria-labelledby="tab-find" hidden>
-          <div class="frame-bar"><i></i><i></i><i></i><span class="url">localhost:3000 · Find</span></div>
-          <img src="../img/find.webp" width="2200" height="1375" loading="lazy" alt="Findの検索画面。「glass effect on toolbar buttons」に該当する動画と文字起こしを表示。">
+          <div class="frame-bar"><i></i><i></i><i></i><span class="url">localhost:3000 · Search</span></div>
+          <img src="../img/search.webp" width="2560" height="1600" loading="lazy" alt="検索結果の「箇所」表示。「glass effect on toolbar buttons」に該当する文字起こしの箇所を時刻付きで一覧。">
         </div>
       </div>
     </div>
@@ -261,6 +270,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
           <li>「関連」タブに、リンク先のファイルや内容が似ているファイルを表示</li>
           <li>WebページをMarkdown形式で保存。ノートとファイルの関連をグラフで確認可能</li>
           <li>生成した要約は、内容を確認してからノートとして保存可能</li>
+          <li>「ノート」「クリップ」ページで、書きかけのノートや未読のWebクリップを一覧</li>
         </ul>
       </div>
       <div class="visual reveal">
@@ -270,11 +280,11 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         </div>
         <div class="frame" id="shot-edit" role="tabpanel" aria-labelledby="tab-edit">
           <div class="frame-bar"><i></i><i></i><i></i><span class="url">localhost:3000 · Photography Hub.md</span></div>
-          <img src="../img/note-edit.webp" width="2200" height="1375" loading="lazy" alt="Markdownエディタの分割表示。左側にfrontmatter付きのソース、右側にMermaidのマインドマップを含むプレビュー。">
+          <img src="../img/note-edit.webp" width="2560" height="1600" loading="lazy" alt="Markdownエディタの分割表示。左側にfrontmatter付きのソース、右側にMermaidのマインドマップを含むプレビュー。">
         </div>
         <div class="frame" id="shot-related" role="tabpanel" aria-labelledby="tab-related" hidden>
           <div class="frame-bar"><i></i><i></i><i></i><span class="url">localhost:3000 · Photography Hub.md</span></div>
-          <img src="../img/note.webp" width="2200" height="1375" loading="lazy" alt="マインドマップを含むノートと「関連」タブ。リンクされた4つのノートを表示。">
+          <img src="../img/note.webp" width="2560" height="1600" loading="lazy" alt="マインドマップを含むノートと「関連」タブ。リンクされた4つのノートを表示。">
         </div>
       </div>
     </div>
@@ -286,14 +296,15 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         <p>YouTubeやVimeoのURLを登録すると、タイトル・サムネイル・字幕を保存できます。チャンネルやプレイリストの購読にも対応しています。動画は元のサイトの埋め込みプレーヤーで再生し、字幕はローカルファイルと同様に検索やAskに利用できます。</p>
         <ul class="points">
           <li>購読したチャンネル・プレイリストを定期的に同期</li>
-          <li>「見る」タブで購読先の新着を確認。取り込み履歴から再試行も可能</li>
+          <li>購読先の新着は「動画」ページの「購読の新着」「よく見るソース」に表示</li>
+          <li>「最近の取り込み」で取り込みの記録を確認。失敗した項目は再試行可能</li>
           <li>ドライブごとに有効・無効を設定</li>
         </ul>
       </div>
       <div class="visual reveal">
         <div class="frame">
           <div class="frame-bar"><i></i><i></i><i></i><span class="url">localhost:3000 · YouTube &amp; Feeds</span></div>
-          <img src="../img/feeds.webp" width="2200" height="1375" loading="lazy" alt="YouTubeとフィードの管理画面。購読先の追加欄、購読中のチャンネル1件、日付別の取り込み履歴を表示。">
+          <img src="../img/feeds.webp" width="2560" height="1600" loading="lazy" alt="YouTubeとフィードの管理画面。購読先の追加欄、購読中のチャンネル1件、日付別の取り込み履歴を表示。">
         </div>
       </div>
     </div>
@@ -310,7 +321,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       </div>
       <div class="visual reveal">
         <div class="phones">
-          <div class="phone"><img src="../img/mobile-home.webp" width="780" height="1688" loading="lazy" alt="スマートフォンのホーム画面。「続きを見る」を2列で表示。"></div>
+          <div class="phone"><img src="../img/mobile-home.webp" width="780" height="1688" loading="lazy" alt="スマートフォンのホーム画面。アプリへのショートカットと、2列の「続きから」。"></div>
           <div class="phone"><img src="../img/mobile-note.webp" width="780" height="1688" loading="lazy" alt="スマートフォンで開いたMarkdownノート。プロパティカードとマインドマップを表示。"></div>
         </div>
       </div>
@@ -333,6 +344,8 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         <ul>
           <li>Dockerにマウントしたホスト側のフォルダを、ドライブとして利用</li>
           <li>ノートは <code>.md</code> 形式、外部サイトから取り込んだ動画情報は <code>.loft</code> 形式で保存</li>
+          <li>アップロードやiPhoneからの共有、Webクリップは、整理するまで受信箱に表示</li>
+          <li>どの画面でも <code>N</code> キーでクイックノートを書き、好きなフォルダに保存</li>
           <li>削除したファイルは30日間ゴミ箱に保管。ディスク上で見つからなくなったファイルも、再検出されるまで履歴を保持</li>
         </ul>
       </div>
@@ -348,7 +361,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       <div class="hood-card reveal">
         <h3>ドライブ単位でアクセスを管理</h3>
         <ul>
-          <li>ドライブごとにパスワードとアクセスグループを設定可能</li>
+          <li>ドライブをアクセスグループに分け、パスワードで1つ以上のグループを解除</li>
           <li>検索・タグ・お気に入り・Askの対象は、ドライブ内に限定</li>
           <li>アドオンや個別の機能を、ドライブごとに有効・無効に設定可能</li>
           <li>ロック中のドライブは、解除するまで名前を非表示</li>
@@ -357,7 +370,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     </div>
 <pre class="arch reveal" lang="en">Browser ──▶ :3000 Next.js ──/api/*──▶ :8000 FastAPI + SQLite + ffmpeg
                                         ├─ intelligence  <span class="dim">search, Ask, transcripts   (own container)</span>
-                                        ├─ knowledge     <span class="dim">notes, clips, versions     (own container)</span>
+                                        ├─ knowledge     <span class="dim">notes, clips, capture      (own container)</span>
                                         ├─ media_import  <span class="dim">YouTube &amp; feeds           (in the backend)</span>
                                         └─ cloud-sync    <span class="dim">rclone backups            (in the backend)</span></pre>
   </div>
@@ -380,7 +393,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       <div class="addon reveal">
         <span class="kind">ノート</span>
         <h3>Knowledge</h3>
-        <p>Markdownのライブプレビュー編集、変更履歴、ノートの閲覧、Webクリップ、引用バスケットに対応。ノートやファイルの関連をグラフで確認できます。</p>
+        <p>Markdownのライブプレビュー編集、変更履歴のパネル、「ノート」「クリップ」ページ、Webクリップ、引用バスケットに対応。ノートやファイルの関連をグラフで確認できます。</p>
       </div>
       <div class="addon reveal">
         <span class="kind">取り込み</span>
@@ -396,7 +409,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <div class="extras">
       <div class="extra reveal">
         <h3>iOSアプリ</h3>
-        <p>Webアプリをベースに、iOSの再生機能を利用できるアプリです。<code>ios/</code> をXcodeでビルドして利用します。バックグラウンド再生、ロック画面からの操作、ピクチャ・イン・ピクチャ、AirPlayに対応しています。App Storeでの配布は行っていません。</p>
+        <p>Webアプリをベースに、iOSの再生機能を利用できるアプリです。<code>ios/</code> をXcodeでビルドして利用します。バックグラウンド再生、ロック画面からの操作、ピクチャ・イン・ピクチャ、AirPlayに対応し、共有メニューからWebページ・テキスト・写真・ファイルをLitloftに送れます。App Storeでの配布は行っていません。</p>
       </div>
       <div class="extra reveal">
         <h3>MCPサーバー</h3>
@@ -441,7 +454,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
             <li><span>1</span><span>ドライブとしてマウントするホスト側のフォルダと、各ドライブの識別名（スラッグ）を指定します。表示名は後で設定できます。</span></li>
             <li><span>2</span><span>ポート番号を指定します。既定値は3000です。</span></li>
             <li><span>3</span><span>Intelligenceを有効にするかを選択します（既定は「はい」）。<code class="ic">LLM_API_KEY</code> の入力は任意です。ローカルモデルを使用する場合は空欄にできます。</span></li>
-            <li><span>4</span><span>Knowledgeを有効にするかを選択します（既定は「いいえ」）。Media ImportとCloud Syncは、後でドライブごとに有効にします。</span></li>
+            <li><span>4</span><span>Knowledgeを有効にするかを選択します（既定は「いいえ」）。Media ImportとCloud Syncはここでは尋ねられません。Media Importは初期設定画面でドライブごとに有効にし、Cloud Syncはrcloneの設定をマウントしてから「設定」で構成します。</span></li>
           </ul>
           <p class="foot"><code class="ic">docker-compose.override.yml</code> と <code class="ic">.env</code> を作成します。既存のファイルがある場合は、上書きするかどうかを確認します。</p>
         </div>

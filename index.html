@@ -28,7 +28,7 @@
   <meta property="og:image" content="https://mamepenguin.github.io/Litloft/og.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
-  <meta property="og:image:alt" content="Litloft Home screen showing Continue Watching and Pickup.">
+  <meta property="og:image:alt" content="Litloft Home with app shortcuts, the Continue row and the sidebar.">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Litloft | A self-hosted media library for your home network">
   <meta name="twitter:description" content="Play videos, read PDFs, write Markdown notes and search file contents. Install Litloft on your own computer or server with Docker.">
@@ -93,7 +93,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <div class="hero-shot reveal">
       <div class="frame">
         <div class="frame-bar"><i></i><i></i><i></i><span class="url">localhost:3000 · Home</span></div>
-        <img src="img/home.webp" width="2200" height="1375" alt="Litloft Home screen with videos and photos in Continue Watching and Pickup, and drive navigation on the left.">
+        <img src="img/home.webp" width="2560" height="1600" alt="Litloft Home with app shortcuts, partly watched videos in the Continue row, and the sidebar on the left.">
       </div>
     </div>
   </div>
@@ -111,7 +111,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       <article class="new-card reveal">
         <span class="tag">Apps</span>
         <h3>Video and Reading pages</h3>
-        <p>Each drive has a Video page and a Reading page for PDFs, EPUBs and archives. Discover shows Continue, New and, with the Intelligence addon, Recommended. Library walks your folders and filters by name, tag and watched or read state, with grouping and sorting remembered per target.</p>
+        <p>Each drive has a Video page and a Reading page for PDFs, EPUBs and archives. On Video, Discover shows Continue, New and, with the Intelligence addon, Recommended; on Reading, Continue reading, Not read yet and New. Library walks your folders and filters by name, tag and watched or read state, with grouping and sorting remembered per target.</p>
       </article>
       <article class="new-card reveal">
         <span class="tag">Collections</span>
@@ -121,7 +121,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       <article class="new-card reveal">
         <span class="tag">Search</span>
         <h3>More search operators</h3>
-        <p>Exclude with <code>-</code>, as in <code>tag:trip -tag:2023</code>. New operators include <code>has:tag</code>, <code>has:collection</code> and <code>modified:</code>, alongside size and length. The Add condition menu inserts them without typing the syntax.</p>
+        <p>Exclude with <code>-</code>, as in <code>tag:trip -tag:2023</code>. New operators include <code>has:tag</code>, <code>has:collection</code> and <code>modified:</code>, alongside size and length. The + Filter menu adds them without typing the syntax.</p>
       </article>
       <article class="new-card reveal">
         <span class="tag">Player</span>
@@ -165,19 +165,27 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       <div class="copy reveal">
         <span class="eyebrow">Watch and listen</span>
         <h2>Media playback with transcripts</h2>
-        <p>Add a folder to Litloft and access its files in a browser from a phone, tablet or computer on your LAN. Videos resume from your last position, with chapters and timestamped transcripts displayed beside the player.</p>
+        <p>Add a folder to Litloft and access its files in a browser from a phone, tablet or computer on your LAN. Videos resume from your last position. Chapters sit beside the player, and a timestamped transcript opens under it.</p>
         <ul class="points">
           <li>Resume playback, subtitles, chapters and seek-bar previews</li>
-          <li>Watched parts on the seek bar, and Transcript, Scenes, Summary and Note panels under the player</li>
+          <li>Watched parts on the seek bar, and Transcript, Scenes, Detailed summary and Note panels under the player</li>
           <li>Transcription using local Whisper or your chosen cloud speech-to-text service</li>
           <li>LLM-generated chapter suggestions, applied only after you approve them</li>
           <li>YouTube and Vimeo video references stored as <code>.loft</code> files for embedded playback</li>
         </ul>
       </div>
       <div class="visual reveal">
-        <div class="frame">
-          <div class="frame-bar"><i></i><i></i><i></i><span class="url">localhost:3000 · file page</span></div>
-          <img src="img/transcript.webp" width="2200" height="1375" loading="lazy" alt="Video file page with the player on the left and a timestamped transcript in the inspector on the right.">
+        <div class="shot-tabs" role="tablist" aria-label="Video screenshots">
+          <button class="shot-tab" role="tab" aria-selected="true" aria-controls="shot-player" id="tab-player">Player</button>
+          <button class="shot-tab" role="tab" aria-selected="false" aria-controls="shot-video" id="tab-video" tabindex="-1">Video page</button>
+        </div>
+        <div class="frame" id="shot-player" role="tabpanel" aria-labelledby="tab-player">
+          <div class="frame-bar"><i></i><i></i><i></i><span class="url">localhost:3000 · WWDC26 SwiftData Group Lab</span></div>
+          <img src="img/transcript.webp" width="2560" height="1600" loading="lazy" alt="Video file page with the Transcript panel under the player, following the playing line, and the inspector on the right.">
+        </div>
+        <div class="frame" id="shot-video" role="tabpanel" aria-labelledby="tab-video" hidden>
+          <div class="frame-bar"><i></i><i></i><i></i><span class="url">localhost:3000 · Video</span></div>
+          <img src="img/video-app.webp" width="2560" height="1600" loading="lazy" alt="Video page on its Discover tab, with partly watched videos under Continue and recent imports under New.">
         </div>
       </div>
     </div>
@@ -192,6 +200,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
           <li>Swipe navigation, two-page spreads and slideshows for images; ZIP browsing without extraction</li>
           <li>Mermaid diagrams and syntax highlighting in Markdown; highlights in PDFs, notes and text files</li>
           <li>Word and Excel files open in the page; PowerPoint files show a text excerpt</li>
+          <li>EPUB books reflow to the page, including vertical Japanese text, with a contents list and text settings</li>
         </ul>
       </div>
       <div class="visual reveal">
@@ -201,11 +210,11 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         </div>
         <div class="frame" id="shot-pdf" role="tabpanel" aria-labelledby="tab-pdf">
           <div class="frame-bar"><i></i><i></i><i></i><span class="url">localhost:3000 · Litloft User Guide.pdf</span></div>
-          <img src="img/pdf.webp" width="2200" height="1375" loading="lazy" alt="PDF viewer on page 3 of 48, with page thumbnails in the Pages tab.">
+          <img src="img/pdf.webp" width="2560" height="1600" loading="lazy" alt="PDF viewer on the cover of a 48-page guide, with page thumbnails in the Pages tab.">
         </div>
         <div class="frame" id="shot-photos" role="tabpanel" aria-labelledby="tab-photos" hidden>
           <div class="frame-bar"><i></i><i></i><i></i><span class="url">localhost:3000 · Library</span></div>
-          <img src="img/photos.webp" width="2200" height="1375" loading="lazy" alt="Photo folder with images arranged in rows, preserving their original aspect ratios.">
+          <img src="img/photos.webp" width="2560" height="1600" loading="lazy" alt="Photo folder with images arranged in rows, preserving their original aspect ratios.">
         </div>
       </div>
     </div>
@@ -214,7 +223,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       <div class="copy reveal">
         <span class="eyebrow">Search · Intelligence addon</span>
         <h2>Search file contents and check sources</h2>
-        <p>Find searches filenames, tags, transcripts, document text and image content. Ask sends relevant passages to an LLM and returns an answer with numbered citations. Each citation links to the source file and, where applicable, the relevant timestamp.</p>
+        <p>Search covers filenames, folders, transcripts, document text and what images show. Ask sends relevant passages to an LLM and returns an answer with numbered citations. Each citation links to the source file and, where applicable, the relevant timestamp.</p>
         <ul class="points">
           <li>Combined keyword and semantic search in SQLite, with no separate vector database required</li>
           <li>Search operators such as <code>tag:</code>, <code>in:</code> and <code>modified:</code>, and searches saved as Smart Collections</li>
@@ -227,15 +236,15 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       <div class="visual reveal">
         <div class="shot-tabs" role="tablist" aria-label="Search screenshots">
           <button class="shot-tab" role="tab" aria-selected="true" aria-controls="shot-ask" id="tab-ask">Ask</button>
-          <button class="shot-tab" role="tab" aria-selected="false" aria-controls="shot-find" id="tab-find" tabindex="-1">Find</button>
+          <button class="shot-tab" role="tab" aria-selected="false" aria-controls="shot-find" id="tab-find" tabindex="-1">Search</button>
         </div>
         <div class="frame" id="shot-ask" role="tabpanel" aria-labelledby="tab-ask">
           <div class="frame-bar"><i></i><i></i><i></i><span class="url">localhost:3000 · Ask</span></div>
-          <img src="img/ask.webp" width="2200" height="1375" loading="lazy" alt="Ask response about schema migrations, citing the transcript at 6:37 in a WWDC SwiftData session.">
+          <img src="img/ask.webp" width="2560" height="1600" loading="lazy" alt="Ask answer about schema migrations, citing the transcript of a WWDC SwiftData session at 6:37.">
         </div>
         <div class="frame" id="shot-find" role="tabpanel" aria-labelledby="tab-find" hidden>
-          <div class="frame-bar"><i></i><i></i><i></i><span class="url">localhost:3000 · Find</span></div>
-          <img src="img/find.webp" width="2200" height="1375" loading="lazy" alt="Find results for 'glass effect on toolbar buttons', showing videos with matching transcript passages.">
+          <div class="frame-bar"><i></i><i></i><i></i><span class="url">localhost:3000 · Search</span></div>
+          <img src="img/search.webp" width="2560" height="1600" loading="lazy" alt="Search results in the Passages view for 'glass effect on toolbar buttons', listing matching transcript passages with their times.">
         </div>
       </div>
     </div>
@@ -250,6 +259,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
           <li>A Related tab showing linked files and files with similar content</li>
           <li>Web clipping to Markdown and a graph of connections between notes and files</li>
           <li>Generated summaries become notes only when you save them</li>
+          <li>Notes and Clips pages list notes you are writing and web clips you have not read yet</li>
         </ul>
       </div>
       <div class="visual reveal">
@@ -259,11 +269,11 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         </div>
         <div class="frame" id="shot-edit" role="tabpanel" aria-labelledby="tab-edit">
           <div class="frame-bar"><i></i><i></i><i></i><span class="url">localhost:3000 · Photography Hub.md</span></div>
-          <img src="img/note-edit.webp" width="2200" height="1375" loading="lazy" alt="Markdown editor in Split view, with source text and frontmatter on the left and a preview with a Mermaid mind map on the right.">
+          <img src="img/note-edit.webp" width="2560" height="1600" loading="lazy" alt="Markdown editor in Split view, with source text and frontmatter on the left and a preview with a Mermaid mind map on the right.">
         </div>
         <div class="frame" id="shot-related" role="tabpanel" aria-labelledby="tab-related" hidden>
           <div class="frame-bar"><i></i><i></i><i></i><span class="url">localhost:3000 · Photography Hub.md</span></div>
-          <img src="img/note.webp" width="2200" height="1375" loading="lazy" alt="Note with a mind map and four linked notes listed in the Related tab.">
+          <img src="img/note.webp" width="2560" height="1600" loading="lazy" alt="Note with a mind map and four linked notes listed in the Related tab.">
         </div>
       </div>
     </div>
@@ -275,14 +285,15 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         <p>Add a YouTube or Vimeo URL, or subscribe to a channel or playlist. Litloft saves the title, thumbnail and available captions, then plays the video using the source site's embedded player. Captions can be searched and used by Ask, just like local file content.</p>
         <ul class="points">
           <li>Scheduled syncing for channel and playlist subscriptions</li>
-          <li>A Watch tab for new videos from your subscriptions, plus an import log with retry options</li>
+          <li>New videos from subscriptions appear on the Video page under New from subscriptions and Regular sources</li>
+          <li>Recent activity lists each import, and failed items can be retried</li>
           <li>Enable or disable imports for each drive</li>
         </ul>
       </div>
       <div class="visual reveal">
         <div class="frame">
           <div class="frame-bar"><i></i><i></i><i></i><span class="url">localhost:3000 · YouTube &amp; Feeds</span></div>
-          <img src="img/feeds.webp" width="2200" height="1375" loading="lazy" alt="YouTube and Feeds screen with an Add a source field, one channel subscription and recent imports grouped by date.">
+          <img src="img/feeds.webp" width="2560" height="1600" loading="lazy" alt="YouTube and Feeds screen with an Add a source field, one channel subscription and recent imports grouped by date.">
         </div>
       </div>
     </div>
@@ -299,7 +310,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       </div>
       <div class="visual reveal">
         <div class="phones">
-          <div class="phone"><img src="img/mobile-home.webp" width="780" height="1688" loading="lazy" alt="Mobile Home screen with Continue Watching displayed in two columns."></div>
+          <div class="phone"><img src="img/mobile-home.webp" width="780" height="1688" loading="lazy" alt="Mobile Home screen with app shortcuts and the Continue row in two columns."></div>
           <div class="phone"><img src="img/mobile-note.webp" width="780" height="1688" loading="lazy" alt="Markdown note on a phone, showing its properties card and mind map."></div>
         </div>
       </div>
@@ -322,6 +333,8 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         <ul>
           <li>Host folders mounted into Docker serve as drives</li>
           <li>Notes are stored as <code>.md</code> files; imported video references use <code>.loft</code> files</li>
+          <li>New uploads, iPhone shares and web clips wait in the Inbox until you file them</li>
+          <li>Press <code>N</code> on any page to write a quick note into a folder you choose</li>
           <li>Deleted files stay in Trash for 30 days; history is retained for missing files until they are detected again</li>
         </ul>
       </div>
@@ -337,7 +350,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       <div class="hood-card reveal">
         <h3>Access control for each drive</h3>
         <ul>
-          <li>Each drive can have its own password and access group</li>
+          <li>Drives are put in access groups, and a password unlocks one or more groups</li>
           <li>Search, tags, favorites and Ask are limited to the current drive</li>
           <li>Addons and individual features can be enabled or disabled for each drive</li>
           <li>Locked drive names remain hidden until the drive is unlocked</li>
@@ -346,7 +359,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     </div>
 <pre class="arch reveal">Browser ──▶ :3000 Next.js ──/api/*──▶ :8000 FastAPI + SQLite + ffmpeg
                                         ├─ intelligence  <span class="dim">search, Ask, transcripts   (own container)</span>
-                                        ├─ knowledge     <span class="dim">notes, clips, versions     (own container)</span>
+                                        ├─ knowledge     <span class="dim">notes, clips, capture      (own container)</span>
                                         ├─ media_import  <span class="dim">YouTube &amp; feeds           (in the backend)</span>
                                         └─ cloud-sync    <span class="dim">rclone backups            (in the backend)</span></pre>
   </div>
@@ -369,7 +382,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       <div class="addon reveal">
         <span class="kind">Notes</span>
         <h3>Knowledge</h3>
-        <p>Adds a Markdown editor with live preview, version history, a Notes page, web clipping and the capture basket. A graph shows connections between notes and files.</p>
+        <p>Adds a Markdown editor with live preview, a version history panel, Notes and Clips pages, web clipping and the capture basket. A graph shows connections between notes and files.</p>
       </div>
       <div class="addon reveal">
         <span class="kind">Sources</span>
@@ -385,7 +398,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <div class="extras">
       <div class="extra reveal">
         <h3>iOS app</h3>
-        <p>An iOS wrapper for the web app, built from <code>ios/</code> in Xcode. Supports background audio, lock-screen controls, picture-in-picture video and AirPlay. The app is not distributed through the App Store.</p>
+        <p>An iOS wrapper for the web app, built from <code>ios/</code> in Xcode. Supports background audio, lock-screen controls, picture-in-picture video and AirPlay, and adds Litloft to the share menu for web pages, text, photos and files. The app is not distributed through the App Store.</p>
       </div>
       <div class="extra reveal">
         <h3>MCP server</h3>
@@ -430,7 +443,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
             <li><span>1</span><span>Specify the host folders to mount as drives and a short identifier (slug) for each. Display names are set later.</span></li>
             <li><span>2</span><span>Choose a port. The default is 3000.</span></li>
             <li><span>3</span><span>Choose whether to enable Intelligence (default: yes). The <code class="ic">LLM_API_KEY</code> is optional and can be left blank when using a local model.</span></li>
-            <li><span>4</span><span>Choose whether to enable Knowledge (default: no). Media Import and Cloud Sync are enabled separately for each drive after setup.</span></li>
+            <li><span>4</span><span>Choose whether to enable Knowledge (default: no). Media Import and Cloud Sync are not asked about here. Media Import is turned on per drive in the setup wizard, and Cloud Sync is set up in Settings after you mount your rclone config.</span></li>
           </ul>
           <p class="foot">The script creates <code class="ic">docker-compose.override.yml</code> and <code class="ic">.env</code>. It asks for confirmation before overwriting existing files.</p>
         </div>
