@@ -78,14 +78,14 @@ function DuplicateStats({ data }: { data: DuplicatesResponse }) {
 
 function FileRow({
   file,
+  groupHash,
   isKept,
-  isSelected,
-  onToggle,
+  onKeep,
 }: {
   file: FileItem;
+  groupHash: string;
   isKept: boolean;
-  isSelected: boolean;
-  onToggle: () => void;
+  onKeep: () => void;
 }) {
   const t = useTranslations("admin");
   const metaLine = primaryMetaLine(file);
@@ -99,10 +99,11 @@ function FileRow({
       }`}
     >
       <input
-        type="checkbox"
-        checked={isSelected}
-        onChange={onToggle}
-        className="h-4 w-4 shrink-0 rounded-lg border-bg-border accent-accent"
+        type="radio"
+        name={`keep-${groupHash}`}
+        checked={isKept}
+        onChange={onKeep}
+        className="h-4 w-4 shrink-0 border-bg-border accent-accent"
       />
       <img
         src={getThumbnailUrl(file.id)}
@@ -197,9 +198,9 @@ function DuplicateGroupCard({
               <FileRow
                 key={file.id}
                 file={file}
+                groupHash={group.hash}
                 isKept={file.id === keptFileId}
-                isSelected={file.id === keptFileId}
-                onToggle={() => setKeptFileId(file.id)}
+                onKeep={() => setKeptFileId(file.id)}
               />
             ))}
           </div>
@@ -222,15 +223,15 @@ function DuplicateGroupCard({
               ) : (
                 <Trash2 size={12} />
               )}
-              {t("deleteSelected")} ({filesToDelete.length})
+              {t("deleteOthers", { count: filesToDelete.length })}
             </button>
           )}
 
           <ConfirmDialog
             open={confirmOpen}
-            title={t("deleteSelected")}
+            title={t("deleteOthers", { count: filesToDelete.length })}
             message={t("confirmDelete", { count: filesToDelete.length })}
-            confirmLabel={t("deleteSelected")}
+            confirmLabel={t("deleteOthers", { count: filesToDelete.length })}
             onConfirm={handleDelete}
             onCancel={() => setConfirmOpen(false)}
           />
