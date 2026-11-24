@@ -194,7 +194,9 @@ function PdfPagesContent({
     root.scrollTop = Math.min(Math.max(target, 0), max);
   }, [shown, firstRatio, state.page, state.numPages]);
 
-  useEffect(() => {
+  // Not `useEffect`: renders that finish together commit several pages past
+  // the cap, and a passive effect leaves them on screen until after paint.
+  useLayoutEffect(() => {
     if (drawn.size <= MAX_DRAWN_PAGES) return;
     const rail = railRef.current;
     const root = scrollerOf(rail, rootRef.current);

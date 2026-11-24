@@ -328,6 +328,15 @@ const range = (from: number, to: number) =>
 
 async function ready(numPages: number) {
   await waitFor(() => expect(cells().length).toBe(numPages));
+  // The rail starts observing its cells in an effect after they mount; a test
+  // that reports a cell in view before then reports it to nobody.
+  if (globalThis.IntersectionObserver === (FakeIntersectionObserver as unknown)) {
+    await waitFor(() =>
+      expect(
+        observers.some((o) => [...o.els].some((el) => el.closest("[data-page-state]"))),
+      ).toBe(true),
+    );
+  }
 }
 
 beforeEach(() => {
