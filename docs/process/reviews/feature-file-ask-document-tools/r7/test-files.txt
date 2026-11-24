@@ -1,0 +1,12 @@
+addons/intelligence/tests/document_tool_doubles.py
+addons/intelligence/tests/file_context_doubles.py
+addons/intelligence/tests/golden_prompts/file_question_today_document-tool.json
+addons/intelligence/tests/test_spec_addon_071_image_stream.py
+addons/intelligence/tests/test_spec_addon_116_frame_request_fallback.py
+addons/intelligence/tests/test_spec_addon_179_181_every_path.py
+addons/intelligence/tests/test_spec_addon_179_file_block.py
+addons/intelligence/tests/test_spec_addon_182_183_document_hygiene.py
+addons/intelligence/tests/test_spec_addon_182_document_tool_loop.py
+addons/intelligence/tests/test_spec_addon_182_document_tool_offer.py
+addons/intelligence/tests/test_spec_addon_182_get_text_results.py
+addons/intelligence/tests/test_spec_addon_183_page_images.py
