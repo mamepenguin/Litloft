@@ -1,0 +1,335 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-deep",
+  "role": "read",
+  "risk": "CRITICAL",
+  "trajectory": "Fix rounds in order. r9 found that the page resolution effect re-resolved after an impossible stretch. The r10 fix (3fd99e10e) took the `impossible` gate off the launcher data hooks, which removed a state. In the page effect it kept the `impossible` branch, changing it from clear to return, and added a held-resolution reuse branch backed by two new refs (inResolutionRef, resolvedRetryToken), which added state. This round (26001fc02) adds one more `!impossible` guard, on the derived `inNameState` (useFolderFiles.ts:354-360). It removes nothing. The guard repeats a prediction that earlier rounds already placed on `inNameBlocked` (:353) and `inNamePending` (:801), and on the effect itself (:302). So each round has added another `impossible` check in the same in: resolution area to undo a side effect of the previous one: the design is being patched, not restructured. The page now handles `impossible` in four separate places, while the window handles it in a single early branch. This round's change is small and correct for what it targets.",
+  "findings": [],
+  "specification_compliance": [
+    "r10 D3/R1 is fixed. useFolderFiles.ts:354-360 now reports inNameState as null while `impossible`, so FolderContent.tsx:141 and PassageList.tsx:349 no longer render a held refused, failed or tooLarge notice, and FolderBrowser.tsx:874 can show the empty state. This matches spec sending step 1 precedence (impossible first) and the window's behaviour (useFileSearch clears inNameError on its impossible branch).",
+    "The held resolution itself is untouched (activeResolution :350-351 is still keyed only by inKey), so the I28/I29 fix from r10 survives: when the query becomes possible again with the same in: key, the held status or members come back without resolving again.",
+    "The dead 再試行 noted in r10's unspecified list no longer appears: with inNameState null while impossible, no retry control is rendered.",
+    "I7/I18 still hold. The effect returns at :302 and fetchPage returns empty for conditionsImpossible, so nothing is requested.",
+    "The new test in SearchPage.negation.test.tsx ('an impossible query shows the empty state, not a held refused notice') would fail if the `!impossible &&` guard were removed, because the refused text would stay. It kills that mutation."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    {
+      "behavior": "During an impossible stretch with a held resolved in: resolution, trackFirstPage marks that resolution as listed after the (request-free) empty page, so when the query becomes possible again inNamePending is already false before the real first page arrives.",
+      "frequency": 1,
+      "impact": 1,
+      "reason": "After editing an in: query through a contradiction and back, the page may for one render show the reset listing's empty state or a 0 count before loading starts, instead of the pending state the in: gate normally gives."
+    },
+    {
+      "behavior": "A -in: name that matches no collection of the drive (a typo) is sent as exclude_collection and silently excludes nothing.",
+      "frequency": 2,
+      "impact": 3,
+      "reason": "Typing '-in:Tirp' shows an Exclude chip over unfiltered results with no hint that the name matched nothing."
+    },
+    {
+      "behavior": "A held failed, tooLarge or refused notice for an in: key reappears, without resolving again, when an intervening impossible edit is undone.",
+      "frequency": 1,
+      "impact": 1,
+      "reason": "Removing the contradicting token brings back the same notice as before; only 再試行 or a key change resolves again, as I28 asks."
+    }
+  ],
+  "regression_risks": [
+    "The page now gates `impossible` separately in the effect, inNameBlocked, inNameState and inNamePending. A future derived value read from activeResolution, such as resolvedFileIds or resolvedCollections, could show held state during an impossible stretch unless it is guarded too.",
+    "The held-resolution reuse depends on render-mirrored refs (inResolutionRef, resolvedRetryToken). Changes to how inResolution is set could make a needed resolution get skipped."
+  ],
+  "test_coverage": [
+    "The new SearchPage test covers a held 'refused' status followed by an impossible edit. No test covers a held 'failed' status (with its 再試行) or 'tooLarge' in the same sequence, but they go through the same guard.",
+    "No test covers the passages view (PassageList) showing the impossible state over a held notice.",
+    "No test covers undoing the impossible edit after a held refused status and asserting that the notice comes back without new list requests."
+  ],
+  "not_verified": [
+    "No tests or commands were run; conclusions come from reading useFolderFiles.ts lines 175-500 and 795-895 and grepping FolderBrowser, FolderContent and PassageList.",
+    "Whether the one-render window after impossible-to-possible (listedResolution already set) actually shows an empty state or a 0 count depends on useInfiniteScroll's reset timing, which I did not read.",
+    "The backend, addon and frontend files not touched by this fix commit were not reopened in the tree; their review relies on the diff in the prompt and on earlier rounds.",
+    "Whether the real search route remounts useFolderFiles on a q change, which would bypass the held resolution entirely.",
+    "Whether the addons/intelligence checkout matches the submodule pointer 612ee535f."
+  ],
+  "coverage": [
+    {
+      "path": "addons/intelligence/app/file_matching.py",
+      "read": "partial",
+      "reason": "Every diff hunk in the prompt; not touched by the fix commit, not reopened."
+    },
+    {
+      "path": "backend/app/routers/drives.py",
+      "read": "partial",
+      "reason": "Every diff hunk in the prompt; not touched by the fix commit."
+    },
+    {
+      "path": "backend/app/routers/internal.py",
+      "read": "partial",
+      "reason": "Every diff hunk in the prompt."
+    },
+    {
+      "path": "backend/app/routers/shelves.py",
+      "read": "partial",
+      "reason": "The single forwarding hunk in the prompt."
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/app.tsx",
+      "read": "partial",
+      "reason": "Both diff hunks in the prompt."
+    },
+    {
+      "path": "frontend/e2e-components/search-chips-negated.spec.ts",
+      "read": "full",
+      "reason": "New file, whole in the prompt diff."
+    },
+    {
+      "path": "frontend/e2e-components/spec-viewport.spec.ts",
+      "read": "partial",
+      "reason": "One-line hunk."
+    },
+    {
+      "path": "frontend/src/components/SmartFolderSaveButton.tsx",
+      "read": "partial",
+      "reason": "Both diff hunks in the prompt."
+    },
+    {
+      "path": "frontend/src/components/folder/useFolderFiles.ts",
+      "read": "partial",
+      "reason": "Lines 175-500 and 795-895 in the tree (resolution effect, derived in: state, first-page tracking, pending/loading), plus all diff hunks and the fix diff."
+    },
+    {
+      "path": "frontend/src/components/search/ConditionMenu.tsx",
+      "read": "partial",
+      "reason": "Diff hunks in the prompt only."
+    },
+    {
+      "path": "frontend/src/components/search/InNameNotice.tsx",
+      "read": "full",
+      "reason": "The diff covers the whole component."
+    },
+    {
+      "path": "frontend/src/components/search/SearchFilterChips.tsx",
+      "read": "partial",
+      "reason": "Diff hunks in the prompt only."
+    },
+    {
+      "path": "frontend/src/components/search/SearchQueryHeader.tsx",
+      "read": "partial",
+      "reason": "One diff hunk."
+    },
+    {
+      "path": "frontend/src/components/search/useFileSearch.ts",
+      "read": "partial",
+      "reason": "Diff hunks in the prompt; impossible branch behaviour taken from the diff and earlier rounds."
+    },
+    {
+      "path": "frontend/src/components/search/useLauncherRows.ts",
+      "read": "partial",
+      "reason": "Diff hunks in the prompt."
+    },
+    {
+      "path": "frontend/src/components/videoapp/VideoAppHeader.tsx",
+      "read": "partial",
+      "reason": "The diff hunk."
+    },
+    {
+      "path": "frontend/src/components/videoapp/useVideoApp.ts",
+      "read": "partial",
+      "reason": "The diff hunk."
+    },
+    {
+      "path": "frontend/src/lib/appTarget.ts",
+      "read": "partial",
+      "reason": "Diff hunks."
+    },
+    {
+      "path": "frontend/src/lib/inNameResolution.ts",
+      "read": "partial",
+      "reason": "Every diff hunk in the prompt."
+    },
+    {
+      "path": "frontend/src/lib/listingRequest.ts",
+      "read": "partial",
+      "reason": "Diff hunks."
+    },
+    {
+      "path": "frontend/src/lib/memberTarget.ts",
+      "read": "partial",
+      "reason": "Diff hunks."
+    },
+    {
+      "path": "frontend/src/lib/searchQuery.ts",
+      "read": "partial",
+      "reason": "Every diff hunk in the prompt."
+    },
+    {
+      "path": "frontend/src/lib/smartCollectionEval.ts",
+      "read": "partial",
+      "reason": "Diff hunks."
+    },
+    {
+      "path": "frontend/src/lib/videoAppTarget.ts",
+      "read": "partial",
+      "reason": "Diff hunks."
+    },
+    {
+      "path": "frontend/src/messages-core/en.json",
+      "read": "partial",
+      "reason": "Diff hunks."
+    },
+    {
+      "path": "frontend/src/messages-core/ja.json",
+      "read": "partial",
+      "reason": "Diff hunks."
+    },
+    {
+      "path": "addons/intelligence/tests/test_filtered_search_file_ids_conditions.py",
+      "read": "partial",
+      "reason": "Changed hunk only."
+    },
+    {
+      "path": "addons/intelligence/tests/test_search_negation_filter.py",
+      "read": "full",
+      "reason": "New file in the prompt diff."
+    },
+    {
+      "path": "addons/intelligence/tests/test_search_negation_filter_scope.py",
+      "read": "full",
+      "reason": "New file in the prompt diff."
+    },
+    {
+      "path": "backend/tests/test_filtered_drive_files_contract.py",
+      "read": "partial",
+      "reason": "Changed hunk only."
+    },
+    {
+      "path": "backend/tests/test_search_negation_operators.py",
+      "read": "full",
+      "reason": "New file in the prompt diff."
+    },
+    {
+      "path": "frontend/src/__tests__/appTargetNegation.test.tsx",
+      "read": "full",
+      "reason": "New file in the prompt diff."
+    },
+    {
+      "path": "frontend/src/__tests__/core-search-vocabulary.test.ts",
+      "read": "partial",
+      "reason": "Changed hunks only."
+    },
+    {
+      "path": "frontend/src/components/__tests__/GlobalSearch.negation.test.tsx",
+      "read": "full",
+      "reason": "New file in the prompt diff."
+    },
+    {
+      "path": "frontend/src/components/__tests__/SearchPage.negation.test.tsx",
+      "read": "full",
+      "reason": "New file in the prompt diff, including this fix commit's added case."
+    },
+    {
+      "path": "frontend/src/components/__tests__/SmartFolderSaveButton.negation.test.tsx",
+      "read": "full",
+      "reason": "New file in the prompt diff."
+    },
+    {
+      "path": "frontend/src/components/__tests__/componentFixtureParity.test.tsx",
+      "read": "partial",
+      "reason": "One-line hunk."
+    },
+    {
+      "path": "frontend/src/components/folder/__tests__/useFolderFiles.scope.test.tsx",
+      "read": "partial",
+      "reason": "Changed hunks only."
+    },
+    {
+      "path": "frontend/src/components/readingapp/__tests__/ReadingApp.memberTarget.test.tsx",
+      "read": "partial",
+      "reason": "Changed hunk only."
+    },
+    {
+      "path": "frontend/src/components/search/__tests__/SearchFilterChips.negation.test.tsx",
+      "read": "full",
+      "reason": "New file in the prompt diff."
+    },
+    {
+      "path": "frontend/src/components/search/__tests__/SearchQueryHeader.modified.test.tsx",
+      "read": "partial",
+      "reason": "Changed hunk only."
+    },
+    {
+      "path": "frontend/src/components/search/__tests__/SearchQueryHeader.negation.test.tsx",
+      "read": "full",
+      "reason": "New file in the prompt diff."
+    },
+    {
+      "path": "frontend/src/components/search/__tests__/SearchQueryHeader.scope.test.tsx",
+      "read": "partial",
+      "reason": "Changed hunk only."
+    },
+    {
+      "path": "frontend/src/components/search/__tests__/SearchQueryHeader.sizeDuration.test.tsx",
+      "read": "partial",
+      "reason": "Changed hunk only."
+    },
+    {
+      "path": "frontend/src/components/search/__tests__/useFileSearch.filtered.test.tsx",
+      "read": "partial",
+      "reason": "Changed hunks only."
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoApp.memberTarget.test.tsx",
+      "read": "partial",
+      "reason": "Changed hunks only."
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoApp.negationTargetMenu.test.tsx",
+      "read": "full",
+      "reason": "New file in the prompt diff."
+    },
+    {
+      "path": "frontend/src/lib/__tests__/inNameResolution.negation.test.ts",
+      "read": "full",
+      "reason": "New file in the prompt diff."
+    },
+    {
+      "path": "frontend/src/lib/__tests__/listingRequest.negation.test.ts",
+      "read": "full",
+      "reason": "New file in the prompt diff."
+    },
+    {
+      "path": "frontend/src/lib/__tests__/searchImpossibleConditions.test.ts",
+      "read": "full",
+      "reason": "New file in the prompt diff."
+    },
+    {
+      "path": "frontend/src/lib/__tests__/searchNegationOperators.test.ts",
+      "read": "full",
+      "reason": "New file in the prompt diff."
+    },
+    {
+      "path": "frontend/src/lib/__tests__/searchQuery.test.ts",
+      "read": "partial",
+      "reason": "Changed hunk only."
+    },
+    {
+      "path": "frontend/src/lib/__tests__/searchScopeOperators.test.ts",
+      "read": "partial",
+      "reason": "Changed hunks only."
+    },
+    {
+      "path": "frontend/src/lib/__tests__/searchSuggestions.negation.test.ts",
+      "read": "full",
+      "reason": "New file in the prompt diff."
+    },
+    {
+      "path": "frontend/src/lib/__tests__/semanticSearch.passages.test.ts",
+      "read": "partial",
+      "reason": "Changed hunk only."
+    },
+    {
+      "path": "frontend/src/lib/__tests__/smartCollectionEval.negation.test.ts",
+      "read": "full",
+      "reason": "New file in the prompt diff."
+    }
+  ],
+  "confidence": 78
+}
