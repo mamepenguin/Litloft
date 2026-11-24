@@ -509,6 +509,17 @@ describe("SPEC-CORE-172 sending 1, I9/I18: -in: names", () => {
     expect(listsOf("collections").length + listsOf("smart-folders").length).toBe(lists);
   });
 
+  it("an impossible query shows the empty state, not a held refused notice", async () => {
+    const page = renderSearch({ searchQuery: '-in:"Weekly" tag:x' });
+    expect(await screen.findByText(REFUSED)).toBeInTheDocument();
+
+    page.rerenderPage({ searchQuery: '-in:"Weekly" tag:x -tag:x' });
+    await settle();
+
+    expect(screen.queryByText(REFUSED)).toBeNull();
+    expect(screen.getByText("No matching files found")).toBeInTheDocument();
+  });
+
   it("an exclusion narrows an in: Smart Collection's members on the POST route", async () => {
     renderSearch({
       searchQuery: 'in:"Weekly" -tag:x -type:pdf -path:Old -in:"Trip" -is:favorite has:tag -has:collection',

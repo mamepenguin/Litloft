@@ -352,9 +352,10 @@ export function useFolderFiles({
   const inNameBlocked =
     !impossible && inKey !== "" && activeResolution?.status !== "resolved";
   const inNameState =
-    activeResolution?.status === "failed" ||
-    activeResolution?.status === "tooLarge" ||
-    activeResolution?.status === "refused"
+    !impossible &&
+    (activeResolution?.status === "failed" ||
+      activeResolution?.status === "tooLarge" ||
+      activeResolution?.status === "refused")
       ? activeResolution.status
       : null;
   const resolvedFileIds =
