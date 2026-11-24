@@ -153,7 +153,7 @@ change.
 I4. Drawing the grid for a single shelf does not change the grouping shown in the
 **分類** menu, the grouping remembered for the target, or the URL.
 I5. In the Library under the Folder grouping, a shelf whose key is `<f>/` (or the empty key,
-with `<f>` the root) is titled **このフォルダ** / **This folder** exactly when `<f>` is the
+with `<f>` the root) is titled **このフォルダ** / **This folder** exactly when the
 first page of the chips answer for the current position has arrived and its `base` is
 `<f>`; every other folder shelf, and that shelf while the chips request is loading or has
 failed, keeps the title it had before this change.
