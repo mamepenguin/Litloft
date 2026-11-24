@@ -287,6 +287,19 @@ describe("SPEC-CORE-172 I1: the window still loads its Go to rows when it opens"
 
     expect(wire.calls.filter((c) => c.url.pathname.endsWith("/collections"))).toHaveLength(1);
   });
+
+  it("passing through an impossible query does not load the Go to rows again", async () => {
+    shell();
+    fireEvent.click(screen.getByLabelText("Search"));
+    await settle();
+
+    typeQuery("京都 tag:x -tag:x");
+    await settle();
+    typeQuery("京都 tag:x -tag:x2023");
+    await settle();
+
+    expect(wire.calls.filter((c) => c.url.pathname.endsWith("/collections"))).toHaveLength(1);
+  });
 });
 
 describe("SPEC-CORE-172 I7: an impossible combination requests nothing in the window", () => {

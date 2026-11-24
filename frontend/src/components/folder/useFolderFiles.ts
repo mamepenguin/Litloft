@@ -227,6 +227,9 @@ export function useFolderFiles({
     inKey ? { key: inKey, status: "resolving" } : null,
   );
   const [inRetryToken, setInRetryToken] = useState(0);
+  const inResolutionRef = useRef(inResolution);
+  inResolutionRef.current = inResolution;
+  const resolvedRetryToken = useRef(inRetryToken);
   const parsedRef = useRef(parsed);
   parsedRef.current = parsed;
   const resolutionGeneration = useRef(0);
@@ -289,11 +292,23 @@ export function useFolderFiles({
     hydration.initial != null && !isSearch && !isWatchHistory;
 
   useEffect(() => {
-    if (!inKey || impossible) {
+    if (!inKey) {
       resolutionGeneration.current += 1;
       setInResolution(null);
       return;
     }
+    // An impossible stretch requests nothing but keeps what was resolved for
+    // this key: only a key change, 再試行 or a reload resolves again.
+    if (impossible) return;
+    const held = inResolutionRef.current;
+    if (
+      held?.key === inKey &&
+      held.status !== "resolving" &&
+      resolvedRetryToken.current === inRetryToken
+    ) {
+      return;
+    }
+    resolvedRetryToken.current = inRetryToken;
     const generation = ++resolutionGeneration.current;
     const ctrl = new AbortController();
     setInResolution({ key: inKey, status: "resolving" });

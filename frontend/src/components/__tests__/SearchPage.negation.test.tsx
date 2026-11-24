@@ -491,6 +491,24 @@ describe("SPEC-CORE-172 sending 1, I9/I18: -in: names", () => {
     );
   });
 
+  it("passing through an impossible query keeps the in: key's resolution (I28)", async () => {
+    const page = renderSearch({ searchQuery: 'in:"Weekly" tag:x' });
+    await waitFor(() => expect(wire.calls.some(isFilesQuery)).toBe(true));
+    const evaluated = evaluations().length;
+    const lists = listsOf("collections").length + listsOf("smart-folders").length;
+
+    page.rerenderPage({ searchQuery: 'in:"Weekly" tag:x -tag:x' });
+    await settle();
+    const queriesBefore = wire.calls.filter(isFilesQuery).length;
+    page.rerenderPage({ searchQuery: 'in:"Weekly" tag:x' });
+
+    await waitFor(() =>
+      expect(wire.calls.filter(isFilesQuery).length).toBeGreaterThan(queriesBefore),
+    );
+    expect(evaluations().length).toBe(evaluated);
+    expect(listsOf("collections").length + listsOf("smart-folders").length).toBe(lists);
+  });
+
   it("an exclusion narrows an in: Smart Collection's members on the POST route", async () => {
     renderSearch({
       searchQuery: 'in:"Weekly" -tag:x -type:pdf -path:Old -in:"Trip" -is:favorite has:tag -has:collection',
