@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [],
+  "unspecified_scores": [
+    {
+      "source_reviewer": "claude-read",
+      "index": 0,
+      "frequency": 10,
+      "impact": 1,
+      "reason": "Every addon proxy request reaches db.close() at backend/app/routers/addon_proxy.py:613, but on routes that never queried, Session.close() on a session with no checked-out connection is a no-op, and get_db's second close at backend/app/database.py:708 is idempotent, so the user sees nothing."
+    }
+  ],
+  "specification_compliance": [
+    "addon_proxy.py:613 closes the request Session after every gate (drive scope, pre_check, addon_feature) and before _proxy_request, which matches the stated intent of not pinning a pooled connection while waiting on upstream.",
+    "No DB use follows the close: _proxy_request takes no db, and _accessible_drives (addon_proxy.py:45-49) and _apply_drive_access_filter read config, not the Session. get_unlocked_groups (auth.py:144) does not depend on get_db.",
+    "file_access's checked_drive is read from file.drive at addon_proxy.py:568-570, before the close, so no detached-instance lazy load happens later."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "Any future code added after addon_proxy.py:613 that uses `db` would silently open a new connection (SQLAlchemy Session reuse after close) and pin it again; or, if it touches an ORM instance loaded before the close, it would hit a DetachedInstanceError. Nothing in the code prevents this except the comment."
+  ],
+  "test_coverage": [
+    "backend/tests/test_addon_proxy_releases_db.py exists and targets the connection-release behavior with a fake slow upstream (aclose stubs at lines 69 and 85); I did not read its assertions in full or run it."
+  ],
+  "not_verified": [
+    "Did not run the test suite or test_addon_proxy_releases_db.py.",
+    "Did not read the full diff against origin/develop; verified only the code at the commit around addon_proxy.py:472-648.",
+    "Did not check whether any middleware or other dependency shares the get_db Session for the same request."
+  ],
+  "confidence": 85
+}
