@@ -13,7 +13,7 @@ import {
 } from "./api";
 import { getSemanticAvailability } from "./addons";
 import { MEMBER_ID_LIMIT } from "./inNameResolution";
-import { kindHolds, parseSearchQuery, resolveKinds } from "./searchQuery";
+import { hasNewToken, kindHolds, parseSearchQuery, resolveKinds } from "./searchQuery";
 import { fetchSemanticHits } from "./semanticSearch";
 import { evaluateSmartCollection } from "./smartCollectionEval";
 import type { FileKind, PaginatedResponse, Tag } from "@/types";
@@ -72,8 +72,8 @@ export function appRequests(
 
 /**
  * `null` when the folder is resolved to listing parameters instead. A query
- * with free text is a member target whatever else it holds, as its search page
- * treats it.
+ * with free text or a negated or `has:` token is a member target whatever else
+ * it holds, as its search page treats it.
  */
 export function resolveMemberTarget(
   folder: SmartFolder | null,
@@ -81,7 +81,7 @@ export function resolveMemberTarget(
 ): MemberTarget | null {
   if (folder === null) return null;
   const parsed = parseSearchQuery(folder.query);
-  if (parsed.text === "") return null;
+  if (parsed.text === "" && !hasNewToken(parsed)) return null;
   // A `modified:` part has no listing parameter and no stable listing either,
   // so it is not a member target; the direct target reports it unsupported.
   if ((parsed.modified?.length ?? 0) > 0) return null;
@@ -108,9 +108,11 @@ export async function evaluateMemberTarget(
         sort: "relevance",
         order: "desc",
         includeSceneClip: false,
+        memberLimit: MEMBER_ID_LIMIT,
       },
       { getDriveFiles, getSemanticAvailability, fetchSemanticHits },
     );
+    if (result.overLimit) return { status: "tooLarge" };
     if (!result.complete) return { status: "failed" };
     if (result.files.length > MEMBER_ID_LIMIT) return { status: "tooLarge" };
     return { status: "ready", fileIds: result.files.map((file) => file.id) };

@@ -50,7 +50,9 @@ export type ConditionEntry =
   | "size"
   | "duration"
   | "modified"
-  | "favorite";
+  | "favorite"
+  | "untagged"
+  | "noCollection";
 
 interface ConditionMenuProps {
   drive: string;
@@ -289,36 +291,48 @@ export function ConditionMenu({
   };
 
   const kindOptions = useMemo(() => {
-    const chosen = [...parsed.types, ...(typeFilter ? [typeFilter] : [])];
+    const positive = [...parsed.types, ...(typeFilter ? [typeFilter] : [])];
     return FILE_KINDS.filter((kind) => {
       if (kind === "epub") return false;
-      if (chosen.includes(kind)) return false;
-      if (chosen.some((held) => kindHolds(held, kind) || kindHolds(kind, held))) {
+      if (positive.includes(kind)) return false;
+      if (positive.some((held) => kindHolds(held, kind) || kindHolds(kind, held))) {
+        return false;
+      }
+      if (parsed.excludedTypes.some((excluded) => kindHolds(excluded, kind))) {
         return false;
       }
       return !resolveKinds(typeFilter, [...parsed.types, kind]).impossible;
     });
-  }, [parsed.types, typeFilter]);
+  }, [parsed.types, parsed.excludedTypes, typeFilter]);
 
   const tagOptions = useMemo(() => {
     if (tags.status !== "ready") return [];
     return suggestValues(
       { operator: "tag", partial: tagFilterText, replaceFrom: 0 },
       tags.items,
-      parsed.tags,
+      [...parsed.tags, ...parsed.excludedTags],
     );
-  }, [tags, tagFilterText, parsed.tags]);
+  }, [tags, tagFilterText, parsed.tags, parsed.excludedTags]);
 
   const folderOptions = useMemo(() => {
     if (folders.status !== "ready") return [];
     const needle = fold(folderFilterText);
-    const used = new Set(parsed.folders);
+    const used = new Set([...parsed.folders, ...parsed.excludedFolders]);
     return folders.items
       .filter(
         (node): node is Extract<FolderTreeNode, { kind: "folder" }> =>
           node.kind === "folder",
       )
-      .filter((node) => node.path !== "" && !used.has(node.path) && !hasQuote(node.path))
+      .filter(
+        (node) =>
+          node.path !== "" &&
+          !used.has(node.path) &&
+          !parsed.excludedFolders.some(
+            (excluded) =>
+              node.path === excluded || node.path.startsWith(`${excluded}/`),
+          ) &&
+          !hasQuote(node.path),
+      )
       .map((node) => {
         const path = fold(node.path);
         const last = fold(node.path.split("/").at(-1) ?? "");
@@ -337,12 +351,16 @@ export function ConditionMenu({
       )
       .slice(0, OPTION_LIMIT)
       .map(({ node }) => node);
-  }, [folders, folderFilterText, parsed.folders]);
+  }, [folders, folderFilterText, parsed.folders, parsed.excludedFolders]);
 
   const collectionOptions = useMemo(() => {
     if (collections.status !== "ready") return [];
     const needle = fold(collectionFilterText);
-    const used = new Set(parsed.collections.map((name) => name.toLowerCase()));
+    const used = new Set(
+      [...parsed.collections, ...parsed.excludedCollections].map((name) =>
+        name.toLowerCase(),
+      ),
+    );
     return collections.items
       .filter(
         (collection) =>
@@ -359,7 +377,7 @@ export function ConditionMenu({
       .sort((a, b) => a.group - b.group)
       .slice(0, OPTION_LIMIT)
       .map(({ collection }) => collection);
-  }, [collections, collectionFilterText, parsed.collections]);
+  }, [collections, collectionFilterText, parsed.collections, parsed.excludedCollections]);
 
   const collectionsWithSmartOptions = useMemo(() => {
     const rows: Array<{
@@ -382,7 +400,11 @@ export function ConditionMenu({
           }))
         : []),
     ];
-    const used = new Set(parsed.collections.map((name) => name.toLowerCase()));
+    const used = new Set(
+      [...parsed.collections, ...parsed.excludedCollections].map((name) =>
+        name.toLowerCase(),
+      ),
+    );
     const needle = fold(collectionFilterText);
     const collator = new Intl.Collator(locale, { numeric: true });
     return rows
@@ -404,6 +426,7 @@ export function ConditionMenu({
     smartFolders,
     collectionFilterText,
     parsed.collections,
+    parsed.excludedCollections,
     locale,
   ]);
 
@@ -611,6 +634,7 @@ export function ConditionMenu({
                           type="button"
                           role="menuitem"
                           className={rootItemClass}
+                          disabled={parsed.noTag}
                           onClick={openTags}
                         >
                           {t("filterTag")}
@@ -719,18 +743,51 @@ export function ConditionMenu({
                         </button>
                       );
                     }
-                    return (
-                      <button
-                        key={entry}
-                        type="button"
-                        role="menuitem"
-                        className={rootItemClass}
-                        disabled={parsed.favorite}
-                        onClick={() => choose("is", "favorite")}
-                      >
-                        {t("filterFavorite")}
-                      </button>
-                    );
+                    if (entry === "favorite") {
+                      return (
+                        <button
+                          key={entry}
+                          type="button"
+                          role="menuitem"
+                          className={rootItemClass}
+                          disabled={parsed.favorite || parsed.notFavorite}
+                          onClick={() => choose("is", "favorite")}
+                        >
+                          {t("filterFavorite")}
+                        </button>
+                      );
+                    }
+                    if (entry === "untagged") {
+                      return (
+                        <button
+                          key={entry}
+                          type="button"
+                          role="menuitem"
+                          className={rootItemClass}
+                          disabled={
+                            parsed.noTag || parsed.hasTag || parsed.tags.length > 0
+                          }
+                          onClick={() => choose("-has", "tag")}
+                        >
+                          {t("filterUntagged")}
+                        </button>
+                      );
+                    }
+                    if (entry === "noCollection") {
+                      return (
+                        <button
+                          key={entry}
+                          type="button"
+                          role="menuitem"
+                          className={rootItemClass}
+                          disabled={parsed.noCollection || parsed.hasCollection}
+                          onClick={() => choose("-has", "collection")}
+                        >
+                          {t("filterNoCollection")}
+                        </button>
+                      );
+                    }
+                    return null;
                   })}
                 </>
               )}

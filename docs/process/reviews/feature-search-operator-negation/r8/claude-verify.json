@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "CRITICAL",
+  "findings": [],
+  "verification": [],
+  "unspecified_scores": [],
+  "specification_compliance": [
+    "I10/I19 (spot-checked): addons/intelligence/app/file_matching.py:107-109 KINDS includes `epub`; SearchFilter (230-244) declares exclude_tags/exclude_kinds/exclude_folders/exclude_collections and StrictBool has_tag/has_collection, matching backend/app/routers/internal.py:651-656 FileMatchingRequest field-for-field, both with extra=forbid.",
+    "I1 (addon side): file_matching.py:287-311 omits the six new keys from the /files/matching payload when they are empty or null, so a filter with no new key sends the same body as before.",
+    "I11 (addon side): SearchFilter is dumped as-is into the payload (file_matching.py:305), so new keys are forwarded unchanged after normalisation that mirrors the core validators (internal.py:658-693).",
+    "I3: drives.py:490-506 excludes by case-folded tag name via ~File.tags.any(...), which keeps untagged files.",
+    "I6: drives.py:565-575 has_tag uses File.tags.any(); has_collection uses CollectionItem joined to Collection of the same drive, so Smart Collection results (not CollectionItem rows) do not count.",
+    "I2: /files/matching (internal.py:724-747) calls the same apply_file_filters with all new arguments as the listing routes (drives.py:1099-1104, 1222-1223, 1398-1399, 1470-1471)."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "The commit under review is a submodule/pointer bump for addons/intelligence; any drift between the addon's _normalise_* helpers and the core's normalize_folders/normalize_collections (e.g. folder length or count caps) would break I10 parity without a visible error until a filter is rejected on one side only."
+  ],
+  "test_coverage": [
+    "Did not read the addon's parity-table tests or backend/tests for the new conditions; coverage was not assessed beyond confirming the validators share field names and shapes."
+  ],
+  "not_verified": [
+    "Frontend parser, chips, ConditionMenu, impossible-check and -in: refusal (I7, I8, I9, I14, I15, I16, I18) were not read.",
+    "Smart Collection evaluation early stop and app targets (I12, I13, I17) were not read.",
+    "Exact numeric caps (FOLDER_MAX_LENGTH, COLLECTION_MAX_COUNT, TAG_MAX_COUNT etc.) in the addon were not compared against the core constants.",
+    "_folder_subtree semantics for I5 (sibling prefix and case) were not inspected.",
+    "No tests were run; the tools available are read-only."
+  ],
+  "confidence": 75
+}

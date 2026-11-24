@@ -17,14 +17,18 @@ export interface InNameIo extends SmartCollectionEvalIo {
 export type InNameResolution =
   | { status: "resolved"; collections: string[]; fileIds: string[] | null }
   | { status: "failed" }
-  | { status: "tooLarge" };
+  | { status: "tooLarge" }
+  /** A `-in:` name is only a Smart Collection's, which cannot be expanded here. */
+  | { status: "refused" };
 
 export type InNameSaveCheck = "ok" | "refused" | "failed";
 
 interface ClassifiedNames {
-  /** The names sent as collection names, in the query's order. */
+  /** The positive names sent as collection names, in the query's order. */
   collections: string[];
   smart: SmartFolder[];
+  /** Whether a negated name is only a Smart Collection's. */
+  refused: boolean;
 }
 
 function abortError(): DOMException {
@@ -37,7 +41,8 @@ function throwIfAborted(signal?: AbortSignal): void {
 
 async function classifyNames(
   drive: string,
-  names: readonly string[],
+  positive: readonly string[],
+  negative: readonly string[],
   io: Pick<InNameIo, "getCollections" | "getSmartFolders">,
   signal?: AbortSignal,
 ): Promise<ClassifiedNames | "failed"> {
@@ -51,14 +56,9 @@ async function classifyNames(
   throwIfAborted(signal);
 
   const collectionNames = new Set(collections.map((entry) => entry.name.toLowerCase()));
-  const collectionNamesOnly = names.filter((name) =>
-    collectionNames.has(name.toLowerCase()),
-  );
-  const remaining = names.filter(
-    (name) => !collectionNames.has(name.toLowerCase()),
-  );
-  if (remaining.length === 0) {
-    return { collections: [...collectionNamesOnly], smart: [] };
+  const carries = (name: string) => collectionNames.has(name.toLowerCase());
+  if ([...positive, ...negative].every(carries)) {
+    return { collections: [...positive], smart: [], refused: false };
   }
 
   let smartFolders: SmartFolder[];
@@ -70,56 +70,84 @@ async function classifyNames(
   }
   throwIfAborted(signal);
 
+  const find = (name: string) =>
+    smartFolders.find((folder) => folder.name.toLowerCase() === name.toLowerCase());
+
   const sent: string[] = [];
   const smart: SmartFolder[] = [];
-  for (const name of names) {
-    if (collectionNames.has(name.toLowerCase())) {
-      sent.push(name);
-      continue;
+  for (const name of positive) {
+    if (carries(name)) sent.push(name);
+    else {
+      const match = find(name);
+      if (match) smart.push(match);
+      else sent.push(name);
     }
-    const match = smartFolders.find(
-      (folder) => folder.name.toLowerCase() === name.toLowerCase(),
-    );
-    if (match) smart.push(match);
-    else sent.push(name);
   }
-  return { collections: sent, smart };
+
+  let refused = false;
+  for (const name of negative) {
+    if (!carries(name) && find(name)) refused = true;
+  }
+  return { collections: sent, smart, refused };
 }
 
-/** The drive and the query's `in:` names lower-cased, as a set. */
+function inKeyNames(
+  parsed: Pick<ParsedQuery, "collections" | "excludedCollections">,
+): string[] {
+  return [
+    ...parsed.collections.map((name) => `+${name.toLowerCase()}`),
+    ...parsed.excludedCollections.map((name) => `-${name.toLowerCase()}`),
+  ];
+}
+
+/** The drive and the query's `in:` and `-in:` names with their polarity. */
 export function inNamesKey(
   drive: string,
-  parsed: Pick<ParsedQuery, "collections">,
+  parsed: Pick<ParsedQuery, "collections" | "excludedCollections">,
 ): string {
-  if (parsed.collections.length === 0) return "";
-  const names = [...new Set(parsed.collections.map((name) => name.toLowerCase()))].sort();
-  return `${drive}\u0000${names.join("\u0000")}`;
+  const names = inKeyNames(parsed);
+  if (names.length === 0) return "";
+  return `${drive}\u0000${[...new Set(names)].sort().join("\u0000")}`;
 }
 
 export async function checkInNamesForSave(
   drive: string,
-  parsed: Pick<ParsedQuery, "collections">,
+  parsed: Pick<ParsedQuery, "collections" | "excludedCollections">,
   io: Pick<InNameIo, "getCollections" | "getSmartFolders">,
 ): Promise<InNameSaveCheck> {
-  if (parsed.collections.length === 0) return "ok";
-  const classified = await classifyNames(drive, parsed.collections, io);
+  if (parsed.collections.length === 0 && parsed.excludedCollections.length === 0) {
+    return "ok";
+  }
+  const classified = await classifyNames(
+    drive,
+    parsed.collections,
+    parsed.excludedCollections,
+    io,
+  );
   if (classified === "failed") return "failed";
-  return classified.smart.length > 0 ? "refused" : "ok";
+  return classified.smart.length > 0 || classified.refused ? "refused" : "ok";
 }
 
 export async function resolveInNames(
   drive: string,
-  parsed: Pick<ParsedQuery, "collections">,
+  parsed: Pick<ParsedQuery, "collections" | "excludedCollections">,
   signal: AbortSignal | undefined,
   io: InNameIo,
   now?: number,
 ): Promise<InNameResolution> {
-  if (parsed.collections.length === 0) {
+  if (parsed.collections.length === 0 && parsed.excludedCollections.length === 0) {
     return { status: "resolved", collections: [], fileIds: null };
   }
 
-  const classified = await classifyNames(drive, parsed.collections, io, signal);
+  const classified = await classifyNames(
+    drive,
+    parsed.collections,
+    parsed.excludedCollections,
+    io,
+    signal,
+  );
   if (classified === "failed") return { status: "failed" };
+  if (classified.refused) return { status: "refused" };
   if (classified.smart.length === 0) {
     return {
       status: "resolved",
@@ -141,6 +169,7 @@ export async function resolveInNames(
           order: "desc",
           includeSceneClip: false,
           now,
+          memberLimit: MEMBER_ID_LIMIT,
         },
         io,
       );
@@ -149,6 +178,7 @@ export async function resolveInNames(
       return { status: "failed" };
     }
     throwIfAborted(signal);
+    if (result.overLimit) return { status: "tooLarge" };
     if (!result.complete) return { status: "failed" };
     for (const file of result.files) {
       ids.add(file.id);

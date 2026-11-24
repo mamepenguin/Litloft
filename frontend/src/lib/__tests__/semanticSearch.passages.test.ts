@@ -47,12 +47,18 @@ describe("SPEC-CORE-040 I22 passages are asked for by the results page only", ()
       filter: {
         tags: ["会議"],
         kinds: ["pdf"],
-        favorite: false,
-        liked: false,
+        favorite: null,
+        liked: null,
         folders: [],
         collections: [],
         sizes: [],
         durations: [],
+        exclude_tags: [],
+        exclude_kinds: [],
+        exclude_folders: [],
+        exclude_collections: [],
+        has_tag: null,
+        has_collection: null,
       },
     });
 

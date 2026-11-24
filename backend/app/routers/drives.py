@@ -465,6 +465,12 @@ def apply_file_filters(
     sizes: list[str] | None = None,
     durations: list[str] | None = None,
     modified: list[str] | None = None,
+    exclude_tags: list[str] | None = None,
+    exclude_kinds: list[FileKindParam] | None = None,
+    exclude_folders: list[str] | None = None,
+    exclude_collections: list[str] | None = None,
+    has_tag: bool | None = None,
+    has_collection: bool | None = None,
     drive: str | None = None,
     file_ids: list[str] | None = None,
 ):
@@ -481,7 +487,8 @@ def apply_file_filters(
             File.liked_at.is_not(None) if liked else File.liked_at.is_(None)
         )
     chosen = [name for name in tags or [] if name]
-    if chosen:
+    excluded = [name for name in exclude_tags or [] if name]
+    if chosen or excluded:
         # Folded in Python: SQLite's lower() leaves non-ASCII capitals alone.
         # Not narrowed to this drive's rows: a file moved before tags followed
         # their drive links to its old drive's row, and File.drive on the
@@ -492,6 +499,10 @@ def apply_file_filters(
         for name in chosen:
             query = query.filter(
                 File.tags.any(Tag.id.in_(by_fold[name.lower()]))
+            )
+        for name in excluded:
+            query = query.filter(
+                ~File.tags.any(Tag.id.in_(by_fold[name.lower()]))
             )
     chosen_folders = normalize_folders(folders or [])
     if chosen_folders:
@@ -529,10 +540,49 @@ def apply_file_filters(
             listed if collection_condition is None
             else or_(collection_condition, listed)
         )
+    for excluded_folder in normalize_folders(exclude_folders or []):
+        query = query.filter(~_folder_subtree(excluded_folder))
+    excluded_collection_names = normalize_collections(exclude_collections or [])
+    if excluded_collection_names:
+        if drive is None:
+            raise ValueError("drive is required to resolve collections")
+        wanted = {name.lower() for name in excluded_collection_names}
+        excluded_collection_ids = [
+            collection_id
+            for collection_id, name in db.query(Collection.id, Collection.name).filter(
+                Collection.drive == drive
+            )
+            if name.lower() in wanted
+        ]
+        if excluded_collection_ids:
+            query = query.filter(
+                ~File.id.in_(
+                    db.query(CollectionItem.file_id).filter(
+                        CollectionItem.collection_id.in_(excluded_collection_ids)
+                    )
+                )
+            )
+    if has_tag is not None:
+        query = query.filter(File.tags.any() if has_tag else ~File.tags.any())
+    if has_collection is not None:
+        if drive is None:
+            raise ValueError("drive is required to resolve collections")
+        in_collection = File.id.in_(
+            db.query(CollectionItem.file_id)
+            .join(Collection, Collection.id == CollectionItem.collection_id)
+            .filter(Collection.drive == drive)
+        )
+        query = query.filter(in_collection if has_collection else ~in_collection)
     query = _apply_range_filters(query, sizes, durations, modified)
-    return _apply_kinds_filter(
+    query = _apply_kinds_filter(
         query, [_normalize_kind(kind) for kind in kinds or []]
     )
+    excluded_kind_list = [_normalize_kind(kind) for kind in exclude_kinds or []]
+    if excluded_kind_list:
+        query = query.filter(
+            not_(or_(*(_kind_predicate(kind) for kind in excluded_kind_list)))
+        )
+    return query
 
 
 def _kind_predicate(kind: FileKind):
@@ -978,6 +1028,12 @@ def filtered_drive_files(
     size: list[str] | None = None,
     duration: list[str] | None = None,
     modified: list[str] | None = None,
+    exclude_tag: list[str] | None = None,
+    exclude_type: list[FileKindParam] | None = None,
+    exclude_folder: list[str] | None = None,
+    exclude_collection: list[str] | None = None,
+    has_tag: bool | None = None,
+    has_collection: bool | None = None,
     trust: str | None = None,
     origin: str | None = None,
     exclude_origin: str | None = None,
@@ -998,6 +1054,8 @@ def filtered_drive_files(
         size = normalize_sizes(size or [])
         duration = normalize_durations(duration or [])
         modified = normalize_modified(modified or [])
+        exclude_folder = normalize_folders(exclude_folder or [])
+        exclude_collection = normalize_collections(exclude_collection or [])
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -1038,6 +1096,12 @@ def filtered_drive_files(
         sizes=size,
         durations=duration,
         modified=modified,
+        exclude_tags=exclude_tag,
+        exclude_kinds=exclude_type,
+        exclude_folders=exclude_folder,
+        exclude_collections=exclude_collection,
+        has_tag=has_tag,
+        has_collection=has_collection,
         drive=drive_name,
         file_ids=file_ids,
     )
@@ -1070,6 +1134,12 @@ class FileFiltersQuery(BaseModel):
     size: list[str] | None = None
     duration: list[str] | None = None
     modified: list[str] | None = None
+    exclude_tag: list[str] | None = None
+    exclude_type: list[FileKindParam] | None = None
+    exclude_folder: list[str] | None = None
+    exclude_collection: list[str] | None = None
+    has_tag: bool | None = None
+    has_collection: bool | None = None
     trust: str | None = Field(None, pattern="^(verified|unverified|unreviewed)$")
     origin: str | None = Field(None, min_length=1, max_length=32)
     exclude_origin: str | None = Field(None, min_length=1, max_length=32)
@@ -1145,6 +1215,12 @@ def _list_drive_files(
         size=params.size,
         duration=params.duration,
         modified=params.modified,
+        exclude_tag=params.exclude_tag,
+        exclude_type=params.exclude_type,
+        exclude_folder=params.exclude_folder,
+        exclude_collection=params.exclude_collection,
+        has_tag=params.has_tag,
+        has_collection=params.has_collection,
         trust=params.trust,
         origin=params.origin,
         exclude_origin=params.exclude_origin,
@@ -1315,6 +1391,12 @@ def _folder_counts(
         size=params.size,
         duration=params.duration,
         modified=params.modified,
+        exclude_tag=params.exclude_tag,
+        exclude_type=params.exclude_type,
+        exclude_folder=params.exclude_folder,
+        exclude_collection=params.exclude_collection,
+        has_tag=params.has_tag,
+        has_collection=params.has_collection,
         trust=params.trust,
         origin=params.origin,
         exclude_origin=params.exclude_origin,
@@ -1381,6 +1463,12 @@ def _tag_counts(
         size=params.size,
         duration=params.duration,
         modified=params.modified,
+        exclude_tag=params.exclude_tag,
+        exclude_type=params.exclude_type,
+        exclude_folder=params.exclude_folder,
+        exclude_collection=params.exclude_collection,
+        has_tag=params.has_tag,
+        has_collection=params.has_collection,
         trust=params.trust,
         origin=params.origin,
         exclude_origin=params.exclude_origin,

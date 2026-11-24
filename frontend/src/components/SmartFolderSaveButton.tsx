@@ -252,7 +252,7 @@ export function SmartFolderController({
   const save = useCallback(() => {
     if (checkingRef.current) return;
     const parsed = parseSearchQuery(query.trim());
-    if (parsed.collections.length === 0) {
+    if (parsed.collections.length === 0 && parsed.excludedCollections.length === 0) {
       setSaveOpen(true);
       return;
     }
@@ -281,7 +281,7 @@ export function SmartFolderController({
       setSaving(true);
       try {
         const parsed = parseSearchQuery(query.trim());
-        if (parsed.collections.length > 0) {
+        if (parsed.collections.length > 0 || parsed.excludedCollections.length > 0) {
           const verdict = await checkInNamesForSave(drive, parsed, {
             getCollections,
             getSmartFolders,

@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "CRITICAL",
+  "findings": [],
+  "verification": [],
+  "unspecified_scores": [
+    {
+      "source_reviewer": "claude-read",
+      "index": 0,
+      "frequency": 1,
+      "impact": 2,
+      "reason": "After an in: name fails, is too large or is refused, the user makes the query impossible and then undoes that edit; the same notice comes back with no new resolution (useFolderFiles.ts:302 keeps the held resolution, and :355 only hides it while impossible). The notice is still accurate for that key, and 再試行 stays available."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "index": 1,
+      "frequency": 2,
+      "impact": 4,
+      "reason": "If the user mistypes a collection name after -in:, it goes out as exclude_collection (useFolderFiles.ts:392-393), excludes nothing, and the results look like an unfiltered list, though the chip still shows the mistyped name."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "index": 0,
+      "frequency": 1,
+      "impact": 1,
+      "reason": "When a query with a resolved in: name passes through an impossible state, trackFirstPage (useFolderFiles.ts:451-466) records the resolution as listed after the request-free empty page, so inNamePending (:800-804) is already false when the query becomes possible again. paginatedLoading and the per-subject settled count in FolderBrowser.tsx:671-689 still keep a wrong count from showing, so the user sees at most a brief loading difference."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "index": 1,
+      "frequency": 2,
+      "impact": 4,
+      "reason": "Same behavior as claude-read index 1: if the user mistypes the name in a -in: exclusion, the excluded files still appear and nothing points out the unknown name, other than the chip's own text."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "index": 2,
+      "frequency": 1,
+      "impact": 2,
+      "reason": "Same behavior as claude-read index 0: undoing an impossible edit brings back the held failed, tooLarge or refused notice for an unchanged in: key without resolving again. This matches the documented rule that only a key change, 再試行 or a reload resolves again."
+    }
+  ],
+  "specification_compliance": [
+    "I28 / I18: the in: resolution effect (useFolderFiles.ts:298-348) does not resolve again while the query is impossible and keeps the held resolution for the same inKey, so it resolves again only on a key change, 再試行 or a reload.",
+    "I7 / I23: fetchPage returns an empty page without a request when kinds, range or conditions are impossible or the in: name is blocked (useFolderFiles.ts:376-378), and meaningEligible excludes the same cases (:503-509)."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "trackFirstPage can mark a resolution as listed from a request-free empty page while the query is impossible. Hiding the count afterwards depends on paginatedLoading and on FolderBrowser keying the settled count by subject."
+  ],
+  "test_coverage": [
+    "useFolderFiles.scope.test.tsx asserts inNamePending is true at one point; I did not confirm a test for inNamePending after an impossible stretch."
+  ],
+  "not_verified": [
+    "The backend routes (drives.py, shelves.py, internal.py) and the addon's parity were not read.",
+    "useInfiniteScroll's loading behavior when fetchPage identity changes was not read; I inferred that paginatedLoading covers the gap after an impossible stretch.",
+    "No tests were run (tool-limited)."
+  ],
+  "confidence": 78
+}

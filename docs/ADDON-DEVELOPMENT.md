@@ -595,7 +595,7 @@ Secrets are compared in constant time.
 | `POST /filter-file-ids` | Caller credential | Body `{file_ids: [], trust_tier?}` → `{accessible: [], trust_filtered: bool}`. Keeps the active files in drives the caller can open. With `trust_tier` (`verified` \| `unverified`) it also keeps only that tier; any other value is 422. `trust_filtered` is `true` exactly when `trust_tier` was sent. A core too old to know `trust_tier` ignores it and omits `trust_filtered`, so a caller that asked for a tier and does not get `trust_filtered: true` must treat the list as unfiltered. |
 | `POST /files/bulk-state` | None | Body `{file_ids: []}` → `{statuses: [{id, drive, state}], not_found: []}`. `state` is `active`, `missing` or `trash`. Unknown ids are in `not_found`. |
 | `POST /files/bulk` | None | Body `{file_ids: []}` → `{files: [FileResponse], not_found: []}`, in request order. Missing, trashed and unknown files are in `not_found`. `subtitles` is always `[]`; use `GET /files/{file_id}` or the public API when you need them. |
-| `POST /files/matching` | None | Body `{drive, tags: [], kinds: [], favorite?, liked?, folders: [], collections: [], sizes: [], durations: [], modified: []}` → `{file_ids: []}`, sorted ascending. The ids of the drive's active files matching the same `tag` / `type` / `favorite` / `liked` / `folder` / `collection` / `size` / `duration` / `modified` predicates as `GET /api/drives/{drive}/files`: tags are ANDed, kinds are ORed with `markdown` read as `text` and `epub` accepted as `application/epub+zip` or a name ending `.epub`, and a non-null flag compares `is_favorite` / `liked_at`. Several folders keep the union of their subtrees, compared case-sensitively by whole path segment; several collections keep the union of their items, and only collections of `drive` are considered. `sizes`, `durations` and `modified` are comparisons in the wire form `<operator>:<number>` with `gt`, `gte`, `lt` or `lte`; every comparison must hold. A size is bytes; a duration compares the whole seconds the UI shows, and a NULL duration never passes; a modified value is epoch seconds and a NULL `modified_at` never passes. Unknown keys are `422`, so a caller and the core cannot silently disagree about a filter field. 404 for an unknown drive; password-protected drives answer like any other and no viewer credential is checked. Caps: at most 20 tags after empty-name dropping and case-insensitive dedup, each at most 200 characters; at most 8 kinds after dedup; at most 10 folders of up to 1024 characters, NFC-normalised and trimmed of `/`, deduplicated after normalisation; at most 10 collections of up to 100 characters, trimmed with blanks dropped and deduplicated case-insensitively; at most 4 distinct size comparisons, 4 distinct duration comparisons and 4 distinct modified comparisons, counted after dedup. A size is a whole number from 0 to 2⁵³ − 1; a duration is a number from 0 to 10,000,000 with at most three decimals, written plainly (no exponent, no trailing `.0`); a modified value is a whole number from 0 to 253402300799. An impossible range is not an error and answers no ids. 422 outside these rules. |
+| `POST /files/matching` | None | Body `{drive, tags: [], kinds: [], favorite?, liked?, folders: [], collections: [], sizes: [], durations: [], modified: [], exclude_tags: [], exclude_kinds: [], exclude_folders: [], exclude_collections: [], has_tag?, has_collection?}` → `{file_ids: []}`, sorted ascending. The ids of the drive's active files matching the same `tag` / `type` / `favorite` / `liked` / `folder` / `collection` / `size` / `duration` / `modified` predicates as `GET /api/drives/{drive}/files`: tags are ANDed, kinds are ORed with `markdown` read as `text` and `epub` accepted as `application/epub+zip` or a name ending `.epub`, and a non-null flag compares `is_favorite` / `liked_at`. Several folders keep the union of their subtrees, compared case-sensitively by whole path segment; several collections keep the union of their items, and only collections of `drive` are considered. `exclude_tags` and `exclude_kinds` are ANDed with everything else and drop the files `tags` and `kinds` would keep (`exclude_kinds: ["document"]` drops text, PDF and EPUB files); `exclude_folders` drops each named folder and its subtree, and `exclude_collections` drops the items of each named collection of `drive`, a name matching no collection dropping nothing. `has_tag` and `has_collection` are strict booleans: `true` keeps the files with at least one tag, or in at least one collection of `drive`, and `false` the files with none; a Smart Collection is not a collection. `sizes`, `durations` and `modified` are comparisons in the wire form `<operator>:<number>` with `gt`, `gte`, `lt` or `lte`; every comparison must hold. A size is bytes; a duration compares the whole seconds the UI shows, and a NULL duration never passes; a modified value is epoch seconds and a NULL `modified_at` never passes. Unknown keys are `422`, so a caller and the core cannot silently disagree about a filter field. 404 for an unknown drive; password-protected drives answer like any other and no viewer credential is checked. Caps: at most 20 tags after empty-name dropping and case-insensitive dedup, each at most 200 characters; at most 8 kinds after dedup; at most 10 folders of up to 1024 characters, NFC-normalised and trimmed of `/`, deduplicated after normalisation; at most 10 collections of up to 100 characters, trimmed with blanks dropped and deduplicated case-insensitively; at most 4 distinct size comparisons, 4 distinct duration comparisons and 4 distinct modified comparisons, counted after dedup. `exclude_tags` follows `tags` counted apart from it; `exclude_kinds` follows `kinds`; `exclude_folders` and `exclude_collections` follow `folders` and `collections`. A size is a whole number from 0 to 2⁵³ − 1; a duration is a number from 0 to 10,000,000 with at most three decimals, written plainly (no exponent, no trailing `.0`); a modified value is a whole number from 0 to 253402300799. An impossible range is not an error and answers no ids. 422 outside these rules. |
 | `GET /file_relations?file_id=&drive=&kind=&limit=` | None | List of `{id, file_id_a, file_id_b, kind, created_at, created_by}`. At least one of `file_id` (relations on either side) or `drive` is required, else 400; both together are ANDed. `kind` filters. `limit` defaults to 5000, max 20000. |
 
 #### Secret-gated endpoints (optional secret)
@@ -1715,8 +1715,8 @@ default target) into the conditions to request:
 - `{ usable: true, empty: true, params: null }` — no file of `baseKinds` can
   match, so nothing is requested.
 - `{ usable: false, reason: "unsupported_part" }` — the query holds a negated
-  operator, a duration part, or another part the listing has no parameter for.
-  List the folder's row disabled and do not request it.
+  operator, a `has:` token, a duration part, or another part the listing has no
+  parameter for. List the folder's row disabled and do not request it.
 
 `baseKinds` is the kinds the page lists: non-empty, and every one a leaf kind
 (`document` is the one kind that holds others). Either would silently widen or
@@ -1823,17 +1823,34 @@ query, normalized_search = filtered_drive_files(
     collection=[],
     size=[],
     duration=[],
+    exclude_tag=[],
+    exclude_type=[],
+    exclude_folder=[],
+    exclude_collection=[],
+    has_tag=None,
+    has_collection=None,
     file_ids=None,
 )
 ids = {row[0] for row in query.with_entities(File.id)}
 ```
 
 `filtered_drive_files(db, drive_name, *, path, recursive, search, favorite,
-liked, tag, type, folder, collection, size, duration, modified, file_ids)` answers with a
+liked, tag, type, folder, collection, size, duration, modified, exclude_tag,
+exclude_type, exclude_folder, exclude_collection, has_tag, has_collection,
+file_ids)` answers with a
 pair: `query` selects the drive's active files under those filters, with the
 listing's meaning for each, and `normalized_search` is the NFC-normalised
 search text, or `None` without a search. Narrow your own query to
 `query.with_entities(File.id)`.
+
+- `exclude_tag`, `exclude_type`, `exclude_folder` and `exclude_collection`
+  are the listing's four exclusions with its meaning, and `has_tag` /
+  `has_collection` its two presence booleans: a file carrying an excluded tag
+  or kind, inside an excluded folder's subtree or in an excluded collection is
+  dropped, and the booleans keep the files with or without a tag and in or out
+  of a collection of this drive. Every condition is ANDed with the rest.
+- `has_collection` and a non-empty `collections` or `exclude_collection`
+  resolve only `drive_name`'s collections, so pass the drive they belong to.
 
 - `file_ids` is the `in:` condition the listing takes in a POST body: a file
   passes when it is in one of the named `collection`s or its id is in
@@ -1842,12 +1859,12 @@ search text, or `None` without a search. Narrow your own query to
   (the default) is the query without `in:`. The caller owns the cap: the core's
   routes pass at most 10,000 ids.
 - The listing validates two inputs in FastAPI before calling it, so the caller
-  owns them: `search` is at most 200 characters, and every `type` is a
-  `FileKind` or `"markdown"`.
+  owns them: `search` is at most 200 characters, and every `type` and
+  `exclude_type` is a `FileKind` or `"markdown"`.
 - Given those, it answers as the listing does, including `HTTPException(400)`
   for a `path` holding `..` or starting with `/`, and for a `folder`,
-  `collection`, `size`, `duration` or `modified` that does not normalise. Pass it on from
-  your route.
+  `collection`, `exclude_folder`, `exclude_collection`, `size`, `duration` or
+  `modified` that does not normalise. Pass it on from your route.
 - Its `trust`, `origin` and `exclude_origin` parameters are not part of this
   surface.
 - It filters by the drive it is given and does not check access itself: run

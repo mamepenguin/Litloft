@@ -648,8 +648,14 @@ class FileMatchingRequest(BaseModel):
     sizes: list[str] = Field(default_factory=list)
     durations: list[str] = Field(default_factory=list)
     modified: list[str] = Field(default_factory=list)
+    exclude_tags: list[str] = Field(default_factory=list)
+    exclude_kinds: list[FileKindParam] = Field(default_factory=list)
+    exclude_folders: list[str] = Field(default_factory=list)
+    exclude_collections: list[str] = Field(default_factory=list)
+    has_tag: StrictBool | None = None
+    has_collection: StrictBool | None = None
 
-    @field_validator("tags")
+    @field_validator("tags", "exclude_tags")
     @classmethod
     def validate_tags(cls, tags: list[str]) -> list[str]:
         deduped: dict[str, str] = {}
@@ -666,7 +672,7 @@ class FileMatchingRequest(BaseModel):
             raise ValueError(f"Maximum {_MATCHING_MAX_TAGS} tags")
         return list(deduped.values())
 
-    @field_validator("kinds")
+    @field_validator("kinds", "exclude_kinds")
     @classmethod
     def validate_kinds(cls, kinds: list[FileKindParam]) -> list[FileKind]:
         deduped: dict[FileKind, None] = {}
@@ -676,12 +682,12 @@ class FileMatchingRequest(BaseModel):
             raise ValueError(f"Maximum {_MATCHING_MAX_KINDS} kinds")
         return list(deduped)
 
-    @field_validator("folders")
+    @field_validator("folders", "exclude_folders")
     @classmethod
     def validate_folders(cls, folders: list[str]) -> list[str]:
         return normalize_folders(folders)
 
-    @field_validator("collections")
+    @field_validator("collections", "exclude_collections")
     @classmethod
     def validate_collections(cls, collections: list[str]) -> list[str]:
         return normalize_collections(collections)
@@ -731,6 +737,12 @@ def files_matching(
         sizes=body.sizes,
         durations=body.durations,
         modified=body.modified,
+        exclude_tags=body.exclude_tags,
+        exclude_kinds=body.exclude_kinds,
+        exclude_folders=body.exclude_folders,
+        exclude_collections=body.exclude_collections,
+        has_tag=body.has_tag,
+        has_collection=body.has_collection,
         drive=body.drive,
     )
     return {"file_ids": [row.id for row in query.order_by(File.id).all()]}

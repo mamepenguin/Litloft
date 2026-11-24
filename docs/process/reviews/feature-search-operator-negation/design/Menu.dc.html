@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>＋ 条件の第 1 階層</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:#62625b}a:hover{color:#211922}
+.mi{display:flex;width:100%;align-items:center;padding:8px 12px;text-align:left;font-size:14px;line-height:20px;color:#211922;background:transparent;border:0;font-family:inherit;cursor:pointer}
+.mi:hover{background:#f6f6f3}
+.mi:disabled{opacity:.5;cursor:default}
+.mi:disabled:hover{background:transparent}
+</style>
+</helmet>
+<div style="width: 420px; height: 520px; box-sizing: border-box; background: #ffffff; color: #211922; font-family: -apple-system, system-ui, 'Segoe UI', Roboto, sans-serif; padding: 32px; display: flex; flex-direction: column; gap: 8px">
+  <div style="display: flex; gap: 8px; align-items: center">
+    <span style="display: inline-flex; align-items: center; gap: 4px; border-radius: 999px; background: #e5e5e0; padding: 2px 4px 2px 8px; font-size: 12px; line-height: 16px">
+      <span><b style="font-weight: 600">タグ</b> 旅行</span>
+      <button type="button" aria-label="タグ 旅行 を外す" style="border: 0; background: transparent; color: #62625b; padding: 2px; font-size: 12px; line-height: 12px">×</button>
+    </span>
+    <button type="button" aria-expanded="true" style="display: inline-flex; align-items: center; border-radius: 999px; border: 1px dashed #91918c; background: transparent; padding: 4px 10px; font-size: 12px; color: #211922; font-family: inherit">＋ 条件</button>
+  </div>
+  <div role="menu" style="width: 224px; margin-left: 80px; border-radius: 12px; background: #ffffff; border: 1px solid rgba(145,145,140,0.2); box-shadow: 0 8px 24px rgba(33,25,34,0.12); padding: 4px 0; display: flex; flex-direction: column">
+    <button type="button" role="menuitem" class="mi">タグ</button>
+    <button type="button" role="menuitem" class="mi">種類</button>
+    <button type="button" role="menuitem" class="mi">フォルダ</button>
+    <button type="button" role="menuitem" class="mi">コレクション</button>
+    <button type="button" role="menuitem" class="mi">サイズ</button>
+    <button type="button" role="menuitem" class="mi">長さ</button>
+    <button type="button" role="menuitem" class="mi">更新日</button>
+    <button type="button" role="menuitem" class="mi">お気に入り</button>
+    <button type="button" role="menuitem" class="mi" disabled="disabled">タグなし</button>
+    <button type="button" role="menuitem" class="mi">コレクション未登録</button>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":420,"height":520}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

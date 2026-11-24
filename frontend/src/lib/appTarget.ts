@@ -1,6 +1,7 @@
 import type { ShelvesParams } from "@/lib/api";
 import {
   comparisonWireForm,
+  hasNewToken,
   kindHolds,
   parseSearchQuery,
   resolveKinds,
@@ -52,8 +53,10 @@ const NEGATED_OPERATOR = new RegExp(
 );
 
 /**
- * The listing has no negation. A token written as one is therefore a part the
- * app cannot hand to the endpoint, and the target must not be offered.
+ * The listing has no negation or presence condition. A token written as one is
+ * therefore a part the app cannot hand to the endpoint, and the target must not
+ * be offered. The pattern also catches spellings the parser leaves as text,
+ * such as `-size:`.
  */
 function hasNegatedOperator(query: string): boolean {
   return NEGATED_OPERATOR.test(query);
@@ -94,6 +97,9 @@ export function resolveAppTarget(
   }
 
   const parsed = parseSearchQuery(folder.query);
+  if (hasNewToken(parsed)) {
+    return { usable: false, reason: "unsupported_part" };
+  }
   if (parsed.durations.length > 0 || (parsed.modified?.length ?? 0) > 0) {
     return { usable: false, reason: "unsupported_part" };
   }

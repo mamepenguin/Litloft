@@ -103,6 +103,8 @@ describe("SPEC-CORE-138 menu the first level's order", () => {
       "Length",
       "Modified",
       "Favorites",
+      "Untagged",
+      "In no collection",
     ]);
   });
 });

@@ -1444,6 +1444,29 @@ const SearchResultsBarSmartPlayOperator = (): ReactElement =>
 const SearchResultsBarSmartPlayText = (): ReactElement =>
   searchResultsBarArrangement("smart-play-text");
 
+const NEGATED_LONG_FOLDER = "a".repeat(200);
+
+function SearchChipsNegatedLong(): ReactElement {
+  return (
+    <NextIntlClientProvider locale="en" messages={enMessages}>
+      <div className="flex min-h-screen flex-col bg-bg-primary">
+        <div className="min-w-0 pb-2 pt-5">
+          <SearchQueryHeader
+            drive="fixture"
+            query={`cats -path:${NEGATED_LONG_FOLDER} tag:meeting`}
+            typeFilter={null}
+            sort="relevance"
+            order="desc"
+            smartFolderId={null}
+            includeSceneClip={false}
+            onRemoveType={() => {}}
+          />
+        </div>
+      </div>
+    </NextIntlClientProvider>
+  );
+}
+
 function OpenScoped({ label }: { label: string }): null {
   const scope = useMemo(
     () => ({ label, type: "text" as const, seeAllHref: (q: string) => `/notes?q=${encodeURIComponent(q)}` }),
@@ -2810,6 +2833,7 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "search-results-bar-smart-folder-changed": SearchResultsBarSmartFolderChanged,
   "search-results-bar-smart-play-operator": SearchResultsBarSmartPlayOperator,
   "search-results-bar-smart-play-text": SearchResultsBarSmartPlayText,
+  "search-chips-negated-long": SearchChipsNegatedLong,
   "quick-note-footer-ja": QuickNoteFooterJa,
   "quick-note-footer-en": QuickNoteFooterEn,
   "scoped-search-ja": ScopedSearchJa,

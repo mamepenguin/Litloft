@@ -32,6 +32,7 @@ import {
   comparisonWireForm,
   filterFromParsed,
   filterQueryParam,
+  hasImpossibleConditions,
   hasImpossibleRange,
   parseSearchQuery,
   resolveKinds,
@@ -83,7 +84,7 @@ interface ContinuationAnswer {
 const NO_HITS: SemanticHit[] = [];
 
 type InNameState =
-  | { key: string; status: "resolving" | "failed" | "tooLarge" }
+  | { key: string; status: "resolving" | "failed" | "tooLarge" | "refused" }
   | {
       key: string;
       status: "resolved";
@@ -141,7 +142,7 @@ interface UseFolderFilesReturn {
   inNameBlocked: boolean;
   /** An `in:` query has not produced the first listing page of its resolution yet. */
   inNamePending: boolean;
-  inNameState: "failed" | "tooLarge" | null;
+  inNameState: "failed" | "tooLarge" | "refused" | null;
   retryInName: () => void;
 }
 
@@ -200,6 +201,12 @@ export function useFolderFiles({
     () => hasImpossibleRange(parsed, modified.comparisons),
     [parsed, modified],
   );
+  const conditionsImpossible = useMemo(
+    () => hasImpossibleConditions(parsed, typeFilter ?? null),
+    [parsed, typeFilter],
+  );
+  const impossible =
+    searchKinds.impossible || rangeImpossible || conditionsImpossible;
   const isFavorites = view === "favorites";
   const isRecent = view === "recent" && !isSearch;
   const isContinue = view === "continue" && !isSearch;
@@ -220,6 +227,9 @@ export function useFolderFiles({
     inKey ? { key: inKey, status: "resolving" } : null,
   );
   const [inRetryToken, setInRetryToken] = useState(0);
+  const inResolutionRef = useRef(inResolution);
+  inResolutionRef.current = inResolution;
+  const resolvedRetryToken = useRef(inRetryToken);
   const parsedRef = useRef(parsed);
   parsedRef.current = parsed;
   const resolutionGeneration = useRef(0);
@@ -230,7 +240,7 @@ export function useFolderFiles({
     scrollY: number | null;
     searchCache: SearchCacheEntry | null;
   }>(() => {
-    if (isSearch && searchQuery && parsed.collections.length === 0) {
+    if (isSearch && searchQuery && parsed.collections.length === 0 && parsed.excludedCollections.length === 0) {
       const cached = readSearchCache({
         drive: driveName,
         query: searchQuery.trim(),
@@ -287,6 +297,18 @@ export function useFolderFiles({
       setInResolution(null);
       return;
     }
+    // An impossible stretch requests nothing but keeps what was resolved for
+    // this key: only a key change, 再試行 or a reload resolves again.
+    if (impossible) return;
+    const held = inResolutionRef.current;
+    if (
+      held?.key === inKey &&
+      held.status !== "resolving" &&
+      resolvedRetryToken.current === inRetryToken
+    ) {
+      return;
+    }
+    resolvedRetryToken.current = inRetryToken;
     const generation = ++resolutionGeneration.current;
     const ctrl = new AbortController();
     setInResolution({ key: inKey, status: "resolving" });
@@ -323,15 +345,17 @@ export function useFolderFiles({
       }
     })();
     return () => ctrl.abort();
-  }, [inKey, inRetryToken, driveName]);
+  }, [inKey, inRetryToken, driveName, impossible]);
 
   const activeResolution =
     inResolution && inResolution.key === inKey ? inResolution : null;
   const inNameBlocked =
-    inKey !== "" && activeResolution?.status !== "resolved";
+    !impossible && inKey !== "" && activeResolution?.status !== "resolved";
   const inNameState =
-    activeResolution?.status === "failed" ||
-    activeResolution?.status === "tooLarge"
+    !impossible &&
+    (activeResolution?.status === "failed" ||
+      activeResolution?.status === "tooLarge" ||
+      activeResolution?.status === "refused")
       ? activeResolution.status
       : null;
   const resolvedFileIds =
@@ -349,7 +373,7 @@ export function useFolderFiles({
         // `sortMerged` reorders by hybrid score on the client.
         const backendSort: SortField = sort === "relevance" ? "created_at" : sort;
         const backendOrder: SortOrder = sort === "relevance" ? "desc" : order;
-        if (searchKinds.impossible || rangeImpossible || inNameBlocked) {
+        if (searchKinds.impossible || rangeImpossible || conditionsImpossible || inNameBlocked) {
           return { data: [], total: 0 };
         }
         const kinds = searchKinds.kinds;
@@ -357,11 +381,19 @@ export function useFolderFiles({
           search: parsed.text,
           type: kinds.length === 0 ? undefined : kinds.length === 1 ? kinds[0] : kinds,
           tag: parsed.tags.length > 0 ? parsed.tags : undefined,
-          favorite: parsed.favorite ? true : undefined,
-          liked: parsed.liked ? true : undefined,
+          favorite: parsed.favorite ? true : parsed.notFavorite ? false : undefined,
+          liked: parsed.liked ? true : parsed.notLiked ? false : undefined,
           folder: parsed.folders.length > 0 ? parsed.folders : undefined,
           collection:
             resolvedCollections.length > 0 ? resolvedCollections : undefined,
+          exclude_tag: parsed.excludedTags.length > 0 ? parsed.excludedTags : undefined,
+          exclude_type: parsed.excludedTypes.length > 0 ? parsed.excludedTypes : undefined,
+          exclude_folder: parsed.excludedFolders.length > 0 ? parsed.excludedFolders : undefined,
+          exclude_collection:
+            parsed.excludedCollections.length > 0 ? parsed.excludedCollections : undefined,
+          has_tag: parsed.hasTag || parsed.noTag ? parsed.hasTag : undefined,
+          has_collection:
+            parsed.hasCollection || parsed.noCollection ? parsed.hasCollection : undefined,
           ...(parsed.sizes.length > 0
             ? { size: parsed.sizes.map(comparisonWireForm) }
             : {}),
@@ -407,7 +439,7 @@ export function useFolderFiles({
       });
       return { data: res.data, total: res.meta.total };
     },
-    [isSearch, parsed, modified, searchKinds, rangeImpossible, inNameBlocked, resolvedCollections, resolvedFileIds, driveName, folderPath, sort, order, isFavorites, isSpecialView, isRecentAdded, isLiked, tagFilter, typeFilter, trustFilter],
+    [isSearch, parsed, modified, searchKinds, rangeImpossible, conditionsImpossible, inNameBlocked, resolvedCollections, resolvedFileIds, driveName, folderPath, sort, order, isFavorites, isSpecialView, isRecentAdded, isLiked, tagFilter, typeFilter, trustFilter],
   );
 
   // The listing page 1 that answered for the resolution in force. An `in:`
@@ -473,6 +505,7 @@ export function useFolderFiles({
     parsed.text !== "" &&
     !searchKinds.impossible &&
     !rangeImpossible &&
+    !conditionsImpossible &&
     !inNameBlocked;
   const previousSemanticRef = useRef<{ key: string } | null>(null);
   const semanticRequestId = useRef(0);
@@ -548,6 +581,7 @@ export function useFolderFiles({
     includeSceneClip,
     searchKinds.impossible,
     rangeImpossible,
+    conditionsImpossible,
     runMeaningSearch,
   ]);
 
@@ -629,6 +663,7 @@ export function useFolderFiles({
     parsed.text !== "" &&
     !searchKinds.impossible &&
     !rangeImpossible &&
+    !conditionsImpossible &&
     semanticAvailable &&
     (!includeSceneClip || parsed.hasOperators) &&
     sort === "relevance" &&
@@ -763,6 +798,7 @@ export function useFolderFiles({
 
   const inNameResolving = inNameBlocked && inNameState === null;
   const inNamePending =
+    !impossible &&
     inKey !== "" &&
     inNameState === null &&
     (activeResolution?.status !== "resolved" || listedResolution !== activeResolution);
@@ -847,7 +883,8 @@ export function useFolderFiles({
     isSearch &&
     parsed.text !== "" &&
     !searchKinds.impossible &&
-    !rangeImpossible;
+    !rangeImpossible &&
+    !conditionsImpossible;
   const passagesApplicable =
     passagesEligible && (!availabilityKnown || semanticAvailable);
   const passagesLoading = meaningEligible

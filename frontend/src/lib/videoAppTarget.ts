@@ -1,7 +1,7 @@
 import type { ShelvesParams } from "@/lib/api";
 import { resolveCollectionTarget } from "@/lib/appTarget";
 import { resolveMemberTarget, type MemberTarget } from "@/lib/memberTarget";
-import { comparisonWireForm, parseSearchQuery, resolveKinds } from "@/lib/searchQuery";
+import { comparisonWireForm, hasNewToken, parseSearchQuery, resolveKinds } from "@/lib/searchQuery";
 import type { CollectionSummary } from "@/types";
 import type { SmartFolder } from "@/types/smartFolder";
 
@@ -28,6 +28,9 @@ export function resolveVideoTarget(folder: SmartFolder | null): VideoTarget {
   if (folder === null) return { usable: true, params: { type: VIDEO_ONLY } };
 
   const parsed = parseSearchQuery(folder.query);
+  if (hasNewToken(parsed)) {
+    return { usable: false, reason: "unsupported_part" };
+  }
   if ((parsed.modified?.length ?? 0) > 0) {
     return { usable: false, reason: "unsupported_part" };
   }

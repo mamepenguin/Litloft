@@ -295,6 +295,7 @@ describe("the component fixture's page", () => {
       "search-results-bar-smart-folder-changed",
       "search-results-bar-smart-play-operator",
       "search-results-bar-smart-play-text",
+      "search-chips-negated-long",
       "quick-note-footer-ja",
       "quick-note-footer-en",
       "scoped-search-ja",

@@ -22,6 +22,18 @@ export interface ListingFilters {
   folder?: string | readonly string[];
   /** Each collection name keeps its items. */
   collection?: string | readonly string[];
+  /** The file carries none of these tags. */
+  exclude_tag?: string | readonly string[];
+  /** The file is none of these kinds. */
+  exclude_type?: FileKind | readonly FileKind[];
+  /** The file is in none of these folders or their subfolders. */
+  exclude_folder?: string | readonly string[];
+  /** The file is in none of these collections. */
+  exclude_collection?: string | readonly string[];
+  /** `true` keeps files with a tag, `false` those with none. */
+  has_tag?: boolean;
+  /** `true` keeps files in a collection, `false` those in none. */
+  has_collection?: boolean;
   /** Size comparisons in the wire form (`gt:1073741824`). */
   size?: string | readonly string[];
   /** Duration comparisons in the wire form (`gte:1800`). */
@@ -69,6 +81,22 @@ export function appendListingFilters(
   }
   for (const collection of [params.collection ?? []].flat()) {
     if (collection) searchParams.append("collection", collection);
+  }
+  for (const tag of [params.exclude_tag ?? []].flat()) {
+    if (tag) searchParams.append("exclude_tag", tag);
+  }
+  for (const kind of [params.exclude_type ?? []].flat()) {
+    searchParams.append("exclude_type", kind);
+  }
+  for (const folder of [params.exclude_folder ?? []].flat()) {
+    if (folder) searchParams.append("exclude_folder", folder);
+  }
+  for (const collection of [params.exclude_collection ?? []].flat()) {
+    if (collection) searchParams.append("exclude_collection", collection);
+  }
+  if (params.has_tag !== undefined) searchParams.set("has_tag", String(params.has_tag));
+  if (params.has_collection !== undefined) {
+    searchParams.set("has_collection", String(params.has_collection));
   }
   for (const size of [params.size ?? []].flat()) {
     if (size) searchParams.append("size", size);

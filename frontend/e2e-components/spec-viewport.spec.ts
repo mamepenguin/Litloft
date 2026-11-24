@@ -64,6 +64,7 @@ const AT_THE_PHONE_WIDTH = [
   "scoped-search.spec.ts",
   "search-results-bar.spec.ts",
   "search-results-bar-smart-play.spec.ts",
+  "search-chips-negated.spec.ts",
   "view-transition-push.spec.ts",
   "viewer-zoom.spec.ts",
   "sheet-gesture.spec.ts",

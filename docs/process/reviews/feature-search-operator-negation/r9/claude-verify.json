@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "CRITICAL",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R1",
+      "status": "confirmed",
+      "note": "Reproduced by reading the code. In useFolderFiles.ts:291-296, when `impossible` is true the effect bumps the generation and sets inResolution to null. `impossible` is in the deps at :333 ([inKey, inRetryToken, driveName, impossible]), so the flip back to false re-runs the effect: it sets 'resolving' (:299) and calls resolveInNames (:309) with modifiedNowRef.current. That value is a fresh Date.now(), because runKey (:184-188) changed with q/type. inKey is the same throughout, so this re-resolves on a q/type change. I28 forbids that and I29 forbids re-evaluating the Smart Collection. The r7 triage line 85 records the impossible skip as new in this branch, so it was introduced here. Reaching it needs an edit sequence of in: query -> impossible -> possible again."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "D1",
+      "status": "confirmed",
+      "note": "useLauncherRows.ts:57-59 passes `open && !scope && !impossible` (and `open && !impossible` for tags) as `active`. useDriveOwned (useJumpDestinations.ts:77-90) has `active` in its effect deps and calls load(drive) each time `active` becomes true. useIsAdmin (:97-110) refetches getAuthStatus the same way. So going impossible -> possible re-requests pins, collections, smart folders, the drive summary, auth status, the flat folder tree and the tags. No guard such as a 'loaded for this drive' check prevents it. Whether this breaks I20's 'loads no list' is debatable: these are the launcher's own jump lists, which load on every open today, not the in: resolution lists. The reads are harmless and idempotent."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "D2",
+      "status": "confirmed",
+      "note": "Same mechanism as R1: useFolderFiles.ts:291-296 clears the resolution and :333 depends on `impossible`, so an unchanged inKey resolves again with a new run `now` (:184-191) after an impossible state. The window does not do this. useFileSearch.ts:123-134 returns early without clearing resolutionRef, and :209-210 reuses the held resolution when listKey matches. The page and the window therefore behave differently, and the page breaks I28/I29."
+    }
+  ],
+  "unspecified_scores": [
+    {
+      "source_reviewer": "claude-read",
+      "index": 0,
+      "frequency": 1,
+      "impact": 2,
+      "reason": "Editing an in: query into an impossible state and back on the search page re-loads the lists and re-evaluates the in: Smart Collection with a new now. The user sees a brief resolving state, and at most a slightly different result when the Smart Collection uses relative modified: ranges."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "index": 1,
+      "frequency": 2,
+      "impact": 5,
+      "reason": "A typo in a -in: name is sent as exclude_collection and matches nothing, so files the user meant to exclude stay in the results with no notice. The spec deliberately says 'a name with no collection excludes nothing', and the visible results usually make the mistake noticeable."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "index": 2,
+      "frequency": 2,
+      "impact": 2,
+      "reason": "While a typed query in the search window is momentarily contradictory (e.g. 'tag:a -tag:a'), Go to rows, folder jumps and tag suggestions vanish until the conflict is removed. This can look like suggestions broke mid-edit."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "index": 0,
+      "frequency": 1,
+      "impact": 1,
+      "reason": "Only a query that is impossible by modified: range keeps showing jump rows and suggestions in the window (useLauncherRows.ts:47-54 omits hasImpossibleRange), while the listing still shows nothing. This is a harmless inconsistency."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "index": 1,
+      "frequency": 0,
+      "impact": 2,
+      "reason": "The search cache has a 60-second TTL (searchCache.ts:18) and a deploy reloads the app, so a pre-change entry for a query with a new token can be read only in a sub-minute window across a live upgrade, and revalidation replaces it right away."
+    }
+  ],
+  "specification_compliance": [
+    "I28/I29: the search page re-resolves an unchanged in: key after the query passes through an impossible state (useFolderFiles.ts:291-333). The window does not.",
+    "Spec sending step 1 precedence (impossible checked first, loads no list) is honoured by both the page and the window."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "Toggling `active` in useLauncherRows re-fires seven launcher reads on each impossible -> possible transition while typing.",
+    "The page and window handle a held in: resolution across impossible states differently."
+  ],
+  "test_coverage": [
+    "No test found that asserts the page keeps its in: resolution across an impossible -> possible transition with the in: key unchanged.",
+    "Per the finding, GlobalSearch.negation.test.tsx checks only that an impossible query sends no /collections request, not the transition back. I did not open that test."
+  ],
+  "not_verified": [
+    "Did not run any test or the app; behaviour inferred from reading the code.",
+    "Did not inspect the base commit's useFolderFiles.ts/useLauncherRows.ts directly; that the `impossible` gating was introduced here rests on the r7 triage notes.",
+    "Did not read GlobalSearch.negation.test.tsx or the backend/addon files."
+  ],
+  "confidence": 85
+}
