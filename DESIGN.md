@@ -1446,6 +1446,11 @@ and a folder tree have already taken space the viewport does not know about.
   pane there already covers or owns the width, and a jump in place would move a
   page nobody can see. The width is an attribute on the pane and a stylesheet
   rule, with no transition, so nothing inside the pane re-renders for it.
+- **The PDF Pages rail is a grid of every page**: columns of at least 96px fill
+  the width; each page has a 1px `warm-silver/40` border and a white face in
+  both themes (the paper, not a surface); the current page has a 2px accent
+  outline on the picture and an accent number. Pages are drawn as they come
+  near the visible part.
 
 ### The primary pointer decides whether anything scrolls sideways
 
