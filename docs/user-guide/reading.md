@@ -101,14 +101,16 @@ own sort is not used here.
   collection or Smart Collection stays out of the menu until you tick it there; a shown set
   you saved before collections could be targets starts with every collection unchecked.
 - A collection is always usable as a target: the page shows the books it holds.
-- A Smart Collection whose query has search text (a word, or a condition written with `-`
-  or `!`) is a **member target**: the page lists the books among the files that Smart
-  Collection's search page lists. One whose search page matches more than 10,000 files
-  cannot be used as a target: the page shows **この対象は使えません** / **This target
-  cannot be used** and asks the server for nothing.
-- A Smart Collection without search text that the Reading page cannot use is listed
-  disabled. This includes one whose kinds are not books (images, for example) and one that
-  filters by length. It cannot be chosen.
+- A Smart Collection whose query has search text (a word, or a spelling that is not an
+  operator, such as `-size:` or `!tag:`) is a **member target**: the page lists the books
+  among the files that Smart Collection's search page lists. One whose search page matches
+  more than 10,000 files cannot be used as a target: the page shows **この対象は使えません**
+  / **This target cannot be used** and asks the server for nothing.
+- A Smart Collection with no search text is applied directly, at any size: the query's
+  exclusions and `has:` / `-has:` parts filter the books like tag and folder do.
+- A Smart Collection that filters by length and has no search text is a **member target**
+  when it also holds an exclusion or `has:`, and is then limited to 10,000 files. With
+  neither, the Reading page cannot use it and lists it disabled.
 - If a member target's files cannot be worked out, the page shows **Retry**.
 - A Smart Collection whose kinds miss every book shows **この対象は使えません** / **This
   target cannot be used**, and the page asks the server for nothing.

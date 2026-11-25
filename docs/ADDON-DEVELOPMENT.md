@@ -1513,8 +1513,8 @@ const target =
     ? resolveCollectionTarget(collection, BASE_KINDS)
     : resolveAppTarget(folder, BASE_KINDS);
 
-// A Smart Collection whose query has free text is a member target instead:
-// send `evaluation.fileIds` rather than `target.params`.
+// Some Smart Collections are member targets instead: send `evaluation.fileIds`
+// rather than `target.params`.
 const member = resolveMemberTarget(folder, BASE_KINDS);
 const { evaluation } = useMemberTarget(drive, folder, member);
 
@@ -1711,12 +1711,15 @@ default target) into the conditions to request:
 
 - `{ usable: true, params }` — `params` holds the listing's `type` (always
   within `baseKinds`), plus `search`, `tag`, `folder`, `collection`,
-  `favorite`, `liked` and `size` as the folder's query names them.
+  `favorite`, `liked` and `size` as the folder's query names them, and
+  `exclude_tag`, `exclude_type`, `exclude_folder`, `exclude_collection`,
+  `has_tag` and `has_collection` for a `-` or `has:` part. Spread the whole
+  object into each of the page's requests so none of them is dropped.
 - `{ usable: true, empty: true, params: null }` — no file of `baseKinds` can
   match, so nothing is requested.
-- `{ usable: false, reason: "unsupported_part" }` — the query holds a negated
-  operator, a `has:` token, a duration part, or another part the listing has no
-  parameter for. List the folder's row disabled and do not request it.
+- `{ usable: false, reason: "unsupported_part" }` — the query holds a duration
+  part, a `modified:` part, or another part the listing has no parameter for.
+  List the folder's row disabled and do not request it.
 
 `baseKinds` is the kinds the page lists: non-empty, and every one a leaf kind
 (`document` is the one kind that holds others). Either would silently widen or
@@ -1756,12 +1759,14 @@ parameters plus `path=<that path>`.
 
 ### Members, the collection list and their states
 
-A Smart Collection whose query has free text is a member target: evaluate it
-and send the resulting ids instead of its query's conditions.
+A Smart Collection whose query has free text, or one with an exclusion or a
+`has:` part beside a `duration:` the page cannot send itself, is a member
+target: evaluate it and send the resulting ids instead of its query's
+conditions.
 
 | Name | Import from | Meaning |
 |---|---|---|
-| `resolveMemberTarget(folder, baseKinds)` | `@/lib/memberTarget` | The `MemberTarget` (`{ id, kinds }`) of a Smart Collection with free text, or `null` for one that resolves to listing parameters. `kinds` stays within `baseKinds`, and is empty when none of them meet it. |
+| `resolveMemberTarget(folder, baseKinds, options?)` | `@/lib/memberTarget` | The `MemberTarget` (`{ id, kinds }`) of a Smart Collection with free text, or with an exclusion or `has:` and a `duration:` the page cannot send; `null` for one that resolves to listing parameters. `options.directDuration` (default `false`) is set by a page that sends `duration` itself. `kinds` stays within `baseKinds`, and is empty when none of them meet it. |
 | `evaluateMemberTarget(drive, folder)` | `@/lib/memberTarget` | Evaluates the collection: `{ status: "ready", fileIds }`, `{ status: "failed" }`, or `{ status: "tooLarge" }`. |
 | `MemberTarget`, `MemberEvaluation` | `@/lib/memberTarget` | The two types above. |
 | `useMemberTarget(drive, folder, target)` | `@/components/appshell/useMemberTarget` | One evaluation for the life of the page, re-run on a target change and on `retry`; answers `{ evaluation, retry }`. |
@@ -2017,6 +2022,7 @@ Adding a slot, a prop, a field or an endpoint is not breaking and gets no row.
 
 | Date | What changed | What an addon does instead |
 |---|---|---|
+| 2026-11-25 | `AppTargetParams` and `VideoTargetParams` widened to carry a target's exclusions and `has:` values — `exclude_tag`, `exclude_type`, `exclude_folder`, `exclude_collection`, `has_tag`, `has_collection`, and `favorite` / `liked` as `false` — and a query with a negated or `has:` token is no longer `unsupported_part` | Spread the target's `params` into each request rather than copying named keys, so every exclusion reaches the listing |
 | 2026-11-19 | Recommended's `restrict` no longer carries `watch=unwatched`; it narrows only to the app's target | A `video-discover-recommended` provider must leave out the videos the viewer has watched itself |
 | 2026-11-18 | A new `document-side` slot; on the file page of a file without a player, an id that is a `document-side` entry is drawn only as that slot's tab and no longer from `file-detail-sections`, and the canvas no longer draws `detailed-summary` or the summary note for such a file | Register a document tab in `document-side` with an `i18n_key` and report its availability; do not expect `file-detail-sections` to draw it on those files |
 | 2026-11-12 | `player-side` entries are panels under the player on the wide forms, not tabs beside it; the core chooses the placement, passes `active`, and no longer mounts an entry whose id collides with a core panel or tab id | Treat one entry as one panel, read `active` where it changes what you do, and rename any id that collides with `active-summary`, `chapters`, `info`, `find`, `pages` or `related` |
