@@ -365,7 +365,7 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-CORE-175 | implemented | docs/specs/single-shelf-flat.md | sha256:18de3acb38b6daa8be8a86a4017c8b66c89014652bb4b04391bee87028b790a9 |
 | SPEC-CORE-176 | implemented | docs/specs/single-shelf-flat.md | sha256:18de3acb38b6daa8be8a86a4017c8b66c89014652bb4b04391bee87028b790a9 |
 | SPEC-ADDON-184 | implemented | docs/specs/clips-single-shelf-flat.md | sha256:005ffb5e7cdc9e4e574a3176f04f299fa5cf500e9aaed64ca83860cded006270 |
-| SPEC-CORE-178 | draft | docs/specs/motion-frequency-reduced-motion.md | |
-| SPEC-CORE-179 | draft | docs/specs/motion-frequency-reduced-motion.md | |
-| SPEC-CORE-180 | draft | docs/specs/motion-frequency-reduced-motion.md | |
-| SPEC-ADDON-186 | draft | docs/specs/motion-frequency-reduced-motion.md | |
+| SPEC-CORE-178 | approved | docs/specs/motion-frequency-reduced-motion.md | sha256:7c9e4d333c1235062d6a1e59a2343a133136791ef1b449fe464daa394f424fc0 |
+| SPEC-CORE-179 | approved | docs/specs/motion-frequency-reduced-motion.md | sha256:7c9e4d333c1235062d6a1e59a2343a133136791ef1b449fe464daa394f424fc0 |
+| SPEC-CORE-180 | approved | docs/specs/motion-frequency-reduced-motion.md | sha256:7c9e4d333c1235062d6a1e59a2343a133136791ef1b449fe464daa394f424fc0 |
+| SPEC-ADDON-186 | approved | docs/specs/motion-frequency-reduced-motion.md | sha256:7c9e4d333c1235062d6a1e59a2343a133136791ef1b449fe464daa394f424fc0 |
