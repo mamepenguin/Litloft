@@ -48,7 +48,15 @@ export function ControlButton({
       aria-label={label}
       title={title}
       disabled={disabled}
-      onClick={onClick}
+      onClick={(e) => {
+        onClick();
+        // A pointer press leaves focus here, and the first key press after
+        // it turns that focus into :focus-visible, which holds the bar on
+        // screen. A keyboard press (detail 0) keeps its focus.
+        if (e.detail > 0 && document.activeElement === e.currentTarget) {
+          e.currentTarget.blur();
+        }
+      }}
     >
       {children}
     </button>

@@ -1,0 +1,40 @@
+{
+  "risk": "MEDIUM",
+  "score": 5,
+  "base": 1,
+  "zone_max": "MEDIUM",
+  "modifiers": [],
+  "promotions": [],
+  "zones_touched": [
+    {
+      "path": "frontend/e2e-components/controls-autohide-focus-desktop.spec.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/projects.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/spec-viewport.spec.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/player/MediaControls/CompactControlsPresenter.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/player/MediaControls/PointerControlsPresenter.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/player/MediaControls/__tests__/PointerControlsPresenter.test.tsx",
+      "level": "MEDIUM"
+    }
+  ],
+  "human_zones_touched": [],
+  "protected_paths_touched": [],
+  "docs_only": false,
+  "reasons": [
+    "highest zone MEDIUM (4 points)"
+  ]
+}
