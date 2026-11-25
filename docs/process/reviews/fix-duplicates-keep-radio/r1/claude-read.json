@@ -1,0 +1,122 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "MEDIUM",
+  "findings": [
+    {
+      "id": "CR-1",
+      "origin": "reviewer",
+      "claim": "No test asserts the delete button's text or its count, so the new 'Delete N others' / '他のN件を削除' label (the user-facing point of this change) can regress without any test failing.",
+      "impact": "A later edit that shows the wrong count (e.g. group.files.length instead of filesToDelete.length) or drops the label back to wording that reads as 'delete the marked file' would pass CI, and the user could misread which files get trashed.",
+      "evidence": "frontend/src/__tests__/DuplicatesSection.test.tsx:219,223,255,258,264 match the button only by /Delete/; the old assertions on the exact label 'Delete Selected' were loosened and no replacement asserts 'Delete 2 others' or 'Delete 1 other'. Component label at frontend/src/components/DuplicatesSection.tsx:226,232,234.",
+      "repro": "Mutation: change DuplicatesSection.tsx:226 to t(\"deleteOthers\", { count: group.files.length }), or change en.json deleteOthers to 'Delete', in your head. Every test still passes, because each query is /Delete/ and batchDelete still receives the same ids. Not run.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariant exists; this is a test gap where the code reads right but a regression would go unnoticed.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "In 'keeps the marked file and deletes the others', assert getByRole('button', { name: 'Delete 2 others' }); in the 2-file test, assert 'Delete 1 other' to cover the plural 'one' branch."
+    },
+    {
+      "id": "CR-2",
+      "origin": "reviewer",
+      "claim": "The radio group name attribute `keep-${groupHash}` is not covered by any test, so removing it or making it constant across groups would pass.",
+      "impact": "Without a per-group name, keyboard arrow navigation and native exclusivity would span every expanded group, so marking a file in one group could uncheck the native radio in another. React's controlled `checked` still drives the deletion set, so the trashed files stay correct; only the visual and keyboard behaviour would be wrong.",
+      "evidence": "frontend/src/components/DuplicatesSection.tsx:103 sets name per group; the tests (DuplicatesSection.test.tsx:147-229) render only one group.",
+      "repro": "Mutation: replace name={`keep-${groupHash}`} with name=\"keep\". No test fails, because no test renders two expanded groups. Not run.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariant exists; a test gap on a minor UI property.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Add a two-group test that expands both, marks a file in one, and checks that the other group's checked radio is unchanged."
+    },
+    {
+      "id": "CR-3",
+      "origin": "reviewer",
+      "claim": "The English confirm message reads 'Move 1 files to trash?' for the most common case, a two-file group, because confirmDelete has no plural form; the dialog now sits next to the pluralised 'Delete 1 other'.",
+      "impact": "A cosmetic grammar error in the delete confirmation for every two-file duplicate group in the en locale.",
+      "evidence": "frontend/src/messages-core/en.json:1029 \"Move {count} files to trash?\"; it is used at DuplicatesSection.tsx:233. The change edited the neighbouring key at :1028 but left this one.",
+      "repro": "Expand a 2-file group in the en locale, click 'Delete 1 other': the dialog shows 'Move 1 files to trash?'. Also recorded in docs/process/reviews/fix-duplicates-keep-radio/decisions.md:14.",
+      "introduced": "pre-existing",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Wording only, and pre-existing; it breaks no invariant.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Use \"{count, plural, one {Move # file to trash?} other {Move # files to trash?}}\"."
+    }
+  ],
+  "specification_compliance": [
+    "No invariants file exists for this change, so there is no declared touch-point list to compare against. The diff reaches only DuplicatesSection.tsx (FileRow and DuplicateGroupCard), its test, and the admin.deleteSelected→deleteOthers key in messages-core/en.json and ja.json. No other code references the removed key deleteSelected (Grep over the repo). frontend/src/messages/*.json is gitignored and generated, and it already contains deleteOthers, so it is not an unplanned touch point.",
+    "The deletion set is unchanged: filesToDelete = group.files minus keptFileId (DuplicatesSection.tsx:152). The control type changed from checkbox to radio, and the label now counts the non-kept files.",
+    "No spec under docs/specs/ for this change was found by the glob docs/specs/*dup*. The spec and ledger are implicit touch points and are not reported."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    {
+      "behavior": "The first file in the server's group order is pre-selected as the keeper, so clicking the delete button without changing the radio trashes every other copy.",
+      "frequency": 3,
+      "impact": 3,
+      "reason": "A user who expands a group and confirms right away keeps whichever path the API lists first, which may not be the location they wanted; the files go to trash and can be restored."
+    },
+    {
+      "behavior": "Arrow keys on a focused radio move the keeper within that group (native radio behaviour), which changes which files the delete button will trash.",
+      "frequency": 1,
+      "impact": 2,
+      "reason": "Keyboard navigation inside an expanded group silently changes the marked keeper; the Keep badge and highlighted row move with it, so the change is visible."
+    },
+    {
+      "behavior": "The dialog title and the confirm button both repeat 'Delete N others' / '他のN件を削除' and do not name the kept file or the files to be trashed.",
+      "frequency": 3,
+      "impact": 1,
+      "reason": "Each confirmation shows the count but not the names, so the user relies on the row highlight behind the dialog to know what is kept."
+    }
+  ],
+  "regression_risks": [
+    "Label assertions in tests were loosened to /Delete/, so wording or count regressions on the delete button are not caught (CR-1).",
+    "No multi-group test covers the per-group radio name (CR-2).",
+    "The en plural relies on ICU '#' through next-intl. It is verified manually per decisions.md, and no unit test renders the 'one' branch text."
+  ],
+  "test_coverage": [
+    "'keeps the marked file and deletes the others' checks that selection is exclusive across 3 radios and that batchDelete receives the unmarked ids ['file1','file3']. This would catch a reversal of the keep/delete semantics.",
+    "'expands group…' checks that 2 radios render and the first is checked by default.",
+    "'delete button triggers batch delete API' checks the default keeper path (deletes file2) and the refetch afterwards.",
+    "Not covered: the exact button text and count, the singular branch, the ja label, two groups expanded together, and the batchDelete error path."
+  ],
+  "not_verified": [
+    "Did not run the test suite or the app; mutation results are reasoned, not executed.",
+    "Did not read ConfirmDialog to confirm that the last /Delete/ match is the confirm button and not the dialog title.",
+    "Did not check that next-intl's ICU formatter renders '#' in the en plural, beyond the manual evidence in decisions.md.",
+    "Did not check the backend batchDelete partial-failure handling (errors array ignored, pre-existing)."
+  ],
+  "coverage": [
+    {
+      "path": "frontend/src/components/DuplicatesSection.tsx",
+      "read": "full",
+      "reason": "Read the whole file (1-351)."
+    },
+    {
+      "path": "frontend/src/messages-core/en.json",
+      "read": "partial",
+      "reason": "Read lines 1015-1039, which hold the changed hunk and the surrounding admin keys; also Grep for deleteSelected/deleteOthers across the repo."
+    },
+    {
+      "path": "frontend/src/messages-core/ja.json",
+      "read": "partial",
+      "reason": "Changed line 1028 seen via Grep (deleteOthers: 他の{count}件を削除); the surrounding hunk lines match the diff context. Did not open the rest of the file."
+    },
+    {
+      "path": "frontend/src/__tests__/DuplicatesSection.test.tsx",
+      "read": "full",
+      "reason": "Read the whole file (1-273)."
+    }
+  ],
+  "confidence": 82
+}

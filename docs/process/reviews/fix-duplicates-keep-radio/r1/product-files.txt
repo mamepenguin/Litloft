@@ -1,0 +1,3 @@
+frontend/src/components/DuplicatesSection.tsx
+frontend/src/messages-core/en.json
+frontend/src/messages-core/ja.json
