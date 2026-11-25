@@ -364,3 +364,4 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-CORE-174 | implemented | docs/specs/pdf-pages-grid.md | sha256:aa3a2c67e8b14b095d874a9acf23ccfae0cff883eaa245e07cb3d5b6907dd0fa |
 | SPEC-CORE-175 | implemented | docs/specs/single-shelf-flat.md | sha256:18de3acb38b6daa8be8a86a4017c8b66c89014652bb4b04391bee87028b790a9 |
 | SPEC-CORE-176 | implemented | docs/specs/single-shelf-flat.md | sha256:18de3acb38b6daa8be8a86a4017c8b66c89014652bb4b04391bee87028b790a9 |
+| SPEC-ADDON-184 | draft | docs/specs/clips-single-shelf-flat.md | |
