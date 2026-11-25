@@ -242,8 +242,8 @@ I5. A base kind held by an excluded kind is not in any request's `type`; when no
 I6. A Smart Collection with a new token and more than 10,000 matching files, no free text, and (in Reading, Notes and Clips) no `duration:` is usable in Video, Reading, Notes and Clips, and never shows この対象は使えません.
 I7. In Reading, Notes and Clips a query with a new token and `duration:` and no free text stays a member target; a query with `modified:` stays unusable in every app.
 I8. A folder chip or Library position narrows the target's `folder` and leaves its `exclude_folder` in every request; a tag filter adds to the target's `tag` and leaves its `exclude_tag`.
-I10. A Smart Collection that the Target menu, Manage… or `?target=` treats as usable in an app is, once chosen, the app's target (direct or member), never resolved to the default target; one they treat as unusable is never applied.
 I9. Two direct targets of one drive that differ only in an exclusion or a `has:` value never read each other's Discover cache entries.
+I10. A Smart Collection that the Target menu, Manage… or `?target=` treats as usable in an app is, once chosen, the app's target (direct or member), never resolved to the default target; one they treat as unusable is never applied.
 
 ## Revises
 
