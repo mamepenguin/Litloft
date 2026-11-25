@@ -56,8 +56,10 @@ export function CompactControlsPresenter({
           "select-none [-webkit-user-select:none] [-webkit-touch-callout:none]",
           "transition-opacity duration-200 ease-out motion-reduce:transition-none",
           // Keyboard users must be able to reach the bar even once the
-          // idle timer has faded it out.
-          "focus-within:opacity-100 focus-within:pointer-events-auto",
+          // idle timer has faded it out. Not focus-within: a click leaves
+          // focus on the button it pressed, which would hold the bar on
+          // screen after the timer hid it.
+          "has-[:focus-visible]:opacity-100 has-[:focus-visible]:pointer-events-auto",
           visible ? "opacity-100" : "opacity-0 pointer-events-none",
         ].join(" ")}
       >

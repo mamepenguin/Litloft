@@ -1,0 +1,5 @@
+frontend/e2e-components/controls-autohide-focus-desktop.spec.ts
+frontend/e2e-components/projects.ts
+frontend/e2e-components/spec-viewport.spec.ts
+frontend/src/components/player/MediaControls/CompactControlsPresenter.tsx
+frontend/src/components/player/MediaControls/PointerControlsPresenter.tsx

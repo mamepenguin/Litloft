@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "MEDIUM",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "CR-1",
+      "status": "confirmed",
+      "note": "Code path confirmed by reading. ControlButton.tsx:45-52 is a plain <button> with no blur and no mousedown preventDefault, so a click leaves focus on it. PointerControlsPresenter.tsx:95 and CompactControlsPresenter.tsx:62 make the bar opaque and pointer-events-auto whenever a descendant matches :focus-visible. ShortcutsProvider.tsx:72-79 treats only INPUT, TEXTAREA, SELECT and contenteditable as editing, so with a BUTTON focused the video-player shortcuts (useVideoShortcuts.ts:22-87: space, arrows, p, m, f) fire on document keydown at :111-114 with preventDefault, and focus stays on the button. Chromium's focus-visible heuristic (a non-modifier keydown while a mouse-focused element has focus makes that element match :focus-visible, independent of preventDefault) then pins the bar again. The e2e spec controls-autohide-focus-desktop.spec.ts:28-37 only covers click, idle, then Tab, with no shortcut keypress in between. I could not run a browser, so the last step relies on documented Chromium behavior rather than an observed run. Compared with the base this is not a regression, because focus-within pinned the bar on every click; the fix just doesn't cover this mixed mouse-and-keyboard path."
+    }
+  ],
+  "unspecified_scores": [
+    {
+      "source_reviewer": "claude-read",
+      "index": 0,
+      "frequency": 4,
+      "impact": 3,
+      "reason": "When the viewer clicks a bar button such as Play and then uses a keyboard shortcut (arrows to seek, M, Space), the focused button can turn :focus-visible and the bar stays on screen over playback until focus moves elsewhere."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "index": 1,
+      "frequency": 1,
+      "impact": 1,
+      "reason": "Once the idle timer has faded the bar, it ignores clicks even when a clicked control still has focus; in practice moving the mouse onto the frame re-shows it first, so the user rarely notices."
+    }
+  ],
+  "specification_compliance": [
+    "The change replaces focus-within with has-[:focus-visible] in the pointer and compact presenters (PointerControlsPresenter.tsx:95, CompactControlsPresenter.tsx:62), so the bar can hide after a mouse click and still comes back on keyboard focus, as the commit intends."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "Pointer behavior while the bar is hidden now depends only on the visible flag and on :focus-visible, which the browser decides heuristically; Chromium, WebKit and Gecko differ at the edges, for example key presses after a mouse focus."
+  ],
+  "test_coverage": [
+    "controls-autohide-focus-desktop.spec.ts covers click, idle hide, then Tab re-show for the pointer and compact layouts.",
+    "No test covers a click followed by a global shortcut keypress, which is the CR-1 path.",
+    "PointerControlsPresenter.test.tsx:278-280 only asserts that the class string is present, because jsdom does not evaluate :focus-visible."
+  ],
+  "not_verified": [
+    "Did not run Playwright or a real browser, so whether Chromium/WebKit marks the mouse-focused button :focus-visible after a preventDefaulted shortcut keydown is inferred from known browser behavior, not observed.",
+    "Did not read the idle-timer and visibility hook to see whether keyboard shortcuts also re-arm visibility independently.",
+    "Did not review TouchControlsPresenter.tsx beyond its grep match."
+  ],
+  "confidence": 75
+}

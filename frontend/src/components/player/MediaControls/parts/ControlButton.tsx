@@ -2,6 +2,8 @@
 
 import type { ReactNode } from "react";
 
+import { releasePointerFocus } from "./pointerFocus";
+
 /**
  * The backdrop is a black frame, so theme tokens would render pale
  * controls on it in light mode.
@@ -48,7 +50,11 @@ export function ControlButton({
       aria-label={label}
       title={title}
       disabled={disabled}
-      onClick={onClick}
+      onClick={(e) => {
+        onClick();
+        // detail is 0 for a press made with Enter or Space.
+        if (e.detail > 0) releasePointerFocus(e.currentTarget);
+      }}
     >
       {children}
     </button>

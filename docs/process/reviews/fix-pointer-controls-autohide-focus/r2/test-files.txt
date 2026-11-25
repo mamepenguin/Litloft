@@ -1,0 +1,1 @@
+frontend/src/components/player/MediaControls/__tests__/PointerControlsPresenter.test.tsx

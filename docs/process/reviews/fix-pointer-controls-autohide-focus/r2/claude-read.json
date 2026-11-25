@@ -1,0 +1,122 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "MEDIUM",
+  "findings": [
+    {
+      "id": "CR-2",
+      "origin": "reviewer",
+      "claim": "VolumeSlider releases focus only from its own onPointerUp and, unlike SeekBar, never calls setPointerCapture, so whether the blur runs depends on the browser sending the pointerup of a drag released outside the 80px input to that input.",
+      "impact": "If a browser targets that pointerup at whatever element is under the cursor, a viewer who drags the volume past the end of the slider and then presses any key leaves the volume input focused and :focus-visible, so the bar stays over playback. The focused input also swallows the player shortcuts, because ShortcutsProvider skips INPUT targets.",
+      "evidence": "frontend/src/components/player/MediaControls/parts/VolumeSlider.tsx:73 has only onPointerUp, with no onPointerDown or setPointerCapture. frontend/src/components/player/MediaControls/parts/SeekBar.tsx:141-142 captures the pointer and 155-158 releases focus on pointerup, and 162-164 says outright that a pointer released outside the input is a case to handle. The e2e volume test (controls-autohide-focus-desktop.spec.ts:65-74) clicks the middle of the slider and never releases outside it.",
+      "repro": "not_reproduced. Proposed check: in the volume e2e case, mouse.down at the slider's centre, mouse.move to x = box.x + box.width + 60, mouse.up, press 'm', then waitOffFrame. I believe Chromium's native slider drag captures mouse events on the input, so this may pass there; I have not checked Firefox or WebKit.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "No invariants are declared. This is ordinary mouse use, and the fix may not fully cover a path that a sibling control already guards."
+      },
+      "severity": "LOW",
+      "proposed_fix": "Mirror SeekBar: add onPointerDown={(e) => e.currentTarget.setPointerCapture?.(e.pointerId)} to the volume input, or add a drag-release-outside case to the e2e spec."
+    }
+  ],
+  "specification_compliance": [
+    "There is no invariants file, so there is no touch-point list to compare against. The diff touches the two mouse-layout presenters (focus-within replaced by has-[:focus-visible]), the three focusable control parts used in those presenters (ControlButton, SeekBar, VolumeSlider), a new pointerFocus helper, one new desktop e2e spec, and the two spec registries.",
+    "The registries are consistent: controls-autohide-focus-desktop.spec.ts sits at the same position in projects.ts:60 and spec-viewport.spec.ts:160, so the ordered toEqual at spec-viewport.spec.ts:185 holds.",
+    "r1 CR-1 (click followed by a shortcut key pins the bar) is addressed. ControlButton.tsx:53-57 blurs after a pointer click (detail > 0), and the e2e case at controls-autohide-focus-desktop.spec.ts:40-52 now presses ArrowRight between the click and the idle wait.",
+    "Every focusable element in PointerControlsPresenter and CompactControlsPresenter is a ControlButton, a SeekBar or a VolumeSlider (PointerControlsPresenter.tsx:101-188, CompactControlsPresenter.tsx:71-118), so all of them now release pointer focus. The SettingsSheet popover is rendered outside the faded bar container.",
+    "Calling onScrubEnd twice is harmless. SeekBar.tsx:155-158 calls onScrubEnd and then blur(), which fires onBlur={onScrubEnd} at :164 synchronously, but endScrub at useMediaControlsState.ts:290-298 returns early once scrubTimeRef is null."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    {
+      "behavior": "After any mouse click on a control-bar button, the seek bar or the volume slider, keyboard focus moves to the document body, so a Tab press afterwards starts from the top of the page instead of continuing from the clicked control.",
+      "frequency": 2,
+      "impact": 2,
+      "reason": "Triggered by clicking a control and then pressing Tab; the user sees focus jump to the start of the page's tab order instead of the next control."
+    },
+    {
+      "behavior": "A click on a ControlButton that arrives with detail > 0 from an assistive technology (for example a screen reader's activate command, which some browsers dispatch as a click with detail 1) also blurs the button, so focus lands on the body.",
+      "frequency": 0,
+      "impact": 3,
+      "reason": "Needs a screen reader, which this single-user tool's user does not use; the AT user would lose their place in the bar."
+    },
+    {
+      "behavior": "A touch tap on the seek bar or a ControlButton in the touch layout also drops focus, because SeekBar and ControlButton are shared and releasePointerFocus does not check the pointer type.",
+      "frequency": 5,
+      "impact": 1,
+      "reason": "Triggered by any tap on touch devices; nothing is visible because touch has no keyboard focus ring, so the behavior is harmless."
+    }
+  ],
+  "regression_risks": [
+    "Any new focusable element added to the mouse-layout bar must remember to call releasePointerFocus, or the r1 symptom comes back for that element. Nothing enforces this, and the e2e only exercises Play, Seek and Volume.",
+    "VolumeSlider relies on pointerup reaching the input without pointer capture (CR-2), so behavior may differ between browsers.",
+    "Existing unit tests use fireEvent.click, whose detail defaults to 0, so they take the keyboard branch and never exercise the blur. Tests that call .focus() and then click (watchedBand.visibility.test.tsx:381, :401) keep focus as before."
+  ],
+  "test_coverage": [
+    "E2E: controls-autohide-focus-desktop.spec.ts covers, in both the pointer and compact layouts, a Play click followed by ArrowRight and then hide, then Tab and re-show. In both layouts it covers a seek-bar click followed by 'm' and then hide. In the pointer layout it covers a volume-slider click followed by 'm' and then hide. Removing any of the three releasePointerFocus calls should fail the matching case, provided Chromium flips a mouse-focused element to :focus-visible on a key press, as the fix commit messages report.",
+    "Not covered: a volume or seek drag released outside the input, the Settings, Skip, Mute and Fullscreen buttons (they share ControlButton, so the Play case stands in for them), and keyboard activation (Enter/Space, detail 0) keeping focus, which the presenters' class string alone does not show.",
+    "Unit: only the class-string assertion changed (PointerControlsPresenter.test.tsx:278-281). There is no unit test for releasePointerFocus or for ControlButton's detail branch."
+  ],
+  "not_verified": [
+    "Did not run Playwright or the unit tests. Whether the new e2e cases pass, and whether they fail with the fix reverted, is inferred from reading the code.",
+    "Did not confirm how Chromium, Firefox or WebKit target the pointerup of a native range drag released outside the input (CR-2).",
+    "Did not read SettingsSheet to see whether it returns focus to the Settings button on close.",
+    "Did not read peak-jump.serve.ts or the autoHideMs value used by the fixture."
+  ],
+  "coverage": [
+    {
+      "path": "frontend/e2e-components/controls-autohide-focus-desktop.spec.ts",
+      "read": "full",
+      "reason": "Read the whole file."
+    },
+    {
+      "path": "frontend/e2e-components/projects.ts",
+      "read": "full",
+      "reason": "Read the whole file."
+    },
+    {
+      "path": "frontend/e2e-components/spec-viewport.spec.ts",
+      "read": "partial",
+      "reason": "Read lines 140-194: the changed AT_THE_DESKTOP_WIDTH entry and the parity test that consumes it."
+    },
+    {
+      "path": "frontend/src/components/player/MediaControls/CompactControlsPresenter.tsx",
+      "read": "full",
+      "reason": "Read the whole file."
+    },
+    {
+      "path": "frontend/src/components/player/MediaControls/PointerControlsPresenter.tsx",
+      "read": "full",
+      "reason": "Read the whole file."
+    },
+    {
+      "path": "frontend/src/components/player/MediaControls/parts/ControlButton.tsx",
+      "read": "full",
+      "reason": "Read the whole file."
+    },
+    {
+      "path": "frontend/src/components/player/MediaControls/parts/SeekBar.tsx",
+      "read": "full",
+      "reason": "Read the whole file."
+    },
+    {
+      "path": "frontend/src/components/player/MediaControls/parts/VolumeSlider.tsx",
+      "read": "full",
+      "reason": "Read the whole file."
+    },
+    {
+      "path": "frontend/src/components/player/MediaControls/parts/pointerFocus.ts",
+      "read": "full",
+      "reason": "Read the whole file."
+    },
+    {
+      "path": "frontend/src/components/player/MediaControls/__tests__/PointerControlsPresenter.test.tsx",
+      "read": "partial",
+      "reason": "Read lines 70-119 (the seek-bar scrub tests) and 255-294 (the changed auto-hide block)."
+    }
+  ],
+  "trajectory": "Yes, the design is being patched one control at a time. 9e5949876 added a branch to ControlButton: a click with detail > 0 while the button is focused blurs it. This guesses pointer versus keyboard input from event.detail. acf56fdf1 moved that check into releasePointerFocus and added the same blur to SeekBar and VolumeSlider, guessing pointer input there from onPointerUp. So each round adds the same pointer-versus-keyboard guess to another kind of control, while the bar-level rule (has-[:focus-visible]) stays the same. acf56fdf1 also removed nothing: it dropped the inline activeElement check from ControlButton but kept it inside the helper. bfdc7a15d changes docs only. Because of this per-control approach, any focusable element added to the bar later must opt in, and VolumeSlider's opt-in has no pointer capture, which SeekBar's has (CR-2).",
+  "confidence": 75
+}

@@ -1,0 +1,92 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "MEDIUM",
+  "findings": [
+    {
+      "id": "CR-1",
+      "origin": "reviewer",
+      "claim": "After a mouse click on a control-bar button, any later keypress (the player's Space/Arrow/M/F/P shortcuts, which ShortcutsProvider handles and preventDefaults without moving focus) can make the still-focused clicked button match :focus-visible under the browser's keyboard-modality heuristic, so the bar is pinned visible again via has-[:focus-visible] — the very symptom this change targets, on a mixed mouse+keyboard path the new e2e test does not exercise.",
+      "impact": "A desktop viewer who clicks Play and then seeks or toggles with the keyboard shortcuts may find the control bar stays on top of the video until focus leaves the bar, the same as before the fix.",
+      "evidence": "frontend/src/components/player/MediaControls/PointerControlsPresenter.tsx:95 and CompactControlsPresenter.tsx:62 pin the bar on has-[:focus-visible]; frontend/src/components/player/hooks/useVideoShortcuts.ts:22-87 binds space/arrows/m/f/p globally; frontend/src/components/ShortcutsProvider.tsx:73-113 only skips INPUT/TEXTAREA/SELECT targets, so a focused BUTTON keeps focus while shortcuts fire; frontend/e2e-components/controls-autohide-focus-desktop.spec.ts:29-34 only checks click then idle, with no keypress between.",
+      "repro": "not_reproduced. Proposed check: in the new e2e spec, after play.click() press 'ArrowRight' (or 'm'), move the mouse off the frame and poll opacity for 0; if Chromium flips the focused Pause button to :focus-visible on the keypress, opacity stays 1.",
+      "introduced": "unverified",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "No invariants are declared; this is ordinary use (mouse plus keyboard shortcuts), and the fix may not fully cover it, but nothing declared is broken."
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add an e2e case that does click → shortcut keypress → idle and asserts opacity 0. If it fails, blur a mouse-activated control button after its click, or apply the has-[:focus-visible] override only when keyboard navigation moved focus into the bar."
+    }
+  ],
+  "specification_compliance": [
+    "No declared invariants file exists for this change, so there is no touch-point list to compare the diff against; Bucket A is unavailable and no place can be called 'outside the list'. The diff reaches: the two mouse-layout presenters (Pointer, Compact), one new desktop e2e spec, the two e2e project registries that must list every spec (projects.ts DESKTOP_ONLY and spec-viewport.spec.ts AT_THE_DESKTOP_WIDTH, kept in the same order as the parity test at spec-viewport.spec.ts:184-185 requires), and one unit test assertion.",
+    "The change brings the mouse layouts in line with the existing precedent in TouchControlsPresenter.tsx:108-112, which already uses has-[:focus-visible] for the same reason.",
+    "Registry edits are consistent: the new spec name is inserted at the same position in both lists, so the ordered toEqual at spec-viewport.spec.ts:185 holds."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    {
+      "behavior": "A mouse click on a control-bar button followed by a keyboard shortcut press may make the focused button match :focus-visible and pin the bar visible again.",
+      "frequency": 3,
+      "impact": 3,
+      "reason": "Triggered by clicking a bar button and then using Space/Arrow/M shortcuts while watching; the user sees the bar stay over the video until they click elsewhere."
+    },
+    {
+      "behavior": "While the bar is hidden by the idle timer, mouse-focused controls inside it no longer get pointer-events back, so the faded bar cannot be clicked through until the timer shows it again (previously focus-within restored pointer-events whenever a clicked control kept focus).",
+      "frequency": 5,
+      "impact": 1,
+      "reason": "Triggered by idling after a click; moving the mouse re-shows the bar, so the user sees no practical difference."
+    }
+  ],
+  "regression_risks": [
+    "Keyboard users who reach the bar by Tab still get it back (covered by the e2e Tab step); focus placed in the bar programmatically after a mouse action may or may not count as :focus-visible depending on browser heuristics.",
+    "Safari/WebKit :has() and :focus-visible support is assumed; the e2e runs only in the Chromium desktop project."
+  ],
+  "test_coverage": [
+    "Unit: PointerControlsPresenter.test.tsx:278-281 only asserts the class string; there is no equivalent unit assertion for CompactControlsPresenter, and jsdom cannot evaluate :focus-visible anyway.",
+    "E2E: controls-autohide-focus-desktop.spec.ts covers both pointer (600px) and compact (400px) layouts: click → idle → opacity 0, then Tab → opacity 1. Reverting either presenter to focus-within would fail the opacity-0 poll in that layout.",
+    "Not covered: a click on SeekBar/VolumeSlider (range inputs) followed by idle, and click → keyboard shortcut → idle (see CR-1)."
+  ],
+  "not_verified": [
+    "Did not run the e2e or unit tests; I could not confirm that the new spec passes or that Chromium flips a mouse-focused button to :focus-visible after a keypress handled by a shortcut.",
+    "Did not check whether a mouse-clicked input[type=range] (SeekBar, VolumeSlider) matches :focus-visible in Chromium, which would pin the bar after a scrub.",
+    "Did not read the idle-timer/visibility hook that computes `visible`, or the peak-jump fixture arrangement itself.",
+    "Did not check Safari/Firefox behavior."
+  ],
+  "coverage": [
+    {
+      "path": "frontend/e2e-components/controls-autohide-focus-desktop.spec.ts",
+      "read": "full",
+      "reason": "Read the whole file."
+    },
+    {
+      "path": "frontend/e2e-components/projects.ts",
+      "read": "full",
+      "reason": "Read the whole file."
+    },
+    {
+      "path": "frontend/e2e-components/spec-viewport.spec.ts",
+      "read": "partial",
+      "reason": "Read lines 130-189: the changed AT_THE_DESKTOP_WIDTH constant and the parity test that consumes it."
+    },
+    {
+      "path": "frontend/src/components/player/MediaControls/CompactControlsPresenter.tsx",
+      "read": "full",
+      "reason": "Read the whole file."
+    },
+    {
+      "path": "frontend/src/components/player/MediaControls/PointerControlsPresenter.tsx",
+      "read": "full",
+      "reason": "Read the whole file."
+    },
+    {
+      "path": "frontend/src/components/player/MediaControls/__tests__/PointerControlsPresenter.test.tsx",
+      "read": "partial",
+      "reason": "Read lines 260-289: the changed auto-hide describe block."
+    }
+  ],
+  "confidence": 75
+}
