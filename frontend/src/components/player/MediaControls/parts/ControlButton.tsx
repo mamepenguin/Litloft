@@ -2,6 +2,8 @@
 
 import type { ReactNode } from "react";
 
+import { releasePointerFocus } from "./pointerFocus";
+
 /**
  * The backdrop is a black frame, so theme tokens would render pale
  * controls on it in light mode.
@@ -50,12 +52,8 @@ export function ControlButton({
       disabled={disabled}
       onClick={(e) => {
         onClick();
-        // A pointer press leaves focus here, and the first key press after
-        // it turns that focus into :focus-visible, which holds the bar on
-        // screen. A keyboard press (detail 0) keeps its focus.
-        if (e.detail > 0 && document.activeElement === e.currentTarget) {
-          e.currentTarget.blur();
-        }
+        // detail is 0 for a press made with Enter or Space.
+        if (e.detail > 0) releasePointerFocus(e.currentTarget);
       }}
     >
       {children}

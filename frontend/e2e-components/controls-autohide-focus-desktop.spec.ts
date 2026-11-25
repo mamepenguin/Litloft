@@ -25,6 +25,11 @@ async function startPlaying(page: Page, root: string): Promise<void> {
   await page.locator(`${root} button[aria-label="Play"]`).click();
 }
 
+async function clickSlider(page: Page, selector: string): Promise<void> {
+  const box = (await page.locator(selector).boundingBox())!;
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+}
+
 async function waitOffFrame(page: Page, width: number, root: string): Promise<void> {
   // Off the frame, so pointer movement stops re-arming the idle timer.
   await page.mouse.move(width + 200, 10);
@@ -46,12 +51,24 @@ for (const layout of LAYOUTS) {
     await expect.poll(() => opacity(page, layout.root)).toBe(1);
   });
 
-  test(`${layout.name}: a clicked seek bar does not hold the bar`, async ({ page }) => {
+  test(`${layout.name}: a clicked seek bar does not hold the bar, even after a key press`, async ({
+    page,
+  }) => {
     await openPeakJump(page, layout.width);
     await startPlaying(page, layout.root);
-    // An input keeps the focus a click gives it.
-    const seek = (await page.locator(`${layout.root} input[type="range"]`).first().boundingBox())!;
-    await page.mouse.click(seek.x + seek.width / 2, seek.y + seek.height / 2);
+    await clickSlider(page, `${layout.root} input[aria-label="Seek"]`);
+    await page.keyboard.press("m");
     await waitOffFrame(page, layout.width, layout.root);
   });
 }
+
+test("pointer: a clicked volume slider does not hold the bar, even after a key press", async ({
+  page,
+}) => {
+  const root = LAYOUTS[0].root;
+  await openPeakJump(page, LAYOUTS[0].width);
+  await startPlaying(page, root);
+  await clickSlider(page, `${root} input[aria-label="Volume"]`);
+  await page.keyboard.press("m");
+  await waitOffFrame(page, LAYOUTS[0].width, root);
+});

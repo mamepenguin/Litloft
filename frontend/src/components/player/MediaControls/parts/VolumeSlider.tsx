@@ -3,6 +3,8 @@
 import type { CSSProperties } from "react";
 import { useTranslations } from "next-intl";
 
+import { releasePointerFocus } from "./pointerFocus";
+
 const TRACK_PX = 4;
 const THUMB_PX = 12;
 
@@ -68,6 +70,7 @@ export function VolumeSlider({ value, onChange }: VolumeSliderProps) {
         step={0.05}
         value={fraction}
         onChange={(e) => onChange(Number(e.target.value))}
+        onPointerUp={(e) => releasePointerFocus(e.currentTarget)}
       />
     </div>
   );

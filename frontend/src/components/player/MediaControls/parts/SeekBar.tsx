@@ -4,6 +4,8 @@ import { useCallback, useRef, useState, type CSSProperties } from "react";
 import { useTranslations } from "next-intl";
 import type { WatchedPiece } from "@/lib/watchedRangesStore";
 
+import { releasePointerFocus } from "./pointerFocus";
+
 const ROW_PX = 40;
 const LINE_PX = 12;
 /** Clearance between the knob and the frame's bottom edge. */
@@ -150,7 +152,10 @@ export function SeekBar({
           if (SCRUB_KEYS.has(e.key)) onScrubStart(displayTime);
         }}
         onChange={(e) => onScrubChange(Number(e.target.value))}
-        onPointerUp={onScrubEnd}
+        onPointerUp={(e) => {
+          onScrubEnd();
+          releasePointerFocus(e.currentTarget);
+        }}
         onKeyUp={(e) => {
           if (SCRUB_KEYS.has(e.key)) onScrubEnd();
         }}
