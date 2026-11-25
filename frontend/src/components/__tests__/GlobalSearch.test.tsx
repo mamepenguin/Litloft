@@ -488,7 +488,9 @@ describe("GlobalSearch", () => {
   describe("SPEC-CORE-178 I1 opens without an entrance animation", () => {
     const entranceClasses = () =>
       Array.from(document.querySelectorAll<HTMLElement>("[class]")).filter((el) =>
-        /\banimate-fade-in(-scale)?\b/.test(el.getAttribute("class") ?? ""),
+        (el.getAttribute("class") ?? "")
+          .split(/\s+/)
+          .some((name) => name.startsWith("animate-") && name !== "animate-spin"),
       );
 
     const phone = (matches: boolean) => {
