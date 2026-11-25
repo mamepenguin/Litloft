@@ -12,3 +12,8 @@ evidence: Isolated stack from this worktree (scripts/dev/r5_stack.py clone + up,
   (5) Knowledge connections graph (2029 nodes), quick mouse drag (150 px in ~50 ms) and release: reduce -> the viewport transform identical at release and at +100..+600 ms; no-preference -> the graph kept moving after release (tx 247 -> 458 -> 526 -> 551 ... 565), as before.
   Screenshots: docs/process/reviews/feature-motion-frequency-reduced-motion/r5/*.png (gitignored). Not exercised: the passage highlight reached through a palette result: in this data the palette's "Content" match for ファラデーの伝 opened the file without a highlight parameter, so the highlight was driven through the ?highlight= URL that a citation link uses; intelligence transcript follow and detailed-summary jump under reduced motion; CollectionPanel, useTreeAutoReveal and useMiniPlayer scrolls; first-frame was read in the first rAF, not from a paint trace.
 pending: none
+author_resolutions:
+- claude-read:R2 fix: the GlobalSearch and QuickNote I1 checks now reject every animate-* class except animate-spin, as ContextMenu.test.tsx does; adding animate-slide-up-bar to the cheat sheet and quick note panels failed 4 tests and restoring them passed 110 (7cf22702c).
+- claude-read:R1 accept: every added test checks a declared invariant (I1, I2, I4-I7, I9, I12); the touch points are complete for product code and name the one existing test whose setup changes.
+- unspecified 1 accept: a vertical drag after the long-press fired scrolls natively and the row never had a transform, so nothing visible differs.
+- unspecified 2 accept: the clamp running only on open or a new position predates this change, which swapped useEffect for useLayoutEffect; no ContextMenu caller changes its rows' height while open.
