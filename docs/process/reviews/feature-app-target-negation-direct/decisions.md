@@ -12,3 +12,9 @@ evidence: Parallel stack from `scripts/dev/r5_stack.py clone` + `up` (frontend i
   (e) Video `-type:video` and `has:tag -has:tag`: "0 videos", "No files" on Discover and Library, no files/shelves/tag-count request after load. Reading `-type:document -type:archive`: "0 books", "This target cannot be used" (en locale), no listing request after reload. Notes `-type:document`: "0 notes", "No notes yet", no listing request after reload. Clips `-type:document`: "0 clips", "No clips in this Target"; after reload one request `files?type=text&origin=webclip&limit=1` without target keys (loadDriveClipCount, the drive-wide clip count), no other listing request.
   Screenshots (local, not in the repo): /var/folders/2y/kl95qc715xbfm9ntqmm88qt40000gp/T/claude-chrome-screenshots-sRE6UQ/screenshot-1795614081596-0.jpg (Video -type:video empty), screenshot-1795614178457-2.jpg (Reading この対象は使えません), screenshot-1795614274570-3.jpg (Notes empty), screenshot-1795614336092-4.jpg (Clips empty), screenshot-1795614168590-1.jpg (Reading -type:document, 7 archives).
 pending: none
+author_resolutions:
+- claude-read:TP-1 accept: a new acceptance test file written from the spec alone; it adds coverage and touches no product path.
+- claude-read:TP-2 accept: a new acceptance test file for I3 (provider restrict) and I9 (Discover cache), whose product files are in the touch points.
+- claude-read:TP-3 accept: the reversal under SPEC-CORE-099 I6 as revised by this spec; only the two rows pinning the reversed behaviour were rewritten.
+- unspecified:1 accept: a query with free text is always a member target first in every caller, so the direct params with `search` and exclusions are never sent.
+- unspecified:2 accept: Video re-resolves kinds with `file_type` right after, so omitting it from `hasImpossibleConditions` never changes the result.

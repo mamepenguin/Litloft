@@ -1,0 +1,3 @@
+frontend/src/lib/appTarget.ts
+frontend/src/lib/memberTarget.ts
+frontend/src/lib/videoAppTarget.ts

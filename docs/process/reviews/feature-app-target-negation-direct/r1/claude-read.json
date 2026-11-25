@@ -1,0 +1,138 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "TP-1",
+      "origin": "reviewer",
+      "claim": "The new test file frontend/src/lib/__tests__/appTargetDirectExclusions.test.ts is reached by the diff but is not named in the spec's touch-point list.",
+      "impact": "No user impact. The test pins the resolver output of resolveAppTarget, resolveVideoTarget, resolveReadingTarget and resolveMemberTarget, and checks that the direct wire form equals the evaluateSmartCollection wire form (I4). It is a test-only place the plan did not list.",
+      "evidence": "The diff adds frontend/src/lib/__tests__/appTargetDirectExclusions.test.ts as a new file of 273 lines. The touch points name only appTarget.test.ts and appTargetNegation.test.tsx as tests under frontend/src.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is a gap in the touch-point list for a test-only file. It breaks no invariant.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Add the file to the touch-point list, or accept it as an unplanned test addition."
+    },
+    {
+      "id": "TP-2",
+      "origin": "reviewer",
+      "claim": "The new test file frontend/src/components/videoapp/__tests__/VideoApp.directTargetProviders.test.tsx is reached by the diff but is not in the touch-point list.",
+      "impact": "No user impact. It covers I3 for provider restrict calls on Discover and on the See all page, and I9 for keying the Discover cache. Those behaviours live in restrict.ts and discoverCache.ts, which are listed, but this test location is not.",
+      "evidence": "The diff adds a new file of 281 lines. The touch points list videoapp product files (restrict.ts, discoverCache.ts and others) and no videoapp __tests__ path.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is a test-only place missing from the plan. It breaks no invariant.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Add the file to the touch-point list."
+    },
+    {
+      "id": "TP-3",
+      "origin": "reviewer",
+      "claim": "frontend/src/lib/__tests__/readingAppTarget.test.ts is modified by the diff but is not in the touch-point list. The list names readingAppTarget.ts only as 'read through', and its list of rewritten existing tests names only appTarget.test.ts and appTargetNegation.test.tsx.",
+      "impact": "No user impact. An existing test that pinned '-tag:read' and '!type:pdf' as unsupported_part was rewritten to the reversed behaviour. It is a third reversed test the plan's 'Existing tests that pin the behaviour this spec reverses' entry does not mention.",
+      "evidence": "The diff changes readingAppTarget.test.ts at around lines 91-107. The test 'refuses the negated operator %s' is replaced with 'SPEC-CORE-177 carries a parsed negation as the listing key' and a search-text/member-target case.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "The list of existing tests that this spec reverses is incomplete. No invariant is broken.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Add readingAppTarget.test.ts to the list of reversed existing tests."
+    }
+  ],
+  "specification_compliance": [
+    "Answer to the review question: the diff reaches three places outside the touch-point list, all of them test files: lib/__tests__/appTargetDirectExclusions.test.ts (new), components/videoapp/__tests__/VideoApp.directTargetProviders.test.tsx (new) and lib/__tests__/readingAppTarget.test.ts (modified). Every product file and doc file in the diff (appTarget.ts, memberTarget.ts, videoAppTarget.ts, the three user guides and ADDON-DEVELOPMENT.md) is listed. docs/specs/* and INDEX.md are implicit.",
+    "Several listed touch points are not changed by this diff: the addons/knowledge tests, the submodule pointer and every component file. This matches the spec's plan, which says params are spread at those sites and the addon PR comes later.",
+    "I1 holds: every clause of hasImpossibleConditions (searchQuery.ts:538-576) needs a new-token field (excludedTags, noTag, notFavorite, notLiked, noCollection, excludedTypes, excludedFolders, excludedCollections). A query without a new token therefore reaches the same branches as before. resolveMemberTarget keeps free text as member (memberTarget.ts:89-92).",
+    "I2 and I7: resolveMemberTarget returns null for no text plus a new token, unless there is a duration and directDuration is false (memberTarget.ts:89-92). resolveVideoMemberTarget passes directDuration true (videoAppTarget.ts:90). resolveAppTarget still refuses duration and modified (appTarget.ts:93-95).",
+    "I3 at the request sites I sampled: restrict.ts:32-39 spreads ...target. The knowledge addon's notesConditions spreads target.params into its listing, tag-shelves and folder-counts requests (addons/knowledge/frontend/notesapp/listing.ts:42-46, 67-68, 87-88, 105-106).",
+    "I5: excluded kinds are removed from type (appTarget.ts:105-108). Video returns empty when an excluded kind holds video (videoAppTarget.ts:58-62). An impossible query returns empty with params null in both resolvers.",
+    "I9: the Discover cache key serialises the whole params object (discoverCache.ts:32, 53), so it includes the new keys."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    {
+      "behavior": "For a query with free text and an exclusion (e.g. 'cats -path:Work'), resolveAppTarget and resolveVideoTarget now return usable params carrying both search and exclude keys, where before they returned unsupported_part.",
+      "frequency": 0,
+      "impact": 1,
+      "reason": "Every caller checks the member target first or ORs the two results (VideoAppHeader.tsx:15, useVideoApp.ts:172, readingAppTarget.ts:39, useNotesTarget.ts:230-231), so the user sees no difference."
+    },
+    {
+      "behavior": "resolveVideoTarget calls hasImpossibleConditions(parsed) without folder.file_type, while resolveAppTarget passes it.",
+      "frequency": 0,
+      "impact": 1,
+      "reason": "Video's separate excluded-kind and kinds checks give the same empty result for a fixed file_type, so the user sees nothing different."
+    }
+  ],
+  "regression_risks": [
+    "Any request site in Video or Reading that copies named keys from the target params, rather than spreading them, would silently drop exclusions. I checked restrict.ts and the addon's listing.ts but did not audit every component listed in the touch points.",
+    "The member path for Notes and Clips relies on the two-argument call of resolveMemberTarget (directDuration defaults to false). A future caller that passes true while not sending duration would silently widen its results."
+  ],
+  "test_coverage": [
+    "Resolver mutations I tried in my head are all caught: dropping the notFavorite, notLiked, has_tag, has_collection or exclude_* lines (caught by SINGLE_TOKENS / ALL_KEYS), dropping the excludedTypes filter on type (caught by the step 3 table), dropping hasImpossibleConditions from either resolver (caught by the IMPOSSIBLE tables), and flipping directDuration in resolveVideoMemberTarget (caught by the I7 resolver test).",
+    "The I5 Reading test asserts only that no request goes out. It does not check that the revised I5 'この対象は使えません' line is shown for an empty target.",
+    "Notes and Clips acceptance (I3, I6 and I7 in those apps) is not tested in this repository; the spec defers it to the addon PR (SPEC-ADDON-185)."
+  ],
+  "not_verified": [
+    "I did not run any tests.",
+    "The task names commit 9cf130c74 (a docs commit), but I reviewed the diff supplied in the prompt and could not confirm with git what that commit alone contains.",
+    "I did not audit every videoapp and readingapp component for spreading the params; I sampled restrict.ts and the tag merges in LibraryFace and ShelfPage.",
+    "I did not verify that the backend shelves and tag-count endpoints accept every new key; I only grepped for exclude_folder in drives.py and shelves.py."
+  ],
+  "coverage": [
+    {
+      "path": "frontend/src/lib/appTarget.ts",
+      "read": "full",
+      "reason": "Read the whole file."
+    },
+    {
+      "path": "frontend/src/lib/memberTarget.ts",
+      "read": "full",
+      "reason": "Read the whole file."
+    },
+    {
+      "path": "frontend/src/lib/videoAppTarget.ts",
+      "read": "full",
+      "reason": "Read the whole file."
+    },
+    {
+      "path": "frontend/src/__tests__/appTargetNegation.test.tsx",
+      "read": "partial",
+      "reason": "Read only the diff hunks; unchanged lines 26-102 (the mocks and helpers) were not read."
+    },
+    {
+      "path": "frontend/src/components/videoapp/__tests__/VideoApp.directTargetProviders.test.tsx",
+      "read": "full",
+      "reason": "New file; its whole content appears in the diff."
+    },
+    {
+      "path": "frontend/src/lib/__tests__/appTarget.test.ts",
+      "read": "partial",
+      "reason": "Read only the diff hunk around lines 116-160."
+    },
+    {
+      "path": "frontend/src/lib/__tests__/appTargetDirectExclusions.test.ts",
+      "read": "full",
+      "reason": "New file; its whole content appears in the diff."
+    },
+    {
+      "path": "frontend/src/lib/__tests__/readingAppTarget.test.ts",
+      "read": "partial",
+      "reason": "Read only the diff hunks at the import and around lines 91-107."
+    }
+  ],
+  "confidence": 82
+}
