@@ -275,9 +275,9 @@ describe("PointerControlsPresenter", () => {
       expect(root?.className).toContain("pointer-events-none");
     });
 
-    it("comes back for keyboard users via focus-within", () => {
+    it("comes back for keyboard users via focus-visible", () => {
       const { container } = renderControls({ visible: false });
-      expect(container.firstElementChild?.className).toContain("focus-within:opacity-100");
+      expect(container.firstElementChild?.className).toContain("has-[:focus-visible]:opacity-100");
     });
 
     it("respects prefers-reduced-motion", () => {
