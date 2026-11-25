@@ -72,8 +72,10 @@ I2), so no backend change is needed. For the owner using the apps on a phone.
 7. `resolveAppTarget` drops its `hasNegatedOperator` refusal and accepts the new tokens as
    step 2 states. The spellings it caught that the parser does not negate (`-size:`,
    `-duration:`, `!tag:` and the like) are free text to the parser, so such a query is a
-   member target, which is decided before the direct resolver, as today.
-   `resolveVideoTarget` drops its `hasNewToken` refusal in the same way.
+   member target, which is decided before the direct resolver, as today. Called on its
+   own for such a query, `resolveAppTarget` returns what it returns for any free text
+   today: usable, with the text in `search`. `resolveVideoTarget` drops its `hasNewToken`
+   refusal in the same way.
 8. Usability: every place that decides whether a Smart Collection can be chosen (the Target
    menu, Manage…, `?target=`, Home shortcuts) keeps today's expression, direct usable or
    member non-null, so a target is never listed usable and then resolved to the default.
@@ -134,9 +136,11 @@ narrow.
   usability.
 - Smart Collections with free text: unchanged (member path).
 - Smart Collections with a new token and no free text: requested directly. They were
-  usable up to 10,000 members; now they are usable at any size. The files listed are the
+  usable up to 10,000 members; now they are usable at any size, except one that also holds
+  `duration:` in Reading, Notes and Clips (member path, step 6). The files listed are the
   same as on the member path, since without free text the member evaluation is the listing
-  with the same keys (SPEC-CORE-172 I2) and nothing else.
+  with the same keys (SPEC-CORE-172 I2) and nothing else. In Reading, Notes and Clips one
+  that also holds `duration:` stays a member target with its 10,000-member bound.
 - The search page, the search window, Smart Collection play, Ask's scope, the
   `smart-collection-members` route and `in:` resolution: unchanged (they do not use the
   app target resolvers).
@@ -145,8 +149,10 @@ narrow.
 - The knowledge addon's Notes and Clips use the core's `resolveAppTarget` and
   `resolveMemberTarget`; their request builders spread the target's params and fix `type`
   and `origin` / `exclude_origin` last, so no addon code changes. Their acceptance tests
-  are written in the addon repository under SPEC-ADDON-185 (tests only), merged there
-  first, and the core PR carries the pointer bump.
+  are written in the addon repository under SPEC-ADDON-185 (tests only). The addon CI runs
+  its frontend tests against core `develop`, so the order is: the core PR (resolvers, core
+  tests, docs) merges first; then the addon PR with the tests; then a core PR that bumps
+  the `addons/knowledge` pointer, after which SPEC-ADDON-185's citations count.
 - `docs/ADDON-DEVELOPMENT.md` documents `resolveAppTarget`'s `unsupported_part` and
   member-target rules; it is updated to the new rules.
 
@@ -159,11 +165,19 @@ As today for each state (section 2). Nothing new is logged.
 - A Smart Collection such as `-path:レシピ` shows its first cards as soon as one listing
   request answers, as with no target, instead of after every member page is read.
 - Such a Smart Collection over 10,000 files, previously この対象は使えません in Video and
-  Reading and disabled in Notes and Clips, is now usable.
+  Reading and disabled in Notes and Clips, is now usable, unless in Reading, Notes or Clips
+  it also holds `duration:`.
+- The tag filter of Video's Library and of Clips no longer offers a tag the target's own
+  `tag:` names (the face leaves out `params.tag`), as for a target without a new token
+  today; on the member path it was offered.
 - Counts, lists, order and grouping are the same as the member path gave for the same
   query, up to its 10,000-member bound.
-- `docs/user-guide/search.md`, `video.md` and `reading.md` say that only a Smart
-  Collection with search words is limited to 10,000 files.
+- `docs/user-guide/search.md`, `video.md` and `reading.md` are updated: what counts as
+  search text (a word, or a spelling the parser does not read as an operator, such as
+  `-size:` or `!tag:`; no longer a `-` condition), that only such a Smart Collection, or in
+  Reading one with a length and an exclusion, is limited to 10,000 files, and that a
+  Smart Collection filtering by length can be chosen in Reading when it also holds an
+  exclusion or `has:`.
 
 ### 10. Non-functional
 
@@ -196,14 +210,19 @@ As today for each state (section 2). Nothing new is logged.
   `frontend/src/components/readingapp/LibraryFace.tsx`,
   `frontend/src/components/readingapp/ReadingShelfPage.tsx`,
   `frontend/src/components/readingapp/useDiscover.ts`.
+- Existing tests that pin the behaviour this spec reverses, rewritten to the new
+  invariants under `## Revises`: `frontend/src/lib/__tests__/appTarget.test.ts` (the
+  UNUSABLE list for negated spellings) and `frontend/src/__tests__/appTargetNegation.test.tsx`
+  (sending step 9 resolvers and the I12 / I17 member evaluation).
 - `frontend/src/components/appshell/useMemberTarget.ts`,
   `frontend/src/components/appshell/TargetMenu.tsx`.
 - `addons/knowledge/frontend/notesapp/useNotesTarget.ts`,
   `addons/knowledge/frontend/notesapp/listing.ts`,
   `addons/knowledge/frontend/library/useRailEntries.ts`,
   `addons/knowledge/frontend/clipsapp/requests.ts` (read; no product change planned),
-  `addons/knowledge/frontend/clipsapp/__tests__/` and the notes app's tests (new
-  acceptance tests, SPEC-ADDON-185).
+  `addons/knowledge/frontend/clipsapp/__tests__/`, `addons/knowledge/frontend/__tests__/`
+  and `addons/knowledge/frontend/library/__tests__/` (new acceptance tests,
+  SPEC-ADDON-185).
 - `addons/knowledge` submodule pointer.
 - Endpoints, read with new keys: `GET /api/drives/{drive}/files`,
   `GET /api/drives/{drive}/shelves`, `GET /api/drives/{drive}/tag-counts`,
@@ -219,10 +238,11 @@ I1. A Smart Collection target with neither free text nor a new token sends exact
 I2. A Smart Collection target whose query has no free text and no `modified:`, holds a new token, and holds no part the app's direct resolver refuses otherwise, is never a member target: the app reads no listing page to evaluate it and sends no `file_ids` body for it.
 I3. Under such a direct target, every listing, shelves, tag-count and folder-count request the app sends, in every face, the See all and shelf pages, Video's count and restrict calls, and Notes' and Clips' requests, carries each of the query's exclusions and `has:` values as the key named in Normal flow step 2, alongside the face's own conditions.
 I4. For a query with no free text and at most 10,000 matching files, the files an app lists under the direct target, and their count, equal the ids `evaluateSmartCollection` returns for the same query, drive and `file_type`, restricted to the app's base kinds (and, in Notes and Clips, to the app's own `origin` condition).
-I5. A base kind held by an excluded kind is not in any request's `type`, and every request carries the excluded kinds in `exclude_type`; when no base kind is left, or `hasImpossibleConditions` holds for the query, the target is usable, every face shows its empty state, and no listing, shelves, tag-count or folder-count request is sent.
-I6. A Smart Collection with a new token and more than 10,000 matching files and no free text is usable in Video, Reading, Notes and Clips, and never shows この対象は使えません.
+I5. A base kind held by an excluded kind is not in any request's `type`; when no base kind is left, or `hasImpossibleConditions` holds for the query, the target is usable, every face shows its empty state, and no listing, shelves, tag-count or folder-count request is sent.
+I6. A Smart Collection with a new token and more than 10,000 matching files, no free text, and (in Reading, Notes and Clips) no `duration:` is usable in Video, Reading, Notes and Clips, and never shows この対象は使えません.
 I7. In Reading, Notes and Clips a query with a new token and `duration:` and no free text stays a member target; a query with `modified:` stays unusable in every app.
 I8. A folder chip or Library position narrows the target's `folder` and leaves its `exclude_folder` in every request; a tag filter adds to the target's `tag` and leaves its `exclude_tag`.
+I10. A Smart Collection that the Target menu, Manage… or `?target=` treats as usable in an app is, once chosen, the app's target (direct or member), never resolved to the default target; one they treat as unusable is never applied.
 I9. Two direct targets of one drive that differ only in an exclusion or a `has:` value never read each other's Discover cache entries.
 
 ## Revises
@@ -251,6 +271,10 @@ SPEC-CORE-117 I8. In Video and Reading, a member target sends no request under t
   I3.
 - A `-in:` name that only a Smart Collection carries: excludes nothing on the direct path,
   as on the member path today (Failure cases).
+- SPEC-CORE-165 I2 (a position with no folder inside the target sends nothing): it judges
+  "inside" by the target's `folder`. A position inside an excluded folder (`-path:A`, at
+  `A`) sends its requests and gets empty answers, so the files shown are right; the member
+  path does the same today. Not changed.
 - Backend: no change. Every key is accepted by the three endpoints (SPEC-CORE-172 I2).
 - The knowledge addon: no product code change. Its acceptance tests for Notes and Clips
   (SPEC-ADDON-185) are added in the addon repository (Effect on existing features).
