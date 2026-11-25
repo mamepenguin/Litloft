@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "MEDIUM",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "CR-1",
+      "status": "confirmed",
+      "note": "DuplicatesSection.test.tsx:219,223,255,258,264 select the button only with /Delete/. No test in frontend/src contains 'Delete 2 others', 'Delete 1 other' or the deleteOthers key (grep finds it only in DuplicatesSection.tsx:226,232,234 and en/ja.json:1028). If the label went back to a fixed 'Delete Selected', or the count were wrong, every test would still pass."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "CR-2",
+      "status": "confirmed",
+      "note": "DuplicatesSection.tsx:103 sets name={`keep-${groupHash}`}. Every test renders a single group (test.tsx:122-272), and no test reads the name attribute (grep finds 'keep-' only in the component). The checked state is controlled by React (checked={isKept}, :104), so a name shared by all groups could still let native arrow-key focus or uncheck behaviour span groups, and no test would notice."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "CR-3",
+      "status": "confirmed",
+      "note": "en.json:1029 is \"Move {count} files to trash?\", with no ICU plural, and DuplicatesSection.tsx:233 passes filesToDelete.length to it. A two-file group with the default keeper gives count=1, so the dialog reads 'Move 1 files to trash?' while the title and button at :232/:234 read 'Delete 1 other' (en.json:1028 uses a plural). ja.json:1029 has no such problem because Japanese has no plural form. I could not run git diff to confirm whether line 1029 was touched in this commit; the wording problem itself is confirmed."
+    }
+  ],
+  "unspecified_scores": [
+    {
+      "source_reviewer": "claude-read",
+      "index": 0,
+      "frequency": 5,
+      "impact": 3,
+      "reason": "Each time the user opens a group and deletes without changing the radio, the first file in the server's order is kept and the others go to the trash. The kept file is marked on screen and the deleted files can be restored from the trash."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "index": 1,
+      "frequency": 1,
+      "impact": 2,
+      "reason": "A user who focuses a radio and presses an arrow key changes the keeper. This is visible at once through the highlighted 'Keep' badge, and the move stays inside the group because each group has its own name."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "index": 2,
+      "frequency": 5,
+      "impact": 3,
+      "reason": "Every delete confirmation shows only 'Delete N others' and 'Move N files to trash?', with no filenames, so the user has to rely on the list behind the dialog to know which file is kept. The deletion goes to the trash and can be undone."
+    }
+  ],
+  "specification_compliance": [
+    "The keeper is a radio input, one per file, named per group (DuplicatesSection.tsx:101-107), and the first file is pre-selected (:147).",
+    "The delete button, the dialog title and the confirm button use deleteOthers with the count of the files that are not kept (:226,:232,:234).",
+    "The size shown in the group header is calculated from the files to be deleted, so it changes with the keeper (:153,:189)."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    {
+      "behavior": "The header of a collapsed group always shows group.files[0].filename (DuplicatesSection.tsx:184), even after the user picked another file as the keeper, so the header can name a file that will be deleted.",
+      "frequency": 3,
+      "impact": 2,
+      "reason": "After the user changes the keeper and collapses the group, the header still shows the first file's name, though the size next to it does reflect the new choice."
+    }
+  ],
+  "regression_risks": [
+    "The deleteOthers label and its count are not checked by any test (CR-1).",
+    "Radio names unique per group are not checked by any test with more than one group (CR-2)."
+  ],
+  "test_coverage": [
+    "test.tsx:185-229 covers selecting a non-default keeper and checks the batchDelete ids ['file1','file3'].",
+    "test.tsx:231-272 covers deleting with the default keeper, a single other file and the refetch.",
+    "No test covers a render with several groups, the label text, or the confirm message with count=1."
+  ],
+  "not_verified": [
+    "I did not run the tests or mutate the code; I only read it.",
+    "I did not see the git diff, so I could not confirm which i18n keys this commit changed (for example whether confirmDelete was edited).",
+    "I did not read ConfirmDialog to see how it renders title, message and confirmLabel.",
+    "I did not check whether the backend's batchDelete really moves files to the trash."
+  ],
+  "confidence": 85
+}

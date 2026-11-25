@@ -1025,7 +1025,7 @@
     "duplicateGroups": "{count} groups",
     "wastedSpace": "Wasted space: {size}",
     "keepFile": "Keep",
-    "deleteSelected": "Delete Selected",
+    "deleteOthers": "{count, plural, one {Delete # other} other {Delete # others}}",
     "confirmDelete": "Move {count} files to trash?",
     "selectDrive": "Select drive",
     "needsScan": "Some files have not been hashed. Please run a scan.",
