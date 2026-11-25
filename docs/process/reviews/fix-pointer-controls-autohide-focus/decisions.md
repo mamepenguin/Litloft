@@ -10,3 +10,8 @@ author_resolutions:
 - claude-read:CR-1 fix: reproduced in Chromium (click Play, then Space/m/ArrowRight: the button turns :focus-visible and the bar stays at opacity 1); a pointer press on a ControlButton now drops its focus, covered by the e2e case with a key press after the click.
 - claude-read:0 fix: same behavior as CR-1, fixed with it.
 - claude-read:1 accept: a faded bar takes no clicks by design (pointer-events-none); moving the mouse onto the frame reveals it first, so nothing a viewer does is lost.
+- claude-read:CR-2 accept: R-5 at acf56fdf1 dragged the volume slider and released outside the player in Chrome; the input received pointerup, change and blur, and the bar faded. Capturing the pointer for a browser that behaves otherwise is unobserved.
+- r2 claude-read:0 accept: Tab after a click starts from the click point in Chromium; at worst Tab lands on an earlier control.
+- r2 claude-read:1 accept: needs a screen reader that sends detail > 0, which the sole user does not use.
+- r2 claude-read:2 accept: a tap that drops focus changes nothing visible on touch.
+- r2 claude-verify:3 accept: after a mouse press on a slider the arrow keys now run the player's own shortcuts, the same as after any other click on the player; the volume is still adjustable with Tab focus or the mouse.
