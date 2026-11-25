@@ -144,7 +144,7 @@ describe("DuplicatesSection", () => {
     expect(screen.getByText(/2 files/)).toBeTruthy();
   });
 
-  it("expands group and shows file list with checkbox selection", async () => {
+  it("expands group and shows file list with one keep choice per file", async () => {
     const response = makeDuplicatesResponse([
       {
         hash: "abc123",
@@ -174,18 +174,23 @@ describe("DuplicatesSection", () => {
 
     expect(screen.getByText("Keep")).toBeTruthy();
 
-    const checkboxes = screen.getAllByRole("checkbox");
-    expect(checkboxes.length).toBe(2);
+    const radios = screen.getAllByRole("radio");
+    expect(radios.length).toBe(2);
+    expect((radios[0] as HTMLInputElement).checked).toBe(true);
   });
 
-  it("checkbox selection toggles keep status", async () => {
+  // UNSPEC: the marked file is the one kept; the delete button names the files
+  // that are not marked, so marking a file can never read as choosing it for
+  // deletion.
+  it("keeps the marked file and deletes the others", async () => {
     const response = makeDuplicatesResponse([
       {
         hash: "abc123",
-        total_size: 2048000,
+        total_size: 3072000,
         files: [
           makeFile("file1", { filename: "photo1.jpg", folder_path: "/photos" }),
           makeFile("file2", { filename: "photo2.jpg", folder_path: "/backup" }),
+          makeFile("file3", { filename: "photo3.jpg", folder_path: "/old" }),
         ],
       },
     ]);
@@ -202,13 +207,25 @@ describe("DuplicatesSection", () => {
     fireEvent.click(screen.getByText("photo1.jpg"));
 
     await waitFor(() => {
-      expect(screen.getAllByRole("checkbox").length).toBe(2);
+      expect(screen.getAllByRole("radio").length).toBe(3);
     });
 
-    const checkboxes = screen.getAllByRole("checkbox");
-    fireEvent.click(checkboxes[1]);
+    fireEvent.click(screen.getAllByRole("radio")[1]);
 
-    expect(screen.getByText("Keep")).toBeTruthy();
+    const radios = screen.getAllByRole("radio") as HTMLInputElement[];
+    expect(radios.map((r) => r.checked)).toEqual([false, true, false]);
+    expect(screen.queryAllByRole("checkbox")).toHaveLength(0);
+
+    fireEvent.click(screen.getByRole("button", { name: /Delete/ }));
+    await waitFor(() => {
+      expect(screen.getByText(/Move.*to trash/i)).toBeTruthy();
+    });
+    const confirmButtons = screen.getAllByRole("button", { name: /Delete/ });
+    fireEvent.click(confirmButtons[confirmButtons.length - 1]);
+
+    await waitFor(() => {
+      expect(mockBatchDelete).toHaveBeenCalledWith(["file1", "file3"]);
+    });
   });
 
   it("delete button triggers batch delete API", async () => {
@@ -235,16 +252,16 @@ describe("DuplicatesSection", () => {
     fireEvent.click(screen.getByText("photo.jpg"));
 
     await waitFor(() => {
-      expect(screen.getByText(/Delete Selected/)).toBeTruthy();
+      expect(screen.getByText(/Delete/)).toBeTruthy();
     });
 
-    fireEvent.click(screen.getByText(/Delete Selected/));
+    fireEvent.click(screen.getByText(/Delete/));
 
     // The last button with this label is the one inside the dialog.
     await waitFor(() => {
       expect(screen.getByText(/Move.*to trash/i)).toBeTruthy();
     });
-    const deleteButtons = screen.getAllByText(/Delete Selected/);
+    const deleteButtons = screen.getAllByText(/Delete/);
     fireEvent.click(deleteButtons[deleteButtons.length - 1]);
 
     await waitFor(() => {
