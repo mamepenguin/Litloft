@@ -125,6 +125,7 @@ import { FRAME_CROP_ARRANGEMENTS } from "./frameCrop";
 import { FRAME_OUTLINE_ARRANGEMENTS } from "./frameOutline";
 import { NAME_IN_USE_ARRANGEMENTS } from "./nameInUse";
 import { FILE_MENU_DIVIDER_ARRANGEMENTS } from "./fileMenuDivider";
+import { CONTEXT_MENU_EDGE_ARRANGEMENTS } from "./contextMenuEdge";
 import { BATCH_PROGRESS_ARRANGEMENTS } from "./batchProgress";
 import { FOCUS_MODE_ARRANGEMENTS } from "./focusMode";
 import { TRANSCRIPT_TOUCH_ARRANGEMENTS } from "./transcriptTouch";
@@ -2955,6 +2956,7 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   ...FRAME_OUTLINE_ARRANGEMENTS,
   ...NAME_IN_USE_ARRANGEMENTS,
   ...FILE_MENU_DIVIDER_ARRANGEMENTS,
+  ...CONTEXT_MENU_EDGE_ARRANGEMENTS,
   ...BATCH_PROGRESS_ARRANGEMENTS,
   ...FOCUS_MODE_ARRANGEMENTS,
   ...TRANSCRIPT_TOUCH_ARRANGEMENTS,

@@ -485,6 +485,82 @@ describe("GlobalSearch", () => {
     expect(screen.queryByPlaceholderText("Search in main...")).toBeNull();
   });
 
+  describe("SPEC-CORE-178 I1 opens without an entrance animation", () => {
+    const entranceClasses = () =>
+      Array.from(document.querySelectorAll<HTMLElement>("[class]")).filter((el) =>
+        /\banimate-fade-in(-scale)?\b/.test(el.getAttribute("class") ?? ""),
+      );
+
+    const phone = (matches: boolean) => {
+      const mql = window.matchMedia as unknown as ReturnType<typeof vi.fn>;
+      mql.mockImplementation((query: string) => ({
+        matches,
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      }));
+    };
+
+    it("SPEC-CORE-178 I1 draws the desktop backdrop and panel without a fade or scale, from the header button", () => {
+      renderWithShortcuts(<GlobalSearch />);
+      fireEvent.click(screen.getByLabelText("Search"));
+      expect(screen.getByPlaceholderText(/Search/)).toBeInTheDocument();
+      expect(entranceClasses()).toEqual([]);
+    });
+
+    it("SPEC-CORE-178 I1 draws the palette without a fade or scale, from ctrl+k", () => {
+      renderWithShortcuts(<GlobalSearch />);
+      fireEvent.keyDown(document, { key: "k", ctrlKey: true });
+      expect(screen.getByPlaceholderText(/Search/)).toBeInTheDocument();
+      expect(entranceClasses()).toEqual([]);
+    });
+
+    it("SPEC-CORE-178 I1 draws the palette without a fade or scale, from ctrl+shift+f", () => {
+      renderWithShortcuts(<GlobalSearch />);
+      fireEvent.keyDown(document, { key: "f", ctrlKey: true, shiftKey: true });
+      expect(screen.getByPlaceholderText(/Search/)).toBeInTheDocument();
+      expect(entranceClasses()).toEqual([]);
+    });
+
+    it("SPEC-CORE-178 I1 draws the phone sheet without a fade or scale", () => {
+      phone(true);
+      try {
+        renderWithShortcuts(<GlobalSearch />);
+        fireEvent.click(screen.getByLabelText("Search"));
+        expect(screen.getByLabelText("Close")).toBeInTheDocument();
+        expect(entranceClasses()).toEqual([]);
+      } finally {
+        phone(false);
+      }
+    });
+
+    it("SPEC-CORE-178 I1 draws the shortcut cheat sheet and its backdrop without a fade or scale", () => {
+      renderWithShortcuts(<GlobalSearch />);
+      fireEvent.click(screen.getByLabelText("Search"));
+      fireEvent.click(screen.getByRole("button", { name: /Keyboard Shortcuts/ }));
+      act(() => {
+        vi.runAllTimers();
+      });
+      expect(
+        screen.getByRole("dialog", { name: "Keyboard Shortcuts" }),
+      ).toBeInTheDocument();
+      expect(entranceClasses()).toEqual([]);
+    });
+
+    it("SPEC-CORE-178 I1 draws the shortcut cheat sheet without a fade or scale, from ?", () => {
+      renderWithShortcuts(<GlobalSearch />);
+      fireEvent.keyDown(document, { key: "?" });
+      expect(
+        screen.getByRole("dialog", { name: "Keyboard Shortcuts" }),
+      ).toBeInTheDocument();
+      expect(entranceClasses()).toEqual([]);
+    });
+  });
+
   describe("empty query state", () => {
     function seedHistory(terms: string[]) {
       localStorage.setItem("search-history:main", JSON.stringify(terms));

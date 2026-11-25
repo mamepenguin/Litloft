@@ -302,4 +302,60 @@ describe("useMiniPlayer", () => {
     expect(ioInstances.length).toBeGreaterThan(initialCount);
     expect(ioInstances[ioInstances.length - 1].options?.root).toBe(rootB);
   });
+
+  describe("SPEC-CORE-179 I5 the scroll back to the player under reduced motion", () => {
+    function installMotion(reduced: boolean) {
+      window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+        matches: query.includes("768")
+          ? true
+          : reduced && query.includes("prefers-reduced-motion: reduce"),
+        media: query,
+        onchange: null,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      }));
+    }
+
+    /** Every scroll made when the viewer restores the mini player. */
+    function scrollsOnRestore(reduced: boolean): unknown[] {
+      installMotion(reduced);
+      const scroll = vi.fn();
+      const original = Element.prototype.scrollIntoView;
+      Element.prototype.scrollIntoView = scroll;
+      try {
+        const { result, unmount } = renderWithRef(makeMc(false));
+        fireIntersect(false);
+        act(() => {
+          vi.advanceTimersByTime(300);
+        });
+        expect(result.current.hook.isMini).toBe(true);
+        act(() => {
+          result.current.hook.restore();
+        });
+        act(() => {
+          vi.runOnlyPendingTimers();
+        });
+        unmount();
+        return scroll.mock.calls.map((args) => args[0]);
+      } finally {
+        Element.prototype.scrollIntoView = original;
+      }
+    }
+
+    it("SPEC-CORE-179 I5 jumps instead of gliding back to the player, to the same place", () => {
+      const glide = scrollsOnRestore(false);
+      expect(glide.length).toBeGreaterThan(0);
+      for (const options of glide) {
+        expect(options).toMatchObject({ behavior: "smooth" });
+      }
+
+      const jump = scrollsOnRestore(true);
+      expect(jump).toEqual(
+        glide.map((options) => ({ ...(options as object), behavior: "auto" })),
+      );
+    });
+  });
 });
