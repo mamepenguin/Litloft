@@ -1,6 +1,7 @@
 "use client";
 
 import { dirtyRegistry } from "./dirtyRegistry";
+import { prefersReducedMotion } from "./reducedMotion";
 
 /**
  * What the navigation is, which the stylesheet reads off `<html>`. It is
@@ -46,11 +47,6 @@ function currentUrl(): string {
   const query = new URLSearchParams(window.location.search).toString();
   const { pathname } = window.location;
   return query ? `${pathname}?${query}` : pathname;
-}
-
-function prefersReducedMotion(): boolean {
-  if (typeof window.matchMedia !== "function") return false;
-  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
 function cleanup(p: Pending): void {

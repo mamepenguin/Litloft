@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useRef, type RefObject } from "react";
+import { prefersReducedMotion } from "@/lib/reducedMotion";
 import { HELD_ATTR } from "./useJustifiedHold";
 
 /**
@@ -79,20 +80,6 @@ function sameOrder(a: readonly string[], b: readonly string[]): boolean {
     if (a[i] !== b[i]) return false;
   }
   return true;
-}
-
-/**
- * Asked here rather than left to the global `prefers-reduced-motion`
- * rule in globals.css. That rule shortens the transition to 0.01ms,
- * which still paints the inverted frame first; this skips writing the
- * transform at all.
- */
-function prefersReducedMotion(): boolean {
-  return (
-    typeof window !== "undefined" &&
-    typeof window.matchMedia === "function" &&
-    window.matchMedia("(prefers-reduced-motion: reduce)").matches
-  );
 }
 
 export function useJustifiedFlip(gridRef: RefObject<HTMLElement | null>): void {

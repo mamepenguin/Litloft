@@ -12,6 +12,7 @@ import {
   reorderCollectionItems,
 } from "@/lib/api";
 import { formatDuration } from "@/lib/format";
+import { scrollBehavior } from "@/lib/reducedMotion";
 import type { SmartQueue } from "@/lib/smartQueue";
 import type { FileItem, FileType, SortField, SortOrder } from "@/types";
 
@@ -134,7 +135,7 @@ export function CollectionPanel({
 
   useEffect(() => {
     if (activeRef.current) {
-      activeRef.current.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      activeRef.current.scrollIntoView({ block: "nearest", behavior: scrollBehavior() });
     }
   }, [currentFileId, tracks]);
 
@@ -329,7 +330,7 @@ export function SmartQueuePanel({
 
   useEffect(() => {
     if (activeRef.current) {
-      activeRef.current.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      activeRef.current.scrollIntoView({ block: "nearest", behavior: scrollBehavior() });
     }
   }, [currentFileId, queue]);
 

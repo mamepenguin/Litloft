@@ -67,7 +67,7 @@ The inbox lists files that just arrived in the drive. See [inbox](inbox.md).
 
 | Gesture | Action |
 |---|---|
-| Swipe left past a third of the row | Mark the arrival done |
+| Swipe left past a third of the row, or flick left | Mark the arrival done |
 | Press and hold a row | Start selecting rows |
 
 With a mouse, hover a row to reveal **Done** and right-click for the file menu. On a touch screen 768 px wide or wider, the **Done** button stays visible.

@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, ty
 import type { MediaController } from "@/lib/mediaController";
 import { useMediaClock } from "@/lib/mediaClock";
 import { isNativeShell } from "@/lib/nativeBridge";
+import { scrollBehavior } from "@/lib/reducedMotion";
 
 export interface MiniPlayerInputs {
   intersecting: boolean;
@@ -154,7 +155,7 @@ export function useMiniPlayer({
   const restore = useCallback(() => {
     const el = containerRef.current;
     if (el) {
-      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      el.scrollIntoView({ behavior: scrollBehavior(), block: "center" });
     }
   }, [containerRef]);
 

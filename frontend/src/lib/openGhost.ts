@@ -1,5 +1,7 @@
 "use client";
 
+import { prefersReducedMotion } from "./reducedMotion";
+
 /**
  * The gesture that answers a press on a listing card: a copy of the picture
  * swells a little and fades, over the file it is opening.
@@ -19,11 +21,6 @@ let showing: HTMLElement | null = null;
 function clear(): void {
   showing?.remove();
   showing = null;
-}
-
-function prefersReducedMotion(): boolean {
-  if (typeof window.matchMedia !== "function") return false;
-  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
 /**

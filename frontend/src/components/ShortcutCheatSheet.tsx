@@ -66,13 +66,13 @@ export function ShortcutCheatSheet({ open, stack, onClose }: ShortcutCheatSheetP
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center">
       <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fade-in"
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
         onClick={onClose}
         aria-hidden
       />
 
       <div
-        className="relative z-10 mx-4 w-full max-w-sm rounded-2xl bg-bg-card p-6 shadow-lg animate-fade-in-scale"
+        className="relative z-10 mx-4 w-full max-w-sm rounded-2xl bg-bg-card p-6 shadow-lg"
         role="dialog"
         aria-modal
         aria-label={t("title")}

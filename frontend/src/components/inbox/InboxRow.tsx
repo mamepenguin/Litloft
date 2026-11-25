@@ -12,6 +12,8 @@ import {
 } from "@/components/ProcessingStageMark";
 import { getThumbnailUrl, type InboxItem } from "@/lib/api";
 import type { InboxStageDisplay } from "@/lib/inboxStage";
+import { prefersReducedMotion } from "@/lib/reducedMotion";
+import { swipeCompletes } from "./swipeDecision";
 
 const ROW_CLASS =
   "group/inbox-row relative flex touch-pan-y items-center gap-3 rounded-2xl px-3 py-2 [-webkit-touch-callout:none]";
@@ -32,14 +34,6 @@ function coarsePointer(): boolean {
     typeof window !== "undefined" &&
     typeof window.matchMedia === "function" &&
     window.matchMedia("(pointer: coarse)").matches
-  );
-}
-
-function reducedMotion(): boolean {
-  return (
-    typeof window !== "undefined" &&
-    typeof window.matchMedia === "function" &&
-    window.matchMedia("(prefers-reduced-motion: reduce)").matches
   );
 }
 
@@ -84,9 +78,10 @@ export function InboxRow({
   const file = item.file;
   const name = file.title || file.filename;
   const linkRef = useRef<HTMLAnchorElement | null>(null);
-  const start = useRef<{ x: number; y: number; width: number } | null>(null);
+  const start = useRef<{ x: number; y: number; width: number; at: number } | null>(null);
   const longPress = useRef<ReturnType<typeof setTimeout> | null>(null);
   const swiping = useRef(false);
+  const longPressed = useRef(false);
   const scrolled = useRef(false);
   const suppressClick = useRef(false);
 
@@ -110,13 +105,16 @@ export function InboxRow({
       x: event.clientX,
       y: event.clientY,
       width: event.currentTarget.getBoundingClientRect().width,
+      at: performance.now(),
     };
     swiping.current = false;
+    longPressed.current = false;
     scrolled.current = false;
     suppressClick.current = false;
     clearLongPress();
     longPress.current = setTimeout(() => {
       longPress.current = null;
+      longPressed.current = true;
       suppressClick.current = true;
       onLongPress(file.id);
     }, LONG_PRESS_MS);
@@ -124,7 +122,7 @@ export function InboxRow({
 
   function handlePointerMove(event: PointerEvent<HTMLLIElement>) {
     const origin = start.current;
-    if (!origin) return;
+    if (!origin || longPressed.current) return;
     const dx = event.clientX - origin.x;
     const dy = event.clientY - origin.y;
     if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 8) {
@@ -137,7 +135,7 @@ export function InboxRow({
       clearLongPress();
       swiping.current = true;
       const link = linkRef.current;
-      if (link && !reducedMotion()) {
+      if (link && !prefersReducedMotion()) {
         link.style.transition = "none";
         link.style.transform = `translateX(${dx}px)`;
       }
@@ -155,13 +153,18 @@ export function InboxRow({
       resetTransform();
       return;
     }
-    if (
-      dx < 0 &&
-      Math.abs(dx) >= origin.width / 3 &&
-      Math.abs(dx) > Math.abs(dy)
-    ) {
+    const done = swipeCompletes({
+      dx,
+      dy,
+      width: origin.width,
+      elapsedMs: performance.now() - origin.at,
+      swiping: swiping.current,
+      longPressed: longPressed.current,
+      scrolled: scrolled.current,
+    });
+    if (done) {
       suppressClick.current = true;
-      if (!reducedMotion()) {
+      if (!prefersReducedMotion()) {
         const link = linkRef.current;
         if (link) {
           link.style.transition = "transform 200ms ease-out";
@@ -172,7 +175,7 @@ export function InboxRow({
     } else if (swiping.current) {
       const link = linkRef.current;
       if (link) {
-        if (reducedMotion()) {
+        if (prefersReducedMotion()) {
           resetTransform();
         } else {
           link.style.transition = "transform 200ms ease-out";

@@ -97,7 +97,7 @@ export function QuickNotePresenter({
   const panel = (
     <div className="fixed inset-0 z-[100] flex items-start justify-center p-4 sm:items-center">
       <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-fade-in"
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
         onClick={onRequestClose}
         aria-hidden
       />
@@ -108,7 +108,7 @@ export function QuickNotePresenter({
         role="dialog"
         aria-modal
         aria-label={t("title")}
-        className="relative flex max-h-[85dvh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-bg-border bg-bg-card shadow-lg animate-fade-in-scale"
+        className="relative flex max-h-[85dvh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-bg-border bg-bg-card shadow-lg"
       >
         {/* While the discard confirmation is up, the panel behind it is inert:
             it must be answered, not tabbed around. */}
