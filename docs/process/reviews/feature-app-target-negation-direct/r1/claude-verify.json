@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-1",
+      "status": "confirmed",
+      "note": "frontend/src/lib/__tests__/appTargetDirectExclusions.test.ts exists at the commit. The touch-point list at docs/specs/app-target-negation-direct.md:188-233 names only appTarget.test.ts and appTargetNegation.test.tsx under frontend/src tests (lines 213-216). It names no such file and no frontend/src/lib/__tests__/ directory."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-2",
+      "status": "confirmed",
+      "note": "frontend/src/components/videoapp/__tests__/VideoApp.directTargetProviders.test.tsx exists. The touch points at spec lines 201-208 list only videoapp product files. The only test directories named are the addon __tests__ paths (lines 223-224)."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-3",
+      "status": "confirmed",
+      "note": "frontend/src/lib/__tests__/readingAppTarget.test.ts:94-107 now holds 'SPEC-CORE-177 carries a parsed negation as the listing key' and a '!type:pdf' search-text/member-target case. The spec names readingAppTarget.ts only as 'read through' (lines 195-196), and its list of rewritten tests (lines 213-216) leaves this file out."
+    }
+  ],
+  "unspecified_scores": [
+    {
+      "source_reviewer": "claude-read",
+      "index": 0,
+      "frequency": 1,
+      "impact": 1,
+      "reason": "Only a query with free text and an exclusion triggers it, and the user sees nothing different. Every caller (useVideoApp.ts:226, useNotesTarget.ts:84, and Reading through its member resolver) tries resolveMemberTarget first, and a query with free text always becomes a member target (memberTarget.ts:89), so the new direct params with search and exclude keys are never sent. The change only alters the result of a usability check whose outcome was already usable."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "index": 1,
+      "frequency": 1,
+      "impact": 1,
+      "reason": "It applies when a Video target query excludes a kind and the folder has a fixed file_type. The user sees no difference: resolveVideoTarget re-resolves kinds with folder.file_type at videoAppTarget.ts:57-61 and returns empty whenever the fixed kind is not video or video is excluded, so leaving out the argument at line 54 never changes the result."
+    }
+  ],
+  "specification_compliance": [
+    "All three touch-point findings are confirmed: two new test files and one rewritten existing test sit outside the declared touch-point list. They are test-only files and do not change product behavior."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "resolveAppTarget now returns usable params for free-text queries that hold exclusions. Any future caller that consults it before resolveMemberTarget would send search plus exclude keys directly instead of evaluating members."
+  ],
+  "test_coverage": [
+    "readingAppTarget.test.ts:94-107 pins direct exclude_tag carriage, and pins that a '!type:pdf' spelling is treated as search text and becomes a member target."
+  ],
+  "not_verified": [
+    "I did not run git diff, so whether each file was added or modified by this specific commit rests on the reader's evidence and on the file contents at HEAD.",
+    "I did not check the declared invariants (I1-I10, revised I5) against the UI components or addon code.",
+    "I did not run the tests."
+  ],
+  "confidence": 85
+}

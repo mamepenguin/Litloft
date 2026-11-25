@@ -72,19 +72,24 @@ export function appRequests(
 
 /**
  * `null` when the folder is resolved to listing parameters instead. A query
- * with free text or a negated or `has:` token is a member target whatever else
- * it holds, as its search page treats it.
+ * with free text is always a member target; an exclusion or a `has:` token is
+ * one only beside a `duration:` the caller cannot send directly.
  */
 export function resolveMemberTarget(
   folder: SmartFolder | null,
   baseKinds: readonly FileKind[],
+  { directDuration = false }: { directDuration?: boolean } = {},
 ): MemberTarget | null {
   if (folder === null) return null;
   const parsed = parseSearchQuery(folder.query);
-  if (parsed.text === "" && !hasNewToken(parsed)) return null;
   // A `modified:` part has no listing parameter and no stable listing either,
   // so it is not a member target; the direct target reports it unsupported.
   if ((parsed.modified?.length ?? 0) > 0) return null;
+
+  if (parsed.text === "") {
+    if (!hasNewToken(parsed)) return null;
+    if (directDuration || parsed.durations.length === 0) return null;
+  }
 
   const { kinds, impossible } = resolveKinds(folder.file_type, parsed.types);
   if (impossible) return { id: folder.id, kinds: [] };

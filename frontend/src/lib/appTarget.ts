@@ -1,7 +1,7 @@
 import type { ShelvesParams } from "@/lib/api";
 import {
   comparisonWireForm,
-  hasNewToken,
+  hasImpossibleConditions,
   kindHolds,
   parseSearchQuery,
   resolveKinds,
@@ -12,12 +12,25 @@ import type { SmartFolder } from "@/types/smartFolder";
 /** The conditions a target adds to every request of the app. */
 export type AppTargetParams = Pick<
   ShelvesParams,
-  "search" | "favorite" | "liked" | "tag" | "type" | "folder" | "collection" | "size"
+  | "search"
+  | "favorite"
+  | "liked"
+  | "tag"
+  | "type"
+  | "folder"
+  | "collection"
+  | "size"
+  | "exclude_tag"
+  | "exclude_type"
+  | "exclude_folder"
+  | "exclude_collection"
+  | "has_tag"
+  | "has_collection"
 > & { type: FileKind[] };
 
 export type AppTarget =
   | { usable: true; params: AppTargetParams }
-  /** The kinds do not meet the app's, so nothing can match and nothing is requested. */
+  /** Nothing can match, so nothing is requested. */
   | { usable: true; empty: true; params: null }
   /** A query part with no listing parameter; the menu lists the folder disabled. */
   | { usable: false; reason: "unsupported_part" };
@@ -44,22 +57,6 @@ export function parseAppTargetId(id: string): AppTargetId {
 
 export function collectionTargetId(collectionId: string): string {
   return `${COLLECTION_PREFIX}${collectionId}`;
-}
-
-const OPERATOR_NAMES = "tag|type|path|in|size|duration|is";
-const NEGATED_OPERATOR = new RegExp(
-  `(?:^|\\s)[-!](?:${OPERATOR_NAMES})\\s*[:：]`,
-  "i",
-);
-
-/**
- * The listing has no negation or presence condition. A token written as one is
- * therefore a part the app cannot hand to the endpoint, and the target must not
- * be offered. The pattern also catches spellings the parser leaves as text,
- * such as `-size:`.
- */
-function hasNegatedOperator(query: string): boolean {
-  return NEGATED_OPERATOR.test(query);
 }
 
 function intersect(base: readonly FileKind[], target: readonly FileKind[]): FileKind[] {
@@ -92,16 +89,12 @@ export function resolveAppTarget(
     return { usable: true, params: { type: [...baseKinds] } };
   }
 
-  if (hasNegatedOperator(folder.query)) {
-    return { usable: false, reason: "unsupported_part" };
-  }
-
   const parsed = parseSearchQuery(folder.query);
-  if (hasNewToken(parsed)) {
-    return { usable: false, reason: "unsupported_part" };
-  }
   if (parsed.durations.length > 0 || (parsed.modified?.length ?? 0) > 0) {
     return { usable: false, reason: "unsupported_part" };
+  }
+  if (hasImpossibleConditions(parsed, folder.file_type)) {
+    return { usable: true, empty: true, params: null };
   }
 
   const { kinds, impossible } = resolveKinds(folder.file_type, parsed.types);
@@ -109,7 +102,9 @@ export function resolveAppTarget(
   // contradicts its query has no file of them either.
   if (impossible) return { usable: true, empty: true, params: null };
 
-  const types = kinds.length === 0 ? [...baseKinds] : intersect(baseKinds, kinds);
+  const types = (kinds.length === 0 ? [...baseKinds] : intersect(baseKinds, kinds)).filter(
+    (kind) => !parsed.excludedTypes.some((excluded) => kindHolds(excluded, kind)),
+  );
   if (types.length === 0) return { usable: true, empty: true, params: null };
 
   const params: AppTargetParams = { type: types };
@@ -118,8 +113,20 @@ export function resolveAppTarget(
   if (parsed.folders.length > 0) params.folder = parsed.folders;
   if (parsed.collections.length > 0) params.collection = parsed.collections;
   if (parsed.favorite) params.favorite = true;
+  if (parsed.notFavorite) params.favorite = false;
   if (parsed.liked) params.liked = true;
+  if (parsed.notLiked) params.liked = false;
   if (parsed.sizes.length > 0) params.size = parsed.sizes.map(comparisonWireForm);
+  if (parsed.excludedTags.length > 0) params.exclude_tag = parsed.excludedTags;
+  if (parsed.excludedTypes.length > 0) params.exclude_type = parsed.excludedTypes;
+  if (parsed.excludedFolders.length > 0) params.exclude_folder = parsed.excludedFolders;
+  if (parsed.excludedCollections.length > 0) {
+    params.exclude_collection = parsed.excludedCollections;
+  }
+  if (parsed.hasTag || parsed.noTag) params.has_tag = parsed.hasTag;
+  if (parsed.hasCollection || parsed.noCollection) {
+    params.has_collection = parsed.hasCollection;
+  }
   return { usable: true, params };
 }
 

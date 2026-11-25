@@ -127,11 +127,14 @@ starts with every collection unchecked.
 - A collection is always usable as a target: the page shows the videos it holds.
 - A Smart Collection that matches no videos (for example one limited to images) can still be
   chosen. Every tab then shows the empty state.
-- A Smart Collection whose query has search text (a word, or a condition written with `-`
-  or `!`) lists the videos among the files that Smart Collection's search page lists. One
-  whose search page matches more than 10,000 files cannot be used as a target: the page
-  shows **この対象は使えません** / **This target cannot be used** and asks the server for
-  nothing.
+- A Smart Collection whose query has search text (a word, or a spelling that is not an
+  operator, such as `-size:` or `!tag:`) lists the videos among the files that Smart
+  Collection's search page lists. One whose search page matches more than 10,000 files
+  cannot be used as a target: the page shows **この対象は使えません** / **This target
+  cannot be used** and asks the server for nothing.
+- A Smart Collection with no search text is applied directly: the page shows its first
+  videos as soon as one request answers, and the query's exclusions and `has:` / `-has:`
+  parts filter the videos like tag and folder do, at any size.
 - If a Smart Collection's files cannot be worked out, the page shows **Retry**.
 - A Smart Collection the page cannot use is listed disabled.
 - With a Target other than **All videos** in force, the menu has **ホームに置く** / **Put on
