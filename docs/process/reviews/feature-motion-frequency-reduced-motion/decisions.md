@@ -17,3 +17,4 @@ author_resolutions:
 - claude-read:R1 accept: every added test checks a declared invariant (I1, I2, I4-I7, I9, I12); the touch points are complete for product code and name the one existing test whose setup changes.
 - unspecified 1 accept: a vertical drag after the long-press fired scrolls natively and the row never had a transform, so nothing visible differs.
 - unspecified 2 accept: the clamp running only on open or a new position predates this change, which swapped useEffect for useLayoutEffect; no ContextMenu caller changes its rows' height while open.
+- r7 unspecified 1 accept: average speed over the whole press is the rule the spec chose over speed near release (Checked, no action); a swipe pulled partly back that still ends 32 px or more left within about 0.3 s is marked done, and the undo toast reverses it in one tap.
