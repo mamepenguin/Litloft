@@ -208,8 +208,8 @@ None user-visible: there is no new failure path, and nothing is logged.
 - `frontend/src/lib/openGhost.ts`, `frontend/src/lib/viewTransitions.ts`,
   `frontend/src/components/player/hooks/useFrameTransition.ts`,
   `frontend/src/hooks/useJustifiedFlip.ts` — use the shared helper.
-- `frontend/src/components/inbox/InboxRow.tsx` — shared helper; record `timeStamp` at
-  pointer-down; remember whether the long-press fired; release decision through
+- `frontend/src/components/inbox/InboxRow.tsx` — shared helper; read `performance.now()` at
+  pointer-down and pointer-up; remember whether the long-press fired; release decision through
   `swipeCompletes`.
 - `frontend/src/components/inbox/swipeDecision.ts` (new) — the API below.
 - `frontend/src/__tests__/inboxActions.test.tsx` — the short-swipe case stubs
