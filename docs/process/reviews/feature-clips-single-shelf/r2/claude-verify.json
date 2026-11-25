@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "MEDIUM",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R2-1",
+      "status": "confirmed",
+      "note": "I traced this in the code. useGroupedShelves.ts:50-53 keeps the scope and phase 'ready' on a refresh, and :60-67 replaces shelves/total with the new answer. Library.tsx:171-175: with body.current={scope, 'shelves'}, an answer of total=0 gives kept='shelves', so the value stays 'shelves'. Library.tsx:179 skips the grid, and :192-197 draws the empty state because data.shelves is empty, while the recorded body is still 'shelves'. On the next refresh with total=1, kept='shelves' keeps the value 'shelves'. Library.tsx:210-238 then draws one CoverShelf with a title, a count and seeAllHref, which breaks I1. I8's exception covers only 'with shelves drawn', and the empty state is what was drawn here. The test at clipsSingleShelf.test.tsx:537-553 starts from a first-load empty state (body.current null → 'empty'), so it does not exercise the shelves→empty→1 route."
+    }
+  ],
+  "unspecified_scores": [
+    {
+      "source_reviewer": "claude-read",
+      "index": 0,
+      "frequency": 1,
+      "impact": 2,
+      "reason": "A shelves request has to fail during a refresh while the single-shelf grid is drawn, which is rare on a home LAN; the user then sees a stale grid with no error until the next refresh or change of conditions."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "index": 1,
+      "frequency": 1,
+      "impact": 3,
+      "reason": "Triggered when a refresh empties a grouping whose shelves were drawn (for example, the last matching clips are removed or verified) and a later refresh brings back exactly one shelf; the user then sees a headed shelf with See all instead of the flat grid until the conditions change."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "index": 2,
+      "frequency": 2,
+      "impact": 1,
+      "reason": "Changing sort or a filter and changing it back recomputes the body, so shelves that were kept for a one-shelf answer become the grid, which is the specified single-shelf presentation; the user sees only a layout change."
+    }
+  ],
+  "specification_compliance": [
+    "I1 is broken on the shelves→empty→1 refresh route within one scope (R2-1 confirmed); on first load, after a change of conditions, and on refreshes that start from the grid or a fresh empty state, a total of 1 draws the grid.",
+    "I5: the grid in single paging is mounted only when the body value is 'grid' (Library.tsx:179), which needs phase 'ready' and total 1 for the current scope; its refresh key is data.answer, so it re-asks only after a shelves answer.",
+    "I7: a failed shelves request draws LoadFailed with data.retry (Library.tsx:178), and a failed grid request draws ClipsGrid's own LoadFailed with the paged retry (Library.tsx:284)."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "The body-state ref in GroupShelves (Library.tsx:169-176) is computed during render and kept for each scope; any further refresh route that passes through the empty state with the body recorded as 'shelves' inherits the stale value."
+  ],
+  "test_coverage": [
+    "No test covers shelves drawn → refresh answering 0 → refresh answering 1; the empty→grid test (clipsSingleShelf.test.tsx:537) starts from a first-load empty state."
+  ],
+  "not_verified": [
+    "I did not run the test suite or reproduce R2-1 in a browser or test; the confirmation rests on reading the code.",
+    "I did not read requests.ts, usePagedClips.ts or the backend shelves router at this commit.",
+    "I did not check whether the addons/knowledge submodule checkout in the worktree matches the pointer recorded in commit 32908cbe1, beyond the clean git status."
+  ],
+  "confidence": 85
+}

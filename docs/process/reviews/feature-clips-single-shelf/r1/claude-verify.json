@@ -1,0 +1,126 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "MEDIUM",
+  "findings": [
+    {
+      "id": "V-1",
+      "origin": "verifier",
+      "claim": "When the Library is showing the 0-shelf empty state and a refresh returns total_shelves = 1 for the same conditions, the Library draws one headed shelf with a count and See all instead of the grid.",
+      "impact": "In this path the Library shows a shelf heading, a count and See all where I1 calls for the None grid. The clip can still be reached through See all, so nothing is lost; the Library just looks different from what the spec says.",
+      "evidence": "Library.tsx:170-175 runs on every ready answer and stores body.current = { scope, value: kept === \"shelves\" ? \"shelves\" : data.total === 1 ? \"grid\" : \"shelves\" }. A first answer with total 0 therefore stores value \"shelves\", and Library.tsx:191-196 draws the empty state. A refresh keeps the scope (useGroupedShelves.ts:50-53 keeps phase ready), so when its answer reports 1, kept is \"shelves\" and the value stays \"shelves\". Library.tsx:178 then skips the grid, and the code reaches Library.tsx:209-241, which draws a CoverShelf with title, count and seeAllHref. I8 exempts only the case \"with shelves drawn\". The empty state draws no shelves, so I1 governs this case. clips.tsx:397-423 keeps an empty drive or Target out of Library, so the path needs an active tag, trust or name filter that matches nothing, followed by an added clip that matches it. A second route is a grid that drops to 0 on one refresh and returns 1 on the next.",
+      "repro": "not_reproduced: traced in the code only, not executed. Steps: open ?view=all&group=tags with a filter that matches no clip (empty state drawn), add a clip through the page form that matches the filter, and the refresh's shelves answer reports 1, so a headed shelf is drawn.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "A",
+        "invariant_ref": "I1",
+        "reason": "I1 requires no heading, count or See all whenever a shelves answer reports total_shelves = 1. I8's exception covers only 'with shelves drawn', and the empty state draws none."
+      },
+      "severity": "LOW",
+      "proposed_fix": "Store \"shelves\" as kept only when the answer actually drew shelves (total >= 2), for example by recording null for total 0, so that a later answer of 1 in the same scope draws the grid."
+    }
+  ],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-1",
+      "status": "confirmed",
+      "note": "cardMenuHarness.tsx:71-78 choose() fires pointerDown, pointerUp, click. DismissScrim.tsx:69-83 sets the module-level pressInFlight on capture pointerdown and clears it only on pointerup or pointercancel; DismissScrim.tsx:109 swallows the next click when a press is in flight as a scrim mounts. Without the pointerUp, a menu opened right after a choose() would swallow its first click, and clipsCardMenu.test.tsx:736-744 opens Sort By right after choose(\"Move to Trash\"). The harness is listed in r1/test-files.txt and is not a touch point. choose is imported from the harness by 5 test files, including 3 Notes card-menu tests (notesLibraryCardMenu, notesHomeCardMenu, notesCardMenuStates), so the change reaches beyond Clips. The pre-change line could not be seen, because no git access was available."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-2",
+      "status": "confirmed",
+      "note": "r1/test-files.txt lists 8 test files. Without the new clipsSingleShelf.test.tsx, 7 existing files remain, matching the count. The sampled fixtures each add a second shelf: clipsLibrary.test.tsx:191, 208, 235 (a soup tag besides curry) and 251 (one clip tagged curry besides untagged); clipsHome.test.tsx:216 (a drink tag besides food); clipsNameFilter.test.tsx:246 (a news folder); clipsViewPerTarget.test.tsx:247 (a news folder; line 252 expects [\"web\",\"news\"], probably the changed expected value) and :534 (w4). None of these files is a touch point. The other cited lines (clipsHome:441, clipsLibrary:511/569/599, clipsTargetChangeOnHome:148) were not read, and the pre-change fixtures were not seen."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-3",
+      "status": "confirmed",
+      "note": "useGroupedShelves.ts:19-20, 24, 66 and 110 add and return the answer counter, which goes beyond 'expose total_shelves'. Library.tsx:185 passes refresh={data.answer} to the grid. Library.tsx:245-304 defines ClipsGrid with paging in its scope string (line 271), and Library.tsx:311-319 uses it with paging=\"none\" for None. No 'Ungrouped' identifier is left anywhere under addons/knowledge/frontend. The rename itself could not be compared against the base without git. Within a session the paging element only changes the scope key, so None's runtime behavior looks the same."
+    }
+  ],
+  "unspecified_scores": [
+    {
+      "source_reviewer": "claude-read",
+      "index": 0,
+      "frequency": 1,
+      "impact": 3,
+      "reason": "With the grid drawn, a refresh (clip added or clip.ready) needs a failed shelves request on a home LAN to show this. The grid stays as drawn without the new clip and without an error until the next change of conditions or a reload."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "index": 1,
+      "frequency": 0,
+      "impact": 1,
+      "reason": "A refresh only adds clips, so with the grid drawn an answer of 0 needs every matching clip to be removed or changed elsewhere first. The user then sees the ordinary empty state, which is correct for 0 shelves."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "index": 2,
+      "frequency": 1,
+      "impact": 1,
+      "reason": "This needs the rare state of shelves kept while the answer reports 1 shelf, then a change and return of conditions. The user then sees the grid in place of the lone shelf, which is what the spec says the next answer for changed conditions should draw."
+    }
+  ],
+  "specification_compliance": [
+    "I1: the first answer of 1 draws ClipsGrid with no heading (Library.tsx:178-189). Violated after an empty state followed by a refresh answer of 1 (V-1).",
+    "I2: an answer of 2 or more draws the shelf loop unchanged (Library.tsx:209-241).",
+    "I3: an answer of 0 draws the same FilteredEmpty / noClipsHere (Library.tsx:191-196).",
+    "I4: GroupMenu still receives the chosen group (Library.tsx:119-123), and nothing writes the URL or the stored view.",
+    "I5: ClipsGrid mounts only when phase is ready and body is grid for the current scope; the failure path at useGroupedShelves.ts:69-73 keeps the prior ready state without bumping answer.",
+    "I6: the scope check at useGroupedShelves.ts:79 and the body scope check at Library.tsx:178 ignore stale answers.",
+    "I7: the shelves failure uses data.retry (re-sends shelves); the grid failure uses usePagedClips retry (grid only).",
+    "I8: on a refresh the phase stays ready and the grid's refresh is keyed on data.answer, so pages are re-asked only after the answer arrives; kept shelves persist."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "The harness change in choose() (adding pointerUp) affects the Notes card-menu tests as well as Clips.",
+    "Fixtures changed to keep two shelves could hide a regression in single-shelf drawing that those older tests used to cover."
+  ],
+  "test_coverage": [
+    "clipsSingleShelf.test.tsx covers I1-I8, including grid to grid, grid to shelves, shelves to shelves on refresh, late answers, and both retries.",
+    "No test covers an empty state followed by a refresh answer of 1 (V-1), or a refresh whose shelves request fails while the grid is drawn."
+  ],
+  "not_verified": [
+    "No test or app run was executed; every claim comes from reading the code.",
+    "The pre-change code (origin/develop) was not seen, so 'added', 'renamed' and 'gained' rest on the r1 file lists and on the code as it now reads.",
+    "Several cited test lines (clipsHome:441, clipsLibrary:511/569/599, clipsTargetChangeOnHome:148) and the test bodies of clipsSingleShelf.test.tsx were not read.",
+    "The docs changes (docs/addons/knowledge.md, docs/user-guide/notes.md) were not checked."
+  ],
+  "confidence": 80,
+  "coverage": [
+    {
+      "path": "addons/knowledge/frontend/clipsapp/Library.tsx",
+      "read": "full",
+      "reason": "main product change"
+    },
+    {
+      "path": "addons/knowledge/frontend/clipsapp/useGroupedShelves.ts",
+      "read": "full",
+      "reason": "product change"
+    },
+    {
+      "path": "addons/knowledge/frontend/clipsapp/usePagedClips.ts",
+      "read": "full",
+      "reason": "grid refresh semantics"
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/cardMenuHarness.tsx",
+      "read": "full",
+      "reason": "TP-1"
+    },
+    {
+      "path": "frontend/src/components/DismissScrim.tsx",
+      "read": "partial",
+      "reason": "TP-1 mechanism"
+    },
+    {
+      "path": "addons/knowledge/frontend/pages/clips.tsx",
+      "read": "partial",
+      "reason": "reachability of the Library empty state"
+    }
+  ]
+}

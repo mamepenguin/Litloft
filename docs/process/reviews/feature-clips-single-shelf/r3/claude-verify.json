@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "MEDIUM",
+  "findings": [],
+  "verification": [],
+  "unspecified_scores": [
+    {
+      "source_reviewer": "claude-read",
+      "index": 0,
+      "frequency": 1,
+      "impact": 2,
+      "reason": "I confirmed this in the code. If the shelves request of a refresh fails while the single-shelf grid is drawn, useGroupedShelves.ts:71-73 keeps the held answer and does not bump `answer`, so the grid (Library.tsx:187, refresh={data.answer}) does not ask for its pages again and shows no error. The user sees the old grid until the next refresh, and that only happens on a rare LAN failure."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "index": 1,
+      "frequency": 0,
+      "impact": 2,
+      "reason": "The chain in Library.tsx:170-177 is real, but ordinary data can't start it. loadMore only runs when shelves.length < total, and an empty loadMore answer sets total to prev.shelves.length at useGroupedShelves.ts:96, which is at least 12. A total of 0 therefore needs a server answer with shelves but total_shelves=0, which is inconsistent and outside normal use."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "index": 2,
+      "frequency": 1,
+      "impact": 1,
+      "reason": "I confirmed this in the code: body.current holds only one scope (Library.tsx:169-176), so after the conditions change away and back, a one-shelf answer draws the grid. This only shows up after the data has shrunk to a single shelf while shelves were drawn, and then the user gets the grid I1 asks for, so the change is harmless."
+    }
+  ],
+  "specification_compliance": [
+    "I1: Library.tsx:174-191 draws ClipsGrid (no heading, count or See all) when a fresh-scope ready answer has total 1. The grid uses loadGridPage with the same sort and filters as None.",
+    "I3: total 0 gives body 'empty', and the code falls through to the same empty-state branch as before (Library.tsx:193-199).",
+    "I5/I6: the grid renders only when body.current.scope equals the current scope and data.phase is 'ready' for the own scope (useGroupedShelves.ts:79). A stale-scope answer is dropped because `own` is null.",
+    "I7: the LoadFailed retry in GroupShelves calls data.retry from useGroupShelves (shelves only). The grid's LoadFailed calls usePagedClips' retry (grid only).",
+    "I8: during a refresh, the held phase stays 'ready' (useGroupedShelves.ts:52), so no skeleton is drawn. The grid re-asks only when `answer` is bumped by a successful shelves answer. Kept 'shelves' stay when the answer is 1 (Library.tsx:175)."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "The body choice is held in a render-time ref (Library.tsx:169-177) rather than in state. This relies on GroupShelves re-rendering whenever held changes, which it does through useGroupShelves state."
+  ],
+  "test_coverage": [
+    "I did not inspect the test files for Library.tsx or useGroupedShelves.ts."
+  ],
+  "not_verified": [
+    "Test files and test results (I cannot run commands)",
+    "Backend shelves.py total_shelves semantics",
+    "Documentation changes in docs/addons/knowledge.md and docs/user-guide/notes.md",
+    "The I4 menu, URL and stored-grouping persistence path in clips.tsx"
+  ],
+  "confidence": 80
+}

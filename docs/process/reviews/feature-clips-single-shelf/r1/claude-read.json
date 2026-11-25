@@ -1,0 +1,157 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "MEDIUM",
+  "findings": [
+    {
+      "id": "TP-1",
+      "origin": "reviewer",
+      "claim": "The shared card-menu test harness `choose()` now also fires `pointerUp` on the chosen row, a change to a file no touch point names that alters how every card-menu test in the addon drives a menu.",
+      "impact": "No user impact. The harness is imported by five suites (clipsCardMenu, clipsCardMenuStates, notesCardMenuStates, notesHomeCardMenu, notesLibraryCardMenu). The added pointerup clears DismissScrim's module-level `pressInFlight`, so a menu opened after `choose()` is no longer treated as opened during a press that never ended. The event sequence is more realistic, but the Notes suites now run on it without the spec saying so.",
+      "evidence": "addons/knowledge/frontend/__tests__/cardMenuHarness.tsx:74-76 adds `fireEvent.pointerUp(row)` between pointerDown and click. frontend/src/components/DismissScrim.tsx:69-83 sets `pressInFlight` on capture pointerdown and clears it only on pointerup or pointercancel. The new clipsCardMenu.test.tsx:727-751 case opens the Sort By menu right after `choose(\"Move to Trash\")`, which appears to be why the line was needed.",
+      "repro": "not_reproduced; static reading. Removing the line would presumably leave `pressInFlight` set to the stale pointerdown when the Sort By menu mounts in the new clipsCardMenu case.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariant is broken. It is a test-support change outside the declared touch points, and a person should decide whether to list it.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Add `addons/knowledge/frontend/__tests__/cardMenuHarness.tsx` (choose(): pointerup ends the press) to the touch points in the review's invariants.md."
+    },
+    {
+      "id": "TP-2",
+      "origin": "reviewer",
+      "claim": "Seven existing test files that no touch point names were edited: fixtures gained a second tag, folder or month so that tests written for multi-shelf drawing still see shelves instead of the new single-shelf grid, and one expected value changed.",
+      "impact": "No user impact. The edits keep those tests about shelves. Without them, those tests would now hit the grid. The one changed assertion (clipsViewPerTarget `shelfHeadings()` from [\"web\"] to [\"web\",\"news\"]) still checks that every folder ask carries the Target's tag. The new clipsSingleShelf.test.tsx is also not named, though it follows directly from the spec.",
+      "evidence": "clipsHome.test.tsx:216 and :441, clipsLibrary.test.tsx:191, 208, 235, 251, 511, 569, 599, clipsNameFilter.test.tsx:246, clipsTargetChangeOnHome.test.tsx:148, clipsViewPerTarget.test.tsx:247-252 and :534. Each adds a clip that makes a second shelf. The touch-point list in docs/specs/clips-single-shelf-flat.md names only product files and docs.",
+      "repro": "not_reproduced; static reading of the diff hunks.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "These are touch points the list omits, and no invariant is broken. Earlier triage (feature-addon-app-header r1) raised edited existing tests outside the touch points the same way.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "List the edited Clips test files (fixtures given a second shelf) and clipsSingleShelf.test.tsx among the touch points in invariants.md."
+    },
+    {
+      "id": "TP-3",
+      "origin": "reviewer",
+      "claim": "Within the touched files, the change reaches further than the stated touch point: useGroupShelves exposes a new `answer` counter that drives the grid's refresh, beyond the stated `total_shelves`, and the None grid (`Ungrouped`) is renamed to `ClipsGrid` with the extra `paging` element in its scope string, while spec item 7 says None is unchanged.",
+      "impact": "No observable user impact found. The None grid's scope gains a constant \"none\" segment, so its paging, merging and retry behave as before. The `answer` counter is what makes I8 grid→grid hold (the grid re-asks only after a shelves answer).",
+      "evidence": "addons/knowledge/frontend/clipsapp/useGroupedShelves.ts:19-20, 24, 66 and 110 add `answer` to Held and the return value. addons/knowledge/frontend/clipsapp/Library.tsx:245-271 renames Ungrouped to ClipsGrid and builds the scope from `[drive, target.key, sort, \"grid\", paging, filters]`. Library.tsx:311-319 renders it with paging=\"none\".",
+      "repro": "not_reproduced; static reading.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "The shape is outside the touch-point description (`expose total_shelves`; None 'unchanged'), but no invariant is broken.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Extend the useGroupedShelves touch point to 'expose total_shelves and a first-page answer counter', and note that the None grid component is shared with paging=\"none\"."
+    }
+  ],
+  "specification_compliance": [
+    "I1: Library.tsx:170-189 draws ClipsGrid (loadGridPage, the same `grid` listKey, PAGE_SIZE) when the ready answer for the current scope has total===1. It draws no heading, count or See all. clipsSingleShelf I1 rows compare the cards and the grid-ask shapes against None.",
+    "I2: total>=2 falls through to the unchanged shelves map (Library.tsx:209-241).",
+    "I3: total 0 falls through to the unchanged empty-state branch (Library.tsx:191-197).",
+    "I4: no write to the URL, the stored view or the menu value was added. Library passes `group` to Menus unchanged.",
+    "I5: ClipsGrid is mounted only in phase ready with body=grid, so no grid request is sent while loading, after a failure, or for 0 or 2+ shelves.",
+    "I6: useGroupShelves aborts on a scope change (useGroupedShelves.ts:76), and `own` is filtered by scope. body.current is checked against the current scope (Library.tsx:178).",
+    "I7: the shelves LoadFailed uses data.retry from useGroupShelves. The grid's LoadFailed and MoreRow use usePagedClips retry/loadMore only.",
+    "I8: during a refresh the shelves phase stays ready (useGroupedShelves.ts:50-53), so the drawn body stays. The grid's refresh prop is `data.answer`, which changes only when a shelves answer arrives. `kept === \"shelves\"` keeps shelves on an answer of 1. A grid with an answer of 2+ switches to shelves."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    {
+      "behavior": "With the single-shelf grid drawn, a refresh whose shelves request fails leaves the grid as drawn and never re-asks its pages, with no error shown, while None's grid re-asks its pages directly on a refresh.",
+      "frequency": 1,
+      "impact": 3,
+      "reason": "A clip-ready event during a transient backend error leaves the newly added clip missing from the grid until the next change of conditions or a reload. The spec's failure cases cover only the first shelves request."
+    },
+    {
+      "behavior": "With the single-shelf grid drawn, a refresh whose shelves answer reports 0 shelves replaces the grid with the empty state; the spec lists only grid→grid and grid→shelves.",
+      "frequency": 0,
+      "impact": 2,
+      "reason": "It needs every clip to be removed elsewhere just before a refresh that only adds clips, so it does not occur in ordinary use."
+    },
+    {
+      "behavior": "With shelves drawn, the choice to keep the shelves is tied to the exact scope, so leaving the conditions and coming back (for example sort A→B→A) recomputes it and may draw the grid without any data change.",
+      "frequency": 1,
+      "impact": 1,
+      "reason": "The spec says the grid appears on the next answer for changed conditions, so this matches its intent. It is listed only because 'returning to the same conditions' is not described."
+    }
+  ],
+  "regression_risks": [
+    "The GroupShelves scope string (Library.tsx:168) duplicates the one in useGroupShelves (useGroupedShelves.ts:40). If either changes alone, body.current.scope never matches and the single-shelf grid silently stops being drawn.",
+    "body.current is mutated during render. This is fine under the current React, but it relies on render-phase side effects being idempotent.",
+    "The new harness pointerup changes the event sequence for all Notes and Clips card-menu suites."
+  ],
+  "test_coverage": [
+    "clipsSingleShelf.test.tsx covers I1 (Tag, Folder, Date Added and a filtered Target row, compared to None, including the grid ask shapes), I2, I3, I4, I5 (held first answer, sort/group/Target/state changes), I6 (late answers of 2 and of 1), I7 (shelves retry, grid first-page and later-page retry) and I8 (grid→grid with deferred shelves and page, grid→shelves, shelves→shelves).",
+    "Mutating `refresh={data.answer}` to the page-level refresh would be killed by the I8 grid→grid test (a grid ask before the shelves answer). Dropping the `kept === \"shelves\"` clause would be killed by the I8 shelves→shelves test.",
+    "No test covers a failed shelves refresh while the grid is drawn, or a refresh answering 0 shelves while the grid is drawn.",
+    "All tests rely on clipsAppHarness computing total_shelves (clipsAppHarness.tsx:251, 274), not the real backend."
+  ],
+  "not_verified": [
+    "That backend/app/routers/shelves.py computes total_shelves the way the test harness does (for example tag exclusion for the Target's own tag, or a root-folder shelf).",
+    "The test suites were not run. Pass or fail is not known.",
+    "Whether the harness pointerUp change is required by, or alters the outcome of, the Notes card-menu suites.",
+    "The submodule commit range beyond the shown diff, and the docs/user-guide wording against the actual UI labels."
+  ],
+  "coverage": [
+    {
+      "path": "addons/knowledge/frontend/clipsapp/Library.tsx",
+      "read": "full",
+      "reason": "Read the whole file."
+    },
+    {
+      "path": "addons/knowledge/frontend/clipsapp/useGroupedShelves.ts",
+      "read": "full",
+      "reason": "Read the whole file."
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/cardMenuHarness.tsx",
+      "read": "full",
+      "reason": "Read the whole file."
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/clipsCardMenu.test.tsx",
+      "read": "partial",
+      "reason": "Only the diff hunk at lines 726-752 (the new SPEC-ADDON-184 describe)."
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/clipsHome.test.tsx",
+      "read": "partial",
+      "reason": "Only the diff hunks around lines 216 and 441."
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/clipsLibrary.test.tsx",
+      "read": "partial",
+      "reason": "Only the diff hunks around lines 191, 208, 235, 251, 482-511, 569 and 599."
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/clipsNameFilter.test.tsx",
+      "read": "partial",
+      "reason": "Only the diff hunk around line 246."
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/clipsSingleShelf.test.tsx",
+      "read": "full",
+      "reason": "New file, read in full in the diff."
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/clipsTargetChangeOnHome.test.tsx",
+      "read": "partial",
+      "reason": "Only the diff hunk around line 148."
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/clipsViewPerTarget.test.tsx",
+      "read": "partial",
+      "reason": "Only the diff hunks around lines 244-254 and 531-537."
+    }
+  ],
+  "confidence": 80
+}
