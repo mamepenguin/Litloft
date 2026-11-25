@@ -365,5 +365,5 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-CORE-175 | implemented | docs/specs/single-shelf-flat.md | sha256:18de3acb38b6daa8be8a86a4017c8b66c89014652bb4b04391bee87028b790a9 |
 | SPEC-CORE-176 | implemented | docs/specs/single-shelf-flat.md | sha256:18de3acb38b6daa8be8a86a4017c8b66c89014652bb4b04391bee87028b790a9 |
 | SPEC-ADDON-184 | implemented | docs/specs/clips-single-shelf-flat.md | sha256:005ffb5e7cdc9e4e574a3176f04f299fa5cf500e9aaed64ca83860cded006270 |
-| SPEC-CORE-177 | draft | docs/specs/app-target-negation-direct.md | |
-| SPEC-ADDON-185 | draft | docs/specs/app-target-negation-direct.md | |
+| SPEC-CORE-177 | approved | docs/specs/app-target-negation-direct.md | sha256:8af52ef8ad549968cfdff9f0472e5f920941e9acc22144129ed436113a315444 |
+| SPEC-ADDON-185 | approved | docs/specs/app-target-negation-direct.md | sha256:8af52ef8ad549968cfdff9f0472e5f920941e9acc22144129ed436113a315444 |
