@@ -1,6 +1,6 @@
 # Decisions
 
-decision:
+decision: ship — the human wrote "ship" after reading r1 triage (HUMAN_REVIEW_REQUIRED, unspecified_behavior).
 ran_in_app: yes
 at: 6921309b52ba0a672d1a8ee592fc45d0073bb5ea
 by: agent
@@ -14,3 +14,9 @@ evidence: Isolated stack from `scripts/dev/r5_stack.py clone` + `up` (images bui
   Observed, not changed by this commit: the en confirm message reads "Move 1 files to trash?" for a single file (`confirmDelete` has no plural form).
   Screenshots: /private/tmp/claude-502/-Users-libre-Sources-video-share/2405e118-38ad-4b3f-be06-cedbc7000d33/scratchpad/shots/ (ja-02-expanded.png, ja-03-marked-2nd.png, ja-04-confirm.png, en-*.png, en1/en-*.png, ja-two-groups.png, del/ja-03-marked-2nd.png, del/ja-04-confirm.png, del/ja-05-after-delete.png). The stack ran on an APFS clone of data/ under .r5-stack/, so the main data/ was not written.
 pending: none
+author_resolutions:
+- claude-read:CR-1 accept: the test mock of next-intl does not expand ICU plurals, so asserting the label needs a mock change; the deleted ids are asserted, which is the behaviour that matters.
+- claude-read:CR-2 accept: losing the per-group name changes only the native radio display; the trashed set comes from React state and is asserted.
+- claude-read:CR-3 accept: pre-existing grammar in the en confirm message; cosmetic.
+- unspecified 1 (first file pre-selected as keeper) accept: pre-existing; the kept file is marked and deletions go to the trash.
+- unspecified 2 (dialog shows a count, not names) accept: pre-existing; deletions go to the trash.
