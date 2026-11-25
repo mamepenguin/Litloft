@@ -2925,24 +2925,21 @@ describe("SPEC-CORE-135 I7 the player outlines the current row's lines while the
 describe("SPEC-CORE-179 I5 the scroll to the current find mark under reduced motion", () => {
   function withReducedMotion(reduced: boolean) {
     const viewport = window.matchMedia?.bind(window);
-    Object.defineProperty(window, "matchMedia", {
-      configurable: true,
-      writable: true,
-      value: (query: string) => {
-        if (query.includes("prefers-reduced-motion")) {
-          return {
-            matches: reduced && query.includes("prefers-reduced-motion: reduce"),
-            media: query,
-            onchange: null,
-            addListener: () => {},
-            removeListener: () => {},
-            addEventListener: () => {},
-            removeEventListener: () => {},
-            dispatchEvent: () => false,
-          };
-        }
-        return viewport!(query);
-      },
+    const list = (query: string, matches: boolean) => ({
+      matches,
+      media: query,
+      onchange: null,
+      addListener: () => {},
+      removeListener: () => {},
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      dispatchEvent: () => false,
+    });
+    vi.stubGlobal("matchMedia", (query: string) => {
+      if (query.includes("prefers-reduced-motion")) {
+        return list(query, reduced && query.includes("prefers-reduced-motion: reduce"));
+      }
+      return viewport ? viewport(query) : list(query, false);
     });
   }
 
