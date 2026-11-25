@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { READING_BASE_KINDS, resolveReadingTarget } from "../readingAppTarget";
+import { READING_BASE_KINDS, resolveReadingMemberTarget, resolveReadingTarget } from "../readingAppTarget";
 import type { SmartFolder } from "@/types/smartFolder";
 
 function folder(query: string, fileType: SmartFolder["file_type"] = null): SmartFolder {
@@ -91,11 +91,19 @@ describe("a smart folder the app cannot use", () => {
     });
   });
 
-  it.each(["-tag:read", "!type:pdf"])("refuses the negated operator %s", (query) => {
-    expect(resolveReadingTarget(folder(query))).toEqual({
-      usable: false,
-      reason: "unsupported_part",
+  it("SPEC-CORE-177 carries a parsed negation as the listing key", () => {
+    expect(resolveReadingTarget(folder("-tag:read"))).toMatchObject({
+      usable: true,
+      params: { exclude_tag: ["read"], type: [...READING_BASE_KINDS] },
     });
+  });
+
+  it("SPEC-CORE-177 reads a spelling the parser does not negate as search text, so it is a member target", () => {
+    expect(resolveReadingTarget(folder("!type:pdf"))).toMatchObject({
+      usable: true,
+      params: { search: "!type:pdf" },
+    });
+    expect(resolveReadingMemberTarget(folder("!type:pdf"))).not.toBeNull();
   });
 
   it("keeps a free-text word that only looks like a negation", () => {
