@@ -4,6 +4,7 @@ import type { Virtualizer } from "@tanstack/react-virtual";
 import { useEffect, useRef } from "react";
 
 import type { FlatTreeRow } from "@/components/folder/FolderTreeRow";
+import { scrollBehavior } from "@/lib/reducedMotion";
 
 interface UseTreeAutoRevealArgs {
   flatList: FlatTreeRow[];
@@ -94,7 +95,7 @@ export function useTreeAutoReveal({
     const fullyBelow = rowTop >= viewportBottom;
     if (!fullyAbove && !fullyBelow) return;
 
-    virtualizer.scrollToIndex(index, { align: "center", behavior: "smooth" });
+    virtualizer.scrollToIndex(index, { align: "center", behavior: scrollBehavior() });
   }, [
     flatList,
     selectedFileId,

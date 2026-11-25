@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, type RefObject } from "react";
+import { prefersReducedMotion } from "@/lib/reducedMotion";
 import {
   ENTRY_TIMING,
   EXIT_TIMING,
@@ -11,7 +12,6 @@ import {
   type Viewport,
 } from "./fullscreenKeyframes";
 
-const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
 const MOVING_MARKER = "fullscreenMoving";
 
 /**
@@ -41,10 +41,6 @@ export interface FrameTransition {
    */
   shrink: (settle: () => void) => void;
   isMoving: () => boolean;
-}
-
-function reducedMotion(): boolean {
-  return typeof window.matchMedia === "function" && window.matchMedia(REDUCED_MOTION_QUERY).matches;
 }
 
 /**
@@ -164,7 +160,7 @@ export function useFrameTransition(
       frame != null &&
       capturedRef.current != null &&
       supported(frame) &&
-      !reducedMotion() &&
+      !prefersReducedMotion() &&
       !zoomed()
     );
   }, [frameOf]);

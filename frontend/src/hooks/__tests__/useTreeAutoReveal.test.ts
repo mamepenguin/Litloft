@@ -1,5 +1,5 @@
 import { renderHook } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { FlatTreeRow } from "@/components/folder/FolderTreeRow";
 
@@ -258,4 +258,62 @@ describe("useTreeAutoReveal", () => {
     );
     expect(scrollToIndex).not.toHaveBeenCalled();
   });
+});
+
+describe("SPEC-CORE-179 I5 the tree reveal under reduced motion", () => {
+  const realMatchMedia = Object.getOwnPropertyDescriptor(window, "matchMedia");
+
+  function reduceMotion(reduced: boolean) {
+    Object.defineProperty(window, "matchMedia", {
+      configurable: true,
+      writable: true,
+      value: (query: string) => ({
+        matches: reduced && query.includes("prefers-reduced-motion: reduce"),
+        media: query,
+        onchange: null,
+        addListener: () => {},
+        removeListener: () => {},
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        dispatchEvent: () => false,
+      }),
+    });
+  }
+
+  afterEach(() => {
+    if (realMatchMedia) Object.defineProperty(window, "matchMedia", realMatchMedia);
+    else delete (window as Partial<Window>).matchMedia;
+  });
+
+  const flatList = [
+    ...Array.from({ length: 50 }, (_, i) => folderRow(`f${i}`)),
+    fileRow("target-id", "x/target.mp4", 1),
+  ];
+
+  it.each<[string, string | null, string | null, number, number]>([
+    ["a folder below the viewport", "f30", null, 0, 30],
+    ["a folder above the viewport", "f5", null, 960, 5],
+    ["a file by id", null, "target-id", 0, 50],
+  ])(
+    "SPEC-CORE-179 I5 jumps instead of gliding to %s, with the same alignment",
+    (_name, selectedPath, selectedFileId, scrollTop, index) => {
+      reduceMotion(true);
+      const scrollToIndex = vi.fn();
+      renderHook(() =>
+        useTreeAutoReveal({
+          flatList,
+          virtualizer: { scrollToIndex },
+          scrollElement: makeScrollElement({ scrollTop, clientHeight: 320 }),
+          selectedPath,
+          selectedFileId,
+          rowHeight: ROW_HEIGHT,
+        }),
+      );
+      expect(scrollToIndex).toHaveBeenCalledTimes(1);
+      expect(scrollToIndex).toHaveBeenCalledWith(index, {
+        align: "center",
+        behavior: "auto",
+      });
+    },
+  );
 });

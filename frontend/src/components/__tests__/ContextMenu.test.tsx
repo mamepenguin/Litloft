@@ -72,3 +72,19 @@ describe("ContextMenu", () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("SPEC-CORE-178 I1 ContextMenu opens without an entrance animation", () => {
+  it("SPEC-CORE-178 I1 carries no animate class on the menu or anything it draws, except a spinner", () => {
+    open();
+    const menu = screen.getByRole("menuitem", { name: "Delete" });
+    expect(menu).toBeInTheDocument();
+    const animated = Array.from(
+      document.querySelectorAll<HTMLElement>("[class]"),
+    ).filter((el) =>
+      (el.getAttribute("class") ?? "")
+        .split(/\s+/)
+        .some((name) => name.startsWith("animate-") && name !== "animate-spin"),
+    );
+    expect(animated).toEqual([]);
+  });
+});

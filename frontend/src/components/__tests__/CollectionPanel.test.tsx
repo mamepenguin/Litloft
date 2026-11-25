@@ -235,4 +235,77 @@ describe("CollectionPanel", () => {
 
     expect(container.innerHTML).toBe("");
   });
+
+  describe("SPEC-CORE-179 I5 the current-track scroll under reduced motion", () => {
+    const realMatchMedia = Object.getOwnPropertyDescriptor(window, "matchMedia");
+
+    function reduceMotion(reduced: boolean) {
+      Object.defineProperty(window, "matchMedia", {
+        configurable: true,
+        writable: true,
+        value: (query: string) => ({
+          matches: reduced && query.includes("prefers-reduced-motion: reduce"),
+          media: query,
+          onchange: null,
+          addListener: () => {},
+          removeListener: () => {},
+          addEventListener: () => {},
+          removeEventListener: () => {},
+          dispatchEvent: () => false,
+        }),
+      });
+    }
+
+    function restoreMatchMedia() {
+      if (realMatchMedia) Object.defineProperty(window, "matchMedia", realMatchMedia);
+      else delete (window as Partial<Window>).matchMedia;
+    }
+
+    type Props = Parameters<typeof CollectionPanel>[0];
+
+    /** Every scroll the panel makes while it loads on f1 and then moves to f3. */
+    async function scrollsFor(reduced: boolean, props: Partial<Props>, ready: string) {
+      reduceMotion(reduced);
+      const scroll = vi.mocked(Element.prototype.scrollIntoView);
+      scroll.mockClear();
+      const base: Props = {
+        currentFileId: "f1",
+        currentFileType: "audio",
+        drive: "main",
+        folderPath: "music",
+        onNavigate,
+        ...props,
+      } as Props;
+      try {
+        const view = render(<CollectionPanel {...base} />);
+        await waitFor(() => expect(screen.getByText(ready)).toBeInTheDocument());
+        view.rerender(<CollectionPanel {...base} currentFileId="f2" />);
+        await waitFor(() => expect(screen.getAllByText("Track f2").length).toBeGreaterThan(0));
+        const calls = scroll.mock.calls.map((args) => args[0]);
+        view.unmount();
+        return calls;
+      } finally {
+        restoreMatchMedia();
+      }
+    }
+
+    it.each<[string, Partial<Props>, string]>([
+      ["a collection", { collectionId: "c1" }, "Test Collection"],
+      ["a folder queue", { folderPlay: true }, "music"],
+    ])(
+      "SPEC-CORE-179 I5 jumps instead of gliding in %s, to the same place",
+      async (_name, props, ready) => {
+        const glide = await scrollsFor(false, props, ready);
+        expect(glide.length).toBeGreaterThan(0);
+        for (const options of glide) {
+          expect(options).toMatchObject({ behavior: "smooth" });
+        }
+
+        const jump = await scrollsFor(true, props, ready);
+        expect(jump).toEqual(
+          glide.map((options) => ({ ...(options as object), behavior: "auto" })),
+        );
+      },
+    );
+  });
 });

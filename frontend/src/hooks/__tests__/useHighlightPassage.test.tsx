@@ -382,3 +382,88 @@ describe("useHighlightPassage", () => {
     });
   });
 });
+
+describe("SPEC-CORE-179 I5 the passage scroll under reduced motion", () => {
+  function reduceMotion(reduced: boolean) {
+    vi.stubGlobal("matchMedia", (query: string) => ({
+      matches: reduced && query.includes("prefers-reduced-motion: reduce"),
+      media: query,
+      onchange: null,
+      addListener: () => {},
+      removeListener: () => {},
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      dispatchEvent: () => false,
+    }));
+  }
+
+  /** The options of every passage scroll one render of `html` makes. */
+  function scrollsFor(reduced: boolean, html: string, quote: string, deferFrame: boolean) {
+    reduceMotion(reduced);
+    const frames: FrameRequestCallback[] = [];
+    if (deferFrame) {
+      vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) => {
+        frames.push(cb);
+        return frames.length;
+      });
+    }
+    scrollSpy.mockClear();
+    const fixture = () => <HarnessFixture html={html} quote={quote} />;
+    const view = render(fixture());
+    if (deferFrame) {
+      view.rerender(fixture());
+      frames.splice(0).forEach((cb) => cb(0));
+    }
+    const calls = scrollSpy.mock.calls.map((args) => args[0]);
+    view.unmount();
+    return calls;
+  }
+
+  const cases: Array<[string, string, string, boolean]> = [
+    ["a single-node match", "<p>The quick brown fox jumps.</p>", "brown fox", false],
+    [
+      "a multi-node match",
+      '<pre><span class="tok">const </span><span class="tok">answer</span> = 42;</pre>',
+      "const answer = 42",
+      false,
+    ],
+    ["a prefix fallback", "<p>alpha beta gamma delta epsilon zeta eta theta.</p>", "alpha beta gamma delta NOPE NEVER", false],
+    ["a frame that runs after the container was rebuilt", "<p>The quick brown fox jumps.</p>", "brown fox", true],
+  ];
+
+  it.each(cases)(
+    "SPEC-CORE-179 I5 jumps instead of gliding to %s, to the same place",
+    (_name, html, quote, deferFrame) => {
+      const glide = scrollsFor(false, html, quote, deferFrame);
+      expect(glide.length).toBeGreaterThan(0);
+      for (const options of glide) {
+        expect(options).toMatchObject({ behavior: "smooth" });
+      }
+
+      const jump = scrollsFor(true, html, quote, deferFrame);
+      expect(jump).toEqual(
+        glide.map((options) => ({ ...(options as object), behavior: "auto" })),
+      );
+    },
+  );
+
+  it("SPEC-CORE-179 I5 jumps instead of gliding in a plain-children container that re-renders, to the same place", () => {
+    const scrolls = (reduced: boolean) => {
+      reduceMotion(reduced);
+      scrollSpy.mockClear();
+      const fixture = () => <PlainFixture text="The quick brown fox jumps." quote="brown fox" />;
+      const view = render(fixture());
+      view.rerender(fixture());
+      const calls = scrollSpy.mock.calls.map((args) => args[0]);
+      view.unmount();
+      return calls;
+    };
+
+    const glide = scrolls(false);
+    expect(glide.length).toBeGreaterThan(0);
+    const jump = scrolls(true);
+    expect(jump).toEqual(
+      glide.map((options) => ({ ...(options as object), behavior: "auto" })),
+    );
+  });
+});

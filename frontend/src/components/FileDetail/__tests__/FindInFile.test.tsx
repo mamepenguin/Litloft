@@ -2921,3 +2921,65 @@ describe("SPEC-CORE-135 I7 the player outlines the current row's lines while the
     expect(outlines()).toEqual(NONE);
   });
 });
+
+describe("SPEC-CORE-179 I5 the scroll to the current find mark under reduced motion", () => {
+  function withReducedMotion(reduced: boolean) {
+    const viewport = window.matchMedia?.bind(window);
+    const list = (query: string, matches: boolean) => ({
+      matches,
+      media: query,
+      onchange: null,
+      addListener: () => {},
+      removeListener: () => {},
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      dispatchEvent: () => false,
+    });
+    vi.stubGlobal("matchMedia", (query: string) => {
+      if (query.includes("prefers-reduced-motion")) {
+        return list(query, reduced && query.includes("prefers-reduced-motion: reduce"));
+      }
+      return viewport ? viewport(query) : list(query, false);
+    });
+  }
+
+  /** The options of every scroll onto a mark in the note when Enter makes one current. */
+  async function scrollsToCurrent(reduced: boolean): Promise<unknown[]> {
+    setViewport();
+    withReducedMotion(reduced);
+    shared.markdown = NOTE;
+    reply = () => answer(NOTE_ROWS());
+    const calls: unknown[] = [];
+    const original = Element.prototype.scrollIntoView;
+    let body: HTMLElement | null = null;
+    Element.prototype.scrollIntoView = function scrollIntoView(this: Element, options?: unknown) {
+      if (body?.contains(this) && this.closest("mark")) calls.push(options);
+    };
+    try {
+      await openPage(PDF);
+      body = await screen.findByTestId("markdown-body");
+      const input = await openBar();
+      typeInto(input, TERM);
+      await findCount("3 件");
+      enter(input);
+      await waitFor(() => expect(body!.querySelector("mark.find-mark-current")).not.toBeNull());
+      await waitFor(() => expect(calls.length).toBeGreaterThan(0));
+      return calls;
+    } finally {
+      Element.prototype.scrollIntoView = original;
+      cleanup();
+    }
+  }
+
+  it("SPEC-CORE-179 I5 jumps instead of gliding to the current mark, to the same place", async () => {
+    const glide = await scrollsToCurrent(false);
+    for (const options of glide) {
+      expect(options).toMatchObject({ behavior: "smooth" });
+    }
+
+    const jump = await scrollsToCurrent(true);
+    expect(jump).toEqual(
+      glide.map((options) => ({ ...(options as object), behavior: "auto" })),
+    );
+  });
+});

@@ -58,8 +58,8 @@ The next 100 rows load when you reach the end of the list.
 
 ### With touch
 
-- Swipe a row to the left, past a third of its width, to mark it done. A shorter swipe
-  springs back, and a mostly vertical gesture scrolls.
+- Swipe a row to the left, past a third of its width or with a quick flick, to mark it
+  done. A short slow swipe springs back, and a mostly vertical gesture scrolls.
 - Press and hold a row for half a second to start selecting. While selecting, tap rows to
   add or remove them; the selection bar's **×** ends selection.
 - On a screen at least 768 px wide, the **済み** button is always visible on touch.

@@ -1,7 +1,7 @@
 /**
  * SPEC-CORE-032 — closing arrivals from the page: the row, the selection
  * bar, the all-done button, the undo toast, and the two gestures a touch
- * screen has instead of a row's controls.
+ * screen has instead of a row's controls. SPEC-CORE-180 — the thrown swipe.
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
@@ -416,6 +416,33 @@ describe("SPEC-CORE-032 the pointer-type controls", () => {
     });
   }
 
+  let clock = 0;
+
+  /** `performance.now()` as the row reads it at pointer-down and pointer-up. */
+  function freezeClock() {
+    clock = 1000;
+    vi.spyOn(performance, "now").mockImplementation(() => clock);
+  }
+
+  function touch(x: number, y: number) {
+    return { pointerId: 1, pointerType: "touch", isPrimary: true, clientX: x, clientY: y };
+  }
+
+  /** Down at (250, 100), one move and the release at (x, y), `elapsedMs` apart. */
+  function swipe(element: HTMLElement, x: number, y: number, elapsedMs: number) {
+    fireEvent.pointerDown(element, touch(250, 100));
+    fireEvent.pointerMove(element, touch(x, y));
+    clock += elapsedMs;
+    fireEvent.pointerUp(element, touch(x, y));
+  }
+
+  /** Elements pushed left by an inline transform, which a following row shows. */
+  function rowsPushedLeft(): HTMLElement[] {
+    return Array.from(document.querySelectorAll<HTMLElement>("[style]")).filter((el) =>
+      /translate(X|3d)?\(\s*-\d*[1-9]/.test(el.style.transform),
+    );
+  }
+
   it("SPEC-CORE-032 marks done on a swipe left past a third of the row", async () => {
     pointer(true);
     rect(300);
@@ -431,11 +458,171 @@ describe("SPEC-CORE-032 the pointer-type controls", () => {
     pointer(true);
     rect(300);
     await open([f1, f2]);
-    point(linkFor("f1"), "up", 200, 100);
+    freezeClock();
+    swipe(linkFor("f1"), 200, 100, 1000);
 
     await act(async () => {});
     expect(api.doneCalls()).toHaveLength(0);
     expect(screen.getByText("Arrival f1")).toBeInTheDocument();
+  });
+
+  it("SPEC-CORE-180 marks done on a quick flick short of a third of the row", async () => {
+    pointer(true);
+    rect(300);
+    await open([f1, f2]);
+    freezeClock();
+    swipe(linkFor("f1"), 200, 100, 200);
+
+    await waitFor(() => expect(api.doneCalls()).toHaveLength(1));
+    expect(api.doneCalls()[0].body).toEqual({ file_ids: ["f1"] });
+    expect(await screen.findByText("Marked 1 done")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Undo" })).toBeInTheDocument();
+  });
+
+  it("SPEC-CORE-180 springs back from a 31 px flick and marks done a 32 px flick at the same speed", async () => {
+    pointer(true);
+    rect(300);
+    await open([f1, f2]);
+    freezeClock();
+
+    swipe(linkFor("f1"), 219, 100, 10);
+    await act(async () => {});
+    expect(api.doneCalls()).toHaveLength(0);
+    expect(screen.getByText("Arrival f1")).toBeInTheDocument();
+
+    swipe(linkFor("f2"), 218, 100, 10);
+    await waitFor(() => expect(api.doneCalls()).toHaveLength(1));
+    expect(api.doneCalls()[0].body).toEqual({ file_ids: ["f2"] });
+  });
+
+  it("SPEC-CORE-180 springs back from a flick at 0.11 px/ms and marks done one just above it", async () => {
+    pointer(true);
+    rect(600);
+    await open([f1, f2]);
+    freezeClock();
+
+    swipe(linkFor("f1"), 140, 100, 1000);
+    await act(async () => {});
+    expect(api.doneCalls()).toHaveLength(0);
+
+    swipe(linkFor("f2"), 139, 100, 1000);
+    await waitFor(() => expect(api.doneCalls()).toHaveLength(1));
+    expect(api.doneCalls()[0].body).toEqual({ file_ids: ["f2"] });
+  });
+
+  it("SPEC-CORE-180 decides a release with identical timestamps by distance alone", async () => {
+    const f3 = inboxItem(inboxFile("f3"), localMoment(0, 7, 0));
+    pointer(true);
+    rect(300);
+    await open([f1, f2, f3]);
+    freezeClock();
+
+    swipe(linkFor("f1"), 200, 100, 0);
+    await act(async () => {});
+    expect(api.doneCalls()).toHaveLength(0);
+
+    swipe(linkFor("f2"), 150, 100, 0);
+    await waitFor(() => expect(api.doneCalls()).toHaveLength(1));
+    expect(api.doneCalls()[0].body).toEqual({ file_ids: ["f2"] });
+
+    // The same 50 px as f1, with time between the events, is a throw.
+    swipe(linkFor("f3"), 200, 100, 200);
+    await waitFor(() => expect(api.doneCalls()).toHaveLength(2));
+    expect(api.doneCalls()[1].body).toEqual({ file_ids: ["f3"] });
+  });
+
+  it("SPEC-CORE-180 does not mark done a right flick, and does a left one at the same speed", async () => {
+    pointer(true);
+    rect(300);
+    await open([f1, f2]);
+    freezeClock();
+
+    swipe(linkFor("f1"), 300, 100, 100);
+    await act(async () => {});
+    expect(api.doneCalls()).toHaveLength(0);
+
+    swipe(linkFor("f2"), 200, 100, 100);
+    await waitFor(() => expect(api.doneCalls()).toHaveLength(1));
+    expect(api.doneCalls()[0].body).toEqual({ file_ids: ["f2"] });
+  });
+
+  it("SPEC-CORE-180 I8 marks a flicked row done under reduced motion, with the same undo", async () => {
+    pointer(true, true);
+    rect(300);
+    await open([f1, f2]);
+    freezeClock();
+    swipe(linkFor("f1"), 200, 100, 200);
+
+    await waitFor(() => expect(api.doneCalls()).toHaveLength(1));
+    expect(await screen.findByText("Marked 1 done")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Undo" })).toBeInTheDocument();
+  });
+
+  it("SPEC-CORE-180 never marks done a flick handed to scrolling after the swipe started", async () => {
+    pointer(true);
+    rect(300);
+    await open([f1, f2]);
+    freezeClock();
+
+    const link = linkFor("f1");
+    fireEvent.pointerDown(link, touch(250, 100));
+    fireEvent.pointerMove(link, touch(220, 100));
+    fireEvent.pointerMove(link, touch(210, 170));
+    clock += 100;
+    fireEvent.pointerUp(link, touch(200, 100));
+
+    await act(async () => {});
+    expect(api.doneCalls()).toHaveLength(0);
+    expect(screen.getByText("Arrival f1")).toBeInTheDocument();
+    expect(rowsPushedLeft()).toEqual([]);
+
+    // The same flick without the vertical move is done.
+    const other = linkFor("f2");
+    fireEvent.pointerDown(other, touch(250, 100));
+    fireEvent.pointerMove(other, touch(220, 100));
+    clock += 100;
+    fireEvent.pointerUp(other, touch(200, 100));
+
+    await waitFor(() => expect(api.doneCalls()).toHaveLength(1));
+    expect(api.doneCalls()[0].body).toEqual({ file_ids: ["f2"] });
+  });
+
+  it("SPEC-CORE-180 I11 never moves or marks done a row dragged after its long-press fired", async () => {
+    pointer(true);
+    rect(300);
+    await open([f1, f2]);
+    freezeClock();
+
+    // Control: on the same page a swipe does push a row left.
+    const other = linkFor("f2");
+    fireEvent.pointerDown(other, touch(250, 100));
+    fireEvent.pointerMove(other, touch(200, 100));
+    if (rowsPushedLeft().length === 0) {
+      throw new Error("a swipe pushed no element left; the probe sees nothing");
+    }
+    fireEvent.pointerCancel(other, touch(200, 100));
+    expect(rowsPushedLeft()).toEqual([]);
+
+    const link = linkFor("f1");
+    fireEvent.pointerDown(link, touch(250, 100));
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 600));
+    });
+    expect(screen.getByText("1 selected")).toBeInTheDocument();
+
+    fireEvent.pointerMove(link, touch(150, 100));
+    expect(rowsPushedLeft()).toEqual([]);
+    fireEvent.pointerMove(link, touch(50, 100));
+    expect(rowsPushedLeft()).toEqual([]);
+
+    clock += 800;
+    fireEvent.pointerUp(link, touch(50, 100));
+    fireEvent.click(link);
+
+    await act(async () => {});
+    expect(api.doneCalls()).toHaveLength(0);
+    expect(screen.getByText("Arrival f1")).toBeInTheDocument();
+    expect(screen.getByText("1 selected")).toBeInTheDocument();
   });
 
   it("SPEC-CORE-032 treats a mostly vertical gesture as a scroll", async () => {

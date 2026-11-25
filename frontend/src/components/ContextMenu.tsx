@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, type ComponentType } from "react";
+import { useLayoutEffect, useRef, type ComponentType } from "react";
 import { DismissScrim } from "@/components/DismissScrim";
 import { useShortcuts } from "@/hooks/useShortcuts";
 
@@ -47,7 +47,7 @@ export function ContextMenu({ open, position, items, onClose }: ContextMenuProps
     open,
   );
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!open || !menuRef.current) return;
     const menu = menuRef.current;
     const rect = menu.getBoundingClientRect();
@@ -71,7 +71,7 @@ export function ContextMenu({ open, position, items, onClose }: ContextMenuProps
       <DismissScrim onDismiss={onClose} className="fixed inset-0 z-49">
         <div
           ref={menuRef}
-          className="fixed z-50 w-44 overflow-hidden rounded-2xl border border-bg-border bg-bg-card shadow-lg animate-fade-in-scale"
+          className="fixed z-50 w-44 overflow-hidden rounded-2xl border border-bg-border bg-bg-card shadow-lg"
           style={{ left: position.x, top: position.y }}
         >
           {items.map((item, index) =>

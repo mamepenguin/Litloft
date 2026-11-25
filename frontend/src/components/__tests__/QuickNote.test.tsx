@@ -149,6 +149,29 @@ describe("QuickNote shortcut", () => {
   });
 });
 
+describe("SPEC-CORE-178 I1 the quick note opens without an entrance animation", () => {
+  const entranceClasses = () =>
+    Array.from(document.querySelectorAll<HTMLElement>("[class]")).filter((el) =>
+      (el.getAttribute("class") ?? "")
+        .split(/\s+/)
+        .some((name) => name.startsWith("animate-") && name !== "animate-spin"),
+    );
+
+  it("SPEC-CORE-178 I1 draws the panel and its backdrop without a fade or scale, from N", async () => {
+    renderQuickNote();
+    fireEvent.keyDown(document, { key: "n" });
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
+    expect(entranceClasses()).toEqual([]);
+  });
+
+  it("SPEC-CORE-178 I1 draws the panel and its backdrop without a fade or scale, from its button", async () => {
+    renderQuickNote();
+    fireEvent.click(screen.getByRole("button", { name: "Quick note" }));
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
+    expect(entranceClasses()).toEqual([]);
+  });
+});
+
 describe("QuickNote panel", () => {
   it("focuses the textarea on open", async () => {
     renderQuickNote();

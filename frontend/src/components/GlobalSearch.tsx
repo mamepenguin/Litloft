@@ -723,7 +723,7 @@ export function GlobalSearch() {
         isMobileViewport &&
         createPortal(
           <div
-            className="fixed inset-0 z-50 flex flex-col bg-bg-primary animate-fade-in"
+            className="fixed inset-0 z-50 flex flex-col bg-bg-primary"
             onDragEnter={imageEnabled ? handleDragEnter : undefined}
             onDragOver={imageEnabled ? handleDragOver : undefined}
             onDragLeave={imageEnabled ? handleDragLeave : undefined}
@@ -813,11 +813,11 @@ export function GlobalSearch() {
         // flush against the viewport edge.
         <div className="fixed inset-0 z-50 flex items-start justify-center px-4 pt-[10vh]">
           <div
-            className="fixed inset-0 bg-black/50 animate-fade-in"
+            className="fixed inset-0 bg-black/50"
             onClick={closeSearch}
           />
           <div
-            className="relative z-10 w-full max-w-3xl rounded-2xl border border-bg-border bg-bg-primary shadow-lg animate-fade-in-scale"
+            className="relative z-10 w-full max-w-3xl rounded-2xl border border-bg-border bg-bg-primary shadow-lg"
             aria-modal="true"
             onDragEnter={imageEnabled ? handleDragEnter : undefined}
             onDragOver={imageEnabled ? handleDragOver : undefined}

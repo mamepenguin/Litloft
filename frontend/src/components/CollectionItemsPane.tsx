@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 
 import { useSelectedFile } from "@/hooks/useSelectedFile";
 import { getThumbnailUrl } from "@/lib/api";
+import { prefersReducedMotion } from "@/lib/reducedMotion";
 import type { CollectionItemEntry } from "@/types";
 
 interface CollectionItemsPaneProps {
@@ -48,30 +49,32 @@ export function CollectionItemsPane({
     }
 
     const prev = prevRectsRef.current;
-    for (const [id, prevRect] of prev) {
-      const newRect = newRects.get(id);
-      if (!newRect) continue;
-      const dy = prevRect.top - newRect.top;
-      if (dy === 0) continue;
-      const el = rowRefs.current.get(id);
-      if (!el || typeof el.animate !== "function") continue;
-      const anim = el.animate(
-        [
-          { transform: `translateY(${dy}px)` },
-          { transform: "translateY(0)" },
-        ],
-        { duration: 180, easing: "cubic-bezier(0.2, 0, 0, 1)" },
-      );
-      animationsRef.current.set(id, anim);
-      anim.finished
-        .then(() => {
-          if (animationsRef.current.get(id) === anim) {
-            animationsRef.current.delete(id);
-          }
-        })
-        .catch(() => {
-          // cancel() rejects ``anim.finished`` with AbortError — drop.
-        });
+    if (!prefersReducedMotion()) {
+      for (const [id, prevRect] of prev) {
+        const newRect = newRects.get(id);
+        if (!newRect) continue;
+        const dy = prevRect.top - newRect.top;
+        if (dy === 0) continue;
+        const el = rowRefs.current.get(id);
+        if (!el || typeof el.animate !== "function") continue;
+        const anim = el.animate(
+          [
+            { transform: `translateY(${dy}px)` },
+            { transform: "translateY(0)" },
+          ],
+          { duration: 180, easing: "cubic-bezier(0.2, 0, 0, 1)" },
+        );
+        animationsRef.current.set(id, anim);
+        anim.finished
+          .then(() => {
+            if (animationsRef.current.get(id) === anim) {
+              animationsRef.current.delete(id);
+            }
+          })
+          .catch(() => {
+            // cancel() rejects ``anim.finished`` with AbortError — drop.
+          });
+      }
     }
 
     // Save the measured layout rects (not a fresh

@@ -9,6 +9,7 @@ import {
   markFindOccurrences,
   type FindTextSource,
 } from "@/lib/findMarks";
+import { scrollBehavior } from "@/lib/reducedMotion";
 
 /**
  * Applies the find marks to the text under `getContainer`. The scroll is
@@ -36,7 +37,7 @@ export function useFindMarksIn(
     const mark = markFindOccurrences(container, term, current, textSource);
     if (mark && shouldScroll) {
       scrolledFor.current = current;
-      mark.scrollIntoView({ block: "center", behavior: "smooth" });
+      mark.scrollIntoView({ block: "center", behavior: scrollBehavior() });
     }
   });
 }

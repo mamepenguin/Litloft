@@ -1278,6 +1278,12 @@ The tag row in edit mode.
 | `animate-slide-up-bar` | 300ms cubic-bezier slide | Selection bar |
 | `animate-pop` | 250ms scale 1→1.25→1 | Heart / favorite icons |
 
+**The search palette, the shortcut cheat sheet, the quick note panel and the context
+menu appear without animation**, however they are opened. Each is a surface the viewer
+opens to type or choose in, from a shortcut key or a right-click, dozens of times a
+day; the motion would only stand between the press and the input. Bars and modes that
+follow from an action — the selection bar after a long-press — keep their motion.
+
 A box returning to where it belongs — a released pull on the Bottom Sheet, a
 listing cell moving — travels over **200ms `ease-out`**.
 

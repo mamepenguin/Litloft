@@ -2,6 +2,8 @@
 
 import { useEffect, useRef } from "react";
 
+import { scrollBehavior } from "@/lib/reducedMotion";
+
 const isDev = process.env.NODE_ENV !== "production";
 
 const MARK_CLASS = "ask-citation-highlight";
@@ -93,7 +95,7 @@ export function useHighlightPassage(
     const range = findPassageRange(container, trimmed);
     if (!range) {
       if (!scrolledRef.current) {
-        container.scrollIntoView({ block: "start", behavior: "smooth" });
+        container.scrollIntoView({ block: "start", behavior: scrollBehavior() });
         scrolledRef.current = true;
       }
       if (isDev) {
@@ -120,7 +122,7 @@ export function useHighlightPassage(
         // schedules again, so the flag is set only by a scroll that happened.
         requestAnimationFrame(() => {
           if (scrolledRef.current || !first.isConnected) return;
-          first.scrollIntoView({ block: "center", behavior: "smooth" });
+          first.scrollIntoView({ block: "center", behavior: scrollBehavior() });
           scrolledRef.current = true;
         });
       }
@@ -139,7 +141,7 @@ export function useHighlightPassage(
           range.startContainer.nodeType === Node.ELEMENT_NODE
             ? (range.startContainer as Element)
             : range.startContainer.parentElement;
-        anchor?.scrollIntoView({ block: "center", behavior: "smooth" });
+        anchor?.scrollIntoView({ block: "center", behavior: scrollBehavior() });
         scrolledRef.current = true;
       }
       if (isDev) {
