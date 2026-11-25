@@ -1,0 +1,5 @@
+frontend/src/__tests__/appTargetNegation.test.tsx
+frontend/src/components/videoapp/__tests__/VideoApp.directTargetProviders.test.tsx
+frontend/src/lib/__tests__/appTarget.test.ts
+frontend/src/lib/__tests__/appTargetDirectExclusions.test.ts
+frontend/src/lib/__tests__/readingAppTarget.test.ts

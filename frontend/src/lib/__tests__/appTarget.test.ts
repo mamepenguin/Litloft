@@ -116,23 +116,7 @@ describe("SPEC-ADDON-106 the query's conditions", () => {
 });
 
 describe("SPEC-ADDON-106 I4 a folder the app cannot use", () => {
-  const UNUSABLE = [
-    "-tag:x",
-    "!type:pdf",
-    "!TYPE:pdf",
-    "-Tag:x",
-    "x -path : a",
-    "x -Path : a",
-    "x\t!in:Trip",
-    "-is：favorite",
-    "-in:Trip",
-    "-size:>1MB",
-    "-duration:>1m",
-    "!is:liked",
-    "duration:>10m",
-    "tag:x duration:<1h",
-    "DURATION:>1m",
-  ];
+  const UNUSABLE = ["duration:>10m", "tag:x duration:<1h", "DURATION:>1m", "-tag:x duration:>1m", "-tag:x modified:<2025"];
 
   for (const base of BASES) {
     it.each(UNUSABLE)(`SPEC-ADDON-106 refuses %j whatever the base kinds (${base.join(",")})`, (query) => {
@@ -140,6 +124,36 @@ describe("SPEC-ADDON-106 I4 a folder the app cannot use", () => {
         usable: false,
         reason: "unsupported_part",
       });
+    });
+  }
+
+  for (const base of BASES) {
+    it.each([
+      ["-tag:x", "exclude_tag", ["x"]],
+      ["-Tag:x", "exclude_tag", ["x"]],
+      ["-in:Trip", "exclude_collection", ["Trip"]],
+      ["-is：favorite", "favorite", false],
+    ] as const)(`SPEC-CORE-177 carries %j as %s (${base.join(",")})`, (query, key, value) => {
+      const target = resolveAppTarget(folder(query), base);
+
+      expect(target.usable).toBe(true);
+      const params =
+        "params" in target && target.params !== null ? (target.params as Record<string, unknown>) : {};
+      expect(Array.isArray(value) ? [params[key]].flat() : params[key]).toEqual(value);
+      expect(params.search).toBeUndefined();
+    });
+
+    it.each([
+      "!type:pdf",
+      "!TYPE:pdf",
+      "x -path : a",
+      "x -Path : a",
+      "x\t!in:Trip",
+      "-size:>1MB",
+      "-duration:>1m",
+      "!is:liked",
+    ])(`SPEC-CORE-177 reads %j as search text (${base.join(",")})`, (query) => {
+      expect(resolveAppTarget(folder(query), base)).toMatchObject({ usable: true, params: { search: query } });
     });
   }
 
