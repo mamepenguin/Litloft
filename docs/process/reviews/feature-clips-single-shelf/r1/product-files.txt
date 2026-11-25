@@ -1,0 +1,2 @@
+addons/knowledge/frontend/clipsapp/Library.tsx
+addons/knowledge/frontend/clipsapp/useGroupedShelves.ts

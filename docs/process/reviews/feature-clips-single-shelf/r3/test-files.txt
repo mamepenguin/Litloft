@@ -1,0 +1,8 @@
+addons/knowledge/frontend/__tests__/cardMenuHarness.tsx
+addons/knowledge/frontend/__tests__/clipsCardMenu.test.tsx
+addons/knowledge/frontend/__tests__/clipsHome.test.tsx
+addons/knowledge/frontend/__tests__/clipsLibrary.test.tsx
+addons/knowledge/frontend/__tests__/clipsNameFilter.test.tsx
+addons/knowledge/frontend/__tests__/clipsSingleShelf.test.tsx
+addons/knowledge/frontend/__tests__/clipsTargetChangeOnHome.test.tsx
+addons/knowledge/frontend/__tests__/clipsViewPerTarget.test.tsx

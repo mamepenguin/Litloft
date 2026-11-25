@@ -1,0 +1,125 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "MEDIUM",
+  "findings": [
+    {
+      "id": "R2-1",
+      "origin": "reviewer",
+      "claim": "The fix for V-1 closes the empty→1 route only when the empty state was reached from a fresh scope or from the grid. When shelves were drawn and a refresh answers 0, the body stays \"shelves\" while the empty state is drawn, so a later refresh answering 1 still draws a headed shelf with a count and See all.",
+      "impact": "In this path the Library shows one heading, a count and See all where I1 calls for the None grid, until the conditions change. No clip is lost, because See all reaches it. Reaching the path takes shelves drawn under a filter, every matching clip moved or removed elsewhere, a refresh, and then a matching clip added. In ordinary use that almost never happens.",
+      "evidence": "Library.tsx:171-175: `kept === \"shelves\" || data.total >= 2 ? \"shelves\" : ...`. With kept=\"shelves\" and total=0, value stays \"shelves\". Library.tsx:192-197 then draws the empty state, because data.shelves is empty, but body.current.value is still \"shelves\". On the next refresh in the same scope (useGroupedShelves.ts:50-53 keeps phase ready and the scope unchanged), total=1 and kept=\"shelves\" keep the value at \"shelves\". Library.tsx:179 skips the grid, and Library.tsx:210-243 draws a CoverShelf with title, count and seeAllHref. I8's exception covers only 'with shelves drawn', and here the empty state is drawn. The new test (clipsSingleShelf.test.tsx:537-553) starts from a fresh empty state, so it does not cover this route.",
+      "repro": "not_reproduced; static trace. Steps: ?view=all&group=tags&trust=verified with verified clips in two tags (shelves drawn). Mark them unverified elsewhere and emit knowledge.clip.ready: the shelves answer reports 0 and the empty state is drawn. Add one verified clip and emit knowledge.clip.ready: the answer reports 1 and one headed shelf is drawn.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "A",
+        "invariant_ref": "I1",
+        "reason": "An answer with total_shelves = 1 draws a heading, a count and See all while no shelves were drawn, so I8's 'with shelves drawn' exception does not apply."
+      },
+      "severity": "LOW",
+      "proposed_fix": "Compute the stored value from what is drawn: when total is 0, store \"empty\" whatever was kept, i.e. `data.total === 0 ? \"empty\" : kept === \"shelves\" || data.total >= 2 ? \"shelves\" : \"grid\"`."
+    }
+  ],
+  "specification_compliance": [
+    "I1: an answer of 1 in a fresh scope, after the grid, or after an empty state reached without shelves draws ClipsGrid (Library.tsx:174, 179-190). The only route left is shelves → 0 → 1 (R2-1).",
+    "I2: total >= 2 sets \"shelves\" and draws the unchanged shelf loop (Library.tsx:210-243).",
+    "I3: total 0 with no kept shelves sets \"empty\" and draws the same FilteredEmpty / noClipsHere (Library.tsx:192-197).",
+    "I4: Menus receives the chosen group unchanged; nothing writes the URL or the stored view.",
+    "I5: ClipsGrid mounts only when phase is ready and the body for the current scope is \"grid\". A failed refresh keeps the ready state without bumping `answer` (useGroupedShelves.ts:69-73), so no grid page is re-asked.",
+    "I6: useGroupShelves aborts on a scope change and filters `own` by scope; body.current is checked against the current scope (Library.tsx:179).",
+    "I7: the shelves LoadFailed uses useGroupShelves.retry; the grid's LoadFailed and MoreRow use only usePagedClips retry/loadMore.",
+    "I8: the grid's refresh is data.answer, which bumps only on a first-page answer, so pages are re-asked after the shelves answer. An answer of 2+ switches to shelves. Kept shelves persist on an answer of 1. Empty → grid mounts a fresh ClipsGrid whose loading cards replace no drawn cards."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    {
+      "behavior": "With the single-shelf grid drawn, a refresh whose shelves request fails leaves the grid as drawn and never re-asks its pages, and shows no error, while None's grid re-asks its pages directly on a refresh.",
+      "frequency": 1,
+      "impact": 3,
+      "reason": "A clip-ready event during a transient backend error leaves the new clip missing from the grid until the conditions change or the page reloads."
+    },
+    {
+      "behavior": "With shelves drawn, a refresh answering 0 draws the empty state, but the Library still records the body as shelves for that scope, which governs what the next answer of 1 draws.",
+      "frequency": 0,
+      "impact": 2,
+      "reason": "It needs every matching clip moved away elsewhere while shelves are drawn. The user then sees a headed single shelf where the grid would be expected (R2-1)."
+    },
+    {
+      "behavior": "Leaving the conditions and returning to them (for example sort A→B→A) recomputes the grid/shelves choice, so kept shelves for a one-shelf answer turn into the grid without any data change.",
+      "frequency": 1,
+      "impact": 1,
+      "reason": "It needs the rare kept-shelves-with-one-shelf state followed by a change and return of conditions. The user then sees the grid, as the spec intends for the next answer."
+    }
+  ],
+  "regression_risks": [
+    "The GroupShelves scope string (Library.tsx:168) duplicates the one in useGroupShelves (useGroupedShelves.ts:40). If one changes without the other, body.current never matches and the grid silently stops being drawn.",
+    "body.current is written during render. This relies on render being idempotent, which holds today because the value depends only on props, data and the previous ref value.",
+    "The value formula now has three outcomes and a 'kept' override. Each refresh route (grid/shelves/empty → 0/1/2+) needs its own reasoning, and only some of these routes are tested."
+  ],
+  "test_coverage": [
+    "New clipsSingleShelf.test.tsx:537-553 covers empty state → refresh answer 1 → grid with no heading and no See all. Reverting the fix (storing \"shelves\" for total 0) would make it fail, because headings() would be non-empty.",
+    "No test covers shelves → refresh 0 → refresh 1 (R2-1), grid → refresh 0 → refresh 1, or a failed shelves refresh while the grid is drawn.",
+    "The other I1-I8 tests are unchanged from r1, and every test relies on the clipsAppHarness to compute total_shelves."
+  ],
+  "not_verified": [
+    "The test suites were not run; pass or fail is not known.",
+    "Whether backend/app/routers/shelves.py computes total_shelves the way the test harness does.",
+    "The full bodies of the edited existing test files beyond their diff hunks.",
+    "That the R2-1 route is reachable through clips.tsx: whether the page keeps Library mounted when the filtered Target becomes empty was not re-read."
+  ],
+  "coverage": [
+    {
+      "path": "addons/knowledge/frontend/clipsapp/Library.tsx",
+      "read": "full",
+      "reason": "Read the whole file."
+    },
+    {
+      "path": "addons/knowledge/frontend/clipsapp/useGroupedShelves.ts",
+      "read": "full",
+      "reason": "Read the whole file."
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/cardMenuHarness.tsx",
+      "read": "partial",
+      "reason": "Only the diff hunk around choose() at lines 71-78; unchanged since r1."
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/clipsCardMenu.test.tsx",
+      "read": "partial",
+      "reason": "Only the diff hunk at lines 726-752."
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/clipsHome.test.tsx",
+      "read": "partial",
+      "reason": "Only the diff hunks around lines 216 and 441."
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/clipsLibrary.test.tsx",
+      "read": "partial",
+      "reason": "Only the diff hunks around lines 191, 208, 235, 251, 482-511, 569 and 599."
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/clipsNameFilter.test.tsx",
+      "read": "partial",
+      "reason": "Only the diff hunk around line 246."
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/clipsSingleShelf.test.tsx",
+      "read": "full",
+      "reason": "New file, shown in full in the diff. Lines 537-553 of the new test were confirmed with Grep."
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/clipsTargetChangeOnHome.test.tsx",
+      "read": "partial",
+      "reason": "Only the diff hunk around line 148."
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/clipsViewPerTarget.test.tsx",
+      "read": "partial",
+      "reason": "Only the diff hunks around lines 244-254 and 531-537."
+    }
+  ],
+  "confidence": 80,
+  "trajectory": "One fix round (32908cbe1) since r1. It adds a state: the body value grows from two values (grid | shelves) to three (grid | shelves | empty), and the prediction formula gains a `total >= 2` term next to the existing 'kept shelves' override. No branch or state was removed. The round patches the route V-1 named (empty → 1) but keeps the 'kept' override, which still outranks total 0. The shelves → 0 → 1 route therefore still violates I1 (R2-1). The design is being patched state by state rather than deriving the body from what is actually drawn."
+}
