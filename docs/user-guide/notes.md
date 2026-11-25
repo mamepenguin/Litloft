@@ -86,7 +86,8 @@ While a note is open, `Cmd/Ctrl+K` opens search limited to this drive's notes. T
   **分類** is **タグ** / **Tag** (one shelf per tag, the most used first, **タグなし** /
   **Untagged** last), **フォルダ** / **Folder** (one shelf per folder, titled by the
   folder's last segment, the drive name at the root), **追加日** / **Date Added** (one shelf
-  per month, newest first) or **なし** / **None** (every clip in one grid). **並び順** is
+  per month, newest first) or **なし** / **None** (every clip in one grid). A grouping that
+  yields a single shelf shows every clip in one grid, as **なし** / **None** does. **並び順** is
   **追加日（新しい順）** / **Date Added (Newest First)**, **追加日（古い順）** / **Date
   Added (Oldest First)** or **タイトル** / **Title**. More shelves or cards load as you
   scroll to the end. The grouping and the sort are remembered for each Target in this

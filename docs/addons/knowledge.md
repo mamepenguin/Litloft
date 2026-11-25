@@ -158,7 +158,8 @@ Saving adds the items to a note under a `## Captures` heading. Each item has a l
 - **Library** is `?view=all`. It groups by tag (`group=tags`, the default), folder
   (`group=folder`), date added (`group=month`) or not at all (`group=none`), and sorts by
   `sort=newest` (the default), `oldest` or `title`. The Folder and Date Added groupings ask
-  the core `shelves` route for `by=folder` and `by=month` under the target's conditions.
+  the core `shelves` route for `by=folder` and `by=month` under the target's conditions. A
+  grouping whose answer reports a single shelf draws every clip in one grid, as None does.
 - Unread, Recently opened, New clips and the tag shelves are cover cards. **Unverified** is a list of rows, each with **Mark as verified**, which writes the clip's trust tier through the core's `PUT /api/files/{id}/trust-tier`.
 - A card shows the clip's first Markdown image, its title, its site and a reading time of `max(1, round(bytes / 1500))` minutes. A red dot marks a clip you have not opened. Opening a card goes to the file page and counts as opening it.
 - A drive with no clips shows one empty state, and the page keeps its header and its **Clip a web page** action.
