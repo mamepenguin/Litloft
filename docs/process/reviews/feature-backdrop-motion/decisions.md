@@ -29,3 +29,5 @@ author_resolutions:
 - claude-read:unspecified 3 accept: a toast closed during its entrance finishes its 8px rise while fading (F1 x I1).
 - claude-read:unspecified 4 accept: crossing the popover/sheet breakpoint with the settings open replays the dim once (F1 x I1).
 
+- claude-read:r2 F1 accept: the same as r1 F8; focus leaves the inert card through the browser's focus fixup on the timer path.
+- claude-read:r2 F2 accept: the jsdom case cannot see layout; the reduced-motion guard is pinned by the browser case added in 3000d6e8e, which kills that mutation.
