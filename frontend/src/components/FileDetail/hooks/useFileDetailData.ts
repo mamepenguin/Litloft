@@ -21,6 +21,7 @@ import { markdownContentRegistry } from "@/lib/markdownContentRegistry";
 import {
   sidecarErrorNames,
   sidecarErrorMessage,
+  subtitleFailure,
 } from "@/lib/subtitleErrors";
 import { useSidebar } from "@/components/SidebarProvider";
 import { useToast } from "@/components/ToastProvider";
@@ -54,6 +55,7 @@ export function useFileDetailData(fileId: string): FileDetailData {
   const { requestRefresh: refreshSidebar } = useSidebar();
   const toast = useToast();
   const ts = useTranslations("subtitles");
+  const te = useTranslations("subtitles.errors");
 
   // `FileDetailContent` mounts this once per file, so nothing here resets
   // on a change of `fileId`.
@@ -183,10 +185,12 @@ export function useFileDetailData(fileId: string): FileDetailData {
         clearListSnapshot();
         refreshSidebar();
       } catch (err) {
+        const subtitle = subtitleFailure(err, te);
+        if (subtitle) toast.error(subtitle);
         console.error("Failed to rename file:", err);
       }
     },
-    [file, fresh, refreshSidebar, toast, ts],
+    [file, fresh, refreshSidebar, toast, te, ts],
   );
 
   const startEditing = useCallback(() => {
