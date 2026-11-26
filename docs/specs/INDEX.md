@@ -371,3 +371,6 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-CORE-179 | implemented | docs/specs/motion-frequency-reduced-motion.md | sha256:7c9e4d333c1235062d6a1e59a2343a133136791ef1b449fe464daa394f424fc0 |
 | SPEC-CORE-180 | implemented | docs/specs/motion-frequency-reduced-motion.md | sha256:7c9e4d333c1235062d6a1e59a2343a133136791ef1b449fe464daa394f424fc0 |
 | SPEC-ADDON-186 | implemented | docs/specs/motion-frequency-reduced-motion.md | sha256:7c9e4d333c1235062d6a1e59a2343a133136791ef1b449fe464daa394f424fc0 |
+| SPEC-CORE-181 | draft | docs/specs/backdrop-and-menu-motion.md | |
+| SPEC-CORE-182 | draft | docs/specs/backdrop-and-menu-motion.md | |
+| SPEC-CORE-183 | draft | docs/specs/backdrop-and-menu-motion.md | |
