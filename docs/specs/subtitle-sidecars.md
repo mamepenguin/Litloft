@@ -53,9 +53,18 @@ Design: https://claude.ai/artifact/5rnicTtn6t549nD2nLrhX9, saved in
     sidecar is **shared**.
 - **Own sidecars of V.** The sidecars V owns, shared or not. The list, the player and every
   operation below use only these.
-- **Owner change.** An operation changes owners when, afterwards, a sidecar that stays where it
-  is gains or loses an owner. A sidecar the operation itself carries, copies or deletes does
-  not count.
+- **Owner change.** An operation changes owners when a sidecar that has owners before the
+  operation and stays where it is ends up owned under a different stem.
+  - Example: the longest-stem owner moves from `movie` to `movie.ja`.
+  - Not an owner change:
+    - a sidecar with no owner gaining one (a subtitle uploaded before its video);
+    - a sidecar gaining or losing an owner with the same stem (`movie.mkv` beside
+      `movie.mp4`, an upload over a Missing row of the same name);
+    - a target already holding byte-identical content, which counts as carried;
+    - a sidecar the operation itself carries, copies or deletes.
+- **One language.** A 3-letter code that `_LANG_NAMES` maps to the same language as a 2-letter
+  one (`jpn`/`ja`, `eng`/`en`, `chi`/`zh`, `kor`/`ko`) is the same language for "one track per
+  language". The select offers only the 2-letter codes.
 - **Size limit.** 5 MiB (5 × 1024 × 1024 bytes). It is the constant `get_subtitle` already
   uses, defined once and shared.
 
@@ -76,15 +85,17 @@ Design: https://claude.ai/artifact/5rnicTtn6t549nD2nLrhX9, saved in
    - The operation is refused with 409 when either:
      - a planned name is taken on disk and its content differs (code `subtitle_name_taken`); or
      - the operation would change owners (code `subtitle_owner_change`).
-   - Otherwise the video moves, then each sidecar, longest source name first:
+   - Otherwise the video moves, then each sidecar. The order is by dependency, so no sidecar is
+     written onto a name another own sidecar still holds; a cycle goes through a temporary
+     name. Each sidecar is:
      - **copied** if another owner stays in the old folder under the same stem;
      - **left as is** when the target already holds byte-identical content; the source is
        then deleted if no owner stays in the old folder;
      - **moved** in every other case.
 3. *Batch rename.* The same planning runs over the whole batch, in the batch's existing
    execution order, before anything changes. Names freed by earlier steps of the batch count
-   as free. One conflict refuses the whole batch with 409, carrying the codes and names, and
-   nothing changes. Batch rename is already all-or-nothing for the files themselves.
+   as free. Any conflict refuses the whole batch with 409 `subtitle_conflict`, whose `names`
+   lists every conflicting sidecar of either kind, and nothing changes. Batch rename is already all-or-nothing for the files themselves.
 4. *Batch move* (`PUT /api/files/batch/move`, used by drag and drop of several files and by
    paste).
    - It stays per file. Each file is planned as in step 2 against the disk as the earlier files
@@ -97,14 +108,17 @@ Design: https://claude.ai/artifact/5rnicTtn6t549nD2nLrhX9, saved in
      on a taken name, or when the copy would change owners in the destination folder.
    - Each own sidecar is copied beside the copy under the copy's stem. The source sidecars are
      not touched.
-6. *Video upload.* An upload whose new video would change owners in its folder is refused at
-   init with 409 `subtitle_owner_change`.
+6. *Video upload.* An upload whose file name classifies (by extension) as a video or a `.loft`,
+   and whose new row would change owners in its folder, is refused at init with 409
+   `subtitle_owner_change`. It is not checked again at complete.
 7. *Trash and restore.* Unchanged. Trashing does not touch disk, the trashed row keeps owning
    its sidecars, and restore finds them in place.
 8. *Purging a trashed video.* This covers single purge, batch purge, Empty trash and the
    30-day auto-purge.
    - After the row's purge commits, each of its own sidecars is deleted, unless another
      subtitle-serving row in the folder, in any state, has the same stem.
+   - The check runs after the commit that deleted the rows. Empty trash commits once for all
+     rows, so two trashed owners of one sidecar purged together delete it.
    - A sidecar is never handed to a shorter-stem video. With `movie.mp4` beside
      `movie.ja.mp4`, purging `movie.ja.mp4` deletes `movie.ja.srt`.
 
@@ -122,9 +136,11 @@ Design: https://claude.ai/artifact/5rnicTtn6t549nD2nLrhX9, saved in
 2. *Add.*
    - The button opens an inline form: a file chooser (`.srt`, `.vtt`), a language select, the
      resulting file name, **キャンセル** and **追加**.
-   - The language select offers: the codes of the `_LANG_NAMES` table with their names,
-     `指定しない / None`, and `その他のコード… / Other code…`, which takes 2 or 3 ASCII
-     letters.
+   - The language select offers: the 2-letter codes of the `_LANG_NAMES` table, `指定しない /
+     None`, and `その他のコード… / Other code…`, which opens a text field under the select taking
+     2 or 3 ASCII letters.
+   - Language names, in the select and on the rows, are translated on the frontend from the
+     code (`messages-core`). An unknown code is shown upper-cased, and a bare track as `既定`.
    - The code is lowercased. The file is saved as `<video stem>[.<lang>].<ext>` beside the
      video.
    - The list and the player's tracks refresh.
@@ -152,13 +168,36 @@ Design: https://claude.ai/artifact/5rnicTtn6t549nD2nLrhX9, saved in
 8. *Refusals are shown translated.* Every 409, 400 or 413 described here carries a
    machine-readable code. Every entry point turns the code into a message in the viewer's
    language and names the files involved. The entry points are:
-   - the rename dialog and the context menu's rename;
-   - move (dialog, context menu, drag and drop, paste);
-   - batch rename, copy, and the Subtitles list;
+   - rename: `RenameDialog` (from `FileActions` and `FileContextMenu`, shown inside the dialog
+     as D8), the file page's title rename, and the folder tree's inline rename
+     (`useInlineRename`);
+   - move: the move dialog of `FileActions`, the context menu, the selection bar's move
+     (`SelectionBar`), drag and drop (`useDragAndDrop`) and paste (`ClipboardProvider`);
+   - batch rename (`BatchRenameDialog`), copy (single and batch), new file and quick note
+     (`subtitle_extension_reserved`);
+   - the Subtitles list;
    - the upload drawer.
 
-   A multi-file move shows one notice with the number of files left in place, for example
-   `2 件は字幕の名前が重なるため移動しませんでした`.
+   The messages (ja; en equivalents in `messages-core`):
+
+   | Code | Message |
+   |---|---|
+   | `subtitle_name_taken` | 行き先に同じ名前の字幕があります。 + names |
+   | `subtitle_owner_change` | 別の動画の字幕の持ち主が変わるため、この操作はできません。 + names |
+   | `subtitle_conflict` (batch) | 字幕の名前が重なるため変更できません。 + names |
+   | `subtitle_language_taken` | この言語の字幕はすでにあります。差し替えを使ってください。 |
+   | `subtitle_language` | 言語コードは英字 2〜3 文字で入力してください。 |
+   | `subtitle_extension` | .srt か .vtt のファイルを選んでください。 |
+   | `subtitle_extension_reserved` | .srt と .vtt の名前は字幕のアップロードでだけ使えます。 |
+   | `subtitle_too_large` | 字幕が 5 MB を超えています。 |
+   | `subtitle_not_utf8` | UTF-8 で保存された字幕ではありません。 |
+   | sidecar carry failure | 字幕の一部を移せませんでした。 + names |
+
+   A multi-file move or paste shows one notice with the number of files left in place for a
+   subtitle reason, `N 件は字幕のため移動しませんでした`, beside the existing failure notice
+   when other files failed for other reasons.
+   A 404 on replace or delete reloads the list and shows `字幕の一覧が古くなっていたため読み直しました。`;
+   a 500 shows the app's generic failure text.
 9. After a rename or move made from a video's own page, the list shows the tracks that went
    with it.
 
@@ -207,8 +246,12 @@ Design: https://claude.ai/artifact/5rnicTtn6t549nD2nLrhX9, saved in
     `sidecar_errors`, and both files are listed.
 - **Replace / delete naming a file that is not an own sidecar** (a stale list, another video's
   sidecar, a path): 404, and nothing changes.
-- **A sidecar no row owns** blocks a rename, move, copy or upload onto its name. The 409 names
-  it, and removing it is done on the host. No screen lists it.
+- **A sidecar no row owns.**
+  - It blocks a sidecar landing on its name with different content, and a general upload of a
+    subtitle with its name. The 409 names it, and removing it is done on the host. No screen
+    lists it.
+  - A video arriving under its stem simply becomes its owner. That is not an owner change, so a
+    folder of subtitles and videos uploads in any order.
 - **Knowledge.** A failed upload takes the editor's existing failure path, unchanged.
 
 ### 3. States
@@ -226,8 +269,12 @@ Design: https://claude.ai/artifact/5rnicTtn6t549nD2nLrhX9, saved in
   - None can start while the page is loading.
   - An action's error shows under the list until the next action starts or the page is left.
   - The add form keeps its file and language after an error and clears after a success.
+  - An answer that arrives after the page moved to another file is discarded: it changes
+    neither that file's list nor its player.
 - **Player tracks.** After add, replace or delete, the player's track list is the new list.
-  - Track URLs carry the sidecar's version, so a replaced file is fetched fresh.
+  - Tracks are keyed by file name, and their URLs carry the sidecar's version, so a replaced
+    file is fetched fresh and the track being shown stays the same file across an add or a
+    delete of another track.
   - If the track being shown is deleted and captions are on, the player shows the first
     remaining track, or the generated track when none remain.
 
@@ -275,10 +322,9 @@ None.
 
 ### 8. Error behavior
 
-- What each refusal shows is in Normal flow 185.8 and in Failure cases. The codes are:
-  `subtitle_name_taken`, `subtitle_owner_change`, `subtitle_language_taken`,
-  `subtitle_extension`, `subtitle_extension_reserved`, `subtitle_too_large`,
-  `subtitle_not_utf8`.
+- What each refusal shows is in Normal flow 185.8. The codes are those in its table.
+- `fetchUploadJSON`'s existing `destination_folder_not_found` string detail is unchanged; only
+  the new refusals use the object form.
 - A 409/400/413 body is `{"detail": {"code": "<code>", "names": ["<drive-relative path>", …]}}`.
   `names` is empty where no file is involved.
 - Logged: every sidecar move, copy or delete failure with both paths, and every refused
@@ -341,8 +387,21 @@ None.
   Answers 200 `{"subtitles": SubtitleInfo[], "sidecar_errors": []}`.
 - `DELETE /api/files/{id}/subtitles?name=<file name>`. Answers 200
   `{"subtitles": SubtitleInfo[]}`.
-- Rename, move, copy and batch rename answer as today, plus `sidecar_errors: [names]` (empty
-  when nothing failed). A batch move's `errors[]` entries gain `code` and `names`.
+- The endpoints answer 404 for an id that is not an active `file_type == "video"` row (a
+  `.loft`, another type, trashed, missing, or a locked drive). A `language` that is not empty
+  and not 2–3 ASCII letters answers 400 `subtitle_language`; it is lowercased before use. A
+  missing `file` or `name` answers 422 (FastAPI's validation).
+- `sidecar_errors: [names]` (empty when nothing failed) is added to the operation responses
+  only, never to `FileResponse` from a GET:
+  - single rename, move and copy;
+  - batch rename, batch move, batch copy;
+  - subtitle replace.
+
+  Purges (single, batch, Empty trash, auto-purge) log a failed sidecar delete and report
+  nothing.
+- A batch move's or batch copy's `errors[]` entry for a subtitle refusal is
+  `{"id", "error": "<code>", "names": [...]}`. `error` stays a string. Other entries are
+  unchanged.
 - The upload drawer's refusals:
   - `upload/init` refuses a subtitle over the limit with 413 `subtitle_too_large`, a taken
     subtitle name with 409 `subtitle_name_taken`, and a video upload that changes owners with
@@ -392,7 +451,12 @@ None.
     `frontend/src/components/FileContextMenu.tsx`,
     `frontend/src/components/BatchRenameDialog.tsx`,
     `frontend/src/hooks/useDragAndDrop.ts`, `frontend/src/components/folder/FolderTreePane.tsx`,
-    the paste handler, and `frontend/src/hooks/useUpload.ts` / `fetchUploadJSON`;
+    `frontend/src/components/SelectionBar.tsx`, `frontend/src/components/ClipboardProvider.tsx`,
+    `frontend/src/components/RenameDialog.tsx` (an optional error prop),
+    `frontend/src/hooks/useInlineRename.ts`, the new-file and quick-note dialogs, and
+    `frontend/src/hooks/useUpload.ts` / `fetchUploadJSON`;
+  - `frontend/src/components/ConfirmDialog.tsx`: new optional props for a rich body and a
+    danger confirm. With none given it renders and behaves as before (SPEC-CORE-120 I13);
   - the player's track URLs and keys: `frontend/src/components/VideoPlayer.tsx` and the
     shell player's caption hook;
   - `frontend/src/messages-core/{ja,en}.json`.
@@ -401,7 +465,8 @@ None.
 - Docs:
   - `docs/user-guide/viewers-and-players.md`, `docs/user-guide/upload-and-fileops.md`;
   - `docs/reference/api.md`, `docs/reference/websocket-events.md`,
-    `docs/reference/file-states.md`;
+    `docs/reference/file-states.md`, and the MCP tool docs where `move_files` / `copy_files`
+    errors are described;
   - `docs/developer-guide/known-issues.md`: the rows this fixes are removed. The rows kept:
     `.loft` captions over the embed, case-only renames, and the mixed-extension chain, which
     is now refused.
@@ -417,9 +482,10 @@ None.
 I1. A sidecar is listed for, served for, carried with, copied with and purged with only the
     rows that own it by the longest-stem rule. `movie.mp4` never lists or serves
     `movie.ja.srt` while a `movie.ja.*` subtitle-serving row exists in that folder.
-I2. A rename, move (single, or each file of a batch), batch rename, copy or video upload that
-    would land a sidecar on a name holding different content, or would change owners, answers
-    409 (an `errors` entry for a batch move). The refused file, its sidecars and its row are
+I2. A rename, move (single, or each file of a batch), batch rename or video upload that would
+    land a sidecar on a name holding different content, or would change owners, answers 409
+    (an `errors` entry for a batch move). Moving or renaming every owner of a shared sidecar,
+    together or one after another, to one place succeeds and leaves one copy there. The refused file, its sidecars and its row are
     byte- and field-identical afterwards, and no existing file is overwritten.
 I3. When no I/O error occurs, after a rename or move every own sidecar of the video sits beside
     it under its new stem with the same bytes. Every owner that did not move still lists every
@@ -451,10 +517,25 @@ I13. A subtitle upload that creates a folder holding only subtitles makes that f
      its parent's listing without a scan.
 I14. Dropping or pasting a subtitle into the knowledge editor removes the placeholder, inserts
      no `loft://` link, and shows the notice.
+I15. A copy whose first candidate name would collide on a sidecar, or change owners, lands
+     under the next candidate that does neither, and answers 200.
+I16. A sidecar carry or copy that fails is named in the response's `sidecar_errors` and in the
+     shown notice. An operation with no failure answers an empty `sidecar_errors`.
+I17. In a batch move with refused files, every other file that can move does move, and each
+     refused file's `errors` entry carries its code and names.
+I18. The delete dialog's confirm deletes exactly the named sidecar. Cancel, X, backdrop and
+     Escape delete nothing. The shared line appears exactly when `shared_with` is above 0, and
+     `shared_with` equals the number of other owners.
+I19. While an add, replace or delete runs, no other one can start in that list, and none can
+     start while the page loads. An answer arriving after the page moved to another file
+     changes nothing on the new page.
+I20. The new endpoints answer 404 for a locked drive and for any id that is not an active
+     video row. No Subtitles section is drawn for a `.loft`.
 
 ## Revises
 
 SPEC-CORE-003 I9. A batch rename with no such clash, and no sidecar refusal under SPEC-CORE-184, is carried out: every file is renamed, a file renamed to a case or normalization variant of its own name is not reported as a clash, a same-named file in another folder never counts as the file itself, and a downward chain into free names succeeds.
+SPEC-CORE-030 I10. `upload/init` with `require_folder: true` and a `folder_path` that is not an existing directory of the drive answers 404 `destination_folder_not_found` and creates no directory, temp directory or session; `upload/{id}/complete` for such a session whose folder has gone answers the same and writes no file and no folder; with an existing folder, or without `require_folder`, both behave as before, except for the subtitle refusals of SPEC-CORE-184 and SPEC-CORE-185 (413 `subtitle_too_large`, 409 `subtitle_name_taken` and `subtitle_owner_change` at init, 400 `subtitle_not_utf8` at complete).
 SPEC-CORE-030 I11. The entry for a `destination_folder_not_found` answer shows the translated destination-folder message, the entry for a subtitle refusal (`subtitle_name_taken`, `subtitle_owner_change`, `subtitle_too_large`, `subtitle_not_utf8`) shows its translated message, and every other upload error shows today's text.
 
 ## Checked, no action
@@ -485,5 +566,19 @@ SPEC-CORE-030 I11. The entry for a `destination_folder_not_found` answer shows t
   itself. Another open page sees the change on its next load.
 - **Subtitle tracks for audio files.** Audio players show no captions today; unchanged.
 - **The `readonly` drive key**, which nothing enforces, is not enforced here either.
+- **The iOS share extension** retries any init 409 under `<stem> (N)` (SPEC-IOS-001 I7). With
+  the narrowed owner-change rule, a shared video is refused only when it would take an owned
+  sidecar from another stem. The retry then lands under a name that takes nothing, which is
+  acceptable. A subtitle over 5 MiB shared from iOS is refused at init.
+- **`movie.mp4` stops listing `movie.ja.srt` while a `movie.ja.*` video sits beside it.** This is
+  the longest-stem rule applied to the listing, and it is intended.
+- **States the design does not draw.** These follow existing components:
+  - the busy control shows the app's spinner in place of its icon;
+  - the `その他のコード…` field is a text input under the select;
+  - the move, paste and carry-failure notices are the app's existing toast;
+  - the add form on a phone is the D5 panel at full width.
+  - The empty state shows the label without a count.
+  - On a coarse pointer, the rows keep `pl-2.5` and drop the right padding, because the two
+    44px buttons carry their own space.
 - **A shared sidecar in a batch copy** gets one copy per copied owner under each copy's stem,
   so the copies no longer share it. Accepted.
