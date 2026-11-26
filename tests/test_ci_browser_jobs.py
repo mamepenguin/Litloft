@@ -115,12 +115,12 @@ def test_browser_jobs_share_one_image() -> None:
     assert len(images) == 1
 
 
-# SPEC-CORE-149 I9, item 3: Node 20 through setup-node with the pnpm cache
+# SPEC-CORE-149 I9, item 3: Node 24 through setup-node with the pnpm cache
 @pytest.mark.parametrize("job_id", BROWSER_JOBS)
-def test_browser_job_tests_on_node_20(job_id: str) -> None:
+def test_browser_job_tests_on_node_24(job_id: str) -> None:
     steps = _job(job_id)["steps"]
     setup = steps[_index(steps, lambda s: _uses(s, "actions/setup-node"), "sets up Node")]
-    assert str(setup["with"]["node-version"]) == "20"
+    assert str(setup["with"]["node-version"]) == "24"
     assert setup["with"]["cache"] == "pnpm"
     assert setup["with"]["cache-dependency-path"] == "frontend/pnpm-lock.yaml"
 

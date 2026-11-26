@@ -135,7 +135,7 @@ Re-run `merge-addon-messages.mjs` after changing a message catalogue:
 
 Version constraints (see
 [`.claude/rules/frontend-conventions.md`](../../.claude/rules/frontend-conventions.md)):
-vitest 3.x, jsdom 25.x. CI and `frontend/Dockerfile` use Node 20.
+vitest 3.x, jsdom 25.x. CI and `frontend/Dockerfile` use Node 24.
 
 ### Addon frontends run here too
 
