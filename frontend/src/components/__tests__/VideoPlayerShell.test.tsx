@@ -156,10 +156,10 @@ describe("VideoPlayer inside the iOS shell", () => {
     render(
       <VideoPlayer
         videoId="vid-1"
-        subtitles={[{ index: 0, language: "ja", format: "vtt", label: "日本語" }]}
+        subtitles={[{ index: 0, language: "ja", format: "vtt", label: "日本語", filename: "Night.ja.vtt", shared_with: 0, version: "1234" }]}
       />,
     );
-    await waitFor(() => expect(fetch).toHaveBeenCalledWith("/api/files/vid-1/subtitles/0", expect.anything()));
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith("/api/files/vid-1/subtitles/0?v=1234", expect.anything()));
 
     act(() => report({ time: 0.5, paused: false }));
     await new Promise((resolve) => setTimeout(resolve, 400));
@@ -175,7 +175,7 @@ describe("VideoPlayer inside the iOS shell", () => {
     render(
       <VideoPlayer
         videoId="vid-1"
-        subtitles={[{ index: 0, language: "ja", format: "vtt", label: "日本語" }]}
+        subtitles={[{ index: 0, language: "ja", format: "vtt", label: "日本語", filename: "Night.ja.vtt", shared_with: 0, version: "1234" }]}
       />,
     );
     await waitFor(() => expect(fetch).toHaveBeenCalled());

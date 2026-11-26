@@ -10,8 +10,24 @@ vi.mock("@/lib/api", () => ({
 
 const vtt = (text: string) => `WEBVTT\n\n00:00:00.000 --> 00:00:05.000\n${text}\n`;
 const two: SubtitleInfo[] = [
-  { index: 3, language: "ja", format: "vtt", label: "日本語" },
-  { index: 5, language: "en", format: "vtt", label: "" },
+  {
+    index: 3,
+    language: "ja",
+    format: "vtt",
+    label: "日本語",
+    filename: "Night.ja.vtt",
+    shared_with: 0,
+    version: "11",
+  },
+  {
+    index: 5,
+    language: "en",
+    format: "vtt",
+    label: "",
+    filename: "Night.en.vtt",
+    shared_with: 0,
+    version: "22",
+  },
 ];
 
 let responses: Record<string, Response | Error>;
@@ -19,9 +35,9 @@ let responses: Record<string, Response | Error>;
 beforeEach(() => {
   window.localStorage.clear();
   responses = {
-    "/subs/v1/3": new Response(vtt("ja line")),
-    "/subs/v1/5": new Response(vtt("en line")),
-    "/subs/v2/3": new Response(vtt("v2 line")),
+    "/subs/v1/3?v=11": new Response(vtt("ja line")),
+    "/subs/v1/5?v=22": new Response(vtt("en line")),
+    "/subs/v2/3?v=11": new Response(vtt("v2 line")),
   };
   vi.stubGlobal(
     "fetch",
@@ -53,7 +69,7 @@ describe("useShellCaptions", () => {
   });
 
   it("is unavailable while nothing could be read", async () => {
-    responses["/subs/v1/3"] = new Error("offline");
+    responses["/subs/v1/3?v=11"] = new Error("offline");
     const { result } = renderHook(() => useShellCaptions("v1", two));
 
     await waitFor(() => expect(fetch).toHaveBeenCalled());

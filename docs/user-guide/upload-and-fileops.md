@@ -36,7 +36,7 @@ Pasting in a different drive copies or moves the files to that drive. Moving a f
 
 After a paste the clipboard is empty. If nothing could be pasted, it stays, so you can try another folder. A message says how many files could not be pasted.
 
-A copy is a new file. It starts with no likes, no favourite, no watch history, no tags and no comments. If the name is taken, the copy is named `_copy`, `_copy_2`, and so on. A move to a name that is taken is refused.
+A copy is a new file. It starts with no likes, no favourite, no watch history, no tags and no comments. If the name is taken, the copy is named `_copy`, `_copy_2`, and so on. A move to a name that is taken is refused. A rename or move can also be refused because of a subtitle name, and a copy takes the video's subtitles along.
 
 To work on several files, use select mode and the selection bar. If one file fails, the others still go through.
 

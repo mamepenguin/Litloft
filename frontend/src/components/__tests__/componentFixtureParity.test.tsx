@@ -368,6 +368,7 @@ describe("the component fixture's page", () => {
       "header-row-inbox-long",
       "drive-unavailable",
       "drive-unavailable-long",
+      "subtitles-section-phone",
     ]);
   });
 });
