@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>改名が字幕名で断られたとき</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:#d63031}a:hover{color:#b52425}
+</style>
+</helmet>
+<div style="width: 440px; height: 380px; box-sizing: border-box; background: rgba(33,25,34,0.45); font-family: -apple-system, system-ui, 'Segoe UI', 'ヒラギノ角ゴ Pro W3', Meiryo, sans-serif; display: flex; align-items: center; justify-content: center; padding: 24px">
+  <div role="dialog" aria-labelledby="ren-title" style="width: 100%; box-sizing: border-box; background: #ffffff; color: #211922; border-radius: 20px; padding: 24px; display: flex; flex-direction: column; gap: 14px; box-shadow: 0 12px 40px rgba(0,0,0,0.18)">
+    <h2 id="ren-title" style="margin: 0; font-size: 18px; font-weight: 700">名前を変更</h2>
+    <div style="display: flex; flex-direction: column; gap: 4px">
+      <label for="ren-name" style="font-size: 12px; font-weight: 500; color: #62625b">新しい名前</label>
+      <input id="ren-name" value="Night.mp4" style="padding: 8px 12px; border: 1px solid #9e0a0a; border-radius: 12px; font-size: 16px; color: #211922; background: #ffffff">
+    </div>
+    <div role="alert" style="display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border-radius: 12px; background: rgba(230,0,35,0.08); color: #9e0a0a; font-size: 13px">
+      <span>行き先に同じ名前の字幕があります。</span>
+      <span style="font-weight: 600; word-break: break-all">Night.ja.srt</span>
+    </div>
+    <div style="display: flex; justify-content: flex-end; gap: 8px">
+      <button type="button" style="padding: 8px 16px; border: 0; border-radius: 16px; background: transparent; color: #211922; font-size: 14px; cursor: pointer">キャンセル</button>
+      <button type="button" style="padding: 8px 16px; border: 0; border-radius: 16px; background: #d63031; color: #ffffff; font-size: 14px; cursor: pointer">変更</button>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":440,"height":380}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>字幕の削除の確認</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:#d63031}a:hover{color:#b52425}
+</style>
+</helmet>
+<div style="width: 440px; height: 560px; box-sizing: border-box; background: rgba(33,25,34,0.45); font-family: -apple-system, system-ui, 'Segoe UI', 'ヒラギノ角ゴ Pro W3', Meiryo, sans-serif; display: flex; align-items: center; justify-content: center; padding: 24px">
+  <div role="dialog" aria-labelledby="del-title" style="width: 100%; box-sizing: border-box; background: #ffffff; color: #211922; border-radius: 20px; padding: 24px; display: flex; flex-direction: column; gap: 16px; box-shadow: 0 12px 40px rgba(0,0,0,0.18)">
+    <h2 id="del-title" style="margin: 0; font-size: 18px; font-weight: 700">字幕を削除しますか？</h2>
+    <div style="display: flex; flex-direction: column; gap: 6px">
+      <div style="font-size: 14px; font-weight: 600; word-break: break-all">The Long Night.ja.srt</div>
+      <div style="font-size: 13px; color: #62625b">ディスクから削除します。元に戻せません。</div>
+      <div style="font-size: 13px; color: #62625b">同じ名前の動画 1 本からも消えます。</div>
+    </div>
+    <div style="display: flex; justify-content: flex-end; gap: 8px">
+      <button type="button" style="padding: 8px 16px; border: 0; border-radius: 16px; background: #e5e5e0; color: #211922; font-size: 14px; cursor: pointer">キャンセル</button>
+      <button type="button" style="padding: 8px 16px; border: 0; border-radius: 16px; background: transparent; color: #9e0a0a; font-size: 14px; font-weight: 600; cursor: pointer">削除</button>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":440,"height":560}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>
