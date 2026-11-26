@@ -22,7 +22,7 @@ function withTargetDrive(body: Record<string, unknown>, drive: unknown): Record<
 const moveFiles: LitloftTool = {
   name: "move_files",
   description:
-    "Move up to 100 files into one folder, optionally on another drive. Files keep their names; a name already taken there is reported per file in `errors`. A move within the drive closes each file's inbox row; a move to another drive removes it, and removes the file from the collections of the drive it leaves.",
+    "Move up to 100 files into one folder, optionally on another drive. Files keep their names; a name already taken there is reported per file in `errors`, and so is a file refused because its subtitle would land on a taken name or change owners (`error` is the refusal code and `names` lists the subtitles). A move within the drive closes each file's inbox row; a move to another drive removes it, and removes the file from the collections of the drive it leaves.",
   inputSchema: { file_ids: fileIds, target_folder_path: targetFolderPath, target_drive: targetDrive },
   annotations: writeAnnotations({ destructive: true, idempotent: true }),
   handler: (args, client) =>
@@ -41,7 +41,7 @@ const moveFiles: LitloftTool = {
 const copyFiles: LitloftTool = {
   name: "copy_files",
   description:
-    "Copy up to 100 files into one folder, optionally on another drive. A copy whose name is taken becomes <stem>_copy<ext>, then <stem>_copy_2<ext> and so on. Only a count is returned: list the target folder with search_files to find the copies.",
+    "Copy up to 100 files into one folder, optionally on another drive. A copy whose name is taken becomes <stem>_copy<ext>, then <stem>_copy_2<ext> and so on; a candidate whose subtitle name is taken or would change owners is skipped the same way. Only a count is returned: list the target folder with search_files to find the copies.",
   inputSchema: { file_ids: fileIds, target_folder_path: targetFolderPath, target_drive: targetDrive },
   annotations: writeAnnotations({ destructive: false, idempotent: false }),
   handler: (args, client) =>
