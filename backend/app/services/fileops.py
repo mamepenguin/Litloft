@@ -330,7 +330,7 @@ def copy_file(
     old_stem = stem_of(source.filename)
     dest_index = FolderSidecars.load(db, dst_drive, target_folder)
     dest_stems = list(dest_index.stem_counts.elements())
-    if own:
+    if _serves_subtitles(source):
         new_filename = _resolve_copy_filename(
             target_dir,
             source.filename,
@@ -467,8 +467,9 @@ def copy_file(
             _rename_thumbnail_owner(db, new_file, new_thumb_rel)
 
     db.refresh(new_file)
-    if sidecar_errors is not None and sidecar_carries:
-        sidecar_errors.extend(move_sidecar_subtitles(sidecar_carries))
+    failed = _carry_sidecars(sidecar_carries)
+    if sidecar_errors is not None:
+        sidecar_errors.extend(failed)
     return new_file
 
 
@@ -491,8 +492,6 @@ def _sidecar_carry_plan(
     new_stem = stem_of(new_full.name)
     src_index = FolderSidecars.load(db, file.drive, file.folder_path)
     own = src_index.own(old_stem)
-    if not own:
-        return []
 
     same_folder = dst_drive == file.drive and dst_folder == file.folder_path
     if same_folder:
@@ -1213,9 +1212,9 @@ def _validate_no_duplicates(
 
         old_stem = stem_of(file.filename)
         new_stem = stem_of(new_name)
-        own = sim.own(old_stem)
-        if not own:
+        if not _serves_subtitles(file):
             continue
+        own = sim.own(old_stem)
         counts = sim.stem_counts.copy()
         counts[old_stem] -= 1
         counts[new_stem] += 1

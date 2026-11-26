@@ -488,7 +488,7 @@ class TestBatchCopy:
 
         owned = drive_dir / "dest" / "a.mp4"
 
-        def take_the_name(target_dir, original_filename):
+        def take_the_name(target_dir, original_filename, sidecar_ok=None):
             owned.write_bytes(b"OWNED-BY-THE-OTHER-REQUEST")
             return original_filename
 

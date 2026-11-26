@@ -6,6 +6,7 @@ from datetime import UTC, datetime, timedelta
 
 import app.main as main
 from app.models import File
+from app.services.fileops import copy_file
 from tests.conftest import TEST_DRIVE
 from tests.subtitle_sidecar_helpers import (
     FIXTURES_DIR,
@@ -84,6 +85,24 @@ class TestRenameRefusals:
         assert (a / "movie.ja.srt").read_bytes() == bare
         assert (a / "movie.ja.ja.srt").read_bytes() == ja
 
+    def test_a_row_with_no_own_tracks_still_refuses_an_owner_change(self, client):
+        c, db, drive_dir, _ = client
+        seed(db, drive_dir, "movie.mp4")
+        sidecar(drive_dir, "a", "movie.ja.srt", b"movie's")
+        clip = seed(db, drive_dir, "clip.mp4")
+        before = snapshot(drive_dir / "a")
+        before_rows = rows(db)
+
+        res = _rename(c, clip, "movie.ja.mp4")
+
+        assert res.status_code == 409
+        assert detail(res) == {
+            "code": "subtitle_owner_change",
+            "names": ["a/movie.ja.srt"],
+        }
+        assert snapshot(drive_dir / "a") == before
+        assert rows(db) == before_rows
+
 
 class TestMoveRefusals:
     """SPEC-CORE-184 I2 (184.2): a move is refused before anything moves."""
@@ -155,6 +174,24 @@ class TestMoveRefusals:
         assert names(drive_dir, "a") == []
         assert names(drive_dir, "b") == ["movie.mkv", "movie.mp4", "movie.srt"]
 
+    def test_a_row_with_no_own_tracks_still_refuses_an_owner_change(self, client):
+        c, db, drive_dir, _ = client
+        seed(db, drive_dir, "movie.mp4", "b")
+        sidecar(drive_dir, "b", "movie.ja.srt", b"movie's")
+        row = seed(db, drive_dir, "movie.ja.mp4", "a")
+        before = (snapshot(drive_dir / "a"), snapshot(drive_dir / "b"))
+        before_rows = rows(db)
+
+        res = _move(c, row, "b")
+
+        assert res.status_code == 409
+        assert detail(res) == {
+            "code": "subtitle_owner_change",
+            "names": ["b/movie.ja.srt"],
+        }
+        assert (snapshot(drive_dir / "a"), snapshot(drive_dir / "b")) == before
+        assert rows(db) == before_rows
+
 
 class TestRenameAndMoveCarry:
     """SPEC-CORE-184 I3: carried tracks keep their bytes; other owners keep theirs."""
@@ -212,6 +249,16 @@ class TestCopyCarries:
         assert (a / "movie.srt").read_bytes() == bare
         assert (a / "movie.ja.srt").read_bytes() == ja
 
+    def test_a_copy_carries_tracks_even_when_no_report_is_asked_for(self, client):
+        c, db, drive_dir, _ = client
+        movie = seed(db, drive_dir)
+        sidecar(drive_dir, "a", "movie.srt", b"bare")
+        (drive_dir / "b").mkdir()
+
+        copy_file(db, movie.id, None, "b")
+
+        assert (drive_dir / "b" / "movie.srt").read_bytes() == b"bare"
+
     def test_a_copy_skips_a_candidate_whose_track_name_is_taken(self, client):
         c, db, drive_dir, _ = client
         movie = seed(db, drive_dir)
@@ -224,6 +271,22 @@ class TestCopyCarries:
         assert res.json()["filename"] == "movie_copy.mp4"
         assert (drive_dir / "b" / "movie_copy.srt").read_bytes() == bare
         assert (drive_dir / "b" / "movie.srt").read_bytes() == b"someone else's"
+
+    def test_a_copy_skips_a_candidate_that_would_take_another_videos_track(
+        self, client
+    ):
+        c, db, drive_dir, _ = client
+        seed(db, drive_dir, "movie.mp4", "b")
+        sidecar(drive_dir, "b", "movie.ja.srt", b"movie's")
+        source = seed(db, drive_dir, "movie.ja.mp4", "a")
+
+        res = c.post(
+            f"/api/files/{source.id}/copy", json={"target_folder_path": "b"}
+        )
+
+        assert res.status_code == 200, res.text
+        assert res.json()["filename"] == "movie.ja_copy.mp4"
+        assert (drive_dir / "b" / "movie.ja.srt").read_bytes() == b"movie's"
 
 
 class TestBatchRenameConflict:
@@ -250,6 +313,52 @@ class TestBatchRenameConflict:
         assert set(detail(res)["names"]) == {"a/clip_1.srt", "a/clip_2.srt"}
         assert snapshot(drive_dir / "a") == before
         assert rows(db) == before_rows
+
+    def test_a_row_with_no_own_tracks_still_refuses_an_owner_change(self, client):
+        c, db, drive_dir, _ = client
+        seed(db, drive_dir, "movie.mp4")
+        sidecar(drive_dir, "a", "movie.ja.srt", b"movie's")
+        clip = seed(db, drive_dir, "clip.mp4")
+        before = snapshot(drive_dir / "a")
+        before_rows = rows(db)
+
+        res = c.put(
+            "/api/files/batch/rename",
+            json={
+                "ids": [clip.id],
+                "mode": "template",
+                "template": "movie.ja",
+            },
+        )
+
+        assert res.status_code == 409
+        assert detail(res) == {
+            "code": "subtitle_conflict",
+            "names": ["a/movie.ja.srt"],
+        }
+        assert snapshot(drive_dir / "a") == before
+        assert rows(db) == before_rows
+
+
+class TestBatchRenameServingRowsOnly:
+    """SPEC-CORE-184 I2 (184.3): only a subtitle-serving row carries sidecars."""
+
+    def test_renaming_an_image_leaves_the_videos_track(self, client):
+        c, db, drive_dir, _ = client
+        photo = seed(
+            db, drive_dir, "movie.jpg", file_type="image", mime="image/jpeg"
+        )
+        video = seed(db, drive_dir, "movie.mp4")
+        sidecar(drive_dir, "a", "movie.srt", b"the video's")
+
+        res = c.put(
+            "/api/files/batch/rename",
+            json={"ids": [photo.id], "mode": "template", "template": "photo"},
+        )
+
+        assert res.status_code == 200, res.text
+        assert names(drive_dir, "a") == ["movie.mp4", "movie.srt", "photo.jpg"]
+        assert languages(c, video.id) == [""]
 
 
 class TestBatchMovePartial:
