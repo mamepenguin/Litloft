@@ -120,13 +120,14 @@ class TestPurgingSubtitleRows:
             db, drive_dir, "one.srt", file_type="subtitle",
             mime="application/x-subrip", **extra,
         )
+        row_id = row.id
 
-        res = c.delete(f"/api/files/{row.id}/purge")
+        res = c.delete(f"/api/files/{row_id}/purge")
 
         assert res.status_code == 200, res.text
         assert (drive_dir / "a" / "one.srt").exists()
         db.expire_all()
-        assert db.get(File, row.id) is None
+        assert db.get(File, row_id) is None
 
 
 class TestPurgedAnnouncements:
