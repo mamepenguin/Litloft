@@ -5,9 +5,34 @@ design_resolutions:
 - D-11 fix: coarse-pointer rows drop to 4px above and below (52px), measured in e2e-components/subtitles-section-touch.spec.ts.
 - D-1, D-2, D-3, D-4, D-5, D-6, D-7, D-8, D-9, D-10, D-12, D-13, D-14, D-15 accept (human, 2026-11-27, "D-11 だけ直す"): existing dialog and tab chrome (D-3 to D-7, D-10, D-13), the alert icon shared with D7 (D-8), the spec's order, translated labels and drive-relative names (D-1, D-2, D-9), the error under the list as the spec states (D-12), and states the screenshots did not cover (D-14, D-15).
 ran_in_app: yes
-at: 0ede039b559bf46928b0ffba22bd87aff7814e56
+at: 71c6aa935bb6559d9cb8868847f0ecc38712e30d
 by: agent
 evidence: |
+  Narrow re-run at the SHA above for fix 301bc2fa3 (coarse-pointer subtitle row 52px); 71c6aa935
+  only records the knowledge submodule pointer. Fresh `scripts/dev/r5_stack.py clone --port 3101`
+  + `up` (frontend image rebuilt; its CSS chunk contains `pointer-coarse:py-1`) on
+  http://video-share-subtitles.localhost:3101; the main video_share stack was not touched. Scratch
+  drive `R5字幕` (bind of .r5-stack/scratch in the clone's overlay and drives.json): S/two.mp4
+  (6 s ffmpeg H.264) with two.en.srt and two.ja.srt. Headless Chromium (Playwright), ja locale.
+  Stack downed and destroyed afterwards. Screenshots: docs/process/reviews/feature-subtitle-sidecars/r5/rerun2-*.png.
+
+  Phone, 375x812, hasTouch/isMobile (matchMedia pointer:coarse true, hover:hover false). Opened the
+    inspector sheet from the bottom bar, 情報 tab: `字幕 2`, rows 英語 two.en.srt and 日本語
+    two.ja.srt. Each row 52px tall (padding 4px / 4px), 343px wide; both buttons per row 44x44 at
+    4px from the row top; button group opacity 1 without any hover (rerun2-phone-sheet.png,
+    rerun2-phone-row.png). documentElement scrollWidth 375 = clientWidth; list ul scrollWidth 343 =
+    clientWidth. Tap on 英語の字幕を差し替え → file chooser opened (single, accept .srt,.vtt). Tap on
+    英語の字幕を削除 → dialog 字幕を削除しますか？ / two.en.srt / ディスクから削除します。元に戻せません。
+    with キャンセル and 削除 (rerun2-phone-delete-dialog.png); not confirmed, files on disk unchanged. PASS.
+  Desktop, 1440x900, fine pointer (pointer:coarse false, hover:hover true). 情報 tab in the right
+    inspector: rows padding 8px / 8px (py-2), height 52px (36px text block + 16px), buttons 32x32;
+    group opacity 0 at rest (rerun2-desktop.png), 1 on row hover (rerun2-desktop-hover.png).
+    Click on 差し替え → file chooser (accept .srt,.vtt); click on 削除 → the same delete dialog
+    (rerun2-desktop-delete-dialog.png). No horizontal overflow (scrollWidth 1440). PASS.
+  Observation outside the change: the inspector also showed the alert
+    `チャプター候補を読み込めませんでした。もう一度お試しください。` on both layouts, in the
+    freshly started clone (intelligence still starting); not investigated.
+
   Re-run at the SHA above (fixes 32729b296 and 0ede039b5), knowledge submodule at 7a94f8d.
   Fresh `scripts/dev/r5_stack.py clone` + `up` (frontend image rebuilt at the start of the run) on
   http://video-share-subtitles.localhost:3101; the main video_share stack was not touched. Scratch
