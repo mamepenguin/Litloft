@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "CRITICAL",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "CR7-1",
+      "status": "confirmed",
+      "note": "frontend/src/components/FileDetail/hooks/useFileDetailData.ts:187-191: the catch toasts subtitleFailure(err, te) when it returns a message, calls console.error, and does not rethrow, so the promise resolves. In frontend/src/components/markdown/EditableTitle.tsx:65-70, commit() awaits onRename and then calls setEditing(false). It sets its error icon only when onRename rejects. The field therefore closes as though the rename succeeded. One detail is wrong: the old name does not wait for a reload to come back. setFile is never called on failure, so the title prop stays the old name, and the effect at EditableTitle.tsx:44-46 resets the value as soon as editing ends. The old name shows at once. onRename is wired only to MarkdownDocumentLayout (ShellLayout.tsx:741), so this path covers documents and notes, not videos."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "D1",
+      "status": "confirmed",
+      "note": "addons/knowledge/.github/workflows/ci.yml:147 and :243 read `node-version: 24` under actions/setup-node@v4, at the hunk positions given. Without git I could not see the earlier value 20. The touch points name only Editor.tsx and messages/{ja,en}.json in the knowledge repository. The r6 triage (r6/triage.md:228-265) lists this as claude-deep:F4 and claude-read:CR-2, bucket B and still open, and nothing in the r7 tree changes it."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "D2",
+      "status": "confirmed",
+      "note": "useFileDetailData.ts:187-191: there is no rethrow, so EditableTitle.tsx:66-67 closes the field. A non-subtitle failure, where subtitleFailure returns null (subtitleErrors.ts:69-71), only reaches console.error, so nothing is shown to the user. The silent non-subtitle path looks pre-existing; r6 triage records the same catch as pre-existing. Subtitle refusals now get a translated toast that names the files, so the I11 message requirement holds for this entry point. The field-closing behavior is a UX defect, not a broken invariant."
+    }
+  ],
+  "unspecified_scores": [
+    {
+      "source_reviewer": "claude-read",
+      "index": 0,
+      "frequency": 5,
+      "impact": 1,
+      "reason": "Every rename, move or copy of a video or .loft now does an extra directory listing and row query. On a home LAN this costs a few milliseconds that the user does not notice."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "index": 0,
+      "frequency": 1,
+      "impact": 2,
+      "reason": "An upload of subtitles only, into a new nested relative_path, tracks only the deepest folder as an EmptyFolder (_ensure_empty_folder_tracked, fileops.py:146). An intermediate folder may stay unlisted until a scan if the listing does not derive ancestors."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "index": 1,
+      "frequency": 1,
+      "impact": 2,
+      "reason": "Renaming a note from its page title to a subtitle extension is refused. The field closes showing the old name, and the explanation appears only in a toast, not inline at the field."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "index": 2,
+      "frequency": 5,
+      "impact": 1,
+      "reason": "Every video rename or move lists the source and destination folders on disk and queries their rows. The cost is small and the user does not notice it."
+    }
+  ],
+  "specification_compliance": [
+    "185.8 lists the file page's title rename as an entry point. A subtitle refusal there now shows a translated toast that names the files (useFileDetailData.ts:188-189), which meets I11's message requirement, but the title field still closes as on success.",
+    "The knowledge gitlink still carries an unrelated CI Node version change that is not in the touch points."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "If the rename catch is changed to rethrow, EditableTitle will show err.message in its error icon tooltip. The ApiStatusError message may be untranslated unless the rethrown error carries the translated text."
+  ],
+  "test_coverage": [
+    "I did not find a test that asserts EditableTitle keeps the field open on a refused rename from the file page."
+  ],
+  "not_verified": [
+    "The previous node-version value in addons/knowledge ci.yml: I had no git access and saw only the current value 24.",
+    "Whether the folder listing derives intermediate ancestors from EmptyFolder paths, which decides whether the nested-folder behavior is visible.",
+    "I did not trace how ApiStatusError is constructed from rename responses beyond subtitleFailure."
+  ],
+  "confidence": 88
+}

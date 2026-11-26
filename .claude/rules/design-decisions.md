@@ -12,6 +12,7 @@ Invariant rules to follow whenever you edit code. Read these as a "this is how w
 ## Drives
 
 - **A drive is a security boundary.** Do not build cross-drive features such as cross-drive search, favorites, or tag aggregation.
+- **A subtitle sidecar belongs to the longest stem among the folder's subtitle-serving rows.** `movie.ja.srt` belongs to `movie.ja.mp4` and not to `movie.mp4`; rows with the same stem (`movie.mp4`, `movie.mkv`) share `movie.srt`. A sidecar is listed, served, carried, copied and purged only by its owners, and a rename, move, copy or upload that would hand one to a different stem is refused.
 - **Drive-partitioned tables are uniquely keyed per-drive, never globally.** `File` (`UniqueConstraint("drive", "file_path")`), `Tag`, `EmptyFolder`, `PinnedFolder`, `Collection` all use a composite `UniqueConstraint("drive", ...)`. `file_path` is stored drive-relative with no drive prefix, so two drives legitimately each hold e.g. a root `README.md`. Any query/upsert on these tables must be drive-scoped (`File.drive == drive AND ...`); never query `File.file_path` alone (the global single-column UNIQUE was a `videos`-era design bug, fixed 2026-05-17).
 - Special views like favorites are expressed via the `?view=<name>` query (to avoid clashing with folder names).
 - Drive configuration lives in `drives.json` (outside the DB). Changes take effect on container restart.
@@ -39,7 +40,6 @@ Treat the DB not as an FS cache, but as an independent source of truth that hold
 - If `drive_path.exists() == False`, the scanner returns early (so a mount failure does not flip every file to missing).
 - An upload to the same path revives the missing record (do not INSERT a new row; this avoids the UNIQUE constraint).
 - For missing files: stream returns 410 Gone, GET and mutating endpoints return 404, only thumbnails can still be served.
-- `files.purged` is emitted only on an explicit user-driven hard delete. The scanner never emits it.
 - Keep thumbnails for missing files (they are reused on recovery).
 - Missing files are not auto-purged. They are kept indefinitely until the user explicitly deletes them.
 - `purge_all_missing` commits in chunks of 200, then emits a single `files.purged` carrying every purged id after the loop. One event per run, not per batch — and nothing at all if it raises partway, including for the chunks already committed.
@@ -48,6 +48,7 @@ Treat the DB not as an FS cache, but as an independent source of truth that hold
 ## Trash
 
 - Moving to trash does not touch the FS. Physical deletion happens only on purge.
+- Purging a trashed video deletes its own sidecar subtitles after the row's deletion commits, except a sidecar another row of the folder with the same stem also owns.
 - Auto-purge runs at startup and every 24 h, removing items older than 30 days.
 
 ## Playlists

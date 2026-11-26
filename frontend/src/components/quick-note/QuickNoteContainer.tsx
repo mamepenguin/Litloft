@@ -12,6 +12,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 
 import { createTextFile, getDrives } from "@/lib/api";
+import { subtitleFailure } from "@/lib/subtitleErrors";
 import { buildCanonicalFileUrl } from "@/lib/canonicalFileUrl";
 import { useShortcuts } from "@/hooks/useShortcuts";
 import { OVERLAY_PRIORITY } from "@/lib/shortcuts";
@@ -82,6 +83,7 @@ function statusOf(error: unknown): number | null {
  */
 export function QuickNoteContainer() {
   const t = useTranslations("quickNote");
+  const te = useTranslations("subtitles.errors");
   const tc = useTranslations("common");
   const tsc = useTranslations("shortcuts");
   const toast = useToast();
@@ -305,8 +307,10 @@ export function QuickNoteContainer() {
         router.push(buildCanonicalFileUrl(file, file.id, { edit: "1" }));
       }
     } catch (err) {
+      const subtitle = subtitleFailure(err, te);
       const status = statusOf(err);
-      if (status === 413) setError(t("tooLarge"));
+      if (subtitle) setError(subtitle);
+      else if (status === 413) setError(t("tooLarge"));
       else if (status === 403 || status === 404) setError(t("forbidden"));
       else if (status === 400 || status === 409) setError(t("invalidPath"));
       else setError(t("saveFailed"));
@@ -330,6 +334,7 @@ export function QuickNoteContainer() {
     filename,
     toast,
     t,
+    te,
     router,
     closeAndClear,
     loadDrives,

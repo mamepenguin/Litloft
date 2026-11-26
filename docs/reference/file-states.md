@@ -76,6 +76,31 @@ Runs at backend startup and then every 24 hours. The 30-day period is fixed; the
 
 Manual purge (`DELETE /api/files/{id}/purge`, `POST /api/files/batch/purge`, `POST /api/drives/{drive}/trash/empty`) emits `files.purged` for the purged files, once per request. The selection bar sends a batch of more than 100 files as several requests, so it emits one event per request. Purging cannot be undone.
 
+## Subtitle sidecars
+
+A `.srt` or `.vtt` file beside a video is a sidecar: it has no row, and the
+scanner never registers it. Everything about it is computed per request from the
+folder's rows and names, and nothing is stored.
+
+- **Ownership.** A sidecar belongs to the subtitle-serving rows of its folder
+  (a `video`, or a `.loft`) whose stem makes it a sidecar name, and only to the
+  rows with the longest such stem: with `movie.mp4` and `movie.ja.mp4`,
+  `movie.ja.srt` is the bare track of `movie.ja.mp4` alone. Rows with the same
+  stem (`movie.mp4`, `movie.mkv`) share `movie.srt`. A trashed or Missing row
+  still owns its sidecars; a row retired to a `__missing_` path does not.
+- Only the owners list it, serve it, carry it, copy it and purge it.
+- Trash, restore, Missing and recovery leave every sidecar on disk.
+- Purging a trashed video deletes its own sidecars after the row's deletion has
+  committed, unless another row of the folder with the same stem also owns them.
+  A Missing video's purge is database-only and leaves them.
+- A rename or move carries the own sidecars under the new stem; a copy copies
+  them beside the copy and leaves the source's in place.
+- A rename or create with a `.srt` or `.vtt` name is refused. A subtitle lands
+  only through an upload, which checks size and UTF-8 encoding first.
+- Purging a leftover subtitle row deletes the row and its thumbnail and leaves
+  the file at its path on disk. Every subtitle row the core deletes (scan,
+  upload, purge) is announced with `files.purged` after the deleting commit.
+
 ## Inbox rows
 
 A file may also have one inbox row (`inbox_items`, unique per drive and file) recording that it arrived on purpose and has not been dealt with. The row is not a file state: it never changes which state the file is in.

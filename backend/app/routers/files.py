@@ -10,7 +10,7 @@ from pathlib import Path, PurePosixPath
 from typing import Annotated
 from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, HTTPException, Path as PathParam, Query, Request
+from fastapi import APIRouter, Depends, File as FormFile, Form, HTTPException, Path as PathParam, Query, Request, UploadFile
 
 from app.services import event_hooks
 from fastapi.responses import FileResponse as FastAPIFileResponse
@@ -50,6 +50,7 @@ from app.schemas import (
     FileRelationsResponse,
     FileResponse,
     FileMoveRequest,
+    FileOperationResponse,
     FileRenameRequest,
     FileUpdate,
     FileVersionBodyResponse,
@@ -59,12 +60,15 @@ from app.schemas import (
     NeighborsResponse,
     RelatedFileSummary,
     SubtitleInfo,
+    SubtitleListResponse,
+    SubtitleReplaceResponse,
     TagUpdate,
     TrustTierUpdate,
     file_to_response,
 )
 from app.services import file_versions as file_version_service
 from app.services import fileops
+from app.services.fileops import validate_within_drive
 from app.services import inbox as inbox_service
 from app.services.filetype import classify
 from app.services.frontmatter import (
@@ -88,9 +92,10 @@ from app.services.content_write import (
     compute_content_etag,
     write_text_content,
 )
-from app.services.diskpath import resolve_on_disk
+from app.services.diskpath import name_taken, new_or_409, resolve_on_disk
 from app.services.heic import HEIC_MIME_TYPES, convert_heic_to_jpeg
-from app.services.subtitle import convert_srt_to_vtt, detect_subtitles
+from app.services import subtitle as subtitle_service
+from app.services.subtitle import SIDECAR_MAX_BYTES, convert_srt_to_vtt, detect_subtitles
 from app.services.tagops import cleanup_orphan_tags, load_tag_index, replace_file_tags
 from app.services.origin import project_frontmatter_origin
 from app.services.zip_names import decode_zip_filename
@@ -211,13 +216,41 @@ def _on_disk_path(drive: str, rel: str) -> Path:
 _to_response = file_to_response
 
 
-def _detect_file_subtitles(file: File) -> list[SubtitleInfo]:
+def _batch_error(file_id: str, detail) -> dict:
+    if isinstance(detail, dict) and "code" in detail:
+        return {
+            "id": file_id,
+            "error": detail["code"],
+            "names": detail.get("names", []),
+        }
+    return {"id": file_id, "error": detail}
+
+
+def _operation_response(file: File, sidecar_errors: list[str]) -> FileOperationResponse:
+    return FileOperationResponse(
+        **_to_response(file).model_dump(), sidecar_errors=sidecar_errors
+    )
+
+
+def _detect_file_subtitles(db: Session, file: File) -> list[SubtitleInfo]:
     if file.file_type != "video" and file.mime_type != "application/vnd.litloft.loft+json":
         return []
     drive_path = config.get_drive_path(file.drive)
-    raw = detect_subtitles(file.file_path, drive_path)
+    raw = detect_subtitles(
+        file.file_path,
+        drive_path,
+        subtitle_service.serving_stems(db, file.drive, file.folder_path),
+    )
     return [
-        SubtitleInfo(index=i, language=s["language"], format=s["format"], label=s["label"])
+        SubtitleInfo(
+            index=i,
+            language=s["language"],
+            format=s["format"],
+            label=s["label"],
+            filename=s["filename"],
+            shared_with=s["shared_with"],
+            version=s["version"],
+        )
         for i, s in enumerate(raw)
     ]
 
@@ -363,6 +396,7 @@ async def batch_move(
     touched_drives: set[str] = set()
     inbox_drives: set[str] = set()
     errors = []
+    sidecar_errors: list[str] = []
     if body.target_drive:
         touched_drives.add(body.target_drive)
     try:
@@ -374,7 +408,12 @@ async def batch_move(
                 # visible and a tab on the source drive is never told.
                 touched_drives.add(source.drive)
                 _file, closed = await asyncio.to_thread(
-                    fileops.move_file, db, file_id, body.target_drive, body.target_folder_path
+                    fileops.move_file,
+                    db,
+                    file_id,
+                    body.target_drive,
+                    body.target_folder_path,
+                    sidecar_errors,
                 )
                 if closed:
                     inbox_drives.add(source.drive)
@@ -385,7 +424,7 @@ async def batch_move(
                 # move_file guarantees the session is clean (rolled back) before
                 # raising HTTPException, so the loop can safely continue.
                 db.rollback()
-                errors.append({"id": file_id, "error": e.detail})
+                errors.append(_batch_error(file_id, e.detail))
             except Exception as e:
                 # Unexpected error: roll back so the session stays usable for
                 # the remaining files, then record and continue.
@@ -401,7 +440,7 @@ async def batch_move(
             )
     for drive in sorted(inbox_drives):
         await inbox_service.notify(drive)
-    return {"moved": moved, "errors": errors}
+    return {"moved": moved, "errors": errors, "sidecar_errors": sidecar_errors}
 
 
 @router.put("/batch/tags")
@@ -457,13 +496,25 @@ async def batch_rename(
         exclude={"ids", "mode"},
         exclude_none=True,
     )
-    results = await asyncio.to_thread(fileops.batch_rename, db, files, body.mode, **kwargs)
+    sidecar_errors: list[str] = []
+    results = await asyncio.to_thread(
+        fileops.batch_rename,
+        db,
+        files,
+        body.mode,
+        sidecar_errors=sidecar_errors,
+        **kwargs,
+    )
     renamed_ids = [
         r["id"] for r in results if r.get("old_name") != r.get("new_name")
     ]
     if renamed_ids:
         await event_hooks.emit("files.moved", {"file_ids": renamed_ids})
-    return {"renamed": len(results), "results": results}
+    return {
+        "renamed": len(results),
+        "results": results,
+        "sidecar_errors": sidecar_errors,
+    }
 
 
 @router.post("/batch/restore", response_model=BatchRestoreResponse)
@@ -529,15 +580,22 @@ def batch_copy(
     copied = 0
     copied_ids = []
     errors = []
+    sidecar_errors: list[str] = []
     for file_id in body.ids:
         try:
             _get_file_or_404(db, file_id, unlocked_groups)
-            new_file = fileops.copy_file(db, file_id, body.target_drive, body.target_folder_path)
+            new_file = fileops.copy_file(
+                db,
+                file_id,
+                body.target_drive,
+                body.target_folder_path,
+                sidecar_errors,
+            )
             copied_ids.append(new_file.id)
             copied += 1
         except HTTPException as e:
             db.rollback()
-            errors.append({"id": file_id, "error": e.detail})
+            errors.append(_batch_error(file_id, e.detail))
         except Exception as e:
             # ``copy_file`` touches the filesystem outside its own ``try``,
             # so an ENOSPC or EACCES arrives here as a bare OSError. Without
@@ -550,7 +608,7 @@ def batch_copy(
             errors.append({"id": file_id, "error": str(e)})
     if copied_ids:
         event_hooks.emit_from_thread("files.created", {"file_ids": copied_ids})
-    return {"copied": copied, "errors": errors}
+    return {"copied": copied, "errors": errors, "sidecar_errors": sidecar_errors}
 
 
 @router.get("/{file_id}", response_model=FileDetailResponse)
@@ -560,7 +618,7 @@ def get_file(
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
 ):
     file = _get_file_or_404(db, file_id, unlocked_groups)
-    subtitles = _detect_file_subtitles(file)
+    subtitles = _detect_file_subtitles(db, file)
     has_chapters = (
         db.query(FileChapter.id).filter(FileChapter.file_id == file_id).first()
         is not None
@@ -1379,7 +1437,11 @@ def get_subtitle(
         raise HTTPException(status_code=404, detail="Not a video file")
 
     drive_path = config.get_drive_path(file.drive)
-    raw = detect_subtitles(file.file_path, drive_path)
+    raw = detect_subtitles(
+        file.file_path,
+        drive_path,
+        subtitle_service.serving_stems(db, file.drive, file.folder_path),
+    )
     if index < 0 or index >= len(raw):
         raise HTTPException(status_code=404, detail="Subtitle not found")
 
@@ -1388,8 +1450,7 @@ def get_subtitle(
     if not sub_path.exists():
         raise HTTPException(status_code=404, detail="Subtitle file not found on disk")
 
-    _MAX_SUBTITLE_SIZE = 5 * 1024 * 1024  # 5MB
-    if sub_path.stat().st_size > _MAX_SUBTITLE_SIZE:
+    if sub_path.stat().st_size > SIDECAR_MAX_BYTES:
         raise HTTPException(status_code=413, detail="Subtitle file too large")
 
     content = sub_path.read_text(encoding="utf-8-sig")
@@ -1404,7 +1465,185 @@ def get_subtitle(
     )
 
 
-@router.put("/{file_id}/rename", response_model=FileResponse)
+def _subtitle_video_or_404(
+    db: Session, file_id: str, unlocked_groups: list[str]
+) -> File:
+    file = _get_file_or_404(db, file_id, unlocked_groups)
+    if file.file_type != "video" or file.mime_type == subtitle_service.LOFT_MIME:
+        raise HTTPException(status_code=404, detail="Not a video file")
+    return file
+
+
+def _subtitle_body(upload: UploadFile) -> bytes:
+    body = upload.file.read(SIDECAR_MAX_BYTES + 1)
+    if len(body) > SIDECAR_MAX_BYTES:
+        raise HTTPException(
+            status_code=413, detail={"code": "subtitle_too_large", "names": []}
+        )
+    try:
+        body.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        raise HTTPException(
+            status_code=400, detail={"code": "subtitle_not_utf8", "names": []}
+        ) from None
+    return body
+
+
+def _subtitle_extension(upload: UploadFile) -> str:
+    extension = Path(upload.filename or "").suffix.lower()
+    if extension not in subtitle_service.SIDECAR_EXTENSIONS:
+        raise HTTPException(
+            status_code=400, detail={"code": "subtitle_extension", "names": []}
+        )
+    return extension
+
+
+def _own_sidecar_or_404(
+    index: subtitle_service.FolderSidecars, file: File, name: str
+) -> subtitle_service.Sidecar:
+    wanted = subtitle_service.nfc(name)
+    for sidecar in index.own(subtitle_service.stem_of(file.filename)):
+        if sidecar.name == wanted:
+            return sidecar
+    raise HTTPException(status_code=404, detail="Subtitle not found")
+
+
+def _subtitle_refusal(
+    status_code: int, code: str, names: list[str] | None = None
+) -> HTTPException:
+    return HTTPException(
+        status_code=status_code, detail={"code": code, "names": names or []}
+    )
+
+
+@router.post(
+    "/{file_id}/subtitles",
+    response_model=SubtitleListResponse,
+    status_code=201,
+)
+def add_subtitle(
+    file_id: FileId,
+    db: Annotated[Session, Depends(get_db)],
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
+    file: Annotated[UploadFile, FormFile()],
+    language: Annotated[str, Form()] = "",
+):
+    video = _subtitle_video_or_404(db, file_id, unlocked_groups)
+    code = subtitle_service.generate_language(language)
+    extension = _subtitle_extension(file)
+    body = _subtitle_body(file)
+
+    index = subtitle_service.folder_sidecars(db, video.drive, video.folder_path)
+    stem = subtitle_service.stem_of(video.filename)
+    own = index.own(stem)
+    wanted = subtitle_service.language_key(code)
+    if any(subtitle_service.language_key(sc.language) == wanted for sc in own):
+        raise _subtitle_refusal(409, "subtitle_language_taken")
+
+    name = f"{stem}.{code}.{extension[1:]}" if code else f"{stem}.{extension[1:]}"
+    stems = list(index.stem_counts.elements())
+    if subtitle_service.owner_stem(name, stems) != stem:
+        raise _subtitle_refusal(409, "subtitle_owner_change", [name])
+
+    drive_path = config.get_drive_path(video.drive)
+    rel = f"{video.folder_path}/{name}" if video.folder_path else name
+    target = new_or_409(drive_path, rel)
+    validate_within_drive(target, drive_path)
+    if name_taken(target):
+        raise _subtitle_refusal(409, "subtitle_name_taken", [rel])
+
+    try:
+        subtitle_service.write_sidecar(target, body)
+    except OSError:
+        logger.exception("subtitle add: could not write %s", target)
+        raise HTTPException(status_code=500, detail="Could not write subtitle") from None
+
+    return SubtitleListResponse(subtitles=_detect_file_subtitles(db, video))
+
+
+@router.put(
+    "/{file_id}/subtitles",
+    response_model=SubtitleReplaceResponse,
+)
+def replace_subtitle(
+    file_id: FileId,
+    db: Annotated[Session, Depends(get_db)],
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
+    file: Annotated[UploadFile, FormFile()],
+    name: Annotated[str, Form()],
+):
+    video = _subtitle_video_or_404(db, file_id, unlocked_groups)
+    extension = _subtitle_extension(file)
+
+    index = subtitle_service.folder_sidecars(db, video.drive, video.folder_path)
+    sidecar = _own_sidecar_or_404(index, video, name)
+    body = _subtitle_body(file)
+
+    new_name = f"{Path(sidecar.name).stem}.{extension[1:]}"
+    if new_name == sidecar.name:
+        target = sidecar.path
+    else:
+        drive_path = config.get_drive_path(video.drive)
+        rel = (
+            f"{video.folder_path}/{new_name}"
+            if video.folder_path
+            else new_name
+        )
+        target = new_or_409(drive_path, rel)
+        validate_within_drive(target, drive_path)
+        if name_taken(target):
+            code = (
+                "subtitle_language_taken"
+                if subtitle_service.owner_stem(
+                    new_name, list(index.stem_counts.elements())
+                )
+                is not None
+                else "subtitle_name_taken"
+            )
+            raise _subtitle_refusal(409, code, [rel])
+
+    try:
+        subtitle_service.write_sidecar(target, body)
+    except OSError:
+        logger.exception("subtitle replace: could not write %s", target)
+        raise HTTPException(status_code=500, detail="Could not write subtitle") from None
+
+    sidecar_errors: list[str] = []
+    if target != sidecar.path:
+        try:
+            subtitle_service.delete_sidecar(sidecar.path)
+        except OSError:
+            logger.exception("subtitle replace: could not delete %s", sidecar.path)
+            sidecar_errors.append(sidecar.name)
+
+    return SubtitleReplaceResponse(
+        subtitles=_detect_file_subtitles(db, video),
+        sidecar_errors=sidecar_errors,
+    )
+
+
+@router.delete(
+    "/{file_id}/subtitles",
+    response_model=SubtitleListResponse,
+)
+def delete_subtitle(
+    file_id: FileId,
+    db: Annotated[Session, Depends(get_db)],
+    unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
+    name: Annotated[str, Query()],
+):
+    video = _subtitle_video_or_404(db, file_id, unlocked_groups)
+    index = subtitle_service.folder_sidecars(db, video.drive, video.folder_path)
+    sidecar = _own_sidecar_or_404(index, video, name)
+    try:
+        subtitle_service.delete_sidecar(sidecar.path)
+    except OSError:
+        logger.exception("subtitle delete: could not delete %s", sidecar.path)
+        raise HTTPException(status_code=500, detail="Could not delete subtitle") from None
+    return SubtitleListResponse(subtitles=_detect_file_subtitles(db, video))
+
+
+@router.put("/{file_id}/rename", response_model=FileOperationResponse)
 async def rename_file_endpoint(
     file_id: FileId,
     body: FileRenameRequest,
@@ -1412,12 +1651,15 @@ async def rename_file_endpoint(
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
 ):
     _get_file_or_404(db, file_id, unlocked_groups)
-    file = await asyncio.to_thread(fileops.rename_file, db, file_id, body.new_filename)
+    sidecar_errors: list[str] = []
+    file = await asyncio.to_thread(
+        fileops.rename_file, db, file_id, body.new_filename, sidecar_errors
+    )
     await event_hooks.emit("files.moved", {"file_ids": [file.id]})
-    return _to_response(file)
+    return _operation_response(file, sidecar_errors)
 
 
-@router.put("/{file_id}/move", response_model=FileResponse)
+@router.put("/{file_id}/move", response_model=FileOperationResponse)
 async def move_file_endpoint(
     file_id: FileId,
     body: FileMoveRequest,
@@ -1427,8 +1669,14 @@ async def move_file_endpoint(
     source = _get_file_or_404(db, file_id, unlocked_groups)
     source_drive = source.drive  # captured before move_file rewrites it
     _check_target_drive_access(body.target_drive, unlocked_groups)
+    sidecar_errors: list[str] = []
     file, closed = await asyncio.to_thread(
-        fileops.move_file, db, file_id, body.target_drive, body.target_folder_path
+        fileops.move_file,
+        db,
+        file_id,
+        body.target_drive,
+        body.target_folder_path,
+        sidecar_errors,
     )
     await event_hooks.emit(
         "files.moved",
@@ -1437,10 +1685,10 @@ async def move_file_endpoint(
     )
     if closed:
         await inbox_service.notify(source_drive)
-    return _to_response(file)
+    return _operation_response(file, sidecar_errors)
 
 
-@router.post("/{file_id}/copy", response_model=FileResponse)
+@router.post("/{file_id}/copy", response_model=FileOperationResponse)
 def copy_file_endpoint(
     file_id: FileId,
     body: FileCopyRequest,
@@ -1449,9 +1697,12 @@ def copy_file_endpoint(
 ):
     _get_file_or_404(db, file_id, unlocked_groups)
     _check_target_drive_access(body.target_drive, unlocked_groups)
-    new_file = fileops.copy_file(db, file_id, body.target_drive, body.target_folder_path)
+    sidecar_errors: list[str] = []
+    new_file = fileops.copy_file(
+        db, file_id, body.target_drive, body.target_folder_path, sidecar_errors
+    )
     event_hooks.emit_from_thread("files.created", {"file_ids": [new_file.id]})
-    return _to_response(new_file)
+    return _operation_response(new_file, sidecar_errors)
 
 
 @router.delete("/{file_id}")

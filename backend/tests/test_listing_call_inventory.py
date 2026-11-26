@@ -28,8 +28,7 @@ INVENTORY: dict[tuple[str, str, str], tuple[int, str]] = {
     ("app/services/scanner.py", "_scan_and_register", "rglob"): (2, LISTING_ONLY),
     ("app/services/sidecar_match.py", "match_siblings", "fnmatch.fnmatchcase"): (1, STORED_NAME),
     ("app/services/sidecar_match.py", "match_siblings", "os.scandir"): (1, STORED_NAME),
-    ("app/services/subtitle.py", "detect_subtitles", "iterdir"): (1, STORED_NAME),
-    ("app/services/subtitle.py", "move_sidecar_subtitles", "iterdir"): (1, STORED_NAME),
+    ("app/services/subtitle.py", "_list_sidecar_entries", "iterdir"): (1, STORED_NAME),
     ("app/services/upload.py", "cleanup_abandoned_uploads", "iterdir"): (1, LISTING_ONLY),
 }
 

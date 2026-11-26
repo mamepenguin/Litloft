@@ -1,0 +1,278 @@
+# Decisions
+
+decision:
+author_resolutions:
+- claude-deep:D1 accept: the Node 24 CI change is knowledge PR #88, already merged there; any gitlink bump past it carries it.
+- claude-read:CR7-1 accept: the title editor closing on a refused rename is EditableTitle's existing behaviour; the refusal is now explained in a toast, which I11 requires.
+- claude-deep:D2 accept: same as CR7-1; a non-subtitle title rename failure was already silent before this change.
+- claude-read:unspecified 0 accept: one folder listing and row query per rename, move or copy of a video costs milliseconds on a home LAN and is how ownership is computed (nothing is stored, per the spec).
+- claude-deep:unspecified 1 accept: a subtitles-only upload into a new nested path is rare; the intermediate folder appears at the next scan.
+- claude-deep:unspecified 2 accept: same as CR7-1.
+- claude-deep:unspecified 3 accept: same as claude-read:unspecified 0.
+design_resolutions:
+- D-11 fix: coarse-pointer rows drop to 4px above and below (52px), measured in e2e-components/subtitles-section-touch.spec.ts.
+- D-1, D-2, D-3, D-4, D-5, D-6, D-7, D-8, D-9, D-10, D-12, D-13, D-14, D-15 accept (human, 2026-11-27, "D-11 だけ直す"): existing dialog and tab chrome (D-3 to D-7, D-10, D-13), the alert icon shared with D7 (D-8), the spec's order, translated labels and drive-relative names (D-1, D-2, D-9), the error under the list as the spec states (D-12), and states the screenshots did not cover (D-14, D-15).
+ran_in_app: yes
+at: 2029c8589700a0431c5246b8ea6a1c25c9ad8dc9
+by: agent
+evidence: |
+  Narrow re-run at 2029c8589 (the SHA above) for fixes 8bb46fd29, 06e85cfc5 and 93fe2471b;
+  2029c8589 only records review run r6. Fresh `scripts/dev/r5_stack.py clone --port 3101` + `up`
+  (backend and frontend images rebuilt at the start of the run, after 93fe2471b) on
+  http://video-share-subtitles.localhost:3101; the main video_share stack was not touched and no
+  SQLite DB was opened from the host. Scratch drive `R5字幕` (writable bind of .r5-stack/scratch
+  added to the clone's overlay and drives.json): 4-second ffmpeg H.264 videos, a JPEG, PNGs, a
+  Markdown note and SRTs whose cue text differs per file. Headless Chromium (Playwright 1.58),
+  ja locale, 1440x900. Disk checked on the host bind; tracks read from the file page's Info tab
+  and the `<video>`'s TextTrack list. Stack downed and destroyed afterwards. Screenshots:
+  docs/process/reviews/feature-subtitle-sidecars/r5/rerun3-*.png.
+
+  1. A/ holds movie.mp4 + movie.ja.srt and clip.mp4 (no subtitles). Context menu on Clip →
+     名前を変更 → movie.ja.mp4 → Enter: PUT rename 409 `subtitle_owner_change` names
+     [A/movie.ja.srt]; the dialog stays open with the alert
+     `別の動画の字幕の持ち主が変わるため、この操作はできません。 A/movie.ja.srt`
+     (rerun3-i1-rename-refused.png); A/ unchanged on disk. B/movie.ja.mp4 (no subtitles) →
+     context menu 移動 → A → ここに移動: PUT move 409 with the same code and name, toast with the
+     same message and `A/movie.ja.srt` (rerun3-i1-move-refused.png); B/ and A/ unchanged.
+     B/movie.ja.mp4 → コピー, then ここにペースト in A: batch/copy 200 copied 1, no toast; disk
+     A/movie.ja_copy.mp4 added, movie.ja.srt still beside movie.mp4. movie.mp4's page: `字幕 1
+     日本語 movie.ja.srt`, textTrack Japanese/ja showing (rerun3-i1-movie-after-copy.png); the
+     copy's page: `字幕はありません` (rerun3-i1-copy-page.png). PASS.
+  2. R/ holds movie.jpg, movie.mp4, movie.srt. Selection mode, the JPG card selected → 名前変更
+     → プレフィックス・サフィックス, 先頭に追加 `pic_`; preview movie.jpg → pic_movie.jpg
+     (rerun3-i2-batch-preview.png) → 名前を変更: batch/rename 200 renamed 1, sidecar_errors [];
+     disk R/ = movie.mp4, movie.srt, pic_movie.jpg. movie.mp4's page still lists `既定 movie.srt`
+     with its track showing (rerun3-i2-movie-keeps-track.png). PASS.
+  3. N/note.md page, title button クリックして名前を変更 (input `note.md`) → `x.srt` → Enter:
+     PUT rename 400 `subtitle_extension_reserved`; toast
+     `.srt と .vtt の名前は字幕のアップロードでだけ使えます。`; title back to note.md, disk
+     unchanged (rerun3-i3-title-refused.png). PASS.
+  4. Paste. F/f1.mp4 (f1.srt) カット → paste in E where E/f1.srt differs: batch/move 200 moved 0,
+     one error `subtitle_name_taken`; only toast `1 件は字幕のため移動しませんでした`
+     (rerun3-i4-paste-subtitle-only.png). F2/g1.mp4 (g1.srt) + F2/dup.png selected, カット →
+     paste in E (E/g1.srt differs, E/dup.png exists): moved 0, errors `File already exists at
+     target` and `subtitle_name_taken`; two toasts, `1 件を貼り付けられませんでした` and
+     `1 件は字幕のため移動しませんでした` (rerun3-i4-paste-subtitle-and-other.png). Disk unchanged in
+     F, F2 and E. PASS.
+  5. Drop. D/d1.mp4 + d1.srt, D/d2.mp4 + d2.srt; d1.srt made immutable on the host
+     (`chflags uchg`, which makes a rename inside the container fail with EPERM, checked first on
+     a probe file). Selection mode, both cards selected, dragged onto DD in the folder tree:
+     batch/move 200 moved 2, sidecar_errors [d1.srt]; toast `字幕の一部を移せませんでした。d1.srt`
+     (rerun3-i5-after-drop.png). Disk: DD = d1.mp4, d1.srt, d2.mp4, d2.srt; D = d1.srt (the
+     move fell back to copy, then could not remove the source, so d1.srt exists in both
+     folders). d1.mp4's page in DD lists `既定 d1.srt`. PASS for the notice; the leftover
+     D/d1.srt is recorded as seen, not judged.
+
+  Narrow re-run at 71c6aa935 for fix 301bc2fa3 (coarse-pointer subtitle row 52px); 71c6aa935
+  only records the knowledge submodule pointer. Fresh `scripts/dev/r5_stack.py clone --port 3101`
+  + `up` (frontend image rebuilt; its CSS chunk contains `pointer-coarse:py-1`) on
+  http://video-share-subtitles.localhost:3101; the main video_share stack was not touched. Scratch
+  drive `R5字幕` (bind of .r5-stack/scratch in the clone's overlay and drives.json): S/two.mp4
+  (6 s ffmpeg H.264) with two.en.srt and two.ja.srt. Headless Chromium (Playwright), ja locale.
+  Stack downed and destroyed afterwards. Screenshots: docs/process/reviews/feature-subtitle-sidecars/r5/rerun2-*.png.
+
+  Phone, 375x812, hasTouch/isMobile (matchMedia pointer:coarse true, hover:hover false). Opened the
+    inspector sheet from the bottom bar, 情報 tab: `字幕 2`, rows 英語 two.en.srt and 日本語
+    two.ja.srt. Each row 52px tall (padding 4px / 4px), 343px wide; both buttons per row 44x44 at
+    4px from the row top; button group opacity 1 without any hover (rerun2-phone-sheet.png,
+    rerun2-phone-row.png). documentElement scrollWidth 375 = clientWidth; list ul scrollWidth 343 =
+    clientWidth. Tap on 英語の字幕を差し替え → file chooser opened (single, accept .srt,.vtt). Tap on
+    英語の字幕を削除 → dialog 字幕を削除しますか？ / two.en.srt / ディスクから削除します。元に戻せません。
+    with キャンセル and 削除 (rerun2-phone-delete-dialog.png); not confirmed, files on disk unchanged. PASS.
+  Desktop, 1440x900, fine pointer (pointer:coarse false, hover:hover true). 情報 tab in the right
+    inspector: rows padding 8px / 8px (py-2), height 52px (36px text block + 16px), buttons 32x32;
+    group opacity 0 at rest (rerun2-desktop.png), 1 on row hover (rerun2-desktop-hover.png).
+    Click on 差し替え → file chooser (accept .srt,.vtt); click on 削除 → the same delete dialog
+    (rerun2-desktop-delete-dialog.png). No horizontal overflow (scrollWidth 1440). PASS.
+  Observation outside the change: the inspector also showed the alert
+    `チャプター候補を読み込めませんでした。もう一度お試しください。` on both layouts, in the
+    freshly started clone (intelligence still starting); not investigated.
+
+  Re-run at the SHA above (fixes 32729b296 and 0ede039b5), knowledge submodule at 7a94f8d.
+  Fresh `scripts/dev/r5_stack.py clone` + `up` (frontend image rebuilt at the start of the run) on
+  http://video-share-subtitles.localhost:3101; the main video_share stack was not touched. Scratch
+  drive `R5字幕` (bind of .r5-stack/scratch added to the clone's overlay and drives.json) of
+  6-second ffmpeg H.264 videos and subtitles whose cue text differs per file. Headless Chromium
+  (Playwright 1.58), ja locale, 1440x900 unless stated. Tracks read from the `<video>`'s
+  TextTrack list (mode, first cue / activeCues); disk checked on the host bind. Stack downed and
+  destroyed afterwards. Screenshots: docs/process/reviews/feature-subtitle-sidecars/r5/rerun-*.png.
+
+  FAIL-1 (fixed). B/two.mp4 (two.en.srt, two.ja.srt). Player menu → Japanese, then → English:
+    English `showing`, Japanese `disabled`. Deleted 英語 from the Info tab (dialog → 削除): list
+    `字幕 1 日本語`, only textTrack Japanese `showing` with cue `B 日本語キュー`; with one track the menu
+    shows no track list (rerun-fail1-after-delete-en.png, rerun-fail1-after-delete-en-menu.png). Deleted 日本語 (the
+    last): list `字幕はありません`, the one textTrack is `自動生成` (und) `showing` — the generated
+    track offered as before (rerun-fail1-none-left-menu.png). Three-track case on A/movie.mp4
+    (en, ja): picked Japanese, added a bare movie.srt (指定しない) → tracks 字幕 `disabled`, English
+    `disabled`, Japanese `showing`; deleted 日本語 → 字幕 (movie.srt, the first) `showing` with its
+    cue, English `disabled`; menu `オフ / ✓字幕 / English`
+    (rerun-fail1-3track-after-delete-ja-menu.png). Then on A (movie.srt, movie.en.srt) picked
+    English and deleted 英語: 字幕 `showing` with cue `x cue`, and the settings sheet's captions
+    toggle `字幕` has aria-checked=true. PASS.
+  FAIL-2 (fixed). M/multi.mp4 (multi.ja.srt), added ko; picked Korean then Japanese in the menu
+    (Japanese `showing`). Added `de`: German `disabled`, Japanese `showing`, Korean `disabled`.
+    Added `en`: German, English, Korean `disabled`, Japanese `showing` — exactly one. At 1.5 s
+    activeCues: only Japanese (`M 日本語キュー`) (rerun-fail2-after-add-de-en.png, where the
+    drawn line under the controls is not legible); menu `オフ / German / English / Japanese / Korean`
+    (rerun-fail2-menu.png). Files multi.{de,en,ja,ko}.srt on disk. Drawn frame: M with
+    Japanese picked (after the replace in regression 3), playing muted at 0:03: one caption line
+    `二回目の差し替えキュー` drawn, nothing else (rerun-fail2-drawn-frame.png). Fresh-page variant
+    without the menu: C/solo.mp4 (solo.ja.srt only, Japanese `showing` by default), added `en`
+    → English `disabled`, Japanese `showing`. PASS.
+  Captions off (extra). C/solo.mp4 (ja, en), picked オフ in the menu (all `disabled`); added `ko`
+    → all three `disabled`; deleted 英語 → Japanese and Korean `disabled`; captions toggle
+    aria-checked=false (rerun-captions-off-after-add-delete.png). PASS.
+  DIFF-1 / D8 (fixed). D/vid.mp4 with vid.srt and vid.ja.srt; D/target.srt and D/target.ja.srt
+    with other content. Rename vid.mp4 → target.mp4 from the file page (ファイル操作 → 名前を変更):
+    the dialog's alert box holds `行き先に同じ名前の字幕があります。` (weight 400), then `D/target.srt`
+    and `D/target.ja.srt` each on its own line (block spans 20px apart) at font-weight 600; input
+    border rgb(158,10,10) = --danger #9e0a0a. Same at a 440px viewport (phone layout, dialog
+    408px wide, document scrollWidth 440) (rerun-d8-rename-refused-440.png) and at 1440
+    (rerun-d8-rename-refused-1440.png). Same result from the folder listing's right-click
+    FileContextMenu → 名前を変更 (rerun-d8-contextmenu-rename-refused.png). Disk unchanged
+    (sha1 of all five files identical before and after). PASS. Differences from Rename.dc.html
+    seen: the names carry the folder (`D/target.srt`; the design shows `Night.ja.srt`), the input
+    has no `新しい名前` label, the title has a pencil icon, and the alert box has an alert icon
+    the design does not draw.
+  Other-code observation (fixed). N/plain.mp4, 字幕を追加, file abc.srt, その他のコード…: field
+    empty → 追加 disabled, no result line (rerun-other-empty.png); `a`, `あい`, `aé`, `12` → 追加
+    disabled, no result line (rerun-other-one-letter.png, rerun-other-non-ascii.png); `abc` →
+    追加 enabled, result `plain.abc.srt` (rerun-other-abc.png); 追加 → list one row (ABC), track
+    `abc` showing cue `abc code cue`, plain.abc.srt on disk (rerun-other-after-add.png). With
+    指定しない the result line is `plain.srt` and 追加 enabled, as before. PASS.
+  Regression of the first run's items:
+  - 1. M list `字幕 4 ドイツ語/multi.de.srt, 英語/multi.en.srt, 日本語/multi.ja.srt,
+    韓国語/multi.ko.srt`; row button wrapper opacity 0 without hover, 1 on hover
+    (rerun-reg1-list-nohover.png, rerun-reg1-list-hover.png). PASS.
+  - 3. Japanese picked on M, replaced multi.ja.srt via the row's replace button: track src `?v=`
+    changed for index 2 only, Japanese still `showing`, cue `差し替え後の新しいキュー` →
+    `二回目の差し替えキュー`, disk bytes match (rerun-reg3-after-replace.png). PASS.
+  - 4. C/movie.mp4 (movie.srt shared with movie.mkv): dialog `字幕を削除しますか？ | movie.srt |
+    ディスクから削除します。元に戻せません。 | 同じ名前の動画 1 本からも消えます。 | キャンセル | 削除`;
+    キャンセル keeps the row and the file (rerun-reg4-delete-dialog-shared.png). Unshared delete
+    and the confirm path were exercised in FAIL-1 above (files removed from disk). PASS.
+  - 6. F (f1.mp4 + f1.srt, f2.mp4), その他の操作 → 選択モード, both selected → 移動 → E (E/f1.srt
+    holds other content) → ここに移動: toast `1 件は字幕のため移動しませんでした`; f2.mp4 in E,
+    f1.mp4 and f1.srt still in F, E/f1.srt unchanged (rerun-reg6-move-notice.png). PASS.
+  Unrelated to this change, as in the first run: `チャプター候補を読み込めませんでした。` on every
+  video's Info tab. Resizing the window from 1440 to 440 with the rename dialog open closed the
+  dialog (the page swaps to the phone layout); the 440px shot was taken by opening at 440.
+
+  First run (at 1ae8d4876e99bbc0989bd16d1e8a971d04521287):
+  Environment: worktree /Users/libre/Sources/video_share-subtitles at 1ae8d4876, knowledge
+  submodule checked out at 7a94f8d. Stack started with `scripts/dev/r5_stack.py clone` + `up`
+  (images rebuilt by `up --build`; the frontend bundle contained the new subtitle codes) on
+  http://video-share-subtitles.localhost:3101, data cloned, the main stack untouched. A scratch
+  drive `R5字幕` (bind of .r5-stack/scratch, added to the clone's drives.json and overlay) held
+  4-second H.264 test videos made with ffmpeg and subtitle files with distinct cue text.
+  Driven in headless Chromium (Playwright 1.58) at 1440x900, ja locale; phone runs at 375x812
+  with isMobile + hasTouch (`(pointer: coarse)` matched). Disk checked on the host bind after
+  each step. Stack downed and destroyed afterwards.
+  Screenshots: docs/process/reviews/feature-subtitle-sidecars/r5/ (gitignored).
+
+  1. A/movie.mp4 with movie.srt, movie.ja.srt, movie.en.vtt. Info tab shows `字幕 3` and rows
+     既定/movie.srt, 英語/movie.en.vtt, 日本語/movie.ja.srt (bare first, then by code). Row buttons
+     at opacity 0, 32x32, until hover; on hover opacity 1, replace + red delete icons, row gets the
+     elevated background (main-nohover.png, main-hover.png, main-full-1440.png). Player `<video>`
+     carries three `<track>`s with `?v=<mtime_ns>`; the player's settings menu offers オフ / 字幕 /
+     Japanese (player-menu-A.png, taken after the English track was deleted in step 4). PASS.
+  2. B/plain.mp4 (no subtitles): empty state `字幕はありません` + 字幕を追加 (item2-empty.png). Form:
+     ファイル 選択… + name, 言語 select with the 13 two-letter codes, 指定しない, その他のコード…,
+     resulting name `plain.ja.srt`, キャンセル / 追加 (add-form.png). その他のコード… opens a text
+     field under the select (add-form-other.png). Adding good_ja.srt as ja: list shows `字幕 1 日本語
+     plain.ja.srt`, no page navigation, player gained the Japanese track showing cue
+     `追加した日本語キュー`; file on disk. Shift_JIS file → `UTF-8 で保存された字幕ではありません。`;
+     notes.txt → `.srt か .vtt のファイルを選んでください。`; a second ja →
+     `この言語の字幕はすでにあります。差し替えを使ってください。` — each shown under the list with the
+     form keeping its file and language; nothing written to disk (item2-err-*.png). Other-code
+     field: `x` → `言語コードは英字 2〜3 文字で入力してください。`; `Pol` → saved as f2.pol.srt.
+     PASS, with FAIL-2 below.
+  3. Picked Japanese in the player, replaced movie.ja.srt with replacement.srt via the row's replace
+     button (file chooser). Row still `movie.ja.srt`; track src version changed; the showing
+     Japanese track's loaded cue changed from `A 日本語キュー 元` to `差し替え後の新しいキュー`; disk
+     file has the new bytes. Same with the player's own menu on B (English picked → cue changed
+     after replace). PASS.
+  4. Shared C/movie.srt (movie.mp4 + movie.mkv): dialog `字幕を削除しますか？`, bold `movie.srt`,
+     `ディスクから削除します。元に戻せません。`, `同じ名前の動画 1 本からも消えます。`, キャンセル (sand) and
+     削除 (red text) (delete-dialog-shared.png). Cancel → file kept. Unshared A/movie.en.vtt: no
+     shared line (delete-dialog.png, 448px wide); Escape and a backdrop click close it and keep the
+     file; confirm removes it from disk, list shows 2 rows, player drops the track. Deleting the
+     last track on B: list empty, player falls back to the 自動生成 track. PASS, with FAIL-1 below.
+  5. Rename from the file page (FileActions → 名前を変更): R/renme.mp4 → renamed.mp4: renme.srt
+     and renme.ja.srt became renamed.srt / renamed.ja.srt on disk; the page's list showed the
+     carried names without reload (item5-after-rename.png). Move dialog → E: renamed.mp4 and both
+     sidecars in E, none left in R, list still shows them (item5-after-move.png). Rename D/vid.mp4
+     → target.mp4 while D/target.srt holds different content: the dialog shows an alert box
+     `行き先に同じ名前の字幕があります。 D/target.srt`, input border rgb(158,10,10)
+     (rename-refused.png); disk unchanged (vid.mp4, vid.srt, target.srt with their old content).
+     PASS, with DIFF-1 below.
+  6. Selection mode in C, both `Movie` (movie.mp4, movie.mkv) selected → 移動 → B: both moved, one
+     movie.srt in B, C empty (item6-shared-move.png). Selection in F (f1.mp4 with f1.srt, f2.mp4)
+     → E where E/f1.srt holds different content: f2.mp4 moved, f1.mp4 and f1.srt stayed in F,
+     E/f1.srt unchanged, toast `1 件は字幕のため移動しませんでした`
+     (toast-item6-collision-move.png). PASS. Paste was not exercised for the refusal path.
+  7. Copy (FileActions → コピー, then Cmd+V in the folder) of G/copyme.mp4 (ja.srt, en.vtt):
+     copyme_copy.mp4 + copyme_copy.ja.srt + copyme_copy.en.vtt with identical bytes; sources
+     unchanged; the copy's page lists 英語 and 日本語. PASS.
+  8. Trashed T/t.mp4 (own t.srt) and T/s.mp4 (s.srt shared with s.mkv), then ゴミ箱を空にする on the
+     drive's trash: T left with s.mkv and s.srt; t.mp4, t.srt, s.mp4 gone from disk. PASS.
+  9. Upload drawer → フォルダをアップロード with ep01.ja.srt, ep01.mp4, ep02.ja.srt, ep02.mp4: all
+     four landed in upfolder/, each video's Info tab lists 日本語 epNN.ja.srt
+     (item9-upload-drawer.png). Drawer refusals: re-uploading ep01.ja.srt →
+     `行き先に同じ名前の字幕があります。 upfolder/ep01.ja.srt`; sjis.srt →
+     `UTF-8 で保存された字幕ではありません。`; nothing new on disk (item9-drawer-refusals.png). PASS.
+  10. Rename G/copyme_copy.mp4 → x.srt: dialog shows `.srt と .vtt の名前は字幕のアップロードでだけ
+      使えます。`, nothing changed on disk (item10-rename-x-srt.png). PASS.
+  11. Knowledge service running in the stack. New note G/r5note2.md, typed `before drop`, dropped
+      dropped_r5.srt (DragEvent with a DataTransfer file on the CodeMirror content): editor text
+      stays `before drop`, no placeholder and no loft:// link; toast
+      `dropped_r5.srt は字幕として、このフォルダの動画の横に保存しました`; G/dropped_r5.srt on disk
+      (item11-after-drop.png). Paste of a subtitle not exercised. PASS.
+  12. Phone 375px, coarse pointer, inspector sheet → 情報: section 343px wide, rows 60px tall with
+      padding-left 10px / padding-right 0, buttons 44x44 and visible (opacity 1), document
+      scrollWidth 375, no element past the viewport (phone-rows.png). Empty state and empty + error
+      (phone-empty.png, phone-empty-error.png), one row + error (phone-row-error.png), add form at
+      full width (phone-error-addform.png, phone-row-error-addform.png). PASS.
+
+  Design screenshots, in words:
+  - Main (main-hover.png, 383px inspector): `字幕 3` small muted label with the count, three rows
+    (label in text-sm, file name small muted), the hovered row elevated with refresh + red trash
+    icons, sand 字幕を追加 pill with a plus. Order is 既定, 英語, 日本語 (the design shows 既定, 日本語,
+    English); labels are translated (英語 rather than English).
+  - Add (add-form.png): bordered elevated panel with ファイル / 選択… pill / chosen name, 言語 select,
+    resulting name, キャンセル and red 追加 right-aligned.
+  - Delete (delete-dialog.png, delete-dialog-shared.png): as in step 4.
+  - Phone (phone-rows.png, phone-empty-error.png, phone-row-error.png): rows with 44px icons,
+    empty text, red alert box under the list, sand add button.
+  - Rename (rename-refused.png): title with pencil, input with red border, red alert box with the
+    message and `D/target.srt` in regular weight, キャンセル / 変更.
+
+  Failures and differences found in the first run (results after the fixes are in the re-run
+  section at the top):
+  - FAIL-1. Deleting the track being shown, with captions on, turns captions off instead of showing
+    the first remaining track (spec 185 States, "Player tracks"). B/plain.mp4 with ja + en, English
+    picked in the player menu, English deleted: every remaining textTrack is `disabled`, the player
+    menu shows the captions-off icon and no track list (item4c-after-delete-menu.png).
+  - FAIL-2. Adding a track whose language sorts before the track being shown turns the new track on
+    as well, so two tracks show at once (spec 185 States: the track being shown stays the same file
+    across an add). R/plainfile.mp4 with Japanese picked, add `de`: textTracks German `showing`,
+    English `disabled`, Japanese `showing`; both cue texts are drawn over the video at 0:01
+    (item2c-two-tracks-showing.png). The same seen when adding en after ja on a fresh page.
+  - DIFF-1. D8: the rename refusal names are not bold. The alert is a single span
+    `行き先に同じ名前の字幕があります。 D/target.srt` at font-weight 400; the design draws the name at
+    600.
+  - Observation. With その他のコード… selected and the code field left empty, 追加 is enabled, the
+    preview shows `f2.srt`, and the add creates a bare track f2.srt (no `subtitle_language` error).
+  - Unrelated to this change: every video's Info tab shows `チャプター候補を読み込めませんでした。` from
+    the intelligence addon in this stack.
+pending: |
+  - Subtitles seen and heard during real playback (timing, sync, rendering on devices) —
+    PROJECT.md agent_cannot_verify "Audio and video as heard and seen". Cue text was read from the
+    browser's TextTrack objects and one paused frame only.
+  - The iOS app and other household devices, the real home LAN (agent_cannot_verify).
+  - The caption-track fix in the native-shell player (ShellVideoPlayer / useShellCaptions, used only
+    inside the iOS app) — only the browser VideoPlayer was exercised (agent_cannot_verify, iOS app).
+  - Not exercised: batch rename refusal, the folder-tree inline rename entry point, quick note
+    with a .srt name, pasting a subtitle into the knowledge editor, a sidecar carry failure on a
+    real disk error (only an immutable-flag permission error on a drop was produced), a 404
+    stale-list on replace/delete, and the 30-day auto-purge.

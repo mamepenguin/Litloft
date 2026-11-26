@@ -4,6 +4,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 
 import { useCurrentDrive } from "@/components/CurrentDriveProvider";
+import { ApiStatusError } from "@/lib/apiError";
+import {
+  isSubtitleRefusal,
+  sidecarErrorNames,
+  sidecarErrorMessage,
+  subtitleErrorMessage,
+} from "@/lib/subtitleErrors";
+import { useToast } from "@/components/ToastProvider";
 
 const ERROR_TTL_MS = 3000;
 
@@ -20,7 +28,10 @@ export const RENAME_FOCUS_ATTR = "data-rename-focus";
 
 type Translate = (key: string) => string;
 
-function describeFailure(cause: unknown, t: Translate): string {
+function describeFailure(cause: unknown, t: Translate, te: Translate): string {
+  if (cause instanceof ApiStatusError && isSubtitleRefusal(cause.code)) {
+    return subtitleErrorMessage(te, cause.code!, cause.names ?? []);
+  }
   const raw = cause instanceof Error ? cause.message : String(cause);
   const status = raw.match(/\b(\d{3})\b/)?.[1];
   switch (status) {
@@ -45,6 +56,9 @@ export interface InlineRenameApi {
 
 export function useInlineRename(onRenamed: () => void): InlineRenameApi {
   const t = useTranslations("inlineRename");
+  const ts = useTranslations("subtitles");
+  const te = useTranslations("subtitles.errors");
+  const toast = useToast();
   const [editingPath, setEditingPath] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -133,12 +147,17 @@ export function useInlineRename(onRenamed: () => void): InlineRenameApi {
 
   const commit = useCallback(
     async (run: () => Promise<unknown>, focusAfter?: string) => {
+      let result: unknown;
       try {
-        await run();
+        result = await run();
       } catch (cause) {
         // Rethrown, not swallowed: the editor distinguishes an active
         // confirmation (stay open, show this) from a click-away (let go).
-        throw new Error(describeFailure(cause, t));
+        throw new Error(describeFailure(cause, t, te));
+      }
+      const carried = sidecarErrorNames(result);
+      if (carried.length > 0) {
+        toast.error(sidecarErrorMessage(ts, carried));
       }
       setEditingPath(null);
       onRenamed();
@@ -146,7 +165,7 @@ export function useInlineRename(onRenamed: () => void): InlineRenameApi {
       // that rather than by the path the edit started from.
       if (focusAfter !== undefined) refocus(focusAfter);
     },
-    [onRenamed, t, refocus],
+    [onRenamed, refocus, t, te, toast, ts],
   );
 
   return { editingPath, error, start, cancel, commit };

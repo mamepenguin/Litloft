@@ -10,8 +10,24 @@ vi.mock("@/lib/api", () => ({
 
 const vtt = (text: string) => `WEBVTT\n\n00:00:00.000 --> 00:00:05.000\n${text}\n`;
 const two: SubtitleInfo[] = [
-  { index: 3, language: "ja", format: "vtt", label: "日本語" },
-  { index: 5, language: "en", format: "vtt", label: "" },
+  {
+    index: 3,
+    language: "ja",
+    format: "vtt",
+    label: "日本語",
+    filename: "Night.ja.vtt",
+    shared_with: 0,
+    version: "11",
+  },
+  {
+    index: 5,
+    language: "en",
+    format: "vtt",
+    label: "",
+    filename: "Night.en.vtt",
+    shared_with: 0,
+    version: "22",
+  },
 ];
 
 let responses: Record<string, Response | Error>;
@@ -19,9 +35,9 @@ let responses: Record<string, Response | Error>;
 beforeEach(() => {
   window.localStorage.clear();
   responses = {
-    "/subs/v1/3": new Response(vtt("ja line")),
-    "/subs/v1/5": new Response(vtt("en line")),
-    "/subs/v2/3": new Response(vtt("v2 line")),
+    "/subs/v1/3?v=11": new Response(vtt("ja line")),
+    "/subs/v1/5?v=22": new Response(vtt("en line")),
+    "/subs/v2/3?v=11": new Response(vtt("v2 line")),
   };
   vi.stubGlobal(
     "fetch",
@@ -53,7 +69,7 @@ describe("useShellCaptions", () => {
   });
 
   it("is unavailable while nothing could be read", async () => {
-    responses["/subs/v1/3"] = new Error("offline");
+    responses["/subs/v1/3?v=11"] = new Error("offline");
     const { result } = renderHook(() => useShellCaptions("v1", two));
 
     await waitFor(() => expect(fetch).toHaveBeenCalled());
@@ -83,6 +99,46 @@ describe("useShellCaptions", () => {
     act(() => result.current.select(-1));
     expect(result.current.selected).toBe(-1);
     expect(window.localStorage.getItem("video-share-captions")).toBe("false");
+  });
+
+  it("keeps the chosen file when another track is added before it", async () => {
+    const { result, rerender } = renderHook(
+      ({ subtitles }) => useShellCaptions("v1", subtitles),
+      { initialProps: { subtitles: two } },
+    );
+    act(() => result.current.select(1));
+    await waitFor(() => expect(result.current.cues.map((cue) => cue.text)).toEqual(["en line"]));
+
+    const german: SubtitleInfo = {
+      index: 7,
+      language: "de",
+      format: "vtt",
+      label: "Deutsch",
+      filename: "Night.de.vtt",
+      shared_with: 0,
+      version: "33",
+    };
+    responses["/subs/v1/7?v=33"] = new Response(vtt("de line"));
+    rerender({ subtitles: [german, ...two] });
+
+    expect(result.current.selected).toBe(2);
+    expect(result.current.tracks[result.current.selected].url).toContain("/subs/v1/5");
+    await waitFor(() => expect(result.current.cues.map((cue) => cue.text)).toEqual(["en line"]));
+  });
+
+  it("shows the first remaining track when the chosen one is deleted", async () => {
+    const { result, rerender } = renderHook(
+      ({ subtitles }) => useShellCaptions("v1", subtitles),
+      { initialProps: { subtitles: two } },
+    );
+    act(() => result.current.select(1));
+    await waitFor(() => expect(result.current.cues.map((cue) => cue.text)).toEqual(["en line"]));
+
+    responses["/subs/v1/3?v=11"] = new Response(vtt("ja line"));
+    rerender({ subtitles: [two[0]] });
+
+    expect(result.current.selected).toBe(0);
+    await waitFor(() => expect(result.current.cues.map((cue) => cue.text)).toEqual(["ja line"]));
   });
 
   it("turns off from the controls' toggle for this video only", async () => {

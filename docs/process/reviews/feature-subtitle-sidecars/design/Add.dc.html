@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>字幕を追加</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:#d63031}a:hover{color:#b52425}
+</style>
+</helmet>
+<div style="width: 384px; height: 560px; box-sizing: border-box; background: #ffffff; color: #211922; font-family: -apple-system, system-ui, 'Segoe UI', 'ヒラギノ角ゴ Pro W3', Meiryo, sans-serif; display: flex; flex-direction: column; border-left: 1px solid rgba(145,145,140,0.2)">
+  <div style="display: flex; gap: 4px; padding: 8px 12px; border-bottom: 1px solid rgba(145,145,140,0.2)">
+    <span style="padding: 6px 12px; font-size: 13px; font-weight: 600; border-bottom: 2px solid #211922">情報</span>
+    <span style="padding: 6px 12px; font-size: 13px; color: #62625b">チャプター</span>
+    <span style="padding: 6px 12px; font-size: 13px; color: #62625b">関連</span>
+  </div>
+  <div style="padding: 16px; display: flex; flex-direction: column; gap: 20px">
+    <section style="display: flex; flex-direction: column; gap: 6px">
+      <h3 style="margin: 0; font-size: 12px; font-weight: 500; color: #62625b">字幕 <span style="font-weight: 400">1</span></h3>
+      <ul style="list-style: none; margin: 0; padding: 0">
+        <li style="display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 12px">
+          <div style="flex: 1; min-width: 0">
+            <div style="font-size: 14px">既定</div>
+            <div style="font-size: 12px; color: #62625b">The Long Night.srt</div>
+          </div>
+        </li>
+      </ul>
+      <form style="display: flex; flex-direction: column; gap: 12px; padding: 12px; border: 1px solid rgba(145,145,140,0.2); border-radius: 16px; background: #f6f6f3">
+        <div style="display: flex; flex-direction: column; gap: 4px">
+          <label for="sub-file" style="font-size: 12px; font-weight: 500; color: #62625b">ファイル</label>
+          <div style="display: flex; align-items: center; gap: 8px">
+            <button id="sub-file" type="button" style="padding: 8px 16px; border: 0; border-radius: 16px; background: #e5e5e0; color: #211922; font-size: 13px; cursor: pointer">選択…</button>
+            <span style="font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0">long_night_jp.srt</span>
+          </div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 4px">
+          <label for="sub-lang" style="font-size: 12px; font-weight: 500; color: #62625b">言語</label>
+          <select id="sub-lang" style="padding: 8px 10px; border: 1px solid rgba(145,145,140,0.35); border-radius: 12px; background: #ffffff; font-size: 14px; color: #211922">
+            <option>日本語 (ja)</option>
+            <option>English (en)</option>
+            <option>指定しない</option>
+            <option>その他のコード…</option>
+          </select>
+        </div>
+        <div style="font-size: 12px; color: #62625b">The Long Night.ja.srt</div>
+        <div style="display: flex; justify-content: flex-end; gap: 8px">
+          <button type="button" style="padding: 8px 16px; border: 0; border-radius: 16px; background: transparent; color: #211922; font-size: 13px; cursor: pointer">キャンセル</button>
+          <button type="submit" style="padding: 8px 16px; border: 0; border-radius: 16px; background: #d63031; color: #ffffff; font-size: 13px; cursor: pointer">追加</button>
+        </div>
+      </form>
+    </section>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":384,"height":560}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

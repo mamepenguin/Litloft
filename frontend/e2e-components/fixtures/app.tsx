@@ -132,6 +132,7 @@ import { TRANSCRIPT_TOUCH_ARRANGEMENTS } from "./transcriptTouch";
 import { APP_CARD_MENU_ARRANGEMENTS } from "./appCardMenu";
 import { FILE_GRID_APP_CARD_MENU_ARRANGEMENTS } from "./fileGridAppCardMenu";
 import { MOTION_ARRANGEMENTS } from "./motion";
+import { SubtitlesSectionPhoneArrangement } from "./subtitlesSection";
 import {
   InspectorArchiveArrangement,
   InspectorPdfArrangement,
@@ -2964,6 +2965,7 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   ...APP_CARD_MENU_ARRANGEMENTS,
   ...FILE_GRID_APP_CARD_MENU_ARRANGEMENTS,
   ...MOTION_ARRANGEMENTS,
+  "subtitles-section-phone": SubtitlesSectionPhoneArrangement,
 };
 
 function App(): ReactElement {

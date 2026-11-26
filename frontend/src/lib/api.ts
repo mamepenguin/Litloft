@@ -1,4 +1,4 @@
-import type { ArchiveContents, AuthStatus, BatchRenameRequest, BatchRenameResponse, ChunkResponse, CollectionDetail, CollectionSummary, Comment, CommentsResponse, DashboardResponse, Drive, DriveSummary, DuplicatesResponse, FileExif, FileItem, Folder, FolderCount, FolderTreeNode, Highlight, HighlightInput, HomeShortcut, HomeShortcutKind, Neighbors, PaginatedResponse, PinnedFolder, ListingSortField, SortField, SortOrder, Tag, TrustTier, FileKind, UnlockResult, UploadInitResponse, WatchHistoryItem, WatchProgress, WatchedRange, PlayedSegmentsResponse } from "@/types";
+import type { ArchiveContents, AuthStatus, BatchRenameRequest, BatchRenameResponse, ChunkResponse, CollectionDetail, CollectionSummary, Comment, CommentsResponse, DashboardResponse, Drive, DriveSummary, DuplicatesResponse, FileExif, FileItem, Folder, FolderCount, FolderTreeNode, Highlight, HighlightInput, HomeShortcut, HomeShortcutKind, Neighbors, PaginatedResponse, PinnedFolder, ListingSortField, SortField, SortOrder, SubtitleInfo, Tag, TrustTier, FileKind, UnlockResult, UploadInitResponse, WatchHistoryItem, WatchProgress, WatchedRange, PlayedSegmentsResponse } from "@/types";
 import type { SmartFolder, SmartFolderCreate, SmartFolderUpdate } from "@/types/smartFolder";
 import { ApiStatusError } from "@/lib/apiError";
 import { REQUEST_TIMEOUT_MS, type BatchAnswer } from "@/lib/batchChunks";
@@ -27,14 +27,44 @@ export async function fetchJSON<T>(url: string, options?: RequestInit): Promise<
 }
 
 /**
- * `fetchJSON` for a call whose caller reads the status of a failure. The four
- * name-taking writes use it so a `409` is distinguishable from the rest.
+ * `fetchJSON` for a call whose caller reads the failure: its status and the
+ * `detail.code` / `detail.names` an object body carries.
  */
+interface ApiErrorDetail {
+  detail?: string;
+  code?: string;
+  names?: string[];
+}
+
+async function readApiError(res: Response): Promise<ApiErrorDetail> {
+  const body = (await res.json().catch(() => null)) as { detail?: unknown } | null;
+  const detail = body?.detail;
+  if (typeof detail === "string") return { detail };
+  if (typeof detail === "object" && detail !== null) {
+    const object = detail as { code?: unknown; names?: unknown };
+    return {
+      code: typeof object.code === "string" ? object.code : undefined,
+      names: Array.isArray(object.names)
+        ? object.names.filter((name): name is string => typeof name === "string")
+        : undefined,
+    };
+  }
+  return {};
+}
+
+function apiStatusError(res: Response, error: ApiErrorDetail): ApiStatusError {
+  return new ApiStatusError(
+    res.status,
+    `API error: ${res.status} ${res.statusText}`,
+    error.detail,
+    error.code,
+    error.names,
+  );
+}
+
 async function fetchJSONStatus<T>(url: string, options?: RequestInit): Promise<T> {
   const res = await fetch(url, { credentials: "include", ...options });
-  if (!res.ok) {
-    throw new ApiStatusError(res.status, `API error: ${res.status} ${res.statusText}`);
-  }
+  if (!res.ok) throw apiStatusError(res, await readApiError(res));
   return res.json();
 }
 
@@ -553,16 +583,67 @@ export function getSubtitleUrl(fileId: string, index: number): string {
   return `${API_BASE}/files/${fileId}/subtitles/${index}`;
 }
 
-export async function renameFile(id: string, newFilename: string): Promise<FileItem> {
-  return fetchJSON<FileItem>(`${API_BASE}/files/${id}/rename`, {
+export interface SubtitleListResponse {
+  subtitles: SubtitleInfo[];
+}
+
+export interface SubtitleReplaceResponse extends SubtitleListResponse {
+  sidecar_errors: string[];
+}
+
+export async function addSubtitle(
+  fileId: string,
+  file: File,
+  language: string,
+): Promise<SubtitleListResponse> {
+  const form = new FormData();
+  form.append("file", file);
+  form.append("language", language);
+  return fetchJSONStatus<SubtitleListResponse>(`${API_BASE}/files/${fileId}/subtitles`, {
+    method: "POST",
+    body: form,
+  });
+}
+
+export async function replaceSubtitle(
+  fileId: string,
+  name: string,
+  file: File,
+): Promise<SubtitleReplaceResponse> {
+  const form = new FormData();
+  form.append("name", name);
+  form.append("file", file);
+  return fetchJSONStatus<SubtitleReplaceResponse>(`${API_BASE}/files/${fileId}/subtitles`, {
+    method: "PUT",
+    body: form,
+  });
+}
+
+export async function deleteSubtitle(
+  fileId: string,
+  name: string,
+): Promise<SubtitleListResponse> {
+  const params = new URLSearchParams({ name });
+  return fetchJSONStatus<SubtitleListResponse>(
+    `${API_BASE}/files/${fileId}/subtitles?${params.toString()}`,
+    { method: "DELETE" },
+  );
+}
+
+export interface FileMutationResponse extends FileItem {
+  sidecar_errors?: string[];
+}
+
+export async function renameFile(id: string, newFilename: string): Promise<FileMutationResponse> {
+  return fetchJSONStatus<FileMutationResponse>(`${API_BASE}/files/${id}/rename`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ new_filename: newFilename }),
   });
 }
 
-export async function moveFile(id: string, targetFolderPath: string, targetDrive?: string): Promise<FileItem> {
-  return fetchJSON<FileItem>(`${API_BASE}/files/${id}/move`, {
+export async function moveFile(id: string, targetFolderPath: string, targetDrive?: string): Promise<FileMutationResponse> {
+  return fetchJSONStatus<FileMutationResponse>(`${API_BASE}/files/${id}/move`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ target_folder_path: targetFolderPath, target_drive: targetDrive }),
@@ -581,7 +662,7 @@ export async function createTextFile(
   drive: string,
   body: { path: string; content: string },
 ): Promise<FileItem> {
-  return fetchJSON<FileItem>(`${API_BASE}/drives/${encodeURIComponent(drive)}/files`, {
+  return fetchJSONStatus<FileItem>(`${API_BASE}/drives/${encodeURIComponent(drive)}/files`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -623,10 +704,11 @@ export async function deleteFolder(drive: string, path: string): Promise<void> {
 async function fetchUploadJSON<T>(url: string, options?: RequestInit): Promise<T> {
   const res = await fetch(url, { credentials: "include", ...options });
   if (!res.ok) {
-    const body = (await res.json().catch(() => null)) as { detail?: unknown } | null;
-    if (body?.detail === "destination_folder_not_found") {
+    const error = await readApiError(res);
+    if (error.detail === "destination_folder_not_found") {
       throw new Error("destination_folder_not_found");
     }
+    if (error.code !== undefined) throw apiStatusError(res, error);
     throw new Error(`API error: ${res.status} ${res.statusText}`);
   }
   return res.json();
@@ -823,12 +905,30 @@ export async function batchDelete(
   });
 }
 
+export interface BatchFileError {
+  id: string;
+  error: string;
+  names?: string[];
+}
+
+export interface BatchMoveResponse {
+  moved: number;
+  errors: BatchFileError[];
+  sidecar_errors?: string[];
+}
+
+export interface BatchCopyResponse {
+  copied: number;
+  errors: BatchFileError[];
+  sidecar_errors?: string[];
+}
+
 export async function batchMove(
   ids: string[],
   targetFolderPath: string,
   targetDrive?: string
-): Promise<{ moved: number; errors: { id: string; error: string }[] }> {
-  return fetchJSON(`${API_BASE}/files/batch/move`, {
+): Promise<BatchMoveResponse> {
+  return fetchJSONStatus(`${API_BASE}/files/batch/move`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ ids, target_folder_path: targetFolderPath, target_drive: targetDrive }),
@@ -839,8 +939,8 @@ export async function copyFile(
   id: string,
   targetPath: string,
   targetDrive?: string
-): Promise<FileItem> {
-  return fetchJSON<FileItem>(`${API_BASE}/files/${id}/copy`, {
+): Promise<FileMutationResponse> {
+  return fetchJSONStatus<FileMutationResponse>(`${API_BASE}/files/${id}/copy`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ target_folder_path: targetPath, target_drive: targetDrive }),
@@ -851,8 +951,8 @@ export async function batchCopy(
   ids: string[],
   targetFolderPath: string,
   targetDrive?: string
-): Promise<{ copied: number; errors: string[] }> {
-  return fetchJSON(`${API_BASE}/files/batch/copy`, {
+): Promise<BatchCopyResponse> {
+  return fetchJSONStatus(`${API_BASE}/files/batch/copy`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ ids, target_folder_path: targetFolderPath, target_drive: targetDrive }),
@@ -860,7 +960,7 @@ export async function batchCopy(
 }
 
 export async function batchRename(body: BatchRenameRequest): Promise<BatchRenameResponse> {
-  return fetchJSON<BatchRenameResponse>(`${API_BASE}/files/batch/rename`, {
+  return fetchJSONStatus<BatchRenameResponse>(`${API_BASE}/files/batch/rename`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),

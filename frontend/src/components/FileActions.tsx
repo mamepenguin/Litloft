@@ -11,6 +11,13 @@ import {
 } from "@/lib/api";
 import { copyText } from "@/lib/copyText";
 import {
+  sidecarErrorNames,
+  sidecarErrorMessage,
+  subtitleFailure,
+  subtitleFailureText,
+  type SubtitleErrorText,
+} from "@/lib/subtitleErrors";
+import {
   ANCHORED_VERTICAL,
   useAnchoredDirection,
 } from "@/hooks/useAnchoredDirection";
@@ -57,12 +64,15 @@ export function FileActions({
 }: FileActionsProps) {
   const t = useTranslations("file");
   const tt = useTranslations("trash");
+  const ts = useTranslations("subtitles");
+  const te = useTranslations("subtitles.errors");
   const [menuOpen, setMenuOpen] = useState(false);
   const [renameOpen, setRenameOpen] = useState(false);
   const [moveOpen, setMoveOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [collectionPickerOpen, setCollectionPickerOpen] = useState(false);
   const [addonDialogOpen, setAddonDialogOpen] = useState(false);
+  const [renameError, setRenameError] = useState<SubtitleErrorText | null>(null);
   const [copyIdOpen, setCopyIdOpen] = useState(false);
   const toast = useToast();
   const dialogHost = useDialogPortalTarget();
@@ -117,28 +127,42 @@ export function FileActions({
 
   const handleRename = useCallback(
     async (newName: string) => {
+      setRenameError(null);
       try {
-        await renameFile(file.id, newName);
+        const updated = await renameFile(file.id, newName);
+        const carried = sidecarErrorNames(updated);
+        if (carried.length > 0) {
+          toast.error(sidecarErrorMessage(ts, carried));
+        }
         setRenameOpen(false);
         if (onUpdate) onUpdate();
-      } catch {
-        setError(t("renameFailed"));
+      } catch (cause) {
+        const subtitle = subtitleFailureText(cause, te);
+        if (subtitle) {
+          setRenameError(subtitle);
+        } else {
+          setError(t("renameFailed"));
+        }
       }
     },
-    [file.id, onUpdate, t]
+    [file.id, onUpdate, t, te, toast, ts]
   );
 
   const handleMove = useCallback(
     async (targetPath: string) => {
       try {
-        await moveFile(file.id, targetPath);
+        const updated = await moveFile(file.id, targetPath);
+        const carried = sidecarErrorNames(updated);
+        if (carried.length > 0) {
+          toast.error(sidecarErrorMessage(ts, carried));
+        }
         setMoveOpen(false);
         if (onUpdate) onUpdate();
-      } catch {
-        setError(t("moveFailed"));
+      } catch (cause) {
+        setError(subtitleFailure(cause, te) ?? t("moveFailed"));
       }
     },
-    [file.id, onUpdate, t]
+    [file.id, onUpdate, t, te, toast, ts]
   );
 
   const handleDelete = useCallback(async () => {
@@ -178,6 +202,7 @@ export function FileActions({
     },
     onRename: () => {
       setMenuOpen(false);
+      setRenameError(null);
       setRenameOpen(true);
     },
     onMove: () => {
@@ -305,8 +330,13 @@ export function FileActions({
           <RenameDialog
             open={renameOpen}
             currentName={file.filename}
+            error={renameError?.message}
+            errorNames={renameError?.names}
             onRename={handleRename}
-            onCancel={() => setRenameOpen(false)}
+            onCancel={() => {
+              setRenameOpen(false);
+              setRenameError(null);
+            }}
           />,
           dialogHost
         )}

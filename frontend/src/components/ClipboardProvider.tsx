@@ -12,7 +12,11 @@ import {
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 
-import { batchCopy, batchMove } from "@/lib/api";
+import { batchCopy, batchMove, type BatchFileError } from "@/lib/api";
+import {
+  isSubtitleRefusal,
+  sidecarErrorMessage,
+} from "@/lib/subtitleErrors";
 import { useToast } from "@/components/ToastProvider";
 
 const STORAGE_KEY = "hv_clipboard";
@@ -109,6 +113,7 @@ export function ClipboardProvider({ children }: { children: ReactNode }) {
 
   const toast = useToast();
   const t = useTranslations("clipboard");
+  const ts = useTranslations("subtitles");
 
   const clear = useCallback(() => {
     setClipboard(null);
@@ -124,17 +129,23 @@ export function ClipboardProvider({ children }: { children: ReactNode }) {
       // body. A rejection here is the request itself being refused —
       // a locked target drive, a restart mid-paste — and nothing was
       // written, so the clipboard is what lets it be tried again.
-      let result: { pasted: number; failed: number };
+      let result: {
+        pasted: number;
+        errors: BatchFileError[];
+        sidecarErrors: string[];
+      };
       try {
         result =
           clipboard.mode === "copy"
             ? await batchCopy(clipboard.fileIds, targetPath, targetDrive).then((r) => ({
                 pasted: r.copied,
-                failed: r.errors.length,
+                errors: r.errors,
+                sidecarErrors: r.sidecar_errors ?? [],
               }))
             : await batchMove(clipboard.fileIds, targetPath, targetDrive).then((r) => ({
                 pasted: r.moved,
-                failed: r.errors.length,
+                errors: r.errors,
+                sidecarErrors: r.sidecar_errors ?? [],
               }));
       } catch {
         // A count would be a guess here; the honest statement is that it
@@ -154,13 +165,24 @@ export function ClipboardProvider({ children }: { children: ReactNode }) {
         removeFromStorage();
       }
       // The clipboard is cleared on partial success, so the failures must
-      // be reported here.
-      if (result.failed > 0) {
-        toast.error(t("pasteFailed", { count: result.failed }));
+      // be reported here. A file left for a subtitle reason has its own
+      // notice, so the generic one counts the rest.
+      const skipped = result.errors.filter((entry) =>
+        isSubtitleRefusal(entry.error),
+      ).length;
+      const otherFailures = result.errors.length - skipped;
+      if (otherFailures > 0) {
+        toast.error(t("pasteFailed", { count: otherFailures }));
+      }
+      if (skipped > 0) {
+        toast.error(ts("moveSkipped", { count: skipped }));
+      }
+      if (result.sidecarErrors.length > 0) {
+        toast.error(sidecarErrorMessage(ts, result.sidecarErrors));
       }
       router.refresh();
     },
-    [clipboard, router, t, toast],
+    [clipboard, router, t, toast, ts],
   );
 
   const isCut = useCallback(

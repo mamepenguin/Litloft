@@ -6,6 +6,14 @@ import { useTranslations } from "next-intl";
 import { useShortcuts } from "@/hooks/useShortcuts";
 
 import { batchRename } from "@/lib/api";
+import { ApiStatusError } from "@/lib/apiError";
+import {
+  isSubtitleRefusal,
+  sidecarErrorNames,
+  sidecarErrorMessage,
+  subtitleErrorMessage,
+} from "@/lib/subtitleErrors";
+import { useToast } from "./ToastProvider";
 import {
   computeNewFilenames,
   isValidRegex,
@@ -31,6 +39,9 @@ export function BatchRenameDialog({
 }: BatchRenameDialogProps) {
   const t = useTranslations("batchRename");
   const tc = useTranslations("common");
+  const ts = useTranslations("subtitles");
+  const te = useTranslations("subtitles.errors");
+  const toast = useToast();
 
   const [mode, setMode] = useState<RenameMode>("template");
   const [template, setTemplate] = useState("{original}_{n}");
@@ -86,14 +97,22 @@ export function BatchRenameDialog({
         mode,
         { template, startNumber, zeroPad, pattern, replacement, action, value }
       );
-      await batchRename(body);
+      const answer = await batchRename(body);
+      const carried = sidecarErrorNames(answer);
+      if (carried.length > 0) {
+        toast.error(sidecarErrorMessage(ts, carried));
+      }
       onComplete();
-    } catch {
-      setError(t("failed"));
+    } catch (cause) {
+      if (cause instanceof ApiStatusError && isSubtitleRefusal(cause.code)) {
+        setError(subtitleErrorMessage(te, cause.code!, cause.names ?? []));
+      } else {
+        setError(t("failed"));
+      }
     } finally {
       setSubmitting(false);
     }
-  }, [changedCount, files, mode, template, startNumber, zeroPad, pattern, replacement, action, value, onComplete, t]);
+  }, [changedCount, files, mode, template, startNumber, zeroPad, pattern, replacement, action, value, onComplete, t, te, toast, ts]);
 
   if (!open) return null;
 

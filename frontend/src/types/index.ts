@@ -14,6 +14,12 @@ export interface SubtitleInfo {
   language: string;
   format: string;
   label: string;
+  /** The sidecar's file name, NFC. Present on every detail answer. */
+  filename?: string;
+  /** The number of other videos that own the same sidecar. */
+  shared_with?: number;
+  /** The sidecar's `st_mtime_ns`, used to refetch a replaced track. */
+  version?: string;
 }
 
 export interface FileItem {
@@ -416,6 +422,7 @@ export interface BatchRenameResult {
 export interface BatchRenameResponse {
   renamed: number;
   results: BatchRenameResult[];
+  sidecar_errors?: string[];
 }
 
 export interface WebSocketEvent {

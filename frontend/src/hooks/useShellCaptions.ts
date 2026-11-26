@@ -38,9 +38,9 @@ export function useShellCaptions(videoId: string, subtitles: readonly SubtitleIn
   const tracks: CaptionTrack[] =
     subtitles.length > 0
       ? subtitles.map((subtitle) => ({
-          key: String(subtitle.index),
+          key: subtitle.filename ?? String(subtitle.index),
           label: subtitle.label || subtitle.language || t("subtitleDefault"),
-          url: getSubtitleUrl(videoId, subtitle.index),
+          url: `${getSubtitleUrl(videoId, subtitle.index)}?v=${encodeURIComponent(subtitle.version ?? "")}`,
         }))
       : [
           {
@@ -50,8 +50,12 @@ export function useShellCaptions(videoId: string, subtitles: readonly SubtitleIn
           },
         ];
 
-  const [chosen, setChosen] = useState({ videoId, index: 0 });
-  const index = chosen.videoId === videoId ? chosen.index : 0;
+  const [chosen, setChosen] = useState<{ videoId: string; key: string } | null>(null);
+  const chosenKey =
+    chosen?.videoId === videoId && tracks.some((track) => track.key === chosen.key)
+      ? chosen.key
+      : (tracks[0]?.key ?? null);
+  const index = Math.max(0, tracks.findIndex((track) => track.key === chosenKey));
   // An unset preference asserts nothing, and the default track shows.
   // Per video, as a new element would start afresh.
   const [toggled, setToggled] = useState<{ videoId: string; on: boolean } | null>(null);
@@ -77,13 +81,17 @@ export function useShellCaptions(videoId: string, subtitles: readonly SubtitleIn
   const state = useRef<CaptionsState>("unavailable");
   state.current = cues.length === 0 ? "unavailable" : on ? "on" : "off";
 
+  const trackListRef = useRef(tracks);
+  trackListRef.current = tracks;
+
   const select = useCallback(
     (next: number) => {
-      if (next >= 0) setChosen({ videoId, index: next });
+      const track = trackListRef.current[next];
+      if (track) setChosen({ videoId, key: track.key });
       setToggled({ videoId, on: next >= 0 });
       setPreferred(next >= 0);
     },
-    [setPreferred, videoId],
+    [setChosen, setPreferred, videoId],
   );
 
   const get = useCallback(() => state.current, []);

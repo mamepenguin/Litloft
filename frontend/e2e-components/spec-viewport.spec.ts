@@ -42,6 +42,7 @@ const AT_THE_PHONE_WIDTH = [
   "folder-rows.spec.ts",
   "add-menu.spec.ts",
   "admin-settings-touch.spec.ts",
+  "subtitles-section-touch.spec.ts",
   "app-card-menu.spec.ts",
   "file-grid-app-card-menu.spec.ts",
   "app-header.spec.ts",
