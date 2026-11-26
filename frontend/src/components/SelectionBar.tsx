@@ -32,6 +32,12 @@ import { ActionMenuItem } from "./ActionMenuItem";
 import { BatchRenameDialog } from "./BatchRenameDialog";
 import { Button } from "./Button";
 import { useClipboard } from "./ClipboardProvider";
+import { useToast } from "./ToastProvider";
+import {
+  isSubtitleRefusal,
+  sidecarErrorMessage,
+  subtitleFailure,
+} from "@/lib/subtitleErrors";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { DismissScrim } from "./DismissScrim";
 import { MoveDialog } from "./MoveDialog";
@@ -116,7 +122,10 @@ export function SelectionBar({
   const tcb = useTranslations("clipboard");
   const tt = useTranslations("trash");
   const ti = useTranslations("inbox");
+  const ts = useTranslations("subtitles");
+  const te = useTranslations("subtitles.errors");
   const ime = useImeKeyGuard();
+  const toast = useToast();
   const clipboard = useClipboard();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [moveOpen, setMoveOpen] = useState(false);
@@ -232,17 +241,34 @@ export function SelectionBar({
 
   async function handleBatchMove(path: string) {
     try {
+      const errors = [];
+      const carried: string[] = [];
       if (isInboxView) {
         for (const batch of inBatches(ids, INBOX_BATCH_SIZE)) {
-          await batchMove(batch, path);
+          const answer = await batchMove(batch, path);
+          errors.push(...answer.errors);
+          carried.push(...(answer.sidecar_errors ?? []));
         }
       } else {
-        await batchMove(ids, path);
+        const answer = await batchMove(ids, path);
+        errors.push(...answer.errors);
+        carried.push(...(answer.sidecar_errors ?? []));
+      }
+      const skipped = errors.filter((entry) =>
+        isSubtitleRefusal(entry.error),
+      ).length;
+      if (skipped > 0) {
+        toast.error(ts("moveSkipped", { count: skipped }));
+      }
+      if (carried.length > 0) {
+        toast.error(sidecarErrorMessage(ts, carried));
       }
       setMoveOpen(false);
       onClear();
       onComplete();
-    } catch {
+    } catch (cause) {
+      const subtitle = subtitleFailure(cause, te);
+      if (subtitle) toast.error(subtitle);
       // keep dialog open
     }
   }

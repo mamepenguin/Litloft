@@ -11,6 +11,7 @@ import {
   type UploadState,
 } from "@/hooks/useUpload";
 import { useWebSocket } from "@/hooks/useWebSocket";
+import { subtitleErrorMessage } from "@/lib/subtitleErrors";
 import { bottomChromeOffset, useBottomChrome } from "@/lib/bottomChrome";
 import type { WebSocketEvent } from "@/types";
 import {
@@ -64,6 +65,7 @@ function ProcessingLine({ upload }: { upload: UploadState }) {
 
 export function UploadProgress() {
   const t = useTranslations("upload");
+  const te = useTranslations("subtitles.errors");
   const tc = useTranslations("common");
   const { uploads, cancelUpload, clearCompleted } = useUpload();
   const chrome = useBottomChrome();
@@ -208,13 +210,20 @@ export function UploadProgress() {
                   </div>
                 )}
 
-                {upload.status === "error" && upload.error && (
-                  <p className="mt-1 text-xs text-danger">
-                    {upload.error === DESTINATION_FOLDER_NOT_FOUND
-                      ? t("destinationFolderNotFound")
-                      : upload.error}
-                  </p>
-                )}
+                {upload.status === "error" &&
+                  (upload.errorCode || upload.error) && (
+                    <p className="mt-1 text-xs text-danger">
+                      {upload.errorCode
+                        ? subtitleErrorMessage(
+                            te,
+                            upload.errorCode,
+                            upload.errorNames ?? [],
+                          )
+                        : upload.error === DESTINATION_FOLDER_NOT_FOUND
+                          ? t("destinationFolderNotFound")
+                          : upload.error}
+                    </p>
+                  )}
               </div>
             ))}
           </div>

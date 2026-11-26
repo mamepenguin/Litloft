@@ -13,6 +13,7 @@ import { CopyIdDialog } from "./CopyIdDialog";
 import { MoveDialog } from "./MoveDialog";
 import { CollectionPicker } from "./CollectionPicker";
 import { RenameDialog } from "./RenameDialog";
+import { sidecarErrorNames, sidecarErrorMessage, subtitleFailure } from "@/lib/subtitleErrors";
 import { useToast } from "./ToastProvider";
 
 interface FileContextMenuProps {
@@ -63,12 +64,15 @@ export function FileContextMenu({
 }: FileContextMenuProps) {
   const tt = useTranslations("trash");
   const tf = useTranslations("file");
+  const ts = useTranslations("subtitles");
+  const te = useTranslations("subtitles.errors");
   const toast = useToast();
   const [renameOpen, setRenameOpen] = useState(false);
   const [moveOpen, setMoveOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [collectionPickerOpen, setCollectionPickerOpen] = useState(false);
   const [copyIdOpen, setCopyIdOpen] = useState(false);
+  const [renameError, setRenameError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!target) {
@@ -77,6 +81,7 @@ export function FileContextMenu({
       setDeleteOpen(false);
       setCollectionPickerOpen(false);
       setCopyIdOpen(false);
+      setRenameError(null);
     }
   }, [target]);
 
@@ -94,31 +99,42 @@ export function FileContextMenu({
   const handleRename = useCallback(
     async (newName: string) => {
       if (!target) return;
+      setRenameError(null);
       try {
-        await renameFile(target.id, newName);
+        const updated = await renameFile(target.id, newName);
+        const carried = sidecarErrorNames(updated);
+        if (carried.length > 0) {
+          toast.error(sidecarErrorMessage(ts, carried));
+        }
         setRenameOpen(false);
         onRenamed?.(target);
         onUpdate?.();
-      } catch {
-        // dialog stays open on error
+      } catch (cause) {
+        const subtitle = subtitleFailure(cause, te);
+        if (subtitle) setRenameError(subtitle);
       }
     },
-    [target, onUpdate, onRenamed],
+    [target, onUpdate, onRenamed, te, toast, ts],
   );
 
   const handleMove = useCallback(
     async (path: string) => {
       if (!target) return;
       try {
-        await moveFile(target.id, path);
+        const updated = await moveFile(target.id, path);
+        const carried = sidecarErrorNames(updated);
+        if (carried.length > 0) {
+          toast.error(sidecarErrorMessage(ts, carried));
+        }
         setMoveOpen(false);
         onMoved?.(target);
         onUpdate?.();
-      } catch {
-        // dialog stays open on error
+      } catch (cause) {
+        const subtitle = subtitleFailure(cause, te);
+        if (subtitle) toast.error(subtitle);
       }
     },
-    [target, onUpdate, onMoved],
+    [target, onUpdate, onMoved, te, toast, ts],
   );
 
   const handleDelete = useCallback(async () => {
@@ -172,7 +188,10 @@ export function FileContextMenu({
       void handleCopyId();
     },
     onStartInlineRename,
-    onRename: () => setRenameOpen(true),
+    onRename: () => {
+      setRenameError(null);
+      setRenameOpen(true);
+    },
     onMove: () => setMoveOpen(true),
     onRemoveFromHistory: onRemoveFromHistory
       ? () => {
@@ -206,8 +225,12 @@ export function FileContextMenu({
       <RenameDialog
         open={renameOpen}
         currentName={target.filename}
+        error={renameError ?? undefined}
         onRename={(name) => gated(() => handleRename(name))}
-        onCancel={() => setRenameOpen(false)}
+        onCancel={() => {
+          setRenameOpen(false);
+          setRenameError(null);
+        }}
       />
       <MoveDialog
         open={moveOpen}

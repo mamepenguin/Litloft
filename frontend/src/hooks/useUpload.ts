@@ -10,6 +10,8 @@ import {
   uploadChunk,
   type ProcessingStage,
 } from "@/lib/api";
+import { ApiStatusError } from "@/lib/apiError";
+import { isSubtitleRefusal } from "@/lib/subtitleErrors";
 
 const MAX_CONCURRENT = 2;
 const PROCESSING_TICK_MS = 30 * 1000;
@@ -60,6 +62,8 @@ export interface UploadState {
   progress: number;
   status: UploadStatus;
   error?: string;
+  errorCode?: string;
+  errorNames?: string[];
   drive: string;
   folder: string;
   fileId?: string;
@@ -390,8 +394,17 @@ async function processUpload(id: string, internal: InternalUpload) {
     notifyComplete(drive);
   } catch (err) {
     if (!internal.aborted) {
-      const message = err instanceof Error ? err.message : "Upload failed";
-      updateUpload(id, { status: "error", error: message });
+      if (err instanceof ApiStatusError && isSubtitleRefusal(err.code)) {
+        updateUpload(id, {
+          status: "error",
+          error: err.code,
+          errorCode: err.code,
+          errorNames: err.names ?? [],
+        });
+      } else {
+        const message = err instanceof Error ? err.message : "Upload failed";
+        updateUpload(id, { status: "error", error: message });
+      }
     }
   } finally {
     activeCount -= 1;

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 
 import { createTextFile } from "@/lib/api";
+import { subtitleFailure } from "@/lib/subtitleErrors";
 
 interface UseCreateFileReturn {
   createFile: (targetPath?: string) => Promise<void>;
@@ -29,6 +30,7 @@ function formatTimestamp(d: Date): string {
 export function useCreateFile(drive: string, currentPath: string): UseCreateFileReturn {
   const router = useRouter();
   const t = useTranslations("folder");
+  const te = useTranslations("subtitles.errors");
   const [isCreating, setIsCreating] = useState(false);
   // Mirror the state into a ref so a synchronous double-call sees the
   // latched flag without waiting for the next React render.
@@ -48,9 +50,12 @@ export function useCreateFile(drive: string, currentPath: string): UseCreateFile
     } catch (err) {
       console.error("createFile failed:", err);
       const msg = err instanceof Error ? err.message : "";
-      const message = /\b403\b/.test(msg)
-        ? t("createFileForbidden")
-        : t("createFileFailed");
+      const subtitle = subtitleFailure(err, te);
+      const message = subtitle
+        ? subtitle
+        : /\b403\b/.test(msg)
+          ? t("createFileForbidden")
+          : t("createFileFailed");
       if (typeof window !== "undefined" && typeof window.alert === "function") {
         window.alert(message);
       }
@@ -58,7 +63,7 @@ export function useCreateFile(drive: string, currentPath: string): UseCreateFile
       inFlightRef.current = false;
       setIsCreating(false);
     }
-  }, [drive, currentPath, router, t]);
+  }, [drive, currentPath, router, t, te]);
 
   return { createFile, isCreating };
 }

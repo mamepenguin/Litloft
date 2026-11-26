@@ -2,6 +2,14 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { batchMove, moveFile, moveFolder } from "@/lib/api";
+import {
+  isSubtitleRefusal,
+  sidecarErrorNames,
+  sidecarErrorMessage,
+  subtitleFailure,
+} from "@/lib/subtitleErrors";
+import { useToast } from "@/components/ToastProvider";
+import { useTranslations } from "next-intl";
 
 /**
  * Two panes mounting their own `useDragAndDrop` instance can't see each
@@ -70,6 +78,9 @@ export function useDragAndDrop({
   onDropTarget,
 }: UseDragAndDropOptions) {
   const [dragState, setDragState] = useState<DragState>(INITIAL_STATE);
+  const toast = useToast();
+  const ts = useTranslations("subtitles");
+  const te = useTranslations("subtitles.errors");
 
   const dragCounterRef = useRef<Map<string, number>>(new Map());
   const draggedIdsRef = useRef<string[]>([]);
@@ -195,9 +206,19 @@ export function useDragAndDrop({
           if (computedNew === folderPath) return;
           await moveFolder(drive, folderPath, targetPath);
         } else if (ids.length === 1) {
-          await moveFile(ids[0], targetPath);
+          const answer = await moveFile(ids[0], targetPath);
+          const carried = sidecarErrorNames(answer);
+          if (carried.length > 0) {
+            toast.error(sidecarErrorMessage(ts, carried));
+          }
         } else if (ids.length > 1) {
-          await batchMove(ids, targetPath);
+          const answer = await batchMove(ids, targetPath);
+          const skipped = answer.errors.filter((entry) =>
+            isSubtitleRefusal(entry.error),
+          ).length;
+          if (skipped > 0) {
+            toast.error(ts("moveSkipped", { count: skipped }));
+          }
         } else {
           return;
         }
@@ -205,11 +226,13 @@ export function useDragAndDrop({
         // The drop fires on the TARGET, not the source, so the source's
         // onComplete is never called directly.
         window.dispatchEvent(new Event("loft-move-complete"));
-      } catch {
+      } catch (cause) {
+        const subtitle = subtitleFailure(cause, te);
+        if (subtitle) toast.error(subtitle);
         // Backend returns 403 for readonly drives, 400/404 for invalid paths
       }
     },
-    [drive, onComplete, onDropTarget],
+    [drive, onComplete, onDropTarget, te, toast, ts],
   );
 
   // A virtualized row that scrolls out of the window during a drag
