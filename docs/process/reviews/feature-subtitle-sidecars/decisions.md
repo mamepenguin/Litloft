@@ -1,6 +1,14 @@
 # Decisions
 
 decision:
+author_resolutions:
+- claude-deep:D1 accept: the Node 24 CI change is knowledge PR #88, already merged there; any gitlink bump past it carries it.
+- claude-read:CR7-1 accept: the title editor closing on a refused rename is EditableTitle's existing behaviour; the refusal is now explained in a toast, which I11 requires.
+- claude-deep:D2 accept: same as CR7-1; a non-subtitle title rename failure was already silent before this change.
+- claude-read:unspecified 0 accept: one folder listing and row query per rename, move or copy of a video costs milliseconds on a home LAN and is how ownership is computed (nothing is stored, per the spec).
+- claude-deep:unspecified 1 accept: a subtitles-only upload into a new nested path is rare; the intermediate folder appears at the next scan.
+- claude-deep:unspecified 2 accept: same as CR7-1.
+- claude-deep:unspecified 3 accept: same as claude-read:unspecified 0.
 design_resolutions:
 - D-11 fix: coarse-pointer rows drop to 4px above and below (52px), measured in e2e-components/subtitles-section-touch.spec.ts.
 - D-1, D-2, D-3, D-4, D-5, D-6, D-7, D-8, D-9, D-10, D-12, D-13, D-14, D-15 accept (human, 2026-11-27, "D-11 だけ直す"): existing dialog and tab chrome (D-3 to D-7, D-10, D-13), the alert icon shared with D7 (D-8), the spec's order, translated labels and drive-relative names (D-1, D-2, D-9), the error under the list as the spec states (D-12), and states the screenshots did not cover (D-14, D-15).
