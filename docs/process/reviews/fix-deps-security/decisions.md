@@ -1,0 +1,133 @@
+# Decisions
+
+decision:
+ran_in_app: yes
+at: 7e404a646
+by: agent
+evidence: The stack ran addons intelligence d6e2909 and knowledge 329a379. The core branch now pins the merged addon commits intelligence 2f82f47 and knowledge 244d875, which are merge commits of exactly those branches; git diff d6e2909 2f82f47 and git diff 329a379 244d875 are both empty.
+The first R-5 ran on 905e52dd2. On 7e404a646, with the frontend rebuilt, checks 3, 4 and 10 were re-run, and observations (a)-(d) were measured against develop at http://localhost:3000 (next 16.2.1, read-only, browser only). Re-run evidence is in /private/tmp/claude-502/r5-deps/rerun-deps2/ (7e404a646 alone), rerun-deps/ and rerun-dev/ (the same scripts on each side; typefilter2 ran 3 times per side). Checks 1, 2 and 5-9 are carried over from 905e52dd2, because backend and addons are unchanged and 7e404a646 touches only useFolderFiles.ts.
+
+- 7e404a646 re-run:
+  - Check 3: PASS. Every step's counts and samples match develop.
+    - Relative cutoffs hold within each run, and nothing loops or requests late.
+    - The results change with the condition: 23 (>=7d), 784 (<30d), 90 then 3 (type video then image), 50 (path), 50 then 0 (in:Spirit <1y then >=1y), 101 (IMG), 69 (meaning search).
+    - Typed queries and type-filter switches now send the page-1 request twice with identical URLs, the same as develop. The 905e52dd2 run sent it once.
+    - The first comparison run on 7e404a646 showed extra late requests at steps 51 and 52. They coincided with my PUT to the clip file in the same drive, which caused a WebSocket refetch. A clean re-run (rerun-deps2) matches develop.
+  - Check 4: PASS (rerun-deps2/70-73*.png). The order Tags|Collections|Pins survives the drag, the drive round trip and a reload.
+  - Check 10: PASS (rerun-deps2/121-123*.png, 117-epub*.png).
+    - Duplicates show 13 and 5 groups, and Keep moves correctly.
+    - In the EPUB, ArrowLeft and ArrowRight turn pages before and after a Contents jump (305, 304, 303, 304).
+- Observations (a)-(d), compared with develop:
+  - (a) A 0/0 count appears between results for text-term queries (steps 53 and 54). It also occurs on develop: same steps, same samples.
+  - (b) The cards empty to "0/…" for one sample when the folder type filter switches. It also occurs on develop: develop showed it in 3/3 runs, and 7e404a646 in 3/3 runs, with one run starting at "30/4" and one at "1/-".
+  - (c) A direct load of /search sends the page-1 listing request twice. It also occurs on develop, with identical counts for modified:>=30d, IMG (3 requests), type:video and modified:<7d.
+  - (d) React #418 appears on a direct /search load after /drive/動画, while hv_list_snapshot is in sessionStorage. It also occurs on develop: 2/2 for each of the five queries.
+- Knowledge clip blank line, as rendered: no visible difference.
+  - The app renders the stored clip (no blank line) as P "R5 deps paste clip", then H1, then paragraphs (170-clip-preview-new-noblank.png).
+  - The same file, temporarily rewritten with the blank line as the old libraries produced it, renders the same blocks (171-clip-preview-old-blank.png).
+  - A pixel diff of the two screenshots differs only in a 26x11 box in the inspector, which is the file-size text.
+  - The file was restored byte-identical afterwards.
+
+- Versions running (00-versions.txt):
+  - frontend: Node v24.22.3, next 16.4.6
+  - backend: fastapi 0.165.0, starlette 1.10.0, pillow 13.0.0, pillow_heif 1.9.0, python-multipart 0.0.34, PyJWT 2.15.1
+  - knowledge: lxml 6.1.3, lxml_html_clean 0.4.6, bleach 6.4.0
+  - intelligence: fastapi 0.165.0, pillow 13.0.0
+- 1 Pages render: PASS (pages-result.json; 01-home, 02-drive, 10-20*.png).
+  - Covered: home, a drive, the 写真 folder, an mp4, a mov, a JPEG, a transparent WebP, two Markdown files, an HTML file, a PDF (18-pdf.png shows page 1 of 48) and two EPUBs.
+  - No page errors. Remaining non-2xx responses:
+    - 404 on intelligence picture-text, subtitles and transcript for files that have none, and on exif for a WebP.
+    - ERR_ABORTED on _rsc prefetches cut short by navigation.
+    - The progress POST answers 204, then Playwright also reports it aborted.
+  - Empty-src images are offscreen lazy thumbnails in the hidden Related tab.
+  - The EPUB console's CSP inline-script error is reader.js's own cspIsActive probe; reader.js is unchanged on this branch.
+  - The mp4 and mov play: currentTime goes 0 to 2.8 s, readyState is 4, and there is no media error.
+  - Range requests return 206 with a correct Content-Range (60-range-requests.txt).
+  - No dialog fired on _r5/zz-xss.md or zz-xss.html.
+- 2 WebSocket: PASS (30-ws-before.png, 33-ws-after-r5-ws-renamed.md.png).
+  - /api/ws opens through the custom server and stays open.
+  - A rename done through the File actions menu on a second page delivered a drive.structure_changed frame to the watching page.
+  - The watcher's listing showed the new name after 250 ms with no reload. Both files were renamed back.
+- 3 (905e52dd2) Relative modified search: results are correct and nothing loops. The observations below were compared with develop above (search-result.json, search2-result.json, 50-62*.png, 141, 143, 157).
+  - Correct and stable:
+    - Each typed query sent exactly one listing request, and none came in the 4 s after settling.
+    - modified:>=7d gave 17. modified:<30d gave 785, and scrolling loaded pages 2-7 with the same cutoff.
+    - modified:>=30d type:video gave 90; type:image gave 3.
+    - path:写真 modified:<30d gave 50.
+    - in:Spirit modified:<1y gave 50; >=1y gave 0.
+    - IMG gave 101.
+    - "ポケモン modified:>=30d" ran the meaning search with the modified filter and gave 69 results with passages.
+    - In the folder Filter menu, File type Video, Image, Document and All each sent one page-1 request with the new type and gave 135/4/23/165 items. Combined with the name filter IMG, it gave 1 item.
+  - Observation (a): on the search page, queries carrying a text term (kind:video as text, IMG) showed a 0/0 count between the old and new results. Operator-only queries did not.
+  - Observation (b): switching the folder type filter clears the cards for about 100 ms before the new list appears. No empty-state message is shown.
+  - Observation (c): a direct load of /drive/<d>/search?q=<any query> sends the page-1 listing request twice, with identical URLs and cutoff. This was seen for modified:>=30d, IMG, type:video and modified:<7d (141-direct-load-listing-requests.txt).
+  - Observation (d): React error #418 (hydration text mismatch) appears 2 of 2 times on any direct /search load that follows a visit to /drive/動画 in the same tab (143-hydration-418-narrowing.txt).
+    - It appears for the relative, absolute (modified:>=2026-10), text and type queries alike, so the relative clock is not involved.
+    - sessionStorage then holds hv_list_snapshot.
+    - It does not appear on a fresh tab, or after / or search?q=IMG.
+- 4 Sidebar: PASS (70-73-sidebar*.png).
+  - A native drag moved Tags above Collections.
+  - The order stayed Tags|Collections|Pins across 動画 to テスト画像 to 動画 and across a reload.
+  - Pins is absent on テスト画像, which has none, and reappears once its data loads.
+- 5 Markdown: PASS (15-markdown-sample.png, 80-81-md*.png, 82-83-md*.png).
+  - Mermaid renders on two notes.
+  - The RAG guide shows 41 headings, 17 highlighted code blocks, 3 tables, and links with _blank and noopener.
+  - Edit, typing and Cmd+S sent a PUT /content that returned 200, and the change held after a reload. The note was restored to its original 141 bytes.
+- 6 Upload: PASS (90-92-upload*.png, 93-uploaded-files.txt, 94-thumb-*.{jpg,webp,png}).
+  - Uploaded into 動画/_r5 through Add > Upload files: a JPEG, a HEIC made by sips, a transparent PNG and a 12.2 MB mp4.
+  - 4 inits, 6 chunks (3 for the mp4) and 4 completes, all 200.
+  - Thumbnails:
+    - JPEG: 320x320.
+    - HEIC: 320x320 JPEG, not black.
+    - PNG: WebP with alpha.
+    - mp4: 320x180, with a 20 s duration.
+  - The HEIC detail page shows the image: the stream is served as image/jpeg and decodes at 1200x1200 (160-heic-detail.png).
+- 7 Existing thumbnails and image page: PASS (10-folder-photos.png, 20-drive-images.png, 13-image-jpeg.png).
+- 8 intelligence: PASS (56-sp-meaning-pokemon.png, 101-video-scenes.png).
+  - Hybrid search returns excerpts.
+  - The Scenes panel of XWaAfBpieroY loads 9 /frame images, all 200 and decoded at 320 px.
+- 9 knowledge: the Notes and Clips pages load (130, 131). One output difference was found and needs the author's decision (135, 137, 138-clip-pipeline-old-vs-new.txt).
+  - A pasted-HTML clip, saved after setting a profile r5deps, returned 200 and created 動画/clip-20261126-100537.md.
+  - The same HTML was run through sanitize_pasted_html, extract_article and _ready_content in no-network throwaway containers, once on video_share-knowledge:latest (lxml 5.3.1, lxml_html_clean 0.4.1, bleach 6.2.0) and once on the new image.
+  - Sanitized HTML and title are identical.
+  - Difference: the new libraries drop the blank line between the leading text line "R5 deps paste clip" and the "# R5 deps paste clip" heading in the saved Markdown.
+  - The script text kept as "alert('xss-script')" and the missing title in the frontmatter occur on both versions.
+  - The new image also prints a urllib3 PySocks DependencyWarning on import; the old image does not.
+- 10 Duplicates and EPUB: PASS (121-123-dup*.png, 110-117-epub*.png).
+  - Duplicates shows 13 groups on 動画 and 5 on テスト画像.
+  - Moving Keep in the ocr-sample.png group keeps "Delete 1 other". Nothing was deleted.
+  - The vertical RTL EPUB turns pages with ArrowLeft and ArrowRight, including after choosing 本文 from Contents (305, 304, 303, 304 pages left).
+- Logs (140-container-log-errors.txt):
+  - The backend's startup purge failed for 3 rows of drive cloudsync-test, which is not in this clone's drives.json.
+  - The backend's EXIF TypeError on 6276345981_2ee7ec66f2_o.jpg occurs identically on Pillow 11.2.1 (develop image) and 13.0.0 (142-exif-old-vs-new.txt).
+  - The frontend logs Node DEP0060 (util._extend) once.
+- Scripts (R5_BASE and R5_OUT override the target): run the scripts against the develop stack with `R5_BASE=<develop url> R5_OUT=<dir> node <script>` from /private/tmp/claude-502/r5-deps/scripts. The scripts are hydr4.js (#418), dupreq.js (double request), search2.js and typefilter2.js (transient empties).
+- Left in the clone:
+  - Four r5deps-* uploads in 動画/_r5.
+  - 動画/clip-20261126-100537.md.
+  - The r5deps profile (lit_viewer) used for the clip.
+pending: Not exercised:
+- Auth/JWT (PyJWT 2.15.1). passwords.json is empty, so there is no unlock, protected drive or admin gate; only /api/auth/status returned 200.
+- LLM-backed paths (Ask, image description, summaries) and clipping a live URL.
+- The mcp-server, which was skipped.
+- The agent_cannot_verify items:
+  - the iOS app on a real device
+  - audio and video as heard and seen
+  - real-LAN and household-device playback
+  - real third-party services
+
+author_resolutions:
+- claude-deep:CD-1 fix: the four addon repositories' CI moves the core frontend jobs to Node 24 (Litloft-Intelligence-addon#211, Litloft-knowledge-addon#88, Litloft-cloud-sync-addon#12, Litloft-media-import-addon#51), merged before this change reaches develop.
+- claude-read:R1 fix: same as CD-1.
+- claude-deep:CD-2 accept: a revert of one setup-node site to Node 20 fails that job on the new lockfile's engines, so CI shows it; the test that pins two sites stays as it was.
+- claude-deep:CD-3 accept: the missed defect is a stale-clock request for one render, a transient result at most (F3 x I3); the render-time resync was measured in R-5 against develop.
+- claude-deep:CD-4 accept: listed through the SDK client on zod 4.6.7 / SDK 1.32.2, all 41 tools advertise their argument schemas (only list_drives, which takes none, is empty; add_comment keeps maxLength 1000).
+- claude-read:R2 accept: SPEC-CORE-149 is an implemented design record of its time; behaviour is verified against the code, and ci.yml and its test say Node 24.
+- unspecified:1 accept: the stored clip Markdown loses a blank line before an ATX heading; R-5 showed the rendered preview is identical (CommonMark lets the heading interrupt the paragraph).
+- unspecified:2 accept: a urllib3 PySocks DependencyWarning in the knowledge logs only.
+- unspecified:3 accept: the sidebar section list gets a new identity on drive switch; R-5 check 4 shows the order holds.
+- unspecified:4 accept: zod 4 wording of MCP argument errors; the limits are enforced the same.
+- unspecified:5 accept: same as unspecified:1.
+- unspecified:6 accept: DEP0060 from http-proxy on Node 24, logs only.
+- unspecified:7 accept: same as unspecified:2.
+- Not upgraded on purpose: torch, torchaudio, transformers, sentence-transformers and sentencepiece in intelligence stay pinned for whisperx / pyannote; their advisories concern loading untrusted model files.

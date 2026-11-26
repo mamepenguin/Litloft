@@ -125,8 +125,7 @@ function SidebarNav({ hiddenKeys }: { hiddenKeys: ReadonlySet<string> | null }) 
     return ids;
   // driveBase changes only when the drive changes, so this memo is very
   // stable in practice.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [!!driveBase]);
+  }, [driveBase]);
 
   const { order, setOrder } = useSidebarSectionOrder(availableSections);
   const dnd = useReorderableDnD({

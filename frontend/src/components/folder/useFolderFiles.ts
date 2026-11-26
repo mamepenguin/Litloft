@@ -182,11 +182,14 @@ export function useFolderFiles({
   // by React, which would resolve relative amounts again mid-run and change
   // the listing on every render.
   const runKey = `${searchQuery?.trim() ?? ""}\u0000${typeFilter ?? ""}`;
-  const runNow = useRef<{ key: string; now: number } | null>(null);
-  if (runNow.current === null || runNow.current.key !== runKey) {
-    runNow.current = { key: runKey, now: Date.now() };
+  const [runNow, setRunNow] = useState(() => ({ key: runKey, now: Date.now() }));
+  // Adjusted during render, not in an effect, so no render commits a request
+  // built from the previous run's clock. `Date.now()` sits in the updater
+  // because react-hooks/purity rejects it in the render body.
+  if (runNow.key !== runKey) {
+    setRunNow((held) => (held.key === runKey ? held : { key: runKey, now: Date.now() }));
   }
-  const modifiedNow = runNow.current.now;
+  const modifiedNow = runNow.now;
   const modifiedNowRef = useRef(modifiedNow);
   modifiedNowRef.current = modifiedNow;
   const modified = useMemo(

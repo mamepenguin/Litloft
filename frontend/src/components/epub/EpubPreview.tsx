@@ -103,7 +103,7 @@ export function EpubPreview({
     openFindFromReader,
   );
   const ready = reader.status.kind === "ready";
-  const { setFullscreen, book, location, seeking } = reader;
+  const { setFullscreen, book, location, seeking, frameRef } = reader;
   const goToSection = reader.goToSection;
   const documentController = useMemo<DocumentController | null>(
     () =>
@@ -135,7 +135,10 @@ export function EpubPreview({
   } as CSSProperties;
   const marks = useMemo(() => (toc ? chapterMarks(toc) : []), [toc]);
   const tocUsable = !!toc && hasSelectable(toc);
-  const focusBook = useCallback(() => reader.frameRef.current?.contentWindow?.focus(), [reader.frameRef]);
+  const focusBook = useCallback(() => {
+    const win = frameRef.current?.contentWindow ?? null;
+    win?.focus();
+  }, [frameRef]);
 
   // Stable on purpose: the full-screen close below runs whenever this
   // changes, and must never run because a panel opened.

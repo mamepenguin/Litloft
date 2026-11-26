@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { z } from "zod";
 import { fakeClient } from "./testClient.js";
 import { writeTools } from "../tools/write.js";
 
@@ -324,12 +325,9 @@ describe("add_comment", () => {
   });
 
   it("matches the core 1000 character comment body cap", () => {
-    expect(() =>
-      findTool("add_comment").inputSchema.body.parse("x".repeat(1000))
-    ).not.toThrow();
-    expect(() =>
-      findTool("add_comment").inputSchema.body.parse("x".repeat(1001))
-    ).toThrow();
+    const body = findTool("add_comment").inputSchema.body;
+    expect(() => z.parse(body, "x".repeat(1000))).not.toThrow();
+    expect(() => z.parse(body, "x".repeat(1001))).toThrow();
   });
 });
 

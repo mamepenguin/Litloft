@@ -1,4 +1,4 @@
-FROM node:20-alpine AS builder
+FROM node:24-alpine AS builder
 WORKDIR /app
 COPY frontend/package.json frontend/pnpm-lock.yaml frontend/pnpm-workspace.yaml ./
 COPY frontend/patches/ ./patches/
@@ -25,11 +25,11 @@ RUN rm -rf src/addons; \
 RUN node scripts/merge-addon-messages.mjs
 RUN pnpm build
 
-FROM node:20-alpine AS deps
+FROM node:24-alpine AS deps
 WORKDIR /deps
 RUN npm init -y && npm install http-proxy@^1.18.1
 
-FROM node:20-alpine
+FROM node:24-alpine
 WORKDIR /app
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static

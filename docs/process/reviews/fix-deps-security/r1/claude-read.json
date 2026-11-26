@@ -1,0 +1,194 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [
+    {
+      "id": "R1",
+      "origin": "reviewer",
+      "claim": "The addon repositories' CI workflows still install and test core develop's frontend on Node 20, but core's frontend lockfile now resolves runtime dependencies whose declared engines exclude Node 20.",
+      "impact": "After this merges to develop, CI for every addon that tests against core's frontend (intelligence, knowledge, media_import, cloud-sync) runs on an engine the dependencies do not support. The frontend suite there can fail at import or behave differently. Either way, an addon PR's red or green result stops reflecting the addon's own change. The intelligence and knowledge pointers bumped by this commit did not update their workflows.",
+      "evidence": "addons/intelligence/.github/workflows/ci.yml:148-152 and :244-248 check out `ref: develop` of core and use `node-version: 20` with `cache-dependency-path: core/frontend/pnpm-lock.yaml`. addons/knowledge/.github/workflows/ci.yml:147,243, addons/media_import/.github/workflows/ci.yml:176,272 and addons/cloud-sync/.github/workflows/ci.yml:127 also use Node 20. The new frontend/pnpm-lock.yaml pins isomorphic-dompurify@3.23.0 with engines `^22.22.2 || ^24.15.0 || >=26.0.0`, marked deprecated with 'pin 3.19.0 for Node < 22.22.2'. That pulls in jsdom@30.1.3 (same engines) and undici@8.13.1 (`>=22.19.0`). frontend/src/components/MarkdownPreview.tsx:21 imports isomorphic-dompurify. frontend/vitest.config.ts:67-72 has no alias for it, and at least 8 core test files render MarkdownPreview. Core's own ci.yml was moved to Node 24 at lines 46, 128, 187, 271, 328, 375 and 423, but these workflows were not.",
+      "repro": "not_reproduced. Expected: run an addon repository's `frontend-shards` job against core develop after merge. `pnpm install --frozen-lockfile` warns about the engine mismatch, and vitest imports jsdom 30 / undici 8 on Node 20 when it collects MarkdownPreview tests.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariants are declared. This is a CI/tooling place the change reaches outside its own files, and it affects CI signal, not a user of the app.",
+        "invariant_ref": null
+      },
+      "severity": "MEDIUM",
+      "proposed_fix": "Move `node-version` to 24 in each addon repository's ci.yml (intelligence, knowledge, media_import, cloud-sync), and bump the pinned submodules, in the same change set as core's Node 24 move."
+    },
+    {
+      "id": "R2",
+      "origin": "reviewer",
+      "claim": "SPEC-CORE-149 invariant I9 and item 3 still say the browser jobs run on Node 20, while the test that cites I9 now asserts Node 24.",
+      "impact": "A reader who checks the test against its cited invariant finds a contradiction. Restoring the spec's value means changing the test and ci.yml back to Node 20, and that version cannot run the new lockfile's jsdom 30 / isomorphic-dompurify 3.23 dependencies.",
+      "evidence": "docs/specs/ci-browser-container.md:45-51 says 'sets up pnpm and Node 20 … `setup-node` puts Node 20 first on `PATH`, so pnpm and the tests run on Node 20'. docs/specs/ci-browser-container.md:226 says 'I9. The browser jobs run their tests on Node 20'. tests/test_ci_browser_jobs.py:118-123 says '# SPEC-CORE-149 I9, item 3: Node 24' and asserts `== \"24\"`.",
+      "repro": "Read the two files side by side.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "This is prose in another change's spec that contradicts the code. No declared invariant of this change is broken, but it could lead a reader to a wrong code change.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Delete the Node-version wording from SPEC-CORE-149 item 3 and I9, or record a revision to Node 24, so that the spec no longer pins Node 20."
+    }
+  ],
+  "specification_compliance": [
+    "No spec and no invariants file exist for this change (docs/process/reviews/fix-deps-security has no invariants.md, and no docs/specs entry was found). Specification compliance cannot be judged; bucket A is unavailable.",
+    "Touch-point question: there is no declared touch-point list. Beyond its own files, the diff reaches: (1) the four addon repositories' CI workflows, which still run core's frontend on Node 20 (finding R1); (2) SPEC-CORE-149 I9 in docs/specs/ci-browser-container.md, which the edited test cites (finding R2); (3) the shape of FastAPI's `app.routes`: included routers are no longer flattened, so any reader of `app.routes` must go through `effective_route_contexts`. Only the two core tests were adapted. Grep found no production code reading `app.routes`. addons/intelligence/tests/test_video_scenes_endpoint.py:388-392 already handles the unflattened shape; (4) the MCP tool input validation layer, now on zod 4, whose validation errors are returned to MCP clients."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    {
+      "behavior": "With lxml 6.1.3 / lxml_html_clean 0.4.6 / bleach 6.4.0, a knowledge clip saved from pasted HTML no longer has the blank line between a leading text line and the following heading in the stored Markdown.",
+      "frequency": 3,
+      "impact": 1,
+      "reason": "Clipping pasted HTML that starts with a text line before a heading produces a slightly different .md file. decisions.md (claimed, not verified by me) reports no visible rendering difference and records this as needing the author's decision."
+    },
+    {
+      "behavior": "The knowledge addon image now prints a urllib3 PySocks DependencyWarning on import, which the old image did not.",
+      "frequency": 10,
+      "impact": 1,
+      "reason": "Every knowledge container start adds a warning line to the logs, according to decisions.md (claimed). Nothing user-visible changes."
+    },
+    {
+      "behavior": "The sidebar's availableSections memo now recomputes whenever the drive path string changes, not only when a drive becomes present or absent, so the section order list gets a new identity on every drive switch.",
+      "frequency": 5,
+      "impact": 1,
+      "reason": "Switching drives recomputes mergeOrder in useSidebarSectionOrder, which yields the same ids. decisions.md check 4 reports that the order survives drive round trips."
+    },
+    {
+      "behavior": "MCP tool argument validation errors are now produced by zod 4, so the error text an MCP client sees for an out-of-range or malformed argument differs from zod 3's.",
+      "frequency": 1,
+      "impact": 1,
+      "reason": "An MCP client that passes an invalid argument, such as a comment body over 1000 characters, gets a differently worded validation error. The cap itself is still enforced (write.test.ts:327-331)."
+    }
+  ],
+  "regression_risks": [
+    "FastAPI 0.115→0.165 / starlette 1.x: included routers no longer appear flattened in `app.routes`. Only the two core tests were adapted. Grep found no production reader of `app.routes` in backend/app or addon app code. Route-matching order for the in-process addon routers (main.py:339) versus the addon_proxy catch-all (main.py:340) was not verified against the new lazy inclusion.",
+    "Pillow 11→13: backend/app/services/thumbnail.py:230 calls `Image.getdata()`, which recent Pillow releases deprecate. If it were removed or changed, the AttributeError would not be caught by the `(OSError, ValueError)` handler. decisions.md reports mp4 thumbnails generated correctly on 13.0.0.",
+    "PyJWT 2.9→2.15: auth.py:120-141 encodes and decodes HS tokens with a 64-hex-character secret. decisions.md says auth was not exercised in R-5 because passwords.json was empty. Newer PyJWT may warn on short HMAC keys when JWT_SECRET is set by the operator.",
+    "zod 3→4 with MCP SDK 1.32: `.passthrough()` (ask.ts:156) and `.url()` (write.ts:400,431) are deprecated in v4 but still work. mcp-server was not exercised in R-5. tools/list and callTool go through createLitloftServer in compactOutput, readDocument, searchTools, smartCollections and toolMetadata tests.",
+    "isomorphic-dompurify 3.23.0 is marked deprecated upstream for raising its Node floor within a minor version. Later lockfile refreshes may pick 4.x or require a pin.",
+    "Floating `node:24-alpine` and `node-version: 24`: any Node 24 release below 24.15 would fall outside jsdom 30 / isomorphic-dompurify engines. The floating tags resolve to the latest 24.x, so this applies only to a cached or pinned older image."
+  ],
+  "test_coverage": [
+    "backend/tests/test_setup_token.py:117-134 compares the set of admin-config write routes for equality with the declared list. If `_route_entries` missed included routers, `routed` would be empty and the equality would fail, so the test still catches an ungated new route.",
+    "backend/tests/test_startup_lifespan.py:103-111: the positive assertions (:139, :205, :335) prove that `_paths` sees routes in included routers. The negative assertions (:359, :379, :412) depend on that.",
+    "useFolderFiles: deleting the `if (runNow.key !== runKey)` block would fail useFolderFiles.modified.test.tsx:275-286 ('resolves again when a new run starts a day later').",
+    "mcp-server: write.test.ts:327-331 still checks the 1000/1001 body cap through `z.parse`. Tools registered via `registerTool` are exercised over InMemoryTransport in toolMetadata.test.ts and others.",
+    "tests/test_ci_browser_jobs.py:118-125 pins Node 24 only for the two browser jobs. Nothing pins the Node version of the other core jobs or of the addon workflows (see R1).",
+    "addons/intelligence/tests/ocr_fixtures.py:40-74 now drops and restores pillow_heif with PIL, so real pillow-heif binds to real Pillow inside `pillow_real`."
+  ],
+  "not_verified": [
+    "No installed site-packages exist in the tree, so I could not confirm API removals or behavior changes in FastAPI 0.165, starlette 1.x, Pillow 13, pillow-heif 1.9, PyJWT 2.15, python-multipart 0.0.34, lxml 6, bleach 6.4 or zod 4.",
+    "Whether vitest on Node 20 actually fails when importing isomorphic-dompurify 3.23.0 / jsdom 30 / undici 8 (R1 is not_reproduced).",
+    "Route-matching precedence between in-process addon routers and addon_proxy under FastAPI's new router inclusion.",
+    "Compatibility of trafilatura 1.12.2 and readability-lxml 0.8.1 with lxml 6.1.3, and of whisperx/open-clip-torch with Pillow 13. I relied on decisions.md's R-5 claims only.",
+    "The full frontend/pnpm-lock.yaml and mcp-server/pnpm-lock.yaml. I read only the importer sections and the hunks in the supplied diff.",
+    "The R-5 evidence in decisions.md (screenshots and logs under /private/tmp) is cited as claimed, not verified.",
+    "No tests were run; I have only Read/Glob/Grep."
+  ],
+  "coverage": [
+    {
+      "path": ".github/workflows/ci.yml",
+      "read": "full",
+      "reason": "Read lines 1-565, all seven setup-node hunks and the mcp-server job."
+    },
+    {
+      "path": "addons/intelligence/Dockerfile.test",
+      "read": "full",
+      "reason": "Read lines 1-74."
+    },
+    {
+      "path": "addons/intelligence/requirements.txt",
+      "read": "full",
+      "reason": "Read lines 1-54."
+    },
+    {
+      "path": "addons/knowledge/requirements.txt",
+      "read": "full",
+      "reason": "Read lines 1-14."
+    },
+    {
+      "path": "backend/requirements.txt",
+      "read": "full",
+      "reason": "Read lines 1-15."
+    },
+    {
+      "path": "frontend/Dockerfile",
+      "read": "full",
+      "reason": "Read lines 1-46."
+    },
+    {
+      "path": "frontend/package.json",
+      "read": "full",
+      "reason": "Read lines 1-65."
+    },
+    {
+      "path": "frontend/pnpm-lock.yaml",
+      "read": "partial",
+      "reason": "Read the importer section, lines 40-139, in the file. The remaining changed hunks were read only as shown in the supplied diff."
+    },
+    {
+      "path": "frontend/src/components/DuplicatesSection.tsx",
+      "read": "partial",
+      "reason": "Read lines 135-184: the DuplicateGroupCard state, the filesToDelete memo and handleDelete. Did not read the rest of the JSX."
+    },
+    {
+      "path": "frontend/src/components/Sidebar.tsx",
+      "read": "partial",
+      "reason": "Read lines 85-154 around the availableSections memo, plus useSidebarSectionOrder.ts:29-64."
+    },
+    {
+      "path": "frontend/src/components/epub/EpubPreview.tsx",
+      "read": "partial",
+      "reason": "Read lines 95-154 around focusBook and closePanel."
+    },
+    {
+      "path": "frontend/src/components/folder/useFolderFiles.ts",
+      "read": "partial",
+      "reason": "Read lines 150-239: the runNow state and its consumers. Did not read the rest of the hook."
+    },
+    {
+      "path": "mcp-server/package.json",
+      "read": "full",
+      "reason": "Read lines 1-29."
+    },
+    {
+      "path": "mcp-server/pnpm-lock.yaml",
+      "read": "partial",
+      "reason": "Read the importer section, lines 1-40. The other hunks were read only as shown in the supplied diff."
+    },
+    {
+      "path": "addons/intelligence/tests/ocr_fixtures.py",
+      "read": "partial",
+      "reason": "Read lines 1-90, which cover the changed _pillow_modules, real_pillow and pillow_real in full."
+    },
+    {
+      "path": "backend/tests/test_setup_token.py",
+      "read": "partial",
+      "reason": "Read lines 1-150, which cover the changed _route_entries and its test in full."
+    },
+    {
+      "path": "backend/tests/test_startup_lifespan.py",
+      "read": "partial",
+      "reason": "Read lines 60-179, plus a grep of every _paths call site."
+    },
+    {
+      "path": "mcp-server/src/__tests__/write.test.ts",
+      "read": "partial",
+      "reason": "Read lines 300-339 (the changed test). The import hunk was seen only in the diff."
+    },
+    {
+      "path": "tests/test_ci_browser_jobs.py",
+      "read": "partial",
+      "reason": "Read lines 1-130, which cover the changed Node test in full."
+    }
+  ],
+  "confidence": 78
+}

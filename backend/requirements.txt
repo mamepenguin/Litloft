@@ -1,11 +1,11 @@
-fastapi==0.115.12
+fastapi==0.165.0
 uvicorn[standard]==0.34.2
 sqlalchemy==2.0.40
 pydantic==2.11.1
-python-multipart==0.0.20
-PyJWT==2.9.0
-Pillow==11.2.1
-pillow-heif==0.22.0
+python-multipart==0.0.34
+PyJWT==2.15.1
+Pillow==13.0.0
+pillow-heif==1.9.0
 httpx==0.28.1
 PyYAML==6.0.2
 PyMuPDF==1.25.5
