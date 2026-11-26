@@ -10,6 +10,10 @@ export class ApiStatusError extends Error {
     message: string,
     /** The `detail` code of an error body, when the server sent a string. */
     readonly detail?: string,
+    /** The `detail.code` of an object error body. */
+    readonly code?: string,
+    /** The `detail.names` of an object error body. */
+    readonly names?: string[],
   ) {
     super(message);
     this.name = "ApiStatusError";
