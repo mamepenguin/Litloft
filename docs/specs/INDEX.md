@@ -374,3 +374,7 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-CORE-181 | implemented | docs/specs/backdrop-and-menu-motion.md | sha256:1f92c18c13c3ce37f146c87b8c5a5ebc4b257e7c069279842b4ff0735daff925 |
 | SPEC-CORE-182 | implemented | docs/specs/backdrop-and-menu-motion.md | sha256:1f92c18c13c3ce37f146c87b8c5a5ebc4b257e7c069279842b4ff0735daff925 |
 | SPEC-CORE-183 | implemented | docs/specs/backdrop-and-menu-motion.md | sha256:1f92c18c13c3ce37f146c87b8c5a5ebc4b257e7c069279842b4ff0735daff925 |
+| SPEC-CORE-184 | draft | docs/specs/subtitle-sidecars.md | |
+| SPEC-CORE-185 | draft | docs/specs/subtitle-sidecars.md | |
+| SPEC-CORE-186 | draft | docs/specs/subtitle-sidecars.md | |
+| SPEC-ADDON-187 | draft | docs/specs/subtitle-sidecars.md | |
