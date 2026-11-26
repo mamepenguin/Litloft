@@ -85,7 +85,7 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-CORE-025 | implemented | docs/specs/scene-segment-search.md | sha256:0b5308cb70945d21e1c9c1f8d1eb0297515c254a640dfb114634165e85e2de0a |
 | SPEC-CORE-026 | implemented | docs/specs/played-segments.md | sha256:c213890b2c1ed8a97c873781974d13d8f3a9a55d712f5e997133b719ba2a94e3 |
 | SPEC-CORE-027 | implemented | docs/specs/played-segments.md | sha256:c213890b2c1ed8a97c873781974d13d8f3a9a55d712f5e997133b719ba2a94e3 |
-| SPEC-ADDON-045 | approved | docs/specs/scene-candidates-grid.md | sha256:5bb958dd603ce5ae59f1ba65ffb17b2b291db9dbc430ba239ff0e97ac29f6196 |
+| SPEC-ADDON-045 | implemented | docs/specs/scene-candidates-grid.md | sha256:5bb958dd603ce5ae59f1ba65ffb17b2b291db9dbc430ba239ff0e97ac29f6196 |
 | SPEC-ADDON-046 | implemented | docs/specs/semantic-search-all-hits.md | sha256:c74146104d52b81c2e35a24ff0a67a7954d92a8d56997b89770b206553028c11 |
 | SPEC-ADDON-055 | implemented | docs/specs/semantic-search-all-hits.md | sha256:c74146104d52b81c2e35a24ff0a67a7954d92a8d56997b89770b206553028c11 |
 | SPEC-CORE-035 | implemented | docs/specs/semantic-search-all-hits.md | sha256:c74146104d52b81c2e35a24ff0a67a7954d92a8d56997b89770b206553028c11 |
@@ -229,7 +229,7 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-107 | implemented | docs/specs/file-ask-enter-submit.md | sha256:faef5d4dd878ca31de9af3dff91eb892e010e0772d2a1e8a02969ee4a729fb69 |
 | SPEC-CORE-105 | implemented | docs/specs/enlarged-row-beside.md | sha256:7cdd6d6206de7f696999bd0d3992569b59c1473badc84b6534bcf60015af47a3 |
 | SPEC-CORE-113 | implemented | docs/specs/workbench-no-page-scroll.md | sha256:b64f0340475d04ab3bda861248c625f1691741bd5d51a513c82baaefcfe6ada4 |
-| SPEC-CORE-114 | approved | docs/specs/drive-hide-entries.md | sha256:9124c44775924d243c3618f4ef5e383db4769e8c75294fe24ff3dbe548d0d013 |
+| SPEC-CORE-114 | implemented | docs/specs/drive-hide-entries.md | sha256:9124c44775924d243c3618f4ef5e383db4769e8c75294fe24ff3dbe548d0d013 |
 | SPEC-ADDON-108 | implemented | docs/specs/video-ask-frames.md | sha256:434bb5887b558d658e6f3428b9a04c4d5d06b0732a99866b9c215c5a75571645 |
 | SPEC-ADDON-109 | implemented | docs/specs/video-ask-frames.md | sha256:434bb5887b558d658e6f3428b9a04c4d5d06b0732a99866b9c215c5a75571645 |
 | SPEC-CORE-106 | implemented | docs/specs/smart-collection.md | sha256:9668bed455fb686115f86df9f4757f1f9b987b609a6bf4d7a25e377e4a7694da |
