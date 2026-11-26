@@ -101,7 +101,14 @@ def _load(root: Path) -> FastAPI:
 
 
 def _paths(target: FastAPI) -> set[str]:
-    return {route.path for route in target.routes}
+    paths: set[str] = set()
+    for route in target.routes:
+        contexts = getattr(route, "effective_route_contexts", None)
+        if contexts is None:
+            paths.add(route.path)
+        else:
+            paths.update(context.path for context in contexts())
+    return paths
 
 
 class TestLoadingAnAddon:

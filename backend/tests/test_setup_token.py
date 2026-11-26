@@ -99,16 +99,32 @@ def test_every_write_is_accepted_with_the_token(first_run):
     assert (first_run["data_dir"] / "setup_completed").exists()
 
 
+def _route_entries(route):
+    """Yield ``(path, methods)`` for one entry in ``app.routes``.
+
+    An included router sits in that list unexpanded; only its effective
+    contexts carry the mounted paths, so reading ``route.path`` alone sees
+    none of them.
+    """
+    contexts = getattr(route, "effective_route_contexts", None)
+    if contexts is None:
+        yield route.path, getattr(route, "methods", set())
+        return
+    for context in contexts():
+        yield context.path, context.methods
+
+
 def test_the_route_list_is_every_write_under_admin_config(first_run):
     """A route added without a gate is the defect this file exists to catch,
     so the list above is checked against the app's own routing table."""
     from app.main import app
 
     routed = {
-        (method, route.path)
+        (method, route_path)
         for route in app.routes
-        for method in getattr(route, "methods", set())
-        if getattr(route, "path", "").startswith("/api/admin/config")
+        for route_path, methods in _route_entries(route)
+        for method in methods
+        if route_path.startswith("/api/admin/config")
         and method not in ("GET", "HEAD", "OPTIONS")
     }
     # Not a write: it only answers whether a token would be accepted.
