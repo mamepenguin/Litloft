@@ -219,6 +219,10 @@ export function useDragAndDrop({
           if (skipped > 0) {
             toast.error(ts("moveSkipped", { count: skipped }));
           }
+          const carried = sidecarErrorNames(answer);
+          if (carried.length > 0) {
+            toast.error(sidecarErrorMessage(ts, carried));
+          }
         } else {
           return;
         }

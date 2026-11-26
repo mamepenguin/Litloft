@@ -104,4 +104,38 @@ describe("SPEC-CORE-184 I17 / SPEC-CORE-185 I11: a paste refused because of a su
       false,
     );
   });
+
+  it("does not add the generic failure when only subtitles refused", async () => {
+    api.batchMove.mockResolvedValue({
+      moved: 2,
+      errors: [
+        { id: "f3", error: "subtitle_name_taken", names: ["Night.ja.srt"] },
+      ],
+      sidecar_errors: [],
+    });
+
+    await cutAndPaste();
+
+    expect(messagesShown()).toContain("1 件は字幕のため移動しませんでした");
+    expect(
+      messagesShown().some((message) =>
+        message.includes("貼り付けられませんでした"),
+      ),
+    ).toBe(false);
+  });
+
+  it("counts only non-subtitle failures in the generic notice", async () => {
+    api.batchMove.mockResolvedValue({
+      moved: 1,
+      errors: [
+        { id: "f2", error: "locked" },
+        { id: "f3", error: "subtitle_name_taken", names: ["Night.ja.srt"] },
+      ],
+      sidecar_errors: [],
+    });
+
+    await cutAndPaste();
+
+    expect(messagesShown()).toContain("1 件を貼り付けられませんでした");
+  });
 });

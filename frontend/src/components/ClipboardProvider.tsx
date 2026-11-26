@@ -165,13 +165,15 @@ export function ClipboardProvider({ children }: { children: ReactNode }) {
         removeFromStorage();
       }
       // The clipboard is cleared on partial success, so the failures must
-      // be reported here.
-      if (result.errors.length > 0) {
-        toast.error(t("pasteFailed", { count: result.errors.length }));
-      }
+      // be reported here. A file left for a subtitle reason has its own
+      // notice, so the generic one counts the rest.
       const skipped = result.errors.filter((entry) =>
         isSubtitleRefusal(entry.error),
       ).length;
+      const otherFailures = result.errors.length - skipped;
+      if (otherFailures > 0) {
+        toast.error(t("pasteFailed", { count: otherFailures }));
+      }
       if (skipped > 0) {
         toast.error(ts("moveSkipped", { count: skipped }));
       }
