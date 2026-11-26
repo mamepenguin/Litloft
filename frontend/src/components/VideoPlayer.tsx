@@ -240,8 +240,8 @@ const BrowserVideoPlayer = forwardRef(function BrowserVideoPlayer(
         >
           {subtitles.map((sub, i) => (
             <track
-              key={sub.index}
-              src={getSubtitleUrl(videoId, sub.index)}
+              key={sub.filename ?? String(sub.index)}
+              src={`${getSubtitleUrl(videoId, sub.index)}?v=${encodeURIComponent(sub.version ?? "")}`}
               kind="subtitles"
               srcLang={sub.language || "und"}
               label={sub.label || t("subtitleDefault")}

@@ -24,6 +24,7 @@ import { FindProvider } from "./find/FindContext";
 import { useFindInFile } from "./find/useFindInFile";
 import { FileActionRow } from "./FileActionRow";
 import { FileMetaBlock } from "./FileMetaBlock";
+import SubtitlesSection from "./SubtitlesSection";
 import { useCompanionMetrics } from "./hooks/useCompanionMetrics";
 import { useFileDetailData } from "./hooks/useFileDetailData";
 import { FileDetailSkeleton } from "./FileDetailSkeleton";
@@ -217,6 +218,15 @@ export function FileDetailContainer({
     />
   );
 
+  const subtitlesSection = (
+    <SubtitlesSection
+      file={file}
+      onSubtitlesChange={(subtitles) =>
+        setFile((prev) => (prev ? { ...prev, subtitles } : prev))
+      }
+    />
+  );
+
   const addonSlotProps = {
     fileId,
     drive,
@@ -364,6 +374,7 @@ export function FileDetailContainer({
         onRename={data.rename}
         onBack={onBack}
         meta={meta}
+        subtitlesSection={subtitlesSection}
         sheetPeek={sheetPeek}
       />
       </LowerInspectorProvider>

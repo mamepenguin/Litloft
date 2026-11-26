@@ -69,6 +69,7 @@ export interface FileDetailPresenterProps {
   onRename: (newFilename: string) => Promise<void>;
   onBack?: () => void;
   meta: ReactNode;
+  subtitlesSection: ReactNode;
   sheetPeek?: SheetPeek;
 }
 
@@ -240,6 +241,7 @@ export function FileDetailPresenter({
   onRename,
   onBack,
   meta,
+  subtitlesSection,
   sheetPeek,
 }: FileDetailPresenterProps) {
   const { getSlotEntries } = useAddonSlots();
@@ -286,6 +288,7 @@ export function FileDetailPresenter({
         onRename={onRename}
         onBack={onBack}
         meta={meta}
+        subtitlesSection={subtitlesSection}
         sheetPeek={sheetPeek}
       />
     );

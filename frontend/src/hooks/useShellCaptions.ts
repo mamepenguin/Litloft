@@ -38,9 +38,9 @@ export function useShellCaptions(videoId: string, subtitles: readonly SubtitleIn
   const tracks: CaptionTrack[] =
     subtitles.length > 0
       ? subtitles.map((subtitle) => ({
-          key: String(subtitle.index),
+          key: subtitle.filename ?? String(subtitle.index),
           label: subtitle.label || subtitle.language || t("subtitleDefault"),
-          url: getSubtitleUrl(videoId, subtitle.index),
+          url: `${getSubtitleUrl(videoId, subtitle.index)}?v=${encodeURIComponent(subtitle.version ?? "")}`,
         }))
       : [
           {

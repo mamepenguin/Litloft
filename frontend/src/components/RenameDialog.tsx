@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Pencil, X } from "lucide-react";
+import { AlertCircle, Pencil, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useShortcuts } from "@/hooks/useShortcuts";
 import { selectStem } from "@/lib/filename";
@@ -10,6 +10,8 @@ import { Button } from "@/components/Button";
 interface RenameDialogProps {
   open: boolean;
   currentName: string;
+  /** A refusal to show inside the dialog, translated by the host. */
+  error?: string;
   onRename: (newName: string) => void;
   onCancel: () => void;
 }
@@ -17,6 +19,7 @@ interface RenameDialogProps {
 export function RenameDialog({
   open,
   currentName,
+  error,
   onRename,
   onCancel,
 }: RenameDialogProps) {
@@ -84,10 +87,26 @@ export function RenameDialog({
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="mb-6 w-full rounded-2xl border border-bg-border bg-bg-elevated px-3 py-2 text-sm text-text-primary outline-none focus:border-focus-ring"
+            className={`w-full rounded-2xl border bg-bg-elevated px-3 py-2 text-sm text-text-primary outline-none focus:border-focus-ring ${
+              error
+                ? "mb-3 border-danger"
+                : "mb-6 border-bg-border"
+            }`}
             placeholder={t("renamePlaceholder")}
           />
-          <div className="flex justify-end gap-3">
+          {error && (
+            <div
+              role="alert"
+              className="mb-4 flex items-start gap-2 rounded-xl bg-danger/15 px-3 py-2.5 text-xs text-danger"
+            >
+              <AlertCircle
+                size={16}
+                className="mt-px shrink-0"
+                aria-hidden="true"
+              />
+              <span className="min-w-0 break-words">{error}</span>
+            </div>
+          )}          <div className="flex justify-end gap-3">
             <button
               type="button"
               onClick={onCancel}

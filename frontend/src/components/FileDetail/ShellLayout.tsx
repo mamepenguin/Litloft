@@ -110,6 +110,7 @@ export interface ShellLayoutProps {
   onRename: (newFilename: string) => Promise<void>;
   onBack?: () => void;
   meta: ReactNode;
+  subtitlesSection: ReactNode;
   sheetPeek?: SheetPeek;
 }
 
@@ -177,6 +178,7 @@ export function ShellLayout({
   onRename,
   onBack,
   meta,
+  subtitlesSection,
   sheetPeek,
 }: ShellLayoutProps) {
   const tabLabels = useTranslations("inspector.tabs");
@@ -490,6 +492,7 @@ export function ShellLayout({
   // Index-Details placeholders would be noise rather than affordance.
   const infoTabContent = (withFooterSummaries: boolean) => (
     <>
+      {subtitlesSection}
       <ExifSection fileId={fileId} fileType={file.file_type} />
       {!isHtmlPreview && (
         <AddonSlot

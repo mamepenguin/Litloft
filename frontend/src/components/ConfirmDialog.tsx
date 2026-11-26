@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -11,6 +11,10 @@ interface ConfirmDialogProps {
   open: boolean;
   title: string;
   message: string;
+  /** Rich content under the message, for a confirmation that needs more than a line. */
+  body?: ReactNode;
+  /** The confirm control's tone; the default is the screen's accent fill. */
+  confirmTone?: "danger";
   confirmLabel?: string;
   note?: string;
   /** While busy, every way out is closed: confirm, cancel, the X, the backdrop and Escape. */
@@ -25,6 +29,8 @@ export function ConfirmDialog({
   open,
   title,
   message,
+  body,
+  confirmTone,
   confirmLabel = "OK",
   note,
   busy = false,
@@ -86,6 +92,7 @@ export function ConfirmDialog({
           </button>
         </div>
         <p className="mb-2 text-sm text-text-muted">{message}</p>
+        {body && <div className="mb-4">{body}</div>}
         {progress && (
           <p
             className="mb-2 flex items-center gap-2 break-words text-sm text-text-muted"
@@ -102,12 +109,17 @@ export function ConfirmDialog({
         {note && (
           <p className="mb-4 text-xs text-text-muted/70">{note}</p>
         )}
-        {!note && <div className="mb-4" />}
+        {!note && !body && <div className="mb-4" />}
         <div className="flex justify-end gap-3">
           <Button variant="secondary" onClick={onCancel} disabled={busy}>
             {tc("cancel")}
           </Button>
-          <Button ref={confirmRef} variant="primary" onClick={onConfirm} disabled={busy}>
+          <Button
+            ref={confirmRef}
+            variant={confirmTone === "danger" ? "danger" : "primary"}
+            onClick={onConfirm}
+            disabled={busy}
+          >
             {confirmLabel}
           </Button>
         </div>

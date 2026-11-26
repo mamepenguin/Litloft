@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 
 import {
   getFile,
@@ -17,7 +18,12 @@ import {
   type FileChaptersUpdatedDetail,
 } from "@/lib/addonEvents";
 import { markdownContentRegistry } from "@/lib/markdownContentRegistry";
+import {
+  sidecarErrorNames,
+  sidecarErrorMessage,
+} from "@/lib/subtitleErrors";
 import { useSidebar } from "@/components/SidebarProvider";
+import { useToast } from "@/components/ToastProvider";
 import type { FileItem } from "@/types";
 
 export interface FileDetailData {
@@ -46,6 +52,8 @@ export interface FileDetailData {
 
 export function useFileDetailData(fileId: string): FileDetailData {
   const { requestRefresh: refreshSidebar } = useSidebar();
+  const toast = useToast();
+  const ts = useTranslations("subtitles");
 
   // `FileDetailContent` mounts this once per file, so nothing here resets
   // on a change of `fileId`.
@@ -159,7 +167,16 @@ export function useFileDetailData(fileId: string): FileDetailData {
       if (!file || !fresh) return;
       try {
         const updated = await renameFile(file.id, newFilename);
+        const carried = sidecarErrorNames(updated);
+        if (carried.length > 0) {
+          toast.error(sidecarErrorMessage(ts, carried));
+        }
         setFile(updated);
+        // Rename answers with no subtitles, so the sidecars that moved with
+        // the video have to be read back before the player and the list use
+        // the answer.
+        const refreshed = await getFile(file.id).catch(() => null);
+        if (refreshed) setFile(refreshed);
         // The FolderBrowser is unmounted while the right-pane file detail is
         // open, so it can't receive the WS files.moved event triggered by
         // the rename.
@@ -169,7 +186,7 @@ export function useFileDetailData(fileId: string): FileDetailData {
         console.error("Failed to rename file:", err);
       }
     },
-    [file, fresh, refreshSidebar],
+    [file, fresh, refreshSidebar, toast, ts],
   );
 
   const startEditing = useCallback(() => {
