@@ -6,12 +6,15 @@ import { useTranslations } from "next-intl";
 import { useShortcuts } from "@/hooks/useShortcuts";
 import { selectStem } from "@/lib/filename";
 import { Button } from "@/components/Button";
+import { RefusalText } from "@/components/RefusalText";
 
 interface RenameDialogProps {
   open: boolean;
   currentName: string;
   /** A refusal to show inside the dialog, translated by the host. */
   error?: string;
+  /** Files the refusal names, shown in bold under the message. */
+  errorNames?: readonly string[];
   onRename: (newName: string) => void;
   onCancel: () => void;
 }
@@ -20,6 +23,7 @@ export function RenameDialog({
   open,
   currentName,
   error,
+  errorNames,
   onRename,
   onCancel,
 }: RenameDialogProps) {
@@ -104,9 +108,12 @@ export function RenameDialog({
                 className="mt-px shrink-0"
                 aria-hidden="true"
               />
-              <span className="min-w-0 break-words">{error}</span>
+              <span className="min-w-0 break-words">
+                <RefusalText message={error} names={errorNames} />
+              </span>
             </div>
-          )}          <div className="flex justify-end gap-3">
+          )}
+          <div className="flex justify-end gap-3">
             <button
               type="button"
               onClick={onCancel}

@@ -25,19 +25,37 @@ type Translate = (
   values?: Record<string, string | number | Date>,
 ) => string;
 
+export interface SubtitleErrorText {
+  message: string;
+  names: string[];
+}
+
 /**
  * The translated message for a subtitle refusal, with the files the server
- * named appended. The caller owns the namespace, so the translation's leaf
- * must be the code itself.
+ * named. The caller owns the namespace, so the translation's leaf must be
+ * the code itself.
+ */
+export function subtitleErrorText(
+  t: Translate,
+  code: string,
+  names: readonly string[] = [],
+): SubtitleErrorText {
+  return { message: t(code), names: [...names] };
+}
+
+/**
+ * The translated message for a subtitle refusal, with the files the server
+ * named appended. For places that can only draw one line; an alert lists the
+ * names under the message instead.
  */
 export function subtitleErrorMessage(
   t: Translate,
   code: string,
   names: readonly string[] = [],
 ): string {
-  const message = t(code);
-  if (names.length === 0) return message;
-  return `${message} ${names.join("、")}`;
+  const { message, names: files } = subtitleErrorText(t, code, names);
+  if (files.length === 0) return message;
+  return `${message} ${files.join("、")}`;
 }
 
 /**
@@ -52,6 +70,17 @@ export function subtitleFailure(
     return null;
   }
   return subtitleErrorMessage(t, cause.code!, cause.names ?? []);
+}
+
+/** The split form of `subtitleFailure`, for an alert that lists the names. */
+export function subtitleFailureText(
+  cause: unknown,
+  t: Translate,
+): SubtitleErrorText | null {
+  if (!(cause instanceof ApiStatusError) || !isSubtitleRefusal(cause.code)) {
+    return null;
+  }
+  return subtitleErrorText(t, cause.code!, cause.names ?? []);
 }
 
 /** The names an operation could not carry, from its `sidecar_errors` field. */

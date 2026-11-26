@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 
 import { RenameDialog } from "../RenameDialog";
@@ -32,13 +32,14 @@ vi.mock("next-intl", async () => {
 
 const ERROR = "行き先に同じ名前の字幕があります。 Night.ja.srt";
 
-function renderDialog(error = ERROR) {
+function renderDialog(error = ERROR, names?: string[]) {
   return render(
     <ShortcutsProvider>
       <RenameDialog
         open
         currentName="Night.mp4"
         error={error}
+        errorNames={names}
         onRename={vi.fn()}
         onCancel={vi.fn()}
       />
@@ -53,6 +54,21 @@ describe("SPEC-CORE-185 D8: a rename refused by a sidecar", () => {
     const alert = screen.getByRole("alert");
     expect(alert.textContent).toContain("行き先に同じ名前の字幕があります。");
     expect(alert.textContent).toContain("Night.ja.srt");
+  });
+
+  it("puts each name in bold on its own line under the message", () => {
+    renderDialog("行き先に同じ名前の字幕があります。", [
+      "Night.ja.srt",
+      "Night.en.vtt",
+    ]);
+
+    const alert = screen.getByRole("alert");
+    within(alert).getByText("行き先に同じ名前の字幕があります。");
+    for (const name of ["Night.ja.srt", "Night.en.vtt"]) {
+      const line = within(alert).getByText(name);
+      expect(line.className).toContain("block");
+      expect(line.className).toContain("font-semibold");
+    }
   });
 
   it("turns the input's border to the danger colour", () => {

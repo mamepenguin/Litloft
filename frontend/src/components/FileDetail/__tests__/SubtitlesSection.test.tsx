@@ -285,6 +285,31 @@ describe("SPEC-CORE-185 D5 / 185.2: the add form", () => {
     );
   });
 
+  it("disables 追加 and hides the preview until the other code is 2 or 3 ASCII letters", () => {
+    renderSection(video());
+    openAddForm();
+
+    pick(screen.getByRole("button", { name: "選択…" }), "long_night_jp.srt");
+    selectLanguage("その他のコード…");
+    const code = screen.getByRole("textbox");
+    const submit = screen.getByRole("button", { name: "追加" });
+
+    expect(submit).toBeDisabled();
+    expect(screen.queryByText("The Long Night.srt")).toBeNull();
+
+    fireEvent.change(code, { target: { value: "j" } });
+    expect(submit).toBeDisabled();
+    expect(screen.queryByText("The Long Night.j.srt")).toBeNull();
+
+    fireEvent.change(code, { target: { value: "日本" } });
+    expect(submit).toBeDisabled();
+    expect(screen.queryByText("The Long Night.日本.srt")).toBeNull();
+
+    fireEvent.change(code, { target: { value: "dut" } });
+    expect(submit).toBeEnabled();
+    expect(screen.getByText("The Long Night.dut.srt")).toBeInTheDocument();
+  });
+
   it("a successful add calls addSubtitle and hands the new list back", async () => {
     const added = [sub({ language: "ja", filename: "The Long Night.ja.srt" })];
     api.addSubtitle.mockResolvedValueOnce({ subtitles: added });

@@ -16,10 +16,12 @@ import { addSubtitle, deleteSubtitle, replaceSubtitle } from "@/lib/api";
 import { ApiStatusError } from "@/lib/apiError";
 import {
   isSubtitleRefusal,
-  subtitleErrorMessage,
+  subtitleErrorText,
+  type SubtitleErrorText,
 } from "@/lib/subtitleErrors";
 import { useToast } from "@/components/ToastProvider";
 import { Button } from "@/components/Button";
+import { RefusalText } from "@/components/RefusalText";
 import { ROW_FURNITURE_PADDING } from "@/components/rowFurniture";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 
@@ -83,7 +85,7 @@ export default function SubtitlesSection({
   const [language, setLanguage] = useState("");
   const [customCode, setCustomCode] = useState("");
   const [busy, setBusy] = useState<Busy>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<SubtitleErrorText | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<SubtitleInfo | null>(null);
 
   const addInputRef = useRef<HTMLInputElement>(null);
@@ -111,17 +113,24 @@ export default function SubtitlesSection({
     [t, tl],
   );
 
+  const customCodeValid = /^[A-Za-z]{2,3}$/.test(customCode.trim());
+  const otherCodeInvalid = language === OTHER_CODE && !customCodeValid;
   const effectiveLanguage =
-    language === OTHER_CODE ? customCode.trim().toLowerCase() : language;
+    language === OTHER_CODE
+      ? customCodeValid
+        ? customCode.trim().toLowerCase()
+        : ""
+      : language;
 
-  const resultingName = picked
-    ? (() => {
-        const stem = file.filename.replace(/\.[^./]+$/, "");
-        const ext = fileExtension(picked.name);
-        const suffix = effectiveLanguage ? `.${effectiveLanguage}` : "";
-        return `${stem}${suffix}${ext ? `.${ext}` : ""}`;
-      })()
-    : "";
+  const resultingName =
+    picked && !otherCodeInvalid
+      ? (() => {
+          const stem = file.filename.replace(/\.[^./]+$/, "");
+          const ext = fileExtension(picked.name);
+          const suffix = effectiveLanguage ? `.${effectiveLanguage}` : "";
+          return `${stem}${suffix}${ext ? `.${ext}` : ""}`;
+        })()
+      : "";
 
   const reloadSubtitles = useCallback(
     async (startedFor: string) => {
@@ -144,19 +153,19 @@ export default function SubtitlesSection({
   const describeFailure = useCallback(
     (cause: unknown, startedFor: string) => {
       if (!(cause instanceof ApiStatusError)) {
-        setError(t("failed"));
+        setError({ message: t("failed"), names: [] });
         return;
       }
       if (cause.status === 404) {
-        setError(t("staleList"));
+        setError({ message: t("staleList"), names: [] });
         void reloadSubtitles(startedFor);
         return;
       }
       if (isSubtitleRefusal(cause.code)) {
-        setError(subtitleErrorMessage(te, cause.code!, cause.names ?? []));
+        setError(subtitleErrorText(te, cause.code!, cause.names ?? []));
         return;
       }
-      setError(t("failed"));
+      setError({ message: t("failed"), names: [] });
     },
     [reloadSubtitles, te, t],
   );
@@ -359,7 +368,9 @@ export default function SubtitlesSection({
           className="flex items-start gap-2 rounded-xl bg-danger/15 px-3 py-2.5 text-xs text-danger"
         >
           <AlertCircle size={16} className="mt-px shrink-0" aria-hidden="true" />
-          <span className="min-w-0 break-words">{error}</span>
+          <span className="min-w-0 break-words">
+            <RefusalText message={error.message} names={error.names} />
+          </span>
         </div>
       )}
 
@@ -451,7 +462,7 @@ export default function SubtitlesSection({
               variant="primary"
               size="sm"
               type="submit"
-              disabled={busy !== null || !picked}
+              disabled={busy !== null || !picked || otherCodeInvalid}
             >
               {busy?.kind === "add" && (
                 <Loader2 size={14} className="animate-spin" />

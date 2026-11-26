@@ -13,7 +13,13 @@ import { CopyIdDialog } from "./CopyIdDialog";
 import { MoveDialog } from "./MoveDialog";
 import { CollectionPicker } from "./CollectionPicker";
 import { RenameDialog } from "./RenameDialog";
-import { sidecarErrorNames, sidecarErrorMessage, subtitleFailure } from "@/lib/subtitleErrors";
+import {
+  sidecarErrorNames,
+  sidecarErrorMessage,
+  subtitleFailure,
+  subtitleFailureText,
+  type SubtitleErrorText,
+} from "@/lib/subtitleErrors";
 import { useToast } from "./ToastProvider";
 
 interface FileContextMenuProps {
@@ -72,7 +78,7 @@ export function FileContextMenu({
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [collectionPickerOpen, setCollectionPickerOpen] = useState(false);
   const [copyIdOpen, setCopyIdOpen] = useState(false);
-  const [renameError, setRenameError] = useState<string | null>(null);
+  const [renameError, setRenameError] = useState<SubtitleErrorText | null>(null);
 
   useEffect(() => {
     if (!target) {
@@ -110,7 +116,7 @@ export function FileContextMenu({
         onRenamed?.(target);
         onUpdate?.();
       } catch (cause) {
-        const subtitle = subtitleFailure(cause, te);
+        const subtitle = subtitleFailureText(cause, te);
         if (subtitle) setRenameError(subtitle);
       }
     },
@@ -225,7 +231,8 @@ export function FileContextMenu({
       <RenameDialog
         open={renameOpen}
         currentName={target.filename}
-        error={renameError ?? undefined}
+        error={renameError?.message}
+        errorNames={renameError?.names}
         onRename={(name) => gated(() => handleRename(name))}
         onCancel={() => {
           setRenameOpen(false);

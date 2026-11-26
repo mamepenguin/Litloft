@@ -10,7 +10,13 @@ import {
   renameFile,
 } from "@/lib/api";
 import { copyText } from "@/lib/copyText";
-import { sidecarErrorNames, sidecarErrorMessage, subtitleFailure } from "@/lib/subtitleErrors";
+import {
+  sidecarErrorNames,
+  sidecarErrorMessage,
+  subtitleFailure,
+  subtitleFailureText,
+  type SubtitleErrorText,
+} from "@/lib/subtitleErrors";
 import {
   ANCHORED_VERTICAL,
   useAnchoredDirection,
@@ -66,7 +72,7 @@ export function FileActions({
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [collectionPickerOpen, setCollectionPickerOpen] = useState(false);
   const [addonDialogOpen, setAddonDialogOpen] = useState(false);
-  const [renameError, setRenameError] = useState<string | null>(null);
+  const [renameError, setRenameError] = useState<SubtitleErrorText | null>(null);
   const [copyIdOpen, setCopyIdOpen] = useState(false);
   const toast = useToast();
   const dialogHost = useDialogPortalTarget();
@@ -131,7 +137,7 @@ export function FileActions({
         setRenameOpen(false);
         if (onUpdate) onUpdate();
       } catch (cause) {
-        const subtitle = subtitleFailure(cause, te);
+        const subtitle = subtitleFailureText(cause, te);
         if (subtitle) {
           setRenameError(subtitle);
         } else {
@@ -324,7 +330,8 @@ export function FileActions({
           <RenameDialog
             open={renameOpen}
             currentName={file.filename}
-            error={renameError ?? undefined}
+            error={renameError?.message}
+            errorNames={renameError?.names}
             onRename={handleRename}
             onCancel={() => {
               setRenameOpen(false);
