@@ -1,0 +1,117 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "CRITICAL",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R1",
+      "status": "confirmed",
+      "note": "addons/intelligence/.github/workflows/ci.yml:148-152 sets node-version 20 with cache-dependency-path core/frontend/pnpm-lock.yaml, then runs pnpm install --frozen-lockfile in core/frontend (:163-165). Node 20 also appears at addons/knowledge ci.yml:147,243, addons/media_import ci.yml:176,272 and addons/cloud-sync ci.yml:127. frontend/pnpm-lock.yaml:3121-3124 pins isomorphic-dompurify@3.23.0 with engines ^22.22.2 || ^24.15.0 || >=26.0.0 and the deprecation note. jsdom@30.1.3 (:3180-3182) has the same range and undici@8.13.1 (:4167-4169) requires >=22.19.0. MarkdownPreview.tsx:21 imports isomorphic-dompurify, and vitest.config.ts:67-70 aliases only '@'. Core ci.yml has node-version 24 at all seven sites. I did not run a Node 20 job to watch it fail."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R2",
+      "status": "confirmed",
+      "note": "docs/specs/ci-browser-container.md:45-51 still describes setting up Node 20 and running the tests on Node 20, and :226 says 'I9. The browser jobs run their tests on Node 20'. tests/test_ci_browser_jobs.py:118-123 is commented 'SPEC-CORE-149 I9, item 3: Node 24' and asserts node-version == \"24\"."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "CD-1",
+      "status": "confirmed",
+      "note": "This is the same defect as R1. .github/workflows/ci.yml:65-67 confirms that the four addon repos call `pnpm test` against core's develop tip. The addon workflows set Node 20 (see R1). frontend/pnpm-workspace.yaml has no engine-strict, so pnpm only warns at install and the incompatibility appears at runtime. The lockfile engine ranges match the claim."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "CD-2",
+      "status": "confirmed",
+      "note": "tests/test_ci_browser_jobs.py:118-125 parametrizes only BROWSER_JOBS, and a grep of tests/ finds no other node-version or node:24 assertion. ci.yml has setup-node with node-version 24 at 46,128,187,271,328,375,423, and only the browser jobs are tested. frontend/Dockerfile:1,28,32 use FROM node:24-alpine, and no test references the frontend Dockerfile (tests/test_backend_dockerfile.py covers only backend/Dockerfile)."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "CD-3",
+      "status": "confirmed",
+      "note": "useFolderFiles.ts:184-191 calls setRunNow during render, and the comment says this is so no render commits a request built from the previous run's clock. useFolderFiles.modified.test.tsx:274-286 asserts listingModified()[0] for the first run, then after the rerender only waitFor(listingModified().at(-1) equal to the new cutoff). A stale-clock request made in between would still pass."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "CD-4",
+      "status": "confirmed",
+      "note": "mcp-server/src/server.ts:79 passes tool.inputSchema (raw zod shape). toolMetadata.test.ts:118 calls listTools() but asserts only names, annotations and instructions (lines 125-159), with no inputSchema or properties check. The other listTools() uses (compactOutput.test.ts:166, readDocument.test.ts:179, searchTools.test.ts:244) check only the name. Other tests build z.object(inputSchema) locally and do not check the advertised JSON Schema. mcp-server/pnpm-lock.yaml:2569 resolves zod-to-json-schema@3.25.2(zod@4.6.7). decisions.md:111 says 'The mcp-server, which was skipped.'"
+    }
+  ],
+  "unspecified_scores": [
+    {
+      "source_reviewer": "claude-read",
+      "index": 0,
+      "frequency": 3,
+      "impact": 2,
+      "reason": "Saving a knowledge clip from pasted HTML that starts with a text line followed by a heading stores Markdown without the blank line, a small formatting change the user may notice in the source view."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "index": 1,
+      "frequency": 2,
+      "impact": 1,
+      "reason": "Starting the knowledge addon container logs a harmless urllib3 PySocks DependencyWarning that only appears in logs."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "index": 2,
+      "frequency": 4,
+      "impact": 1,
+      "reason": "Switching drives gives the sidebar section list a new identity and causes an extra recompute or re-render that the user cannot see."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "index": 3,
+      "frequency": 1,
+      "impact": 2,
+      "reason": "When an MCP client sends a malformed or out-of-range argument, it sees zod 4's error wording instead of zod 3's, and the call is rejected either way."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "index": 0,
+      "frequency": 3,
+      "impact": 2,
+      "reason": "Saving a pasted-HTML clip with a leading text line and then a heading loses the blank line before the heading in the stored Markdown."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "index": 1,
+      "frequency": 2,
+      "impact": 1,
+      "reason": "Each start of the frontend container logs a DEP0060 util._extend deprecation warning from http-proxy, visible only in logs."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "index": 2,
+      "frequency": 2,
+      "impact": 1,
+      "reason": "Importing the knowledge image prints a PySocks DependencyWarning in the logs, with no functional effect."
+    }
+  ],
+  "specification_compliance": [
+    "SPEC-CORE-149 text (I9 and item 3) still says Node 20, while ci.yml and its test say Node 24, so the spec and the code disagree."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "Addon CI jobs that run core develop's frontend on Node 20 may fail at runtime in jsdom 30 or undici 8 (engines >=22), because pnpm does not enforce engines here.",
+    "Changes to the advertised MCP tool JSON Schema under zod 4 would not be caught by any test."
+  ],
+  "test_coverage": [
+    "Node 24 is pinned by a test only for the two browser jobs; the other five setup-node sites and frontend/Dockerfile are untested.",
+    "The per-run search clock test checks only the last listing request.",
+    "No test asserts tools/list inputSchema."
+  ],
+  "not_verified": [
+    "Did not run any addon CI job on Node 20 to confirm that jsdom 30 or undici 8 actually fail at runtime there.",
+    "Did not count the core test files that render MarkdownPreview (claimed at least 8).",
+    "Did not run the knowledge clip conversion or containers to observe the unspecified behaviors.",
+    "Did not check whether the MCP SDK 1.32 advertised JSON Schema actually differs from before."
+  ],
+  "confidence": 85
+}

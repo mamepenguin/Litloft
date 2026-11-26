@@ -1,0 +1,5 @@
+addons/intelligence/tests/ocr_fixtures.py
+backend/tests/test_setup_token.py
+backend/tests/test_startup_lifespan.py
+mcp-server/src/__tests__/write.test.ts
+tests/test_ci_browser_jobs.py

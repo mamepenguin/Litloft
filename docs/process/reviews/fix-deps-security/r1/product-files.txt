@@ -1,0 +1,14 @@
+.github/workflows/ci.yml
+addons/intelligence/Dockerfile.test
+addons/intelligence/requirements.txt
+addons/knowledge/requirements.txt
+backend/requirements.txt
+frontend/Dockerfile
+frontend/package.json
+frontend/pnpm-lock.yaml
+frontend/src/components/DuplicatesSection.tsx
+frontend/src/components/Sidebar.tsx
+frontend/src/components/epub/EpubPreview.tsx
+frontend/src/components/folder/useFolderFiles.ts
+mcp-server/package.json
+mcp-server/pnpm-lock.yaml

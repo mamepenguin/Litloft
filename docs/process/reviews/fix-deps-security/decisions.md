@@ -2,9 +2,10 @@
 
 decision:
 ran_in_app: yes
-at: core 7e404a646 / intelligence d6e2909 / knowledge 329a379
+at: 7e404a646
 by: agent
-evidence: The first R-5 ran on 905e52dd2. On 7e404a646, with the frontend rebuilt, checks 3, 4 and 10 were re-run, and observations (a)-(d) were measured against develop at http://localhost:3000 (next 16.2.1, read-only, browser only). Re-run evidence is in /private/tmp/claude-502/r5-deps/rerun-deps2/ (7e404a646 alone), rerun-deps/ and rerun-dev/ (the same scripts on each side; typefilter2 ran 3 times per side). Checks 1, 2 and 5-9 are carried over from 905e52dd2, because backend and addons are unchanged and 7e404a646 touches only useFolderFiles.ts.
+evidence: The stack ran addons intelligence d6e2909 and knowledge 329a379. The core branch now pins the merged addon commits intelligence 2f82f47 and knowledge 244d875, which are merge commits of exactly those branches; git diff d6e2909 2f82f47 and git diff 329a379 244d875 are both empty.
+The first R-5 ran on 905e52dd2. On 7e404a646, with the frontend rebuilt, checks 3, 4 and 10 were re-run, and observations (a)-(d) were measured against develop at http://localhost:3000 (next 16.2.1, read-only, browser only). Re-run evidence is in /private/tmp/claude-502/r5-deps/rerun-deps2/ (7e404a646 alone), rerun-deps/ and rerun-dev/ (the same scripts on each side; typefilter2 ran 3 times per side). Checks 1, 2 and 5-9 are carried over from 905e52dd2, because backend and addons are unchanged and 7e404a646 touches only useFolderFiles.ts.
 
 - 7e404a646 re-run:
   - Check 3: PASS. Every step's counts and samples match develop.
@@ -114,3 +115,19 @@ pending: Not exercised:
   - audio and video as heard and seen
   - real-LAN and household-device playback
   - real third-party services
+
+author_resolutions:
+- claude-deep:CD-1 fix: the four addon repositories' CI moves the core frontend jobs to Node 24 (Litloft-Intelligence-addon#211, Litloft-knowledge-addon#88, Litloft-cloud-sync-addon#12, Litloft-media-import-addon#51), merged before this change reaches develop.
+- claude-read:R1 fix: same as CD-1.
+- claude-deep:CD-2 accept: a revert of one setup-node site to Node 20 fails that job on the new lockfile's engines, so CI shows it; the test that pins two sites stays as it was.
+- claude-deep:CD-3 accept: the missed defect is a stale-clock request for one render, a transient result at most (F3 x I3); the render-time resync was measured in R-5 against develop.
+- claude-deep:CD-4 accept: listed through the SDK client on zod 4.6.7 / SDK 1.32.2, all 41 tools advertise their argument schemas (only list_drives, which takes none, is empty; add_comment keeps maxLength 1000).
+- claude-read:R2 accept: SPEC-CORE-149 is an implemented design record of its time; behaviour is verified against the code, and ci.yml and its test say Node 24.
+- unspecified:1 accept: the stored clip Markdown loses a blank line before an ATX heading; R-5 showed the rendered preview is identical (CommonMark lets the heading interrupt the paragraph).
+- unspecified:2 accept: a urllib3 PySocks DependencyWarning in the knowledge logs only.
+- unspecified:3 accept: the sidebar section list gets a new identity on drive switch; R-5 check 4 shows the order holds.
+- unspecified:4 accept: zod 4 wording of MCP argument errors; the limits are enforced the same.
+- unspecified:5 accept: same as unspecified:1.
+- unspecified:6 accept: DEP0060 from http-proxy on Node 24, logs only.
+- unspecified:7 accept: same as unspecified:2.
+- Not upgraded on purpose: torch, torchaudio, transformers, sentence-transformers and sentencepiece in intelligence stay pinned for whisperx / pyannote; their advisories concern loading untrusted model files.

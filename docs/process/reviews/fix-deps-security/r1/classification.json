@@ -1,0 +1,88 @@
+{
+  "risk": "CRITICAL",
+  "score": 13,
+  "base": 3,
+  "zone_max": "CRITICAL",
+  "modifiers": [],
+  "promotions": [],
+  "zones_touched": [
+    {
+      "path": ".github/workflows/ci.yml",
+      "level": "CRITICAL"
+    },
+    {
+      "path": "addons/intelligence",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "addons/knowledge",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "backend/requirements.txt",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "backend/tests/test_setup_token.py",
+      "level": "LOW"
+    },
+    {
+      "path": "backend/tests/test_startup_lifespan.py",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/developer-guide/testing.md",
+      "level": "LOW"
+    },
+    {
+      "path": "frontend/Dockerfile",
+      "level": "CRITICAL"
+    },
+    {
+      "path": "frontend/package.json",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/pnpm-lock.yaml",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/DuplicatesSection.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/Sidebar.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/epub/EpubPreview.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/folder/useFolderFiles.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "mcp-server/package.json",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "mcp-server/pnpm-lock.yaml",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "mcp-server/src/__tests__/write.test.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "tests/test_ci_browser_jobs.py",
+      "level": "MEDIUM"
+    }
+  ],
+  "human_zones_touched": [],
+  "protected_paths_touched": [],
+  "docs_only": false,
+  "reasons": [
+    "highest zone CRITICAL (10 points)"
+  ]
+}
