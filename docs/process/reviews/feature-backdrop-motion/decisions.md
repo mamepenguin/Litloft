@@ -15,3 +15,17 @@ evidence: Own R-5 stack (scripts/dev/r5_stack.py clone + up frontend backend, ht
   8. Reduced motion: every dim's animation is fade-in at 0.01 ms (opacity 1 in the first painted frame) for the three surfaces, the sidebar, MENU_SCRIM and the player sheet; the sidebar panel is at its end position in the first frame; the player sheet top stays at 133 px. Toasts: Element.animate called 0 times, no leaving state, removed in the same frame, the others move to their new places in one frame (±46–50 px); Undo still works once (toasts-1400-rm.txt). The search input shows a CSSTransition on outline-color with duration 0.01 ms under reduced motion (transition-duration 1e-05s; without reduced motion it is `all 0s` and no transition exists); globals.css in this branch only adds the animate-backdrop-in utility.
   Not opened: OverflowMenu, ArchiveToolbar, FolderToolbar and ConditionMenu (they share MENU_SCRIM and MENU_SURFACE_BASE with the ToolbarMenu and FilterMenu checked above).
 pending: none
+author_resolutions:
+- claude-read:F6 fix: added a real-browser case that emulates reduced motion and counts Element.animate across a push and a removal; it fails with the reduced guard removed (4 calls) and passes with it.
+- claude-read:F7 fix: added a unit case for the popover placement asserting no bg-* and no animate-* on its scrim; it fails when the sheet classes are applied unconditionally.
+- claude-read:F1 accept: spec-viewport.spec.ts must list every new e2e-components spec; registry bookkeeping with no runtime effect.
+- claude-read:F2 accept: fixtures/app.tsx registers the two new arrangements; test infrastructure only.
+- claude-read:F3 accept: fixtures/motion.tsx is the fixture for the new specs; test infrastructure only.
+- claude-read:F4 accept: ToastProvider.leave.test.tsx is an acceptance test the spec's "new acceptance tests" covers; no runtime effect.
+- claude-read:F5 accept: backdropFade.test.tsx likewise; no runtime effect.
+- claude-read:F8 accept: on the timer path focus leaves the inert card through the browser's inert focus fixup (Chromium, Safari); the remaining window is 150ms on a toast the viewer is not interacting with.
+- claude-read:unspecified 1 accept: a second click on a leaving toast reaches the page behind, as it did when the toast vanished at once (F2 x I3 = 6, below the fix threshold).
+- claude-read:unspecified 2 accept: overlapping changes restart the travel from the drawn position; the stack never jumps and settles slightly later (F1-2 x I1).
+- claude-read:unspecified 3 accept: a toast closed during its entrance finishes its 8px rise while fading (F1 x I1).
+- claude-read:unspecified 4 accept: crossing the popover/sheet breakpoint with the settings open replays the dim once (F1 x I1).
+

@@ -66,9 +66,10 @@ describe("SPEC-CORE-181 the phone menu scrim", () => {
 });
 
 describe("SPEC-CORE-181 the player settings sheet's scrim", () => {
-  function renderSheet() {
+  function renderSheet(placement: "sheet" | "popover" = "sheet") {
     return render(
       <SettingsSheet
+        placement={placement}
         playbackRate={1}
         onSelectRate={vi.fn()}
         captions="off"
@@ -84,5 +85,12 @@ describe("SPEC-CORE-181 the player settings sheet's scrim", () => {
     expect(animateClasses(scrim.className)).toEqual(["animate-backdrop-in"]);
     expect(scrim.classList.contains("bg-black/40")).toBe(true);
     expect(scrim.contains(screen.getByTestId("settings-sheet"))).toBe(false);
+  });
+
+  it("SPEC-CORE-181 I2 draws no dim and no animation behind the popover form", () => {
+    renderSheet("popover");
+    const scrim = screen.getByTestId("settings-sheet-backdrop");
+    expect(animateClasses(scrim.className)).toEqual([]);
+    expect(scrim.className.split(/\s+/).filter((name) => name.startsWith("bg-"))).toEqual([]);
   });
 });

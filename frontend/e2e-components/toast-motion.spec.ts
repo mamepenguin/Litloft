@@ -370,3 +370,41 @@ test.describe("SPEC-CORE-182 I5 I8 a leaving toast takes no press", () => {
     expect(await page.evaluate(() => window.__runs.undo)).toBe(1);
   });
 });
+
+test("SPEC-CORE-182 I7 under reduced motion a push and a removal move the stack without calling Element.animate", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.addInitScript(() => {
+    const original = Element.prototype.animate;
+    (window as unknown as { __animateCalls: number }).__animateCalls = 0;
+    Element.prototype.animate = function (...args: Parameters<Element["animate"]>) {
+      (window as unknown as { __animateCalls: number }).__animateCalls += 1;
+      return original.apply(this, args);
+    };
+  });
+  await open(page);
+  await pushAtRest(page, ["A", "B", "C"]);
+
+  const result = await page.evaluate(async () => {
+    const calls = () => (window as unknown as { __animateCalls: number }).__animateCalls;
+    const startCalls = calls();
+    const topA = window.__measure("A")!.top;
+    window.__toast!.info("D");
+    await window.__settle(400);
+    const afterPush = window.__measure("A")!.top;
+    window.__closeOf("B").click();
+    await window.__settle(400);
+    return {
+      calls: calls() - startCalls,
+      pushMoved: Math.abs(afterPush - topA),
+      removalMoved: Math.abs(window.__measure("A")!.top - afterPush),
+      bGone: window.__measure("B") === null,
+    };
+  });
+
+  expect(result.bGone, "B is removed").toBe(true);
+  expect(result.pushMoved, "the push moved the stack").toBeGreaterThan(20);
+  expect(result.removalMoved, "the removal moved the stack").toBeGreaterThan(20);
+  expect(result.calls).toBe(0);
+});
