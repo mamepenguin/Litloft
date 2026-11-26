@@ -5,10 +5,57 @@ design_resolutions:
 - D-11 fix: coarse-pointer rows drop to 4px above and below (52px), measured in e2e-components/subtitles-section-touch.spec.ts.
 - D-1, D-2, D-3, D-4, D-5, D-6, D-7, D-8, D-9, D-10, D-12, D-13, D-14, D-15 accept (human, 2026-11-27, "D-11 だけ直す"): existing dialog and tab chrome (D-3 to D-7, D-10, D-13), the alert icon shared with D7 (D-8), the spec's order, translated labels and drive-relative names (D-1, D-2, D-9), the error under the list as the spec states (D-12), and states the screenshots did not cover (D-14, D-15).
 ran_in_app: yes
-at: 71c6aa935bb6559d9cb8868847f0ecc38712e30d
+at: 2029c8589700a0431c5246b8ea6a1c25c9ad8dc9
 by: agent
 evidence: |
-  Narrow re-run at the SHA above for fix 301bc2fa3 (coarse-pointer subtitle row 52px); 71c6aa935
+  Narrow re-run at 2029c8589 (the SHA above) for fixes 8bb46fd29, 06e85cfc5 and 93fe2471b;
+  2029c8589 only records review run r6. Fresh `scripts/dev/r5_stack.py clone --port 3101` + `up`
+  (backend and frontend images rebuilt at the start of the run, after 93fe2471b) on
+  http://video-share-subtitles.localhost:3101; the main video_share stack was not touched and no
+  SQLite DB was opened from the host. Scratch drive `R5字幕` (writable bind of .r5-stack/scratch
+  added to the clone's overlay and drives.json): 4-second ffmpeg H.264 videos, a JPEG, PNGs, a
+  Markdown note and SRTs whose cue text differs per file. Headless Chromium (Playwright 1.58),
+  ja locale, 1440x900. Disk checked on the host bind; tracks read from the file page's Info tab
+  and the `<video>`'s TextTrack list. Stack downed and destroyed afterwards. Screenshots:
+  docs/process/reviews/feature-subtitle-sidecars/r5/rerun3-*.png.
+
+  1. A/ holds movie.mp4 + movie.ja.srt and clip.mp4 (no subtitles). Context menu on Clip →
+     名前を変更 → movie.ja.mp4 → Enter: PUT rename 409 `subtitle_owner_change` names
+     [A/movie.ja.srt]; the dialog stays open with the alert
+     `別の動画の字幕の持ち主が変わるため、この操作はできません。 A/movie.ja.srt`
+     (rerun3-i1-rename-refused.png); A/ unchanged on disk. B/movie.ja.mp4 (no subtitles) →
+     context menu 移動 → A → ここに移動: PUT move 409 with the same code and name, toast with the
+     same message and `A/movie.ja.srt` (rerun3-i1-move-refused.png); B/ and A/ unchanged.
+     B/movie.ja.mp4 → コピー, then ここにペースト in A: batch/copy 200 copied 1, no toast; disk
+     A/movie.ja_copy.mp4 added, movie.ja.srt still beside movie.mp4. movie.mp4's page: `字幕 1
+     日本語 movie.ja.srt`, textTrack Japanese/ja showing (rerun3-i1-movie-after-copy.png); the
+     copy's page: `字幕はありません` (rerun3-i1-copy-page.png). PASS.
+  2. R/ holds movie.jpg, movie.mp4, movie.srt. Selection mode, the JPG card selected → 名前変更
+     → プレフィックス・サフィックス, 先頭に追加 `pic_`; preview movie.jpg → pic_movie.jpg
+     (rerun3-i2-batch-preview.png) → 名前を変更: batch/rename 200 renamed 1, sidecar_errors [];
+     disk R/ = movie.mp4, movie.srt, pic_movie.jpg. movie.mp4's page still lists `既定 movie.srt`
+     with its track showing (rerun3-i2-movie-keeps-track.png). PASS.
+  3. N/note.md page, title button クリックして名前を変更 (input `note.md`) → `x.srt` → Enter:
+     PUT rename 400 `subtitle_extension_reserved`; toast
+     `.srt と .vtt の名前は字幕のアップロードでだけ使えます。`; title back to note.md, disk
+     unchanged (rerun3-i3-title-refused.png). PASS.
+  4. Paste. F/f1.mp4 (f1.srt) カット → paste in E where E/f1.srt differs: batch/move 200 moved 0,
+     one error `subtitle_name_taken`; only toast `1 件は字幕のため移動しませんでした`
+     (rerun3-i4-paste-subtitle-only.png). F2/g1.mp4 (g1.srt) + F2/dup.png selected, カット →
+     paste in E (E/g1.srt differs, E/dup.png exists): moved 0, errors `File already exists at
+     target` and `subtitle_name_taken`; two toasts, `1 件を貼り付けられませんでした` and
+     `1 件は字幕のため移動しませんでした` (rerun3-i4-paste-subtitle-and-other.png). Disk unchanged in
+     F, F2 and E. PASS.
+  5. Drop. D/d1.mp4 + d1.srt, D/d2.mp4 + d2.srt; d1.srt made immutable on the host
+     (`chflags uchg`, which makes a rename inside the container fail with EPERM, checked first on
+     a probe file). Selection mode, both cards selected, dragged onto DD in the folder tree:
+     batch/move 200 moved 2, sidecar_errors [d1.srt]; toast `字幕の一部を移せませんでした。d1.srt`
+     (rerun3-i5-after-drop.png). Disk: DD = d1.mp4, d1.srt, d2.mp4, d2.srt; D = d1.srt (the
+     move fell back to copy, then could not remove the source, so d1.srt exists in both
+     folders). d1.mp4's page in DD lists `既定 d1.srt`. PASS for the notice; the leftover
+     D/d1.srt is recorded as seen, not judged.
+
+  Narrow re-run at 71c6aa935 for fix 301bc2fa3 (coarse-pointer subtitle row 52px); 71c6aa935
   only records the knowledge submodule pointer. Fresh `scripts/dev/r5_stack.py clone --port 3101`
   + `up` (frontend image rebuilt; its CSS chunk contains `pointer-coarse:py-1`) on
   http://video-share-subtitles.localhost:3101; the main video_share stack was not touched. Scratch
@@ -217,7 +264,7 @@ pending: |
   - The iOS app and other household devices, the real home LAN (agent_cannot_verify).
   - The caption-track fix in the native-shell player (ShellVideoPlayer / useShellCaptions, used only
     inside the iOS app) — only the browser VideoPlayer was exercised (agent_cannot_verify, iOS app).
-  - Not exercised: paste (ClipboardProvider) with a subtitle refusal, batch rename refusal,
-    the folder-tree inline rename entry point, quick note with a .srt name,
-    pasting a subtitle into the knowledge editor, sidecar carry failure (needs a disk error),
-    a 404 stale-list on replace/delete, and the 30-day auto-purge.
+  - Not exercised: batch rename refusal, the folder-tree inline rename entry point, quick note
+    with a .srt name, pasting a subtitle into the knowledge editor, a sidecar carry failure on a
+    real disk error (only an immutable-flag permission error on a drop was produced), a 404
+    stale-list on replace/delete, and the 30-day auto-purge.
