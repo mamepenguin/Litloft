@@ -139,7 +139,7 @@ export function TrashToolbar({
                 ref={typeFilterMenuRef}
                 role="menu"
                 aria-label={t("fileType")}
-                className={`absolute z-30 min-w-[140px] rounded-xl border border-bg-border bg-bg-primary py-1 shadow-lg animate-fade-in-scale ${
+                className={`absolute z-30 min-w-[140px] rounded-xl border border-bg-border bg-bg-primary py-1 shadow-lg ${
                   ANCHORED_VERTICAL[1][openUp ? "up" : "down"]
                 } ${side === "left" ? "left-0" : "right-0"} ${
                   ANCHORED_ORIGIN[`${openUp ? "up" : "down"}-${side}`]

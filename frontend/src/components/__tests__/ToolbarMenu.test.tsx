@@ -149,7 +149,7 @@ describe("ToolbarMenu", () => {
     expect(value).not.toHaveClass("truncate");
   });
 
-  it("keeps the popover's recipe, which is what keeps it on screen", () => {
+  it("SPEC-CORE-183 I9 keeps the popover's recipe, which is what keeps it on screen, with no entrance", () => {
     // A literal, not the string `useMenuSurface` builds. Comparing the
     // element's class to the recipe it is set from compares the recipe to
     // itself.
@@ -164,7 +164,7 @@ describe("ToolbarMenu", () => {
     ).toEqual([
       "fixed", "inset-x-2", "bottom-[calc(1rem+var(--resting-strip,0px))]", "z-40", "max-h-[60vh]",
       "overflow-y-auto", "rounded-2xl", "border", "border-bg-border",
-      "bg-bg-primary", "py-1", "shadow-lg", "animate-fade-in-scale",
+      "bg-bg-primary", "py-1", "shadow-lg",
       "sm:absolute", "sm:inset-x-auto", "sm:max-h-[70vh]",
       "sm:min-w-[200px]",
       "sm:bottom-auto", "sm:top-full", "sm:mt-1",

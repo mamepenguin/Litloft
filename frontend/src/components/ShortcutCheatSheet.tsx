@@ -66,7 +66,7 @@ export function ShortcutCheatSheet({ open, stack, onClose }: ShortcutCheatSheetP
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center">
       <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/40 animate-backdrop-in"
         onClick={onClose}
         aria-hidden
       />

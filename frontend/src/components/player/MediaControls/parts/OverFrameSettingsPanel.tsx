@@ -67,7 +67,7 @@ export function OverFrameSettingsPanel({
         label={closeLabel}
         // The frame, not the viewport: a viewport-sized scrim would leave
         // the frame while it fakes fullscreen on Apple mobile.
-        className={`absolute inset-0 ${isPopover ? "" : "bg-black/40"}`}
+        className={`absolute inset-0 ${isPopover ? "" : "bg-black/40 animate-backdrop-in"}`}
       >
         <div
           data-testid={testId}

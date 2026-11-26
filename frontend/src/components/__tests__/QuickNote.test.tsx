@@ -149,26 +149,81 @@ describe("QuickNote shortcut", () => {
   });
 });
 
-describe("SPEC-CORE-178 I1 the quick note opens without an entrance animation", () => {
-  const entranceClasses = () =>
-    Array.from(document.querySelectorAll<HTMLElement>("[class]")).filter((el) =>
-      (el.getAttribute("class") ?? "")
-        .split(/\s+/)
-        .some((name) => name.startsWith("animate-") && name !== "animate-spin"),
+describe("SPEC-CORE-178 I1 SPEC-CORE-181 I1 I2 I3 the quick note opens with only its dim fading in", () => {
+  const animateClasses = (el: Element) =>
+    (el.getAttribute("class") ?? "")
+      .split(/\s+/)
+      .filter((name) => name.startsWith("animate-") && name !== "animate-spin");
+
+  const animatedElements = () =>
+    Array.from(document.querySelectorAll<HTMLElement>("[class]")).filter(
+      (el) => animateClasses(el).length > 0,
     );
 
-  it("SPEC-CORE-178 I1 draws the panel and its backdrop without a fade or scale, from N", async () => {
+  /** The one animated element: the dim, never the panel or anything inside it. */
+  const onlyTheDim = (panel: HTMLElement): HTMLElement => {
+    const animated = animatedElements();
+    expect(animated).toHaveLength(1);
+    const dim = animated[0];
+    expect(animateClasses(dim)).toEqual(["animate-backdrop-in"]);
+    expect(dim.classList.contains("bg-black/40")).toBe(true);
+    expect(
+      Array.from(dim.classList).filter((name) => name.startsWith("backdrop-blur")),
+    ).toEqual([]);
+    expect(dim.contains(panel)).toBe(false);
+    return dim;
+  };
+
+  it("SPEC-CORE-181 I1 I2 draws the panel at once over a fading /40 dim, from N", async () => {
     renderQuickNote();
     fireEvent.keyDown(document, { key: "n" });
-    expect(await screen.findByRole("dialog")).toBeInTheDocument();
-    expect(entranceClasses()).toEqual([]);
+    onlyTheDim(await screen.findByRole("dialog"));
   });
 
-  it("SPEC-CORE-178 I1 draws the panel and its backdrop without a fade or scale, from its button", async () => {
+  it("SPEC-CORE-181 I1 I2 draws the panel at once over a fading /40 dim, from its button", async () => {
     renderQuickNote();
     fireEvent.click(screen.getByRole("button", { name: "Quick note" }));
-    expect(await screen.findByRole("dialog")).toBeInTheDocument();
-    expect(entranceClasses()).toEqual([]);
+    onlyTheDim(await screen.findByRole("dialog"));
+  });
+
+  it("SPEC-CORE-181 I3 keeps the same dim through the discard confirmation, and removes it with the panel", async () => {
+    driveState.current = "photos";
+    renderQuickNote();
+    await openPanel();
+    const dim = onlyTheDim(screen.getByRole("dialog"));
+
+    typeBody("unsaved");
+    fireEvent.keyDown(document, { key: "Escape" });
+    fireEvent.click(await screen.findByRole("button", { name: "Discard" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(dim.isConnected).toBe(false);
+    expect(animatedElements()).toEqual([]);
+  });
+
+  it("SPEC-CORE-181 I3 does not replace the dim when the discard confirmation opens", async () => {
+    driveState.current = "photos";
+    renderQuickNote();
+    await openPanel();
+    const dim = onlyTheDim(screen.getByRole("dialog"));
+
+    typeBody("unsaved");
+    fireEvent.keyDown(document, { key: "Escape" });
+    await screen.findByRole("button", { name: "Discard" });
+
+    expect(dim.isConnected).toBe(true);
+    expect(animatedElements()).toEqual([dim]);
+  });
+
+  it("SPEC-CORE-181 I3 removes the dim in the render that closes an empty panel", async () => {
+    renderQuickNote();
+    await openPanel();
+    const dim = onlyTheDim(screen.getByRole("dialog"));
+
+    const dialog = screen.getByRole("dialog");
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    await waitFor(() => expect(dialog.isConnected).toBe(false));
+    expect(dim.isConnected).toBe(false);
   });
 });
 

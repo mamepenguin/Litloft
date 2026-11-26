@@ -485,13 +485,30 @@ describe("GlobalSearch", () => {
     expect(screen.queryByPlaceholderText("Search in main...")).toBeNull();
   });
 
-  describe("SPEC-CORE-178 I1 opens without an entrance animation", () => {
-    const entranceClasses = () =>
+  describe("SPEC-CORE-178 I1 SPEC-CORE-181 I1 I2 I3 opens with only its dim fading in", () => {
+    const animatedElements = () =>
       Array.from(document.querySelectorAll<HTMLElement>("[class]")).filter((el) =>
-        (el.getAttribute("class") ?? "")
-          .split(/\s+/)
-          .some((name) => name.startsWith("animate-") && name !== "animate-spin"),
+        animateClasses(el).length > 0,
       );
+
+    const animateClasses = (el: Element) =>
+      (el.getAttribute("class") ?? "")
+        .split(/\s+/)
+        .filter((name) => name.startsWith("animate-") && name !== "animate-spin");
+
+    /** The one animated element: the dim, never the panel or anything inside it. */
+    const onlyTheDim = (panel: HTMLElement): HTMLElement => {
+      const animated = animatedElements();
+      expect(animated).toHaveLength(1);
+      const dim = animated[0];
+      expect(animateClasses(dim)).toEqual(["animate-backdrop-in"]);
+      expect(dim.classList.contains("bg-black/40")).toBe(true);
+      expect(
+        Array.from(dim.classList).filter((name) => name.startsWith("backdrop-blur")),
+      ).toEqual([]);
+      expect(dim.contains(panel)).toBe(false);
+      return dim;
+    };
 
     const phone = (matches: boolean) => {
       const mql = window.matchMedia as unknown as ReturnType<typeof vi.fn>;
@@ -507,59 +524,79 @@ describe("GlobalSearch", () => {
       }));
     };
 
-    it("SPEC-CORE-178 I1 draws the desktop backdrop and panel without a fade or scale, from the header button", () => {
+    it("SPEC-CORE-181 I1 I2 draws the desktop panel at once over a fading /40 dim, from the header button", () => {
       renderWithShortcuts(<GlobalSearch />);
       fireEvent.click(screen.getByLabelText("Search"));
-      expect(screen.getByPlaceholderText(/Search/)).toBeInTheDocument();
-      expect(entranceClasses()).toEqual([]);
+      onlyTheDim(screen.getByPlaceholderText(/Search/));
     });
 
-    it("SPEC-CORE-178 I1 draws the palette without a fade or scale, from ctrl+k", () => {
+    it("SPEC-CORE-181 I1 I2 draws the palette at once over a fading /40 dim, with focus in its input, from ctrl+k", () => {
       renderWithShortcuts(<GlobalSearch />);
       fireEvent.keyDown(document, { key: "k", ctrlKey: true });
-      expect(screen.getByPlaceholderText(/Search/)).toBeInTheDocument();
-      expect(entranceClasses()).toEqual([]);
+      const input = screen.getByPlaceholderText(/Search/);
+      onlyTheDim(input);
+      act(() => {
+        vi.runAllTimers();
+      });
+      expect(input).toHaveFocus();
     });
 
-    it("SPEC-CORE-178 I1 draws the palette without a fade or scale, from ctrl+shift+f", () => {
+    it("SPEC-CORE-181 I1 I2 draws the palette at once over a fading /40 dim, from ctrl+shift+f", () => {
       renderWithShortcuts(<GlobalSearch />);
       fireEvent.keyDown(document, { key: "f", ctrlKey: true, shiftKey: true });
-      expect(screen.getByPlaceholderText(/Search/)).toBeInTheDocument();
-      expect(entranceClasses()).toEqual([]);
+      onlyTheDim(screen.getByPlaceholderText(/Search/));
     });
 
-    it("SPEC-CORE-178 I1 draws the phone sheet without a fade or scale", () => {
+    it("SPEC-CORE-178 I1 draws the phone sheet without any animation", () => {
       phone(true);
       try {
         renderWithShortcuts(<GlobalSearch />);
         fireEvent.click(screen.getByLabelText("Search"));
         expect(screen.getByLabelText("Close")).toBeInTheDocument();
-        expect(entranceClasses()).toEqual([]);
+        expect(animatedElements()).toEqual([]);
       } finally {
         phone(false);
       }
     });
 
-    it("SPEC-CORE-178 I1 draws the shortcut cheat sheet and its backdrop without a fade or scale", () => {
+    it("SPEC-CORE-181 I1 I2 draws the shortcut cheat sheet at once over a fading /40 dim, from the palette", () => {
       renderWithShortcuts(<GlobalSearch />);
       fireEvent.click(screen.getByLabelText("Search"));
       fireEvent.click(screen.getByRole("button", { name: /Keyboard Shortcuts/ }));
       act(() => {
         vi.runAllTimers();
       });
-      expect(
-        screen.getByRole("dialog", { name: "Keyboard Shortcuts" }),
-      ).toBeInTheDocument();
-      expect(entranceClasses()).toEqual([]);
+      onlyTheDim(screen.getByRole("dialog", { name: "Keyboard Shortcuts" }));
     });
 
-    it("SPEC-CORE-178 I1 draws the shortcut cheat sheet without a fade or scale, from ?", () => {
+    it("SPEC-CORE-181 I1 I2 draws the shortcut cheat sheet at once over a fading /40 dim, from ?", () => {
       renderWithShortcuts(<GlobalSearch />);
       fireEvent.keyDown(document, { key: "?" });
-      expect(
-        screen.getByRole("dialog", { name: "Keyboard Shortcuts" }),
-      ).toBeInTheDocument();
-      expect(entranceClasses()).toEqual([]);
+      onlyTheDim(screen.getByRole("dialog", { name: "Keyboard Shortcuts" }));
+    });
+
+    it("SPEC-CORE-181 I3 removes the palette's dim in the render that closes it, within its fade", () => {
+      renderWithShortcuts(<GlobalSearch />);
+      fireEvent.keyDown(document, { key: "k", ctrlKey: true });
+      const dim = onlyTheDim(screen.getByPlaceholderText(/Search/));
+
+      fireEvent.keyDown(document, { key: "Escape" });
+
+      expect(screen.queryByPlaceholderText(/Search/)).toBeNull();
+      expect(dim.isConnected).toBe(false);
+      expect(animatedElements()).toEqual([]);
+    });
+
+    it("SPEC-CORE-181 I3 removes the cheat sheet's dim in the render that closes it", () => {
+      renderWithShortcuts(<GlobalSearch />);
+      fireEvent.keyDown(document, { key: "?" });
+      const dim = onlyTheDim(screen.getByRole("dialog", { name: "Keyboard Shortcuts" }));
+
+      fireEvent.keyDown(document, { key: "Escape" });
+
+      expect(screen.queryByRole("dialog", { name: "Keyboard Shortcuts" })).toBeNull();
+      expect(dim.isConnected).toBe(false);
+      expect(animatedElements()).toEqual([]);
     });
   });
 
@@ -1367,7 +1404,7 @@ describe("GlobalSearch", () => {
         // The backdrop rather than Escape: this render has no
         // `ShortcutsProvider` around it, and the point is the unmount, not
         // which gesture caused it.
-        const backdrop = document.querySelector(".bg-black\\/50");
+        const backdrop = document.querySelector('[class*="bg-black/"]');
         expect(backdrop).not.toBeNull();
         fireEvent.click(backdrop!);
         await waitFor(() =>

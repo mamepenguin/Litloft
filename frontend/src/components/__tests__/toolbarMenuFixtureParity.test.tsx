@@ -95,7 +95,7 @@ describe("the toolbar-menu layout fixture's class lists", () => {
   });
 
   for (const corner of CORNERS) {
-    it(`declares the menu's ${corner.direction} / ${corner.side} class list`, () => {
+    it(`SPEC-CORE-183 I9 declares the menu's ${corner.direction} / ${corner.side} class list`, () => {
       openAt({ up: corner.up, align: corner.align });
       expectComposedOf(screen.getByRole("menu").className, [
         str("surfaceBase"),

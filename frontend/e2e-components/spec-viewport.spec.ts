@@ -103,6 +103,8 @@ const AT_THE_PHONE_WIDTH = [
   "peak-jump.spec.ts",
   "watched-range-cards.spec.ts",
   "context-menu-edge.spec.ts",
+  "backdrop-motion.spec.ts",
+  "toast-motion.spec.ts",
 ] as const;
 
 const AT_THE_DESKTOP_WIDTH = [

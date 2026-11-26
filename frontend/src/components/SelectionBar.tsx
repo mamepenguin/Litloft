@@ -417,7 +417,7 @@ export function SelectionBar({
             which is what put this menu inside the clipping card. */}
         <div
           role="menu"
-          className="absolute bottom-full right-3 z-30 mb-2 min-w-[200px] rounded-2xl border border-bg-border bg-bg-primary py-1 shadow-lg animate-fade-in-scale sm:hidden"
+          className="absolute bottom-full right-3 z-30 mb-2 min-w-[200px] rounded-2xl border border-bg-border bg-bg-primary py-1 shadow-lg sm:hidden"
         >
           {inOverflow.map((action) => (
             <ActionMenuItem

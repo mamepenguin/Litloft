@@ -7,7 +7,8 @@ import { useEffect, useRef, type ReactElement } from "react";
  * behind it is not part of the interaction; transparent above it, where
  * the popup is a small panel anchored to its trigger.
  */
-export const MENU_SCRIM = "fixed inset-0 z-30 bg-black/30 sm:bg-transparent";
+export const MENU_SCRIM =
+  "fixed inset-0 z-30 bg-black/30 sm:bg-transparent animate-backdrop-in";
 
 export interface DismissScrimProps {
   onDismiss: () => void;
