@@ -305,7 +305,7 @@ export default function SubtitlesSection({
             return (
               <li
                 key={row.filename ?? String(row.index)}
-                className={`group/row flex items-center gap-2 rounded-xl px-2.5 py-2 transition-colors hover:bg-bg-elevated ${ROW_FURNITURE_PADDING}`}
+                className={`group/row flex items-center gap-2 rounded-xl px-2.5 py-2 pointer-coarse:py-1 transition-colors hover:bg-bg-elevated ${ROW_FURNITURE_PADDING}`}
               >
                 <div className="min-w-0 flex-1">
                   <div className="text-sm text-text-primary">{label}</div>

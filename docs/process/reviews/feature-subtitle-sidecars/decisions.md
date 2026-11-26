@@ -1,6 +1,9 @@
 # Decisions
 
 decision:
+design_resolutions:
+- D-11 fix: coarse-pointer rows drop to 4px above and below (52px), measured in e2e-components/subtitles-section-touch.spec.ts.
+- D-1, D-2, D-3, D-4, D-5, D-6, D-7, D-8, D-9, D-10, D-12, D-13, D-14, D-15 accept (human, 2026-11-27, "D-11 だけ直す"): existing dialog and tab chrome (D-3 to D-7, D-10, D-13), the alert icon shared with D7 (D-8), the spec's order, translated labels and drive-relative names (D-1, D-2, D-9), the error under the list as the spec states (D-12), and states the screenshots did not cover (D-14, D-15).
 ran_in_app: yes
 at: 0ede039b559bf46928b0ffba22bd87aff7814e56
 by: agent

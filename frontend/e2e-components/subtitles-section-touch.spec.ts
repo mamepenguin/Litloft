@@ -42,3 +42,18 @@ test("two rows fit 375px without sideways scroll and their buttons reach 44px", 
     expect(box.height).toBeGreaterThanOrEqual(TOUCH_TARGET);
   }
 });
+
+test("a row on a coarse pointer is the 44px controls plus 4px above and below", async ({
+  page,
+}) => {
+  const heights = await page
+    .getByTestId("subtitles-host")
+    .locator("li")
+    .evaluateAll((elements) =>
+      elements.map((element) => element.getBoundingClientRect().height),
+    );
+  expect(heights).toHaveLength(2);
+  for (const height of heights) {
+    expect(height).toBeLessThanOrEqual(TOUCH_TARGET + 8);
+  }
+});
