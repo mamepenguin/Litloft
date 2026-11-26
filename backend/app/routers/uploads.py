@@ -30,10 +30,12 @@ def _validate_session_drive(upload_id: str, drive_name: str) -> None:
 def init_upload(
     drive_name: str,
     body: UploadInitRequest,
+    db: Annotated[Session, Depends(get_db)],
     unlocked_groups: Annotated[list[str], Depends(get_unlocked_groups)],
 ):
     check_drive_access(drive_name, unlocked_groups)
     session = upload_service.init_upload(
+        db=db,
         drive=drive_name,
         filename=body.filename,
         file_size=body.file_size,

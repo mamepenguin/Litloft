@@ -33,6 +33,17 @@ class SubtitleInfo(BaseModel):
     language: str
     format: str
     label: str
+    filename: str
+    shared_with: int
+    version: str
+
+
+class SubtitleListResponse(BaseModel):
+    subtitles: list[SubtitleInfo]
+
+
+class SubtitleReplaceResponse(SubtitleListResponse):
+    sidecar_errors: list[str] = []
 
 
 class FileResponse(_UtcDateTimeMixin, BaseModel):
@@ -71,6 +82,10 @@ class FileResponse(_UtcDateTimeMixin, BaseModel):
     match_source: str | None = None
 
     model_config = {"from_attributes": True}
+
+
+class FileOperationResponse(FileResponse):
+    sidecar_errors: list[str] = []
 
 
 class FileDetailResponse(FileResponse):
@@ -525,6 +540,7 @@ class BatchCopyRequest(BaseModel):
 class BatchCopyResponse(BaseModel):
     copied: int
     errors: list[dict]
+    sidecar_errors: list[str] = []
 
 
 class BatchRenameItem(BaseModel):
@@ -536,6 +552,7 @@ class BatchRenameItem(BaseModel):
 class BatchRenameResponse(BaseModel):
     renamed: int
     results: list[BatchRenameItem]
+    sidecar_errors: list[str] = []
 
 
 class BatchRenameRequest(BaseModel):

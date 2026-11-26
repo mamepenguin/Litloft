@@ -57,6 +57,7 @@ from app.schemas import (
 )
 from app.services import fileops
 from app.services import inbox as inbox_service
+from app.services.subtitle import is_subtitle_file
 from app.services.mtime import read_modified_at
 from app.services.tagops import cleanup_orphan_tags, project_frontmatter_tags
 from app.services.origin import project_frontmatter_origin
@@ -1621,6 +1622,12 @@ async def create_text_file(
         "NFC", str(resolved.relative_to(drive_root))
     )
     resolved = await asyncio.to_thread(_on_disk_new_target, resolved, drive_root)
+
+    if is_subtitle_file(normalized_rel):
+        raise HTTPException(
+            status_code=400,
+            detail={"code": "subtitle_extension_reserved", "names": []},
+        )
 
     if body.conflict_mode == "error":
         path_row = (

@@ -447,6 +447,7 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
         for row in existing.values()
         if row.deleted_at is None and is_subtitle_file(row.filename)
     ]
+    dropped_subtitle_ids = [row.id for row in stale_subtitles]
     if stale_subtitles:
         for row in stale_subtitles:
             del existing[row.file_path]
@@ -899,6 +900,12 @@ def _scan_and_register(db: Session, drive_name: str) -> dict[str, int]:
         ).delete(synchronize_session="fetch")
 
     db.commit()
+    if dropped_subtitle_ids:
+        event_hooks.emit_sync(
+            "files.purged",
+            {"file_ids": dropped_subtitle_ids},
+            drives=[drive_name],
+        )
     total = db.query(File).filter(File.drive == drive_name, active_file_filter()).count()
     if updated:
         logger.info("Updated %d file records (drive: %s)", updated, drive_name)

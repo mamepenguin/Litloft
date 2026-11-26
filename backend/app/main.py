@@ -25,6 +25,10 @@ from app.services import inbox as inbox_service
 from app.services.diskpath import resolve_on_disk
 from app.services.fileops import physical_delete
 from app.services.scanner import scan_all_drives
+from app.services.subtitle import (
+    delete_purged_sidecars_after_commit,
+    sidecars_of_purged_row,
+)
 from app.services import addon_registry, drive_seed, event_hooks
 from app.services.thumbnail_migration import migrate_thumbnail_slots
 from app.services.upload import cleanup_abandoned_uploads
@@ -93,8 +97,10 @@ def _run_purge_batch(
             rows = [(f, f.id, f.drive, f.folder_path) for f in batch]
             for file, file_id, drive, folder_path in rows:
                 try:
+                    sidecars = sidecars_of_purged_row(db, file)
                     physical_delete(db, file)
                     db.commit()
+                    delete_purged_sidecars_after_commit(db, sidecars)
                 except ObjectDeletedError:
                     # Someone else purged it between the query and here — a
                     # hard delete from the Trash view. Kept out of

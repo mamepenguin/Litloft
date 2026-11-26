@@ -27,7 +27,9 @@ from app.services.scanner import _MD_READ_MAX_BYTES
 from app.schemas import SubtitleUploadResponse
 from app.services.tagops import cleanup_orphan_tags, project_frontmatter_tags
 from app.services.origin import project_frontmatter_origin
+from app.services import event_hooks
 from app.services.fileops import (
+    _ensure_empty_folder_tracked,
     _filename_to_title,
     untrack_empty_folder,
     resolve_drive_path,
@@ -35,7 +37,12 @@ from app.services.fileops import (
     validate_path_safe,
     validate_within_drive,
 )
-from app.services.subtitle import is_subtitle_file
+from app.services.subtitle import (
+    SIDECAR_MAX_BYTES,
+    arrival_owner_changes,
+    is_subtitle_file,
+    serves_subtitles_name,
+)
 from app.services import inbox as inbox_service
 from app.services.thumbnail import (
     get_thumbnail_generator,
@@ -49,6 +56,10 @@ from app.services.ws import broadcast_from_thread
 logger = logging.getLogger(__name__)
 
 _upload_sessions: dict[str, "UploadSession"] = {}
+
+
+class _NotUtf8(Exception):
+    """Raised inside the assembly block so a non-UTF-8 subtitle never lands."""
 
 
 class _SizeMismatch(Exception):
@@ -135,6 +146,8 @@ def init_upload(
     relative_path: str = "",
     require_folder: bool = False,
     inbox_source: str | None = None,
+    *,
+    db: Session | None = None,
 ) -> UploadSession:
     drive_path = resolve_drive_path(drive)
     filename = validate_filename(filename)
@@ -146,13 +159,31 @@ def init_upload(
     folder_path = _merge_relative_into_folder(folder_path, relative_path)
 
     _validate_upload_sizes(file_size, chunk_size)
+    subtitle = is_subtitle_file(filename)
+    if subtitle and file_size > SIDECAR_MAX_BYTES:
+        raise HTTPException(
+            status_code=413, detail={"code": "subtitle_too_large", "names": []}
+        )
 
     target_rel = f"{folder_path}/{filename}" if folder_path else filename
     target_full = new_or_409(drive_path, target_rel)
     validate_within_drive(target_full, drive_path)
 
     if name_taken(target_full):
+        if subtitle:
+            raise HTTPException(
+                status_code=409,
+                detail={"code": "subtitle_name_taken", "names": [target_rel]},
+            )
         raise HTTPException(status_code=409, detail="File already exists")
+
+    if db is not None and serves_subtitles_name(filename):
+        changed = arrival_owner_changes(db, drive, folder_path, filename)
+        if changed:
+            raise HTTPException(
+                status_code=409,
+                detail={"code": "subtitle_owner_change", "names": changed},
+            )
 
     _check_disk_capacity(drive_path, file_size)
 
@@ -201,16 +232,29 @@ def receive_chunk(upload_id: str, chunk_index: int, chunk_data: bytes) -> Upload
     return session
 
 
-def _finish_subtitle_upload(db: Session, drive: str, target_rel: str) -> SubtitleUploadResponse:
+def _finish_subtitle_upload(
+    db: Session, drive: str, folder_path: str, target_rel: str
+) -> SubtitleUploadResponse:
     """A subtitle is a sidecar the scanner never records, so the upload records
     none either, and drops a record left at its path.
     """
+    dropped = [
+        row.id
+        for row in db.query(File)
+        .filter(File.drive == drive, File.file_path == target_rel)
+        .all()
+    ]
     db.query(File).filter(File.drive == drive, File.file_path == target_rel).delete(
         synchronize_session=False
     )
     db.flush()
     cleanup_orphan_tags(db, drive)
+    _ensure_empty_folder_tracked(db, drive, folder_path)
     db.commit()
+    if dropped:
+        event_hooks.emit_sync(
+            "files.purged", {"file_ids": dropped}, drives=[drive]
+        )
     logger.info("Subtitle upload complete: %s/%s", drive, target_rel)
     broadcast_from_thread(
         "upload:complete",
@@ -266,6 +310,11 @@ def complete_upload(
             actual_size = assembling.stat().st_size
             if actual_size != session.file_size:
                 raise _SizeMismatch(actual_size)
+            if is_subtitle_file(session.filename):
+                try:
+                    assembling.read_bytes().decode("utf-8-sig")
+                except UnicodeDecodeError:
+                    raise _NotUtf8() from None
     except _SizeMismatch as mismatch:
         shutil.rmtree(session.temp_dir, ignore_errors=True)
         del _upload_sessions[upload_id]
@@ -276,12 +325,23 @@ def complete_upload(
                 f"got {mismatch.actual}"
             ),
         ) from None
+    except _NotUtf8:
+        shutil.rmtree(session.temp_dir, ignore_errors=True)
+        del _upload_sessions[upload_id]
+        raise HTTPException(
+            status_code=400, detail={"code": "subtitle_not_utf8", "names": []}
+        ) from None
 
     shutil.rmtree(session.temp_dir, ignore_errors=True)
     del _upload_sessions[upload_id]
 
     if is_subtitle_file(session.filename):
-        return _finish_subtitle_upload(db, session.drive, target_rel), False
+        return (
+            _finish_subtitle_upload(
+                db, session.drive, session.folder_path, target_rel
+            ),
+            False,
+        )
 
     file_type, mime_type = refine_classification_with_probe(
         target_full, *classify(session.filename)

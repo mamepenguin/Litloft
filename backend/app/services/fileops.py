@@ -27,7 +27,19 @@ from app.services.heic import cleanup_heic_cache
 from app.services.markdown_images import project_markdown_thumbnail
 from app.services import inbox as inbox_service
 from app.services.mtime import read_modified_at
-from app.services.subtitle import move_sidecar_subtitles
+from app.services import subtitle as subtitle_service
+from app.services.subtitle import (
+    FolderSidecars,
+    SidecarCarry,
+    delete_purged_sidecars_after_commit,
+    is_subtitle_file,
+    move_sidecar_subtitles,
+    owner_stem,
+    plan_sidecar_carry,
+    same_content,
+    sidecars_of_purged_row,
+    stem_of,
+)
 from app.services.thumbnail import (
     prune_empty_dirs,
     remove_thumbnail_quietly,
@@ -206,28 +218,91 @@ def _rename_thumbnail_owner(db: Session, owner: File, thumb_rel: str) -> None:
         logger.warning("Wrote %s but could not record who owns it", thumb_rel)
 
 
-def _resolve_copy_filename(target_dir: Path, original_filename: str) -> str:
+def _copy_candidate_is_free(
+    own,
+    old_stem: str,
+    candidate: str,
+    dest_index: FolderSidecars,
+    dest_stems: list[str],
+) -> bool:
+    new_stem = stem_of(candidate)
+    stems_after = dest_stems + [new_stem]
+    for sidecar in own:
+        name = new_stem + sidecar.name[len(old_stem):]
+        existing = dest_index.files.get(name)
+        if existing is not None and not same_content(sidecar.path, existing):
+            return False
+        if owner_stem(name, stems_after) != new_stem:
+            return False
+    for other in dest_index.all():
+        after = owner_stem(other.name, stems_after)
+        if after is not None and after != other.stem:
+            return False
+    return True
+
+
+def _resolve_copy_filename(
+    target_dir: Path,
+    original_filename: str,
+    sidecar_ok=None,
+) -> str:
     """Generate a unique filename for copy, adding _copy, _copy_2, etc. on collision."""
-    if not name_taken(target_dir / original_filename):
+
+    def usable(candidate: str) -> bool:
+        if name_taken(target_dir / candidate):
+            return False
+        return sidecar_ok is None or sidecar_ok(candidate)
+
+    if usable(original_filename):
         return original_filename
 
     stem = Path(original_filename).stem
     ext = Path(original_filename).suffix
 
     candidate = f"{stem}_copy{ext}"
-    if not name_taken(target_dir / candidate):
+    if usable(candidate):
         return candidate
 
     counter = 2
     while counter <= 1000:
         candidate = f"{stem}_copy_{counter}{ext}"
-        if not name_taken(target_dir / candidate):
+        if usable(candidate):
             return candidate
         counter += 1
     raise HTTPException(status_code=409, detail="Too many copies of this file exist")
 
 
-def copy_file(db: Session, file_id: str, target_drive: str | None, target_folder: str) -> File:
+def _copy_sidecar_carries(
+    own, old_stem: str, new_stem: str, target_dir: Path, dest_index: FolderSidecars
+) -> list[SidecarCarry]:
+    carries = []
+    for sidecar in own:
+        name = new_stem + sidecar.name[len(old_stem):]
+        target = target_dir / name
+        existing = dest_index.files.get(name)
+        if target == sidecar.path:
+            continue
+        if existing is not None and same_content(sidecar.path, existing):
+            continue
+        carries.append(
+            SidecarCarry(
+                source=sidecar.path,
+                target=target,
+                target_name=name,
+                mode="copy",
+                language=sidecar.language,
+            )
+        )
+    return carries
+
+
+def copy_file(
+    db: Session,
+    file_id: str,
+    target_drive: str | None,
+    target_folder: str,
+    sidecar_errors: list[str] | None = None,
+) -> File:
     source = db.query(File).filter(File.id == file_id).first()
     if not source:
         raise HTTPException(status_code=404, detail="File not found")
@@ -247,9 +322,29 @@ def copy_file(db: Session, file_id: str, target_drive: str | None, target_folder
     validate_within_drive(target_dir, dst_drive_path)
     target_dir.mkdir(parents=True, exist_ok=True)
 
-    new_filename = _resolve_copy_filename(target_dir, source.filename)
+    own = (
+        subtitle_service.own_sidecars(db, src_drive, source.folder_path, stem_of(source.filename))
+        if _serves_subtitles(source)
+        else []
+    )
+    old_stem = stem_of(source.filename)
+    dest_index = FolderSidecars.load(db, dst_drive, target_folder)
+    dest_stems = list(dest_index.stem_counts.elements())
+    if own:
+        new_filename = _resolve_copy_filename(
+            target_dir,
+            source.filename,
+            lambda candidate: _copy_candidate_is_free(
+                own, old_stem, candidate, dest_index, dest_stems
+            ),
+        )
+    else:
+        new_filename = _resolve_copy_filename(target_dir, source.filename)
     new_full = target_dir / new_filename
     validate_within_drive(new_full, dst_drive_path)
+    sidecar_carries = _copy_sidecar_carries(
+        own, old_stem, stem_of(new_filename), target_dir, dest_index
+    )
 
     new_id = generate_nanoid()
     new_rel = f"{target_folder}/{new_filename}" if target_folder else new_filename
@@ -372,6 +467,8 @@ def copy_file(db: Session, file_id: str, target_drive: str | None, target_folder
             _rename_thumbnail_owner(db, new_file, new_thumb_rel)
 
     db.refresh(new_file)
+    if sidecar_errors is not None and sidecar_carries:
+        sidecar_errors.extend(move_sidecar_subtitles(sidecar_carries))
     return new_file
 
 
@@ -379,22 +476,74 @@ def _serves_subtitles(file: File) -> bool:
     return file.file_type == "video" or file.mime_type == "application/vnd.litloft.loft+json"
 
 
-def _carry_sidecars(file: File, old_full: Path, new_full: Path) -> None:
-    """Best effort: a failure here never undoes the video's own change."""
+def _sidecar_carry_plan(
+    db: Session,
+    file: File,
+    old_full: Path,
+    new_full: Path,
+    dst_drive: str,
+    dst_folder: str,
+) -> list[SidecarCarry]:
+    """Plan a video's own sidecars onto its destination, or refuse before it moves."""
     if not _serves_subtitles(file):
-        return
-    try:
-        move_sidecar_subtitles(old_full, new_full)
-    except Exception:
-        logger.exception("sidecar subtitles: could not carry %s to %s", old_full, new_full)
+        return []
+    old_stem = stem_of(old_full.name)
+    new_stem = stem_of(new_full.name)
+    src_index = FolderSidecars.load(db, file.drive, file.folder_path)
+    own = src_index.own(old_stem)
+    if not own:
+        return []
+
+    same_folder = dst_drive == file.drive and dst_folder == file.folder_path
+    if same_folder:
+        dest_index = src_index
+        counts = src_index.stem_counts.copy()
+        counts[old_stem] -= 1
+        counts[new_stem] += 1
+        dest_stems = list(counts.elements())
+    else:
+        dest_index = FolderSidecars.load(db, dst_drive, dst_folder)
+        dest_stems = list(dest_index.stem_counts.elements()) + [new_stem]
+
+    carries, conflicts = plan_sidecar_carry(
+        own,
+        old_stem,
+        new_stem,
+        new_full.parent,
+        dest_index,
+        dest_stems,
+        dst_folder,
+    )
+    if conflicts:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "code": conflicts[0][0],
+                "names": [name for _code, name in conflicts],
+            },
+        )
+    return carries
 
 
-def rename_file(db: Session, file_id: str, new_filename: str) -> File:
+def _carry_sidecars(carries: list[SidecarCarry]) -> list[str]:
+    """Best effort: a failure here never undoes the video's own change."""
+    return move_sidecar_subtitles(carries)
+
+
+def rename_file(
+    db: Session, file_id: str, new_filename: str,
+    sidecar_errors: list[str] | None = None,
+) -> File:
     file = db.query(File).filter(File.id == file_id).first()
     if not file:
         raise HTTPException(status_code=404, detail="File not found")
 
     new_filename = validate_filename(new_filename)
+    if is_subtitle_file(new_filename):
+        raise HTTPException(
+            status_code=400,
+            detail={"code": "subtitle_extension_reserved", "names": []},
+        )
     drive_path = resolve_drive_path(file.drive)
 
     # Capture pre-rename filename BEFORE mutation so we can
@@ -411,6 +560,10 @@ def rename_file(db: Session, file_id: str, new_filename: str) -> File:
         raise HTTPException(status_code=409, detail="File already exists")
     if not old_full.exists():
         raise HTTPException(status_code=404, detail="File not found on disk")
+
+    carries = _sidecar_carry_plan(
+        db, file, old_full, new_full, file.drive, file.folder_path
+    )
 
     ghost_picture = resolve_db_path_conflict(db, new_rel, file.drive)
 
@@ -433,7 +586,9 @@ def rename_file(db: Session, file_id: str, new_filename: str) -> File:
         ) from exc
 
     remove_thumbnail_quietly(ghost_picture)
-    _carry_sidecars(file, old_full, new_full)
+    failed = _carry_sidecars(carries)
+    if sidecar_errors is not None:
+        sidecar_errors.extend(failed)
 
     # Best-effort: a rewrite failure must NOT roll back the user-visible rename
     # (FS + DB row are already durable).
@@ -459,7 +614,10 @@ def rename_file(db: Session, file_id: str, new_filename: str) -> File:
     return file
 
 
-def move_file(db: Session, file_id: str, target_drive: str | None, target_folder: str) -> tuple[File, bool]:
+def move_file(
+    db: Session, file_id: str, target_drive: str | None, target_folder: str,
+    sidecar_errors: list[str] | None = None,
+) -> tuple[File, bool]:
     # A pure move preserves ``file.filename``, so the wiki-link basename never
     # changes and no rewrite hook is needed here.
     file = db.query(File).filter(File.id == file_id).first()
@@ -482,6 +640,10 @@ def move_file(db: Session, file_id: str, target_drive: str | None, target_folder
         raise HTTPException(status_code=409, detail="File already exists at target")
     if not old_full.exists():
         raise HTTPException(status_code=404, detail="File not found on disk")
+
+    carries = _sidecar_carry_plan(
+        db, file, old_full, new_full, dst_drive, target_folder
+    )
 
     ghost_picture = resolve_db_path_conflict(db, new_rel, dst_drive)
 
@@ -527,7 +689,9 @@ def move_file(db: Session, file_id: str, target_drive: str | None, target_folder
         ) from exc
 
     remove_thumbnail_quietly(ghost_picture)
-    _carry_sidecars(file, old_full, new_full)
+    failed = _carry_sidecars(carries)
+    if sidecar_errors is not None:
+        sidecar_errors.extend(failed)
 
     db.refresh(file)
     return file, inbox_changed
@@ -673,17 +837,18 @@ def physical_delete(db: Session, file: File) -> None:
     drive_path = config.get_drive_path(file.drive)
     full_path = existing_or_409(drive_path, file.file_path)
 
-    if full_path.exists():
-        full_path.unlink()
+    # A leftover subtitle row never owns the bytes at its path: the sidecar
+    # belongs to the video beside it, and purging the row must not delete it.
+    if not is_subtitle_file(file.filename):
+        if full_path.exists():
+            full_path.unlink()
+        cleanup_heic_cache(str(full_path.resolve()), config.CONVERTED_DIR)
 
     if file.thumbnail_path:
         thumb = config.THUMBNAILS_DIR / file.thumbnail_path
         if thumb.exists():
             thumb.unlink()
             prune_empty_dirs(thumb.parent, config.THUMBNAILS_DIR)
-
-    cleanup_heic_cache(str(full_path.resolve()), config.CONVERTED_DIR)
-
 
     drive = file.drive
     folder_path = file.folder_path
@@ -744,8 +909,10 @@ def purge_file(db: Session, file_id: str) -> None:
         raise HTTPException(status_code=404, detail="File not found in trash")
 
     resolve_drive_path(file.drive)
+    sidecars = sidecars_of_purged_row(db, file)
     physical_delete(db, file)
     db.commit()
+    delete_purged_sidecars_after_commit(db, sidecars)
 
 
 def purge_all_trash(db: Session, drive: str) -> list[str]:
@@ -757,10 +924,14 @@ def purge_all_trash(db: Session, drive: str) -> list[str]:
         .all()
     )
     purged_ids = []
+    sidecars = []
     for file in trashed:
         purged_ids.append(file.id)
+        sidecars.append(sidecars_of_purged_row(db, file))
         physical_delete(db, file)
     db.commit()
+    for plan in sidecars:
+        delete_purged_sidecars_after_commit(db, plan)
     return purged_ids
 
 
@@ -987,7 +1158,9 @@ def _fold_name(name: str) -> str:
     return unicodedata.normalize("NFC", name).lower()
 
 
-def _validate_no_duplicates(rename_plan: list[tuple[File, str]], drive_path: Path) -> None:
+def _validate_no_duplicates(
+    db: Session, rename_plan: list[tuple[File, str]], drive_path: Path
+) -> list[SidecarCarry]:
     new_names = [name for _, name in rename_plan]
     seen: set[str] = set()
     for name in new_names:
@@ -1001,19 +1174,32 @@ def _validate_no_duplicates(rename_plan: list[tuple[File, str]], drive_path: Pat
     # Replays the renames in the order batch_rename runs them, so a name freed
     # by an earlier rename may be taken by a later one, and nothing is ever
     # renamed onto a file that is still there.
-    held_by_folder: dict[str, set[str]] = {}
+    sims: dict[str, FolderSidecars] = {}
+    folders: dict[str, Path] = {}
+    carries: list[SidecarCarry] = []
+    conflicts: list[tuple[str, str]] = []
     for file, new_name in rename_plan:
         folder_key = unicodedata.normalize("NFC", file.folder_path or "")
-        if folder_key not in held_by_folder:
+        if folder_key not in sims:
             folder_dir = (
                 existing_or_409(drive_path, file.folder_path) if file.folder_path else drive_path
             )
-            held_by_folder[folder_key] = (
-                {_fold_name(p.name) for p in folder_dir.iterdir() if p.is_file()}
+            folders[folder_key] = folder_dir
+            entries = (
+                [
+                    (item, unicodedata.normalize("NFC", item.name))
+                    for item in folder_dir.iterdir()
+                    if item.is_file()
+                ]
                 if folder_dir.exists()
-                else set()
+                else []
             )
-        held = held_by_folder[folder_key]
+            sims[folder_key] = FolderSidecars(
+                subtitle_service.serving_stems(db, file.drive, file.folder_path),
+                entries,
+            )
+        sim = sims[folder_key]
+        held = sim.all_names
         old, new = _fold_name(file.filename), _fold_name(new_name)
         if new == old:
             continue
@@ -1024,6 +1210,38 @@ def _validate_no_duplicates(rename_plan: list[tuple[File, str]], drive_path: Pat
             )
         held.discard(old)
         held.add(new)
+
+        old_stem = stem_of(file.filename)
+        new_stem = stem_of(new_name)
+        own = sim.own(old_stem)
+        if not own:
+            continue
+        counts = sim.stem_counts.copy()
+        counts[old_stem] -= 1
+        counts[new_stem] += 1
+        step_carries, step_conflicts = plan_sidecar_carry(
+            own,
+            old_stem,
+            new_stem,
+            folders[folder_key],
+            sim,
+            list(counts.elements()),
+            file.folder_path,
+        )
+        conflicts.extend(step_conflicts)
+        if not step_conflicts:
+            sim.apply(own, step_carries, old_stem, new_stem)
+            carries.extend(step_carries)
+
+    if conflicts:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "code": "subtitle_conflict",
+                "names": [name for _code, name in conflicts],
+            },
+        )
+    return carries
 
 
 def _rollback_fs_renames(completed: list[tuple[Path, Path]]) -> None:
@@ -1038,6 +1256,7 @@ def batch_rename(
     db: Session,
     files: list[File],
     mode: str,
+    sidecar_errors: list[str] | None = None,
     **kwargs,
 ) -> list[dict]:
     if not files:
@@ -1057,9 +1276,14 @@ def batch_rename(
         index = kwargs.get("start_number", 1) + i
         new_name = _compute_new_filename(file, mode, index, **kwargs)
         new_name = validate_filename(new_name)
+        if is_subtitle_file(new_name):
+            raise HTTPException(
+                status_code=400,
+                detail={"code": "subtitle_extension_reserved", "names": []},
+            )
         rename_plan.append((file, new_name))
 
-    _validate_no_duplicates(rename_plan, drive_path)
+    carries = _validate_no_duplicates(db, rename_plan, drive_path)
 
     completed_fs: list[tuple[Path, Path]] = []
     results: list[dict] = []
@@ -1095,27 +1319,18 @@ def batch_rename(
         db.rollback()
         raise
 
-    _carry_batch_sidecars(db, rename_plan, completed_fs)
+    _carry_batch_sidecars(carries, sidecar_errors)
     return results
 
 
 def _carry_batch_sidecars(
-    db: Session,
-    rename_plan: list[tuple[File, str]],
-    completed_fs: list[tuple[Path, Path]],
+    carries: list[SidecarCarry], sidecar_errors: list[str] | None
 ) -> None:
-    """Carry sidecars in rename order, so a name freed by an earlier rename is
-    free again when a later one needs it.
-    """
-    by_new_path = {new: old for new, old in completed_fs}
-    for file, _ in rename_plan:
-        try:
-            new_full = new_or_409(resolve_drive_path(file.drive), file.file_path)
-            old_full = by_new_path.get(new_full)
-            if old_full is not None:
-                _carry_sidecars(file, old_full, new_full)
-        except Exception:
-            logger.exception("batch rename: could not carry sidecar subtitles of %s", file.id)
+    if not carries:
+        return
+    failed = move_sidecar_subtitles(carries)
+    if sidecar_errors is not None:
+        sidecar_errors.extend(failed)
 
 
 def _update_file_after_rename(
