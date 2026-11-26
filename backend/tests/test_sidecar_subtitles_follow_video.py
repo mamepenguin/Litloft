@@ -92,17 +92,20 @@ class TestRename:
 
         assert _names(open_dir / "a") == ["movie.ja.srt", "movie.mkv"]
 
-    def test_existing_destination_is_not_overwritten(self, two_drives):
+    def test_an_existing_destination_refuses_the_rename(self, two_drives):
         c, db, open_dir, _ = two_drives
         row = _seed(db, open_dir)
         _sidecars(open_dir, "a", "movie.ja.srt", "movie.en.srt", "film.ja.srt")
 
-        _rename(c, row, "film.mp4")
+        res = c.put(f"/api/files/{row.id}/rename", json={"new_filename": "film.mp4"})
 
+        assert res.status_code == 409
+        assert res.json()["detail"]["code"] == "subtitle_name_taken"
         a = open_dir / "a"
         assert (a / "film.ja.srt").read_text(encoding="utf-8") == "content of film.ja.srt"
         assert (a / "movie.ja.srt").read_text(encoding="utf-8") == "content of movie.ja.srt"
-        assert (a / "film.en.srt").exists()
+        assert not (a / "film.en.srt").exists()
+        assert not (a / "film.mp4").exists()
 
     def test_non_video_keeps_same_stem_srt(self, two_drives):
         c, db, open_dir, _ = two_drives
@@ -177,7 +180,7 @@ class TestMove:
             ("z/movie.ja.srt", "ja"), ("z/movie.srt", ""),
         ]
 
-    def test_existing_destination_is_not_overwritten(self, two_drives):
+    def test_an_existing_destination_refuses_the_move(self, two_drives):
         c, db, open_dir, _ = two_drives
         row = _seed(db, open_dir)
         _sidecars(open_dir, "a", "movie.srt")
@@ -185,10 +188,12 @@ class TestMove:
         (open_dir / "b" / "movie.srt").write_text("theirs", encoding="utf-8")
 
         res = c.put(f"/api/files/{row.id}/move", json={"target_folder_path": "b"})
-        assert res.status_code == 200, res.text
+        assert res.status_code == 409
+        assert res.json()["detail"]["code"] == "subtitle_name_taken"
 
         assert (open_dir / "b" / "movie.srt").read_text(encoding="utf-8") == "theirs"
         assert (open_dir / "a" / "movie.srt").exists()
+        assert not (open_dir / "b" / "movie.mp4").exists()
 
 
 class TestOrderAndNormalisation:
@@ -419,7 +424,10 @@ class TestScanRemovesSubtitleRows:
             _subtitle_row(db, "gone.srt"),
         ]
         sent = []
-        monkeypatch.setattr(event_hooks, "emit_sync", lambda event, data: sent.append((event, data)))
+        monkeypatch.setattr(
+            event_hooks, "emit_sync",
+            lambda event, data, drives=None: sent.append((event, data)),
+        )
 
         result = _scan_and_register(db, OPEN_DRIVE)
 

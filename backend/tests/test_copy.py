@@ -354,7 +354,7 @@ class TestBatchCopy:
         )
 
         assert res.status_code == 200
-        assert res.json() == {"copied": 2, "errors": []}
+        assert res.json() == {"copied": 2, "errors": [], "sidecar_errors": []}
         assert sorted(p.name for p in (drive_dir / "dest").iterdir()) == [
             "a.mp4",
             "b.mp4",
@@ -713,7 +713,7 @@ class TestBatchCopy:
             json={"ids": [source.id], "target_folder_path": "dest"},
         )
         assert res.status_code == 200
-        assert res.json() == {"copied": 1, "errors": []}
+        assert res.json() == {"copied": 1, "errors": [], "sidecar_errors": []}
         copied_row = (
             db.query(File)
             .filter(File.drive == TEST_DRIVE, File.file_path == "dest/a.mp4")
@@ -746,7 +746,7 @@ class TestBatchCopy:
             "/api/files/batch/copy",
             json={"ids": [source.id], "target_folder_path": "dest"},
         )
-        assert res.json() == {"copied": 1, "errors": []}
+        assert res.json() == {"copied": 1, "errors": [], "sidecar_errors": []}
         assert (drive_dir / "dest" / "a.mp4").exists()
         assert (
             sorted(p.name for p in (config.THUMBNAILS_DIR / TEST_DRIVE / "dest").glob("*"))
@@ -886,7 +886,7 @@ class TestBatchCopy:
         )
         monkeypatch.setattr(atomic_write.os, "replace", real_replace)
 
-        assert res.json() == {"copied": 1, "errors": []}
+        assert res.json() == {"copied": 1, "errors": [], "sidecar_errors": []}
         assert (drive_dir / "dest" / "a.mp4").exists()
         landed = (
             db.query(File)
@@ -899,7 +899,7 @@ class TestBatchCopy:
             "/api/files/batch/copy",
             json={"ids": [source.id], "target_folder_path": "dest"},
         )
-        assert again.json() == {"copied": 1, "errors": []}
+        assert again.json() == {"copied": 1, "errors": [], "sidecar_errors": []}
         assert (drive_dir / "dest" / "a_copy.mp4").exists()
 
     def test_a_publish_that_fails_leaves_the_picture_where_it_was(
@@ -950,7 +950,7 @@ class TestBatchCopy:
         )
         monkeypatch.setattr(atomic_write.os, "replace", real_replace)
 
-        assert res.json() == {"copied": 1, "errors": []}
+        assert res.json() == {"copied": 1, "errors": [], "sidecar_errors": []}
         db.expire_all()
         landed = (
             db.query(File)
@@ -995,7 +995,7 @@ class TestBatchCopy:
             event.remove(OrmSession, "before_commit", lose_the_second)
 
         assert commits["n"] >= 2, "the ownership commit was never reached"
-        assert res.json() == {"copied": 1, "errors": []}
+        assert res.json() == {"copied": 1, "errors": [], "sidecar_errors": []}
         assert (drive_dir / "dest" / "a.mp4").exists()
         assert (
             db.query(File)
