@@ -101,6 +101,46 @@ describe("useShellCaptions", () => {
     expect(window.localStorage.getItem("video-share-captions")).toBe("false");
   });
 
+  it("keeps the chosen file when another track is added before it", async () => {
+    const { result, rerender } = renderHook(
+      ({ subtitles }) => useShellCaptions("v1", subtitles),
+      { initialProps: { subtitles: two } },
+    );
+    act(() => result.current.select(1));
+    await waitFor(() => expect(result.current.cues.map((cue) => cue.text)).toEqual(["en line"]));
+
+    const german: SubtitleInfo = {
+      index: 7,
+      language: "de",
+      format: "vtt",
+      label: "Deutsch",
+      filename: "Night.de.vtt",
+      shared_with: 0,
+      version: "33",
+    };
+    responses["/subs/v1/7?v=33"] = new Response(vtt("de line"));
+    rerender({ subtitles: [german, ...two] });
+
+    expect(result.current.selected).toBe(2);
+    expect(result.current.tracks[result.current.selected].url).toContain("/subs/v1/5");
+    await waitFor(() => expect(result.current.cues.map((cue) => cue.text)).toEqual(["en line"]));
+  });
+
+  it("shows the first remaining track when the chosen one is deleted", async () => {
+    const { result, rerender } = renderHook(
+      ({ subtitles }) => useShellCaptions("v1", subtitles),
+      { initialProps: { subtitles: two } },
+    );
+    act(() => result.current.select(1));
+    await waitFor(() => expect(result.current.cues.map((cue) => cue.text)).toEqual(["en line"]));
+
+    responses["/subs/v1/3?v=11"] = new Response(vtt("ja line"));
+    rerender({ subtitles: [two[0]] });
+
+    expect(result.current.selected).toBe(0);
+    await waitFor(() => expect(result.current.cues.map((cue) => cue.text)).toEqual(["ja line"]));
+  });
+
   it("turns off from the controls' toggle for this video only", async () => {
     const { result, rerender } = renderHook(({ id }) => useShellCaptions(id, two), {
       initialProps: { id: "v1" },

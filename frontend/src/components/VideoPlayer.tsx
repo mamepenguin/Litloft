@@ -26,6 +26,10 @@ import { useNativePlayerUiPreference } from "@/lib/nativePlayerUi";
 import MediaControls from "./player/MediaControls";
 import { FindOutlineLayer } from "./player/FindOutlineLayer";
 import { useFullscreen } from "./player/hooks/useFullscreen";
+import {
+  GENERATED_CAPTION_TRACK_KEY,
+  useCaptionTrackSelection,
+} from "./player/hooks/useCaptionTrackSelection";
 import { useReassertCaptions } from "./player/hooks/useReassertCaptions";
 import { useVideoShortcuts } from "./player/hooks/useVideoShortcuts";
 import { ShellVideoPlayer } from "./player/ShellVideoPlayer";
@@ -143,6 +147,7 @@ const BrowserVideoPlayer = forwardRef(function BrowserVideoPlayer(
   // would hand the playback clock a different key every time and defeat
   // its per-controller sharing.
   const [mc, setMc] = useState<MediaController | null>(null);
+  const captionTrackKey = useCaptionTrackSelection(videoElement, subtitles);
 
   const handleUseBrowserControls = useCallback(() => {
     setPseudoFullscreen(false);
@@ -238,19 +243,22 @@ const BrowserVideoPlayer = forwardRef(function BrowserVideoPlayer(
             setPlaying(!event.currentTarget.paused && !event.currentTarget.ended)
           }
         >
-          {subtitles.map((sub, i) => (
-            <track
-              key={sub.filename ?? String(sub.index)}
-              src={`${getSubtitleUrl(videoId, sub.index)}?v=${encodeURIComponent(sub.version ?? "")}`}
-              kind="subtitles"
-              srcLang={sub.language || "und"}
-              label={sub.label || t("subtitleDefault")}
-              default={i === 0}
-            />
-          ))}
+          {subtitles.map((sub) => {
+            const key = sub.filename ?? String(sub.index);
+            return (
+              <track
+                key={key}
+                src={`${getSubtitleUrl(videoId, sub.index)}?v=${encodeURIComponent(sub.version ?? "")}`}
+                kind="subtitles"
+                srcLang={sub.language || "und"}
+                label={sub.label || t("subtitleDefault")}
+                default={key === captionTrackKey}
+              />
+            );
+          })}
           {subtitles.length === 0 && (
             <track
-              key="intelligence-auto"
+              key={GENERATED_CAPTION_TRACK_KEY}
               src={`/api/addons/intelligence/files/${videoId}/subtitles.vtt`}
               kind="subtitles"
               srcLang="und"

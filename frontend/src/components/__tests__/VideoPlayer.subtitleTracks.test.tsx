@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { render } from "@testing-library/react";
+import { act, render } from "@testing-library/react";
 
 import type { SubtitleInfo } from "@/types";
 import { VideoPlayer } from "../VideoPlayer";
@@ -32,7 +32,47 @@ function trackByLabel(label: string): HTMLTrackElement {
   return track;
 }
 
+interface FakeTextTrack {
+  mode: string;
+}
+
+type FakeTextTrackList = EventTarget & {
+  length: number;
+  [index: number]: FakeTextTrack;
+};
+
+/**
+ * jsdom has no text tracks, so the player's modes have to be driven by hand.
+ * The list stays the same object across a rerender: the player listens to it.
+ */
+function fakeTextTrackList(modes: string[]): FakeTextTrackList {
+  const list = new EventTarget() as FakeTextTrackList;
+  list.length = 0;
+  for (const mode of modes) appendMode(list, mode);
+  return list;
+}
+
+function appendMode(list: FakeTextTrackList, mode: string): void {
+  list[list.length] = { mode };
+  list.length += 1;
+}
+
+function prependMode(list: FakeTextTrackList, mode: string): void {
+  for (let index = list.length; index > 0; index -= 1) {
+    list[index] = list[index - 1];
+  }
+  list[0] = { mode };
+  list.length += 1;
+}
+
+let textTracks: FakeTextTrackList | null = null;
+
 beforeEach(() => {
+  textTracks = null;
+  Object.defineProperty(HTMLMediaElement.prototype, "textTracks", {
+    configurable: true,
+    get: () => textTracks,
+  });
   window.matchMedia = vi.fn().mockImplementation((query: string) => ({
     matches: query.includes("pointer: fine"),
     media: query,
@@ -46,6 +86,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  delete (HTMLMediaElement.prototype as { textTracks?: unknown }).textTracks;
   vi.unstubAllGlobals();
 });
 
@@ -115,5 +156,41 @@ describe("SPEC-CORE-185 I12: the player's tracks follow the list", () => {
     expect(after).toBe(before);
     expect(after.getAttribute("src")).toContain("4444444444444444444");
     expect(after.getAttribute("src")).not.toContain(japanese.version);
+  });
+
+  it("shows the first remaining track when the track being shown is deleted", () => {
+    textTracks = fakeTextTrackList(["showing", "disabled"]);
+    const { rerender } = render(
+      <VideoPlayer videoId="v1" subtitles={[bare, japanese]} />,
+    );
+    textTracks[0].mode = "disabled";
+    textTracks[1].mode = "showing";
+    act(() => textTracks!.dispatchEvent(new Event("change")));
+
+    textTracks.length = 1;
+    rerender(<VideoPlayer videoId="v1" subtitles={[bare]} />);
+
+    expect(textTracks![0].mode).toBe("showing");
+  });
+
+  it("keeps only the track being shown showing when another is added before it", () => {
+    textTracks = fakeTextTrackList(["showing"]);
+    const { rerender } = render(
+      <VideoPlayer videoId="v1" subtitles={[japanese]} />,
+    );
+    act(() => textTracks!.dispatchEvent(new Event("change")));
+
+    prependMode(textTracks!, "disabled");
+    rerender(<VideoPlayer videoId="v1" subtitles={[dutch, japanese]} />);
+
+    expect(trackByLabel("Z").hasAttribute("default")).toBe(false);
+    expect(trackByLabel("B").hasAttribute("default")).toBe(true);
+    expect(textTracks[0].mode).toBe("disabled");
+    expect(textTracks[1].mode).toBe("showing");
+    expect(
+      Array.from({ length: textTracks.length }, (_, index) => textTracks![index]).filter(
+        (track) => track.mode === "showing",
+      ),
+    ).toHaveLength(1);
   });
 });
