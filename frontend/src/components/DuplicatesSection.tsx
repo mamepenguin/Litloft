@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
   ChevronDown,
@@ -149,7 +149,10 @@ function DuplicateGroupCard({
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  const filesToDelete = group.files.filter((f) => f.id !== keptFileId);
+  const filesToDelete = useMemo(
+    () => group.files.filter((f) => f.id !== keptFileId),
+    [group.files, keptFileId],
+  );
   const wastedSize = filesToDelete.reduce((sum, f) => sum + f.file_size, 0);
 
   const handleDelete = useCallback(async () => {

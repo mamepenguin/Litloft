@@ -182,11 +182,12 @@ export function useFolderFiles({
   // by React, which would resolve relative amounts again mid-run and change
   // the listing on every render.
   const runKey = `${searchQuery?.trim() ?? ""}\u0000${typeFilter ?? ""}`;
-  const runNow = useRef<{ key: string; now: number } | null>(null);
-  if (runNow.current === null || runNow.current.key !== runKey) {
-    runNow.current = { key: runKey, now: Date.now() };
-  }
-  const modifiedNow = runNow.current.now;
+  const [runNow, setRunNow] = useState(() => ({ key: runKey, now: Date.now() }));
+  const clockInSync = runNow.key === runKey;
+  useEffect(() => {
+    setRunNow((held) => (held.key === runKey ? held : { key: runKey, now: Date.now() }));
+  }, [runKey]);
+  const modifiedNow = runNow.now;
   const modifiedNowRef = useRef(modifiedNow);
   modifiedNowRef.current = modifiedNow;
   const modified = useMemo(
@@ -297,6 +298,7 @@ export function useFolderFiles({
       setInResolution(null);
       return;
     }
+    if (!clockInSync) return;
     // An impossible stretch requests nothing but keeps what was resolved for
     // this key: only a key change, 再試行 or a reload resolves again.
     if (impossible) return;
@@ -345,7 +347,7 @@ export function useFolderFiles({
       }
     })();
     return () => ctrl.abort();
-  }, [inKey, inRetryToken, driveName, impossible]);
+  }, [inKey, inRetryToken, driveName, impossible, clockInSync]);
 
   const activeResolution =
     inResolution && inResolution.key === inKey ? inResolution : null;
@@ -481,7 +483,7 @@ export function useFolderFiles({
   } = useInfiniteScroll<FileItem>({
     fetchPage: trackFirstPage,
     limit: 30,
-    disabled: isWatchHistory || inNameBlocked,
+    disabled: isWatchHistory || inNameBlocked || !clockInSync,
     initial: hydration.initial,
     revalidateInitial: shouldRevalidateHydratedSnapshot,
   });
@@ -549,6 +551,7 @@ export function useFolderFiles({
   );
 
   useEffect(() => {
+    if (!clockInSync) return;
     if (!meaningEligible) {
       semanticRequestId.current += 1;
       setSemanticHits([]);
@@ -583,6 +586,7 @@ export function useFolderFiles({
     rangeImpossible,
     conditionsImpossible,
     runMeaningSearch,
+    clockInSync,
   ]);
 
   const retryPassages = useCallback(() => {
