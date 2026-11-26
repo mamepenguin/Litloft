@@ -1,0 +1,562 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-deep",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [
+    {
+      "id": "F1",
+      "origin": "reviewer",
+      "claim": "Batch rename plans sidecar carries for every renamed row without checking that the row serves subtitles, so a non-video row that shares a stem with a video carries the video's sidecars away.",
+      "impact": "A user batch-renames a selection that includes a poster image `movie.jpg` beside `movie.mp4` and `movie.srt`. The video's `movie.srt` is silently moved to `<new stem>.srt`, so `movie.mp4` loses its subtitle track and the image's new name now holds it. The request answers 200 with empty sidecar_errors.",
+      "evidence": "backend/app/services/fileops.py:1214-1234: `own = sim.own(old_stem)` runs for every file in rename_plan with no `_serves_subtitles(file)` guard. `_sidecar_carry_plan` (fileops.py:488) and `copy_file` (fileops.py:327) both have the guard. The removed `_carry_batch_sidecars` went through `_carry_sidecars`, which returned early for non-serving rows. In the walk-through, `counts[old_stem] -= 1` also takes the video's stem count to 0, so `plan_sidecar_carry` sees owners==1, chooses mode 'move', and finds the target owned by the new stem, so no conflict is raised.",
+      "repro": "not_reproduced (read only). Walk-through: rows movie.mp4 (video) and movie.jpg (image) in folder a, file a/movie.srt. PUT /api/files/batch/rename with ids=[jpg] and template 'photo_{n}'. The sim's stem_counts are {movie:1}, sim.own('movie') returns [movie.srt], dest_stems is ['photo_1'], and the carry moves movie.srt to photo_1.srt. No test covers it: test_non_video_keeps_same_stem_srt covers only the single rename and has no video beside the file.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "A",
+        "invariant_ref": "I1",
+        "reason": "The sidecar is carried with a row that does not own it under the longest-stem rule (I1), and the owner that did not move stops listing a sidecar it listed before (I3)."
+      },
+      "severity": "HIGH",
+      "proposed_fix": "In _validate_no_duplicates, skip the sidecar planning (continue after the held update) when `not _serves_subtitles(file)`. Add a batch-rename test with movie.jpg beside movie.mp4 and movie.srt."
+    },
+    {
+      "id": "F2",
+      "origin": "reviewer",
+      "claim": "The file page's title rename swallows every failure in a console.error, so a subtitle refusal (409 subtitle_name_taken / subtitle_owner_change, 400 subtitle_extension_reserved) from that entry point shows nothing.",
+      "impact": "Renaming a video from its own page to a name whose sidecar is taken does nothing visible. The title stays as it was, and the user gets no message or names.",
+      "evidence": "frontend/src/components/FileDetail/hooks/useFileDetailData.ts:185-187: `catch (err) { console.error(\"Failed to rename file:\", err); }`. There is no subtitleFailure call and nothing is rethrown to the caller. Spec 185.8 lists 'the file page's title rename' as a rename entry point.",
+      "repro": "not_reproduced. Read only: the catch path has no UI side effect.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "A",
+        "invariant_ref": "I11",
+        "reason": "I11 says every 185.8 refusal shows a translated message at each listed entry point, and the file page title rename is listed."
+      },
+      "severity": "MEDIUM",
+      "proposed_fix": "Map the caught error through subtitleFailure(err, te) and toast or rethrow it, so the title editor can show the message."
+    },
+    {
+      "id": "F3",
+      "origin": "reviewer",
+      "claim": "Drag-and-drop of several files ignores the batch move's sidecar_errors, so a failed carry is never shown at that entry point.",
+      "impact": "When a carry fails on disk during a multi-file drag-and-drop move, the user sees no 'some subtitles could not be moved' notice. A video can end up without its subtitles, and nothing names the files.",
+      "evidence": "frontend/src/hooks/useDragAndDrop.ts:214-221: the `ids.length > 1` branch reads only `answer.errors`. The single-file branch (209-213), SelectionBar and ClipboardProvider all read sidecar_errors.",
+      "repro": "not_reproduced. Read only: answer.sidecar_errors is never referenced in the batch branch.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "A",
+        "invariant_ref": "I16",
+        "reason": "I16 requires a failed carry to be named in the shown notice."
+      },
+      "severity": "LOW",
+      "proposed_fix": "After the skipped toast, add `const carried = answer.sidecar_errors ?? []; if (carried.length) toast.error(sidecarErrorMessage(ts, carried));`"
+    },
+    {
+      "id": "F4",
+      "origin": "reviewer",
+      "claim": "The knowledge submodule bump brings a CI change (actions/setup-node node-version 20 to 24, in two jobs) that no touch point or spec item names.",
+      "impact": "The addon's CI now runs on a different Node major. Users are not affected directly, but the change ships inside a subtitle feature without review of its own, and a pnpm/engine mismatch would show up as an unrelated CI failure.",
+      "evidence": "addons/knowledge/.github/workflows/ci.yml hunks at lines 144-147 and 240-243 (`node-version: 20` to `24`), included in gitlink 244d875b..7a94f8d7. The touch points name only Editor.tsx and messages/{ja,en}.json in the knowledge repository.",
+      "repro": "Diff inspection of the submodule range.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "Scope: an unplanned touch point in a submodule. It breaks no invariant."
+      },
+      "severity": "LOW",
+      "proposed_fix": "Either list it as a touch point with its reason, or land the Node bump in the knowledge repository as its own change and bump the gitlink separately."
+    },
+    {
+      "id": "F5",
+      "origin": "reviewer",
+      "claim": "The browser player's caption default and mode handling were rewritten through a new hook, useCaptionTrackSelection.ts, which the touch points do not name and which affects every video, with or without the Subtitles list.",
+      "impact": "Every video playback now has a new `default` selection (the chosen key instead of index 0) and an effect that rewrites TextTrack modes. A regression there would change caption behaviour on every video, outside the sidecar feature.",
+      "evidence": "frontend/src/components/player/hooks/useCaptionTrackSelection.ts (new file) and frontend/src/components/VideoPlayer.tsx (track `default={key === captionTrackKey}`). The touch points list only 'the player's track URLs and keys: VideoPlayer.tsx and the shell player's caption hook'.",
+      "repro": "Diff inspection.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "Scope: a new module that the touch-point list does not name. The spec's States section does describe the behaviour."
+      },
+      "severity": "INFO"
+    },
+    {
+      "id": "F6",
+      "origin": "reviewer",
+      "claim": "Several other product files the diff reaches are not in the touch-point list: backend/app/routers/uploads.py, frontend/src/components/UploadProgress.tsx, frontend/src/components/RefusalText.tsx (new), frontend/src/lib/apiError.ts, frontend/src/lib/subtitleErrors.ts (new), frontend/e2e-components/fixtures/app.tsx and subtitlesSection.tsx, frontend/e2e-components/spec-viewport.spec.ts, and mcp-server/src/tools/batch.ts (only 'MCP tool docs' is listed, but the tool description strings in code changed).",
+      "impact": "Readers of the touch-point list would not know that the upload router now opens a DB session for init, that the upload drawer's error rendering changed, or that the MCP tool descriptions shown to agents changed.",
+      "evidence": "See the diff for each file. backend/app/routers/uploads.py:33 adds a `db` dependency. UploadProgress.tsx renders errorCode via subtitleErrorMessage. mcp-server/src/tools/batch.ts changes the move_files and copy_files descriptions.",
+      "repro": "Set difference between the product file list and the touch points.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "Scope: unplanned touch points. Each is a reasonable consequence of the feature, and none breaks an invariant."
+      },
+      "severity": "INFO"
+    },
+    {
+      "id": "F7",
+      "origin": "reviewer",
+      "claim": "A paste whose only failures are subtitle refusals shows both the generic 'N could not be pasted' toast and the subtitle 'N stayed put' toast, counting the same files twice.",
+      "impact": "The user sees two error toasts for one refused file. This is confusing but not wrong.",
+      "evidence": "frontend/src/components/ClipboardProvider.tsx:169-177: pasteFailed counts all `result.errors`, then moveSkipped counts the subtitle subset again. Spec 185.8 says the subtitle notice sits beside the existing notice 'when other files failed for other reasons'.",
+      "repro": "not_reproduced. The test ClipboardProvider.subtitleMove only asserts that the subtitle message is contained.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "I11 is still satisfied. The behaviour only reads differently from the spec's wording."
+      },
+      "severity": "LOW",
+      "proposed_fix": "Count pasteFailed over the non-subtitle errors only."
+    },
+    {
+      "id": "F8",
+      "origin": "reviewer",
+      "claim": "copy_file runs the planned sidecar copies only when the caller passes a sidecar_errors list, so a caller that omits the argument silently copies no sidecars.",
+      "impact": "None today: both callers in backend/app pass a list. A future internal caller would quietly lose I4.",
+      "evidence": "backend/app/services/fileops.py (copy_file tail): `if sidecar_errors is not None and sidecar_carries: sidecar_errors.extend(move_sidecar_subtitles(sidecar_carries))`. rename_file and move_file run the carry unconditionally.",
+      "repro": "grep for copy_file callers: only routers/files.py:587 and :1701, and both pass a list.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "invariant_ref": null,
+        "reason": "Latent. No current path breaks I4."
+      },
+      "severity": "INFO",
+      "proposed_fix": "Run move_sidecar_subtitles unconditionally and extend the list only when it is given, as rename_file does."
+    }
+  ],
+  "specification_compliance": [
+    "The touch-point question is answered by F4, F5 and F6. Unplanned places: the knowledge CI workflow (Node bump), useCaptionTrackSelection.ts, routers/uploads.py, UploadProgress.tsx, RefusalText.tsx, apiError.ts, subtitleErrors.ts, the e2e fixture and viewport files, and the code strings in mcp-server/src/tools/batch.ts.",
+    "Listed touch points the diff does not reach: frontend/src/components/folder/FolderTreePane.tsx and backend/app/services/event_hooks.py. Both are reached indirectly: FolderTreePane through useDragAndDrop and useInlineRename, and event_hooks.emit_sync already accepts `drives=` (event_hooks.py:334-336).",
+    "No changed path matches process/protected-paths.conf (scripts/process-gates/**) or process/.",
+    "I1/I3 are broken for batch rename of non-serving rows (F1).",
+    "I11 is broken at the file page title rename (F2). I16 is broken at multi-file drag and drop (F3).",
+    "I2 at upload init: the only caller (routers/uploads.py:37) passes db, so the owner-change check runs.",
+    "I8: completeUpload and initUpload go through fetchUploadJSON, which now rethrows object-detail codes as ApiStatusError, so subtitle_not_utf8 and subtitle_too_large reach the drawer."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    {
+      "behavior": "Batch rename treats any renamed row, including images and documents, as an owner candidate and carries the same-stem video's sidecars with it.",
+      "frequency": 3,
+      "impact": 8,
+      "reason": "Batch-renaming a poster or thumbnail image that shares a stem with a video silently moves the video's subtitle to the image's new name."
+    },
+    {
+      "behavior": "The file page's title rename shows nothing when the backend refuses for a subtitle reason.",
+      "frequency": 2,
+      "impact": 5,
+      "reason": "A rename from the video page whose sidecar name is taken just doesn't happen, with no message."
+    },
+    {
+      "behavior": "A paste refused only for subtitle reasons shows two error toasts for the same files.",
+      "frequency": 1,
+      "impact": 2,
+      "reason": "Cut and paste onto a folder with a clashing subtitle shows both the generic 'could not paste' toast and the 'stayed because of a subtitle' toast."
+    },
+    {
+      "behavior": "_ensure_empty_folder_tracked after a subtitle upload tracks only the immediate folder, not intermediate parents created by a nested relative_path.",
+      "frequency": 1,
+      "impact": 3,
+      "reason": "Uploading a folder tree that contains only subtitles may leave intermediate folders out of their parent's listing until a scan; not verified against the folder listing code."
+    }
+  ],
+  "regression_risks": [
+    "useCaptionTrackSelection changes the default track and rewrites TextTrack modes for every video, not only videos with managed sidecars.",
+    "api.ts moves batchMove, batchCopy, batchRename, createTextFile, renameFile, moveFile and copyFile from fetchJSON to fetchJSONStatus. Errors are now ApiStatusError, an Error subclass with the same message, so message-regex callers should still work. Not checked caller by caller.",
+    "physical_delete now skips unlink and the HEIC cache cleanup for any filename with a subtitle extension. That is intended (I9), but it applies to every subtitle-extension row, whatever its file_type.",
+    "batch_rename's duplicate check now builds its held-name set from FolderSidecars.all_names (NFC plus lower) instead of _fold_name, which is equivalent in the code read."
+  ],
+  "test_coverage": [
+    "No test batch-renames a non-video row beside a same-stem video with a sidecar. F1 would survive the suite.",
+    "No test covers the file page title rename's handling of a subtitle refusal (F2).",
+    "No test covers sidecar_errors in the multi-file drag-and-drop path (F3). The useDragAndDrop subtitle tests appear to cover only skipped counts, if any exist.",
+    "The scanner and upload files.purged tests monkeypatch emit_sync with a fake that accepts drives. The real signature (event_hooks.py:334) accepts drives too, so the fake matches.",
+    "Backend tests cover the main refusal, carry, copy and purge paths, including the auto-purge and empty-trash shared-owner cases."
+  ],
+  "not_verified": [
+    "Nothing was executed: no backend or frontend tests and no mutation runs.",
+    "The full contents of the knowledge submodule range 244d875b..7a94f8d7 beyond the hunks shown, and whether it was merged in the knowledge repository first.",
+    "Whether the folder listing derives intermediate parent folders from EmptyFolder rows (relevant to the I13 nested-path case).",
+    "The batch purge router path and purge_missing_file were not read; I relied on the tests that exercise them.",
+    "Thread safety of emit_sync when called from _finish_subtitle_upload in a worker thread.",
+    "Whether the file page title editor component surfaces errors in some other way than through useFileDetailData.rename."
+  ],
+  "coverage": [
+    {
+      "path": "addons/knowledge/.github/workflows/ci.yml",
+      "read": "partial",
+      "reason": "Only the two changed hunks (node-version) in the supplied diff."
+    },
+    {
+      "path": "addons/knowledge/frontend/Editor.tsx",
+      "read": "partial",
+      "reason": "The changed hunk in the upload handler, from the diff."
+    },
+    {
+      "path": "addons/knowledge/frontend/messages/en.json",
+      "read": "partial",
+      "reason": "The changed hunk from the diff."
+    },
+    {
+      "path": "addons/knowledge/frontend/messages/ja.json",
+      "read": "partial",
+      "reason": "The changed hunk from the diff."
+    },
+    {
+      "path": "backend/app/main.py",
+      "read": "partial",
+      "reason": "The _run_purge_batch hunk from the diff."
+    },
+    {
+      "path": "backend/app/routers/drives.py",
+      "read": "partial",
+      "reason": "The create_text_file hunk from the diff."
+    },
+    {
+      "path": "backend/app/routers/files.py",
+      "read": "partial",
+      "reason": "All changed hunks from the diff, including the new subtitle endpoints, which appear whole. I grepped copy_file callers."
+    },
+    {
+      "path": "backend/app/routers/uploads.py",
+      "read": "partial",
+      "reason": "The init_upload hunk from the diff, plus a grep of its call into the service."
+    },
+    {
+      "path": "backend/app/schemas.py",
+      "read": "partial",
+      "reason": "The changed hunks from the diff."
+    },
+    {
+      "path": "backend/app/services/fileops.py",
+      "read": "partial",
+      "reason": "The changed hunks from the diff. I read lines 1160-1240 (_validate_no_duplicates) in full and 146-168 (_ensure_empty_folder_tracked)."
+    },
+    {
+      "path": "backend/app/services/scanner.py",
+      "read": "partial",
+      "reason": "The two changed hunks from the diff."
+    },
+    {
+      "path": "backend/app/services/subtitle.py",
+      "read": "partial",
+      "reason": "Nearly the whole new module appears in the diff, but the convert_srt_to_vtt tail is unchanged and was not read."
+    },
+    {
+      "path": "backend/app/services/upload.py",
+      "read": "partial",
+      "reason": "The changed hunks in init_upload, _finish_subtitle_upload and complete_upload, from the diff."
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/app.tsx",
+      "read": "partial",
+      "reason": "The two-line hunk from the diff."
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/subtitlesSection.tsx",
+      "read": "full",
+      "reason": "New file, shown whole in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/spec-viewport.spec.ts",
+      "read": "partial",
+      "reason": "The one-line hunk from the diff."
+    },
+    {
+      "path": "frontend/e2e-components/subtitles-section-touch.spec.ts",
+      "read": "full",
+      "reason": "New file, shown whole in the diff."
+    },
+    {
+      "path": "frontend/src/components/BatchRenameDialog.tsx",
+      "read": "partial",
+      "reason": "The changed hunks (imports, the submit callback) from the diff."
+    },
+    {
+      "path": "frontend/src/components/ClipboardProvider.tsx",
+      "read": "partial",
+      "reason": "The paste callback hunks from the diff, plus a grep of lines 140-150."
+    },
+    {
+      "path": "frontend/src/components/ConfirmDialog.tsx",
+      "read": "partial",
+      "reason": "The changed hunks from the diff."
+    },
+    {
+      "path": "frontend/src/components/FileActions.tsx",
+      "read": "partial",
+      "reason": "The changed hunks (handleRename, handleMove, RenameDialog props) from the diff."
+    },
+    {
+      "path": "frontend/src/components/FileContextMenu.tsx",
+      "read": "partial",
+      "reason": "The changed hunks from the diff."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/FileDetailContainer.tsx",
+      "read": "partial",
+      "reason": "The changed hunks from the diff."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/FileDetailPresenter.tsx",
+      "read": "partial",
+      "reason": "The changed hunks from the diff."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/ShellLayout.tsx",
+      "read": "partial",
+      "reason": "The changed hunks from the diff."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/SubtitlesSection.tsx",
+      "read": "full",
+      "reason": "New file, shown whole in the diff."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/hooks/useFileDetailData.ts",
+      "read": "partial",
+      "reason": "The diff hunks, plus lines 160-189 (the rename callback) read in full."
+    },
+    {
+      "path": "frontend/src/components/RefusalText.tsx",
+      "read": "full",
+      "reason": "New file, shown whole in the diff."
+    },
+    {
+      "path": "frontend/src/components/RenameDialog.tsx",
+      "read": "partial",
+      "reason": "The changed hunks from the diff."
+    },
+    {
+      "path": "frontend/src/components/SelectionBar.tsx",
+      "read": "partial",
+      "reason": "The handleBatchMove hunk and the imports, from the diff."
+    },
+    {
+      "path": "frontend/src/components/UploadProgress.tsx",
+      "read": "partial",
+      "reason": "The changed hunks from the diff."
+    },
+    {
+      "path": "frontend/src/components/VideoPlayer.tsx",
+      "read": "partial",
+      "reason": "The track rendering hunk and the imports, from the diff."
+    },
+    {
+      "path": "frontend/src/components/player/hooks/useCaptionTrackSelection.ts",
+      "read": "full",
+      "reason": "New file, shown whole in the diff."
+    },
+    {
+      "path": "frontend/src/components/quick-note/QuickNoteContainer.tsx",
+      "read": "partial",
+      "reason": "The changed hunks from the diff."
+    },
+    {
+      "path": "frontend/src/hooks/useCreateFile.ts",
+      "read": "partial",
+      "reason": "The changed hunks from the diff."
+    },
+    {
+      "path": "frontend/src/hooks/useDragAndDrop.ts",
+      "read": "partial",
+      "reason": "The diff hunks, plus lines 190-234 (the drop handler) read in full."
+    },
+    {
+      "path": "frontend/src/hooks/useInlineRename.ts",
+      "read": "partial",
+      "reason": "The changed hunks (describeFailure, commit) from the diff."
+    },
+    {
+      "path": "frontend/src/hooks/useShellCaptions.ts",
+      "read": "partial",
+      "reason": "The changed hunks from the diff."
+    },
+    {
+      "path": "frontend/src/hooks/useUpload.ts",
+      "read": "partial",
+      "reason": "The changed hunks from the diff."
+    },
+    {
+      "path": "frontend/src/lib/api.ts",
+      "read": "partial",
+      "reason": "The diff hunks, plus lines 21-27 (fetchJSON) and 717-771 (initUpload, completeUpload)."
+    },
+    {
+      "path": "frontend/src/lib/apiError.ts",
+      "read": "partial",
+      "reason": "The constructor hunk from the diff."
+    },
+    {
+      "path": "frontend/src/lib/subtitleErrors.ts",
+      "read": "full",
+      "reason": "New file, shown whole in the diff."
+    },
+    {
+      "path": "frontend/src/messages-core/en.json",
+      "read": "partial",
+      "reason": "The added subtitles block from the diff."
+    },
+    {
+      "path": "frontend/src/messages-core/ja.json",
+      "read": "partial",
+      "reason": "The added subtitles block from the diff."
+    },
+    {
+      "path": "frontend/src/types/index.ts",
+      "read": "partial",
+      "reason": "The changed hunks from the diff."
+    },
+    {
+      "path": "mcp-server/src/tools/batch.ts",
+      "read": "partial",
+      "reason": "The two description hunks from the diff."
+    },
+    {
+      "path": "addons/knowledge/frontend/__tests__/Editor.dnd.test.tsx",
+      "read": "partial",
+      "reason": "The changed hunks from the diff."
+    },
+    {
+      "path": "backend/tests/subtitle_sidecar_helpers.py",
+      "read": "full",
+      "reason": "New file, shown whole in the diff."
+    },
+    {
+      "path": "backend/tests/test_copy.py",
+      "read": "partial",
+      "reason": "The changed assertion hunks from the diff."
+    },
+    {
+      "path": "backend/tests/test_listing_call_inventory.py",
+      "read": "partial",
+      "reason": "The inventory hunk from the diff."
+    },
+    {
+      "path": "backend/tests/test_sidecar_subtitles_follow_video.py",
+      "read": "partial",
+      "reason": "The diff hunks, plus a grep of lines 110-246 (non-video and batch rename tests)."
+    },
+    {
+      "path": "backend/tests/test_subtitle_rows.py",
+      "read": "full",
+      "reason": "New file, shown whole in the diff."
+    },
+    {
+      "path": "backend/tests/test_subtitle_sidecars_api.py",
+      "read": "full",
+      "reason": "New file, shown whole in the diff."
+    },
+    {
+      "path": "backend/tests/test_subtitle_sidecars_listing.py",
+      "read": "full",
+      "reason": "New file, shown whole in the diff."
+    },
+    {
+      "path": "backend/tests/test_subtitle_sidecars_ops.py",
+      "read": "full",
+      "reason": "New file, shown whole in the diff."
+    },
+    {
+      "path": "frontend/src/__tests__/row-action-reveal.test.ts",
+      "read": "partial",
+      "reason": "The changed hunk from the diff."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/__tests__/SubtitlesSection.states.test.tsx",
+      "read": "full",
+      "reason": "New file, shown whole in the diff."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/__tests__/SubtitlesSection.test.tsx",
+      "read": "full",
+      "reason": "New file, shown whole in the diff."
+    },
+    {
+      "path": "frontend/src/components/__tests__/BatchRenameDialog.subtitleConflict.test.tsx",
+      "read": "full",
+      "reason": "New file, shown whole in the diff."
+    },
+    {
+      "path": "frontend/src/components/__tests__/ClipboardProvider.subtitleMove.test.tsx",
+      "read": "full",
+      "reason": "New file, shown whole in the diff."
+    },
+    {
+      "path": "frontend/src/components/__tests__/ConfirmDialog.subtitleDelete.test.tsx",
+      "read": "full",
+      "reason": "New file, shown whole in the diff."
+    },
+    {
+      "path": "frontend/src/components/__tests__/RenameDialog.subtitleError.test.tsx",
+      "read": "full",
+      "reason": "New file, shown whole in the diff."
+    },
+    {
+      "path": "frontend/src/components/__tests__/SelectionBar.subtitleMove.test.tsx",
+      "read": "full",
+      "reason": "New file, shown whole in the diff."
+    },
+    {
+      "path": "frontend/src/components/__tests__/VideoPlayer.subtitleTracks.test.tsx",
+      "read": "full",
+      "reason": "New file, shown whole in the diff."
+    },
+    {
+      "path": "frontend/src/components/__tests__/VideoPlayerShell.test.tsx",
+      "read": "partial",
+      "reason": "The changed hunks from the diff."
+    },
+    {
+      "path": "frontend/src/components/__tests__/componentFixtureParity.test.tsx",
+      "read": "partial",
+      "reason": "The changed hunk from the diff."
+    },
+    {
+      "path": "frontend/src/hooks/__tests__/useInlineRename.subtitleConflict.test.ts",
+      "read": "full",
+      "reason": "New file, shown whole in the diff."
+    },
+    {
+      "path": "frontend/src/hooks/__tests__/useShellCaptions.test.tsx",
+      "read": "partial",
+      "reason": "The changed hunks from the diff."
+    },
+    {
+      "path": "frontend/src/lib/__tests__/api.subtitles.test.ts",
+      "read": "full",
+      "reason": "New file, shown whole in the diff."
+    },
+    {
+      "path": "frontend/src/lib/__tests__/subtitleErrors.test.ts",
+      "read": "full",
+      "reason": "New file, shown whole in the diff."
+    }
+  ],
+  "perspectives": [
+    {
+      "name": "scope",
+      "notes": "Unplanned touch points are F4, F5 and F6. Two listed touch points are not in the diff: FolderTreePane.tsx and event_hooks.py."
+    },
+    {
+      "name": "submodules",
+      "notes": "The knowledge gitlink bump carries an unrelated CI Node 20 to 24 change (F4). The Editor sidecar handling matches SPEC-ADDON-187."
+    },
+    {
+      "name": "persistence",
+      "notes": "Purge deletes sidecars only after commit, and a subtitle row purge keeps the file. Batch rename's sidecar plan ignores the row type (F1). copy_file's carry is gated on the caller passing a list (F8)."
+    },
+    {
+      "name": "concurrency",
+      "notes": "Add and replace check name_taken, then write: a TOCTOU window that falls outside the single-user threat model. Batch move re-plans against disk per file, as the spec says. The frontend sequenceRef/fileIdRef guards discard stale answers."
+    }
+  ],
+  "confidence": 78
+}

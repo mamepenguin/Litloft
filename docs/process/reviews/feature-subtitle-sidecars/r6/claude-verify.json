@@ -1,0 +1,188 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "CRITICAL",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "CR-1",
+      "status": "confirmed",
+      "note": "backend/app/routers/uploads.py:33 declares `db: Annotated[Session, Depends(get_db)]` and line 38 passes `db=db` to upload_service.init_upload. upload.py:180 runs arrival_owner_changes only when `db is not None and serves_subtitles_name(filename)`. The touch-point list does not name routers/uploads.py. This is a scope observation and breaks no behavior."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "CR-2",
+      "status": "confirmed",
+      "note": "addons/knowledge/.github/workflows/ci.yml:147 and :243 now read `node-version: 24`, at the hunk positions both readers reported. I could not see the previous value without git. The core repo's .github/workflows/ci.yml already uses 24 throughout. This is outside the touch points and is unrelated to subtitles."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "CR-3",
+      "status": "confirmed",
+      "note": "All the named files exist. UploadProgress.tsx:14 imports subtitleErrorMessage and calls it at :217. apiError.ts:14,16 add optional `code` and `names`. RefusalText.tsx, subtitleErrors.ts and player/hooks/useCaptionTrackSelection.ts exist. None is in the touch-point list. I did not diff against base to confirm which files are new."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "CR-4",
+      "status": "confirmed",
+      "note": "mcp-server/src/tools/batch.ts:25 (move_files) and :44 (copy_files) describe the subtitle refusals and candidate skipping. The touch points list only the MCP tool docs. This is a scope observation."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "CR-5",
+      "status": "confirmed",
+      "note": "frontend/e2e-components/fixtures/app.tsx:2968 registers `\"subtitles-section-phone\"`, and spec-viewport.spec.ts:45 lists `subtitles-section-touch.spec.ts`. Neither is a declared touch point. These are test infrastructure only."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "CR-6",
+      "status": "confirmed",
+      "note": "fileops.py:493-495 returns [] when `own` is empty, before plan_sidecar_carry (subtitle.py:389-396) runs its owner-change loop over dest_index.all(). Repro by reading the code: folder holds movie.mp4 and movie.ja.srt (stem `movie`, language ja). Renaming a sidecar-less x.mp4 to movie.ja.mp4 adds stem `movie.ja`, which by the longest-stem rule (spec line 48-51) takes movie.ja.srt from movie.mp4. The answer is 200, not 409 subtitle_owner_change, which violates I2. Batch rename has the same gap (fileops.py:1217-1218 `if not own: continue`, which also skips sim.apply). copy_file (fileops.py:333-342) falls back to the plain candidate check when own is empty, so I15's owner-change skip is missed too. Upload refuses the same case (upload.py:180-185)."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "CR-7",
+      "status": "confirmed",
+      "note": "frontend/src/hooks/useDragAndDrop.ts:214-221: the `ids.length > 1` branch reads only `answer.errors` for moveSkipped and never reads `answer.sidecar_errors`. The single-file branch (:209-213) and ClipboardProvider.tsx:178-180 both show sidecarErrorMessage. A failed carry on a multi-file drop is therefore never shown, which breaks I16."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "CR-8",
+      "status": "confirmed",
+      "note": "useFileDetailData.ts:185-187 catches every error with only console.error and does not rethrow. EditableTitle.tsx:65-70 expects a rejection to show its error, so it closes the field as though the rename succeeded. ShellLayout.tsx:741 wires onRename only to MarkdownDocumentLayout. For a markdown file there is no fixedSuffix (MarkdownDocumentLayout.tsx:121), so typing `note.srt` gets 400 subtitle_extension_reserved (fileops.py:542-546) and the user sees nothing. Spec line 172 lists this entry point, so I11 is broken. Only the extension refusal and plain 409s can reach it, because video pages have no title rename."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "F1",
+      "status": "confirmed",
+      "note": "fileops.py:1214-1234 calls `sim.own(old_stem)` for every row in rename_plan with no _serves_subtitles guard. The guard exists at fileops.py:488 and :327. stem_counts holds only serving stems (subtitle.py:226-236). Repro by reading: with movie.mp4 + movie.ja.srt, batch-renaming movie.jpg to ep_1.jpg drops counts['movie'] from 1 to 0 and adds 'ep_1'. The sidecar has owners==1, so the mode is 'move', and target_owned holds because new_stem is in dest_stems. movie.ja.srt moves to ep_1.ja.srt, and the video loses its track. This breaks I1 (carried only with rows that own it) and I3 (an owner that did not move keeps its sidecars)."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "F2",
+      "status": "confirmed",
+      "note": "Same defect as CR-8: useFileDetailData.ts:185-187 swallows the error, and EditableTitle.tsx:65-67 then closes the field. The reachable refusal is 400 subtitle_extension_reserved on markdown pages. 409 subtitle_name_taken and subtitle_owner_change cannot occur here, because only MarkdownDocumentLayout gets onRename (ShellLayout.tsx:741) and .md files do not serve subtitles."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "F3",
+      "status": "confirmed",
+      "note": "Same as CR-7: useDragAndDrop.ts:214-221 ignores `sidecar_errors` from batchMove."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "F4",
+      "status": "confirmed",
+      "note": "Same as CR-2: addons/knowledge/.github/workflows/ci.yml:147 and :243 read `node-version: 24`. I could not see the prior value without git."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "F5",
+      "status": "confirmed",
+      "note": "VideoPlayer.tsx:150 gets captionTrackKey from useCaptionTrackSelection(videoElement, subtitles), and :255 sets `default={key === captionTrackKey}`. That hook file is not named in the touch points. Whether it is 'the shell player's caption hook' is a judgment call. I did not check how it behaves for every video."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "F6",
+      "status": "confirmed",
+      "note": "Same files as CR-1, CR-3, CR-4 and CR-5. All exist with the described contents (uploads.py:33,38; UploadProgress.tsx:14,217; apiError.ts:14,16; app.tsx:2968; spec-viewport.spec.ts:45; batch.ts:25,44)."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "F7",
+      "status": "confirmed",
+      "note": "ClipboardProvider.tsx:169-177: pasteFailed counts all result.errors, then moveSkipped counts the subtitle subset again. When every failure is a subtitle refusal, both toasts appear for the same files. Spec lines 196-198 put the subtitle notice beside the existing notice only when other files failed for other reasons. This reads wrong but no invariant is broken, because both messages are shown."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "F8",
+      "status": "confirmed",
+      "note": "fileops.py:470 runs move_sidecar_subtitles only when `sidecar_errors is not None and sidecar_carries`, whereas rename_file and move_file run the carry unconditionally (:589, :692). Both production callers pass a list: routers/files.py:587-593 (batch copy) and :1701-1703 (single copy). The only caller that omits it is the test test_markdown_images.py:319, which copies a note with no sidecars. The defect is latent and has no user-visible effect today."
+    }
+  ],
+  "unspecified_scores": [
+    {
+      "source_reviewer": "claude-read",
+      "index": 0,
+      "frequency": 1,
+      "impact": 3,
+      "reason": "On a case-insensitive mount, replacing a sidecar stored as .SRT with a picked .srt can answer 409 subtitle_language_taken, and the user has to delete the track and add it again."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "index": 1,
+      "frequency": 1,
+      "impact": 7,
+      "reason": "Renaming, moving or copying a sidecar-less video onto a longer stem such as movie.ja.mp4 silently moves another video's track to it, and the original video loses that subtitle with no message."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "index": 2,
+      "frequency": 0,
+      "impact": 1,
+      "reason": "Only the addon's CI runner changes Node version, and the user never sees it in use."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "index": 3,
+      "frequency": 8,
+      "impact": 2,
+      "reason": "Every video detail open queries the folder's rows and lists the folder, which at most adds a little latency in very large folders."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "index": 0,
+      "frequency": 2,
+      "impact": 7,
+      "reason": "Batch-renaming a folder where a poster image shares the video's stem can carry the video's subtitles to the image's new name, and the video silently loses its tracks."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "index": 1,
+      "frequency": 1,
+      "impact": 3,
+      "reason": "Typing a .srt or .vtt name into a markdown page's title closes the field as if it saved, but nothing changed and no message is shown."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "index": 2,
+      "frequency": 1,
+      "impact": 2,
+      "reason": "A paste whose only failures are subtitle refusals shows a generic failure toast and a subtitle toast for the same files."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "index": 3,
+      "frequency": 1,
+      "impact": 3,
+      "reason": "A folder upload whose nested folders hold only subtitles may leave an intermediate folder unlisted until the next scan, though the folder listing might derive it from the deeper tracked path."
+    }
+  ],
+  "specification_compliance": [
+    "I2 is broken for sidecar-less movers: rename, move and batch rename skip the owner-change check when the mover has no own sidecars (fileops.py:494, :1217).",
+    "I15 is broken for sidecar-less copies: copy_file uses the plain candidate check when own is empty (fileops.py:333-342).",
+    "I1 and I3 are broken in batch rename: non-serving rows plan sidecar carries (fileops.py:1216).",
+    "I16 is broken at multi-file drag and drop: sidecar_errors are ignored (useDragAndDrop.ts:214-221).",
+    "I11 is broken at the file page's title rename: the error is swallowed (useFileDetailData.ts:185-187)."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "Batch rename of mixed-type selections can move video sidecars onto non-video stems.",
+    "The player's caption default is now chosen by a new hook for every video."
+  ],
+  "test_coverage": [
+    "I found no test of a sidecar-less video renamed, moved or copied onto a stem that takes another video's sidecar (reader claim; not exhaustively searched).",
+    "I did not find a test of batch rename including a non-video row that shares a video's stem."
+  ],
+  "not_verified": [
+    "The previous node-version value in addons/knowledge ci.yml (no git access).",
+    "Which of the out-of-touch-point frontend files are new versus modified relative to origin/develop.",
+    "useCaptionTrackSelection behavior for videos without sidecars.",
+    "Whether the folder listing derives intermediate folders from a nested EmptyFolder path (deep index 3).",
+    "The case-insensitive replace behavior (read index 0) in the subtitle replace endpoint."
+  ],
+  "confidence": 82
+}
