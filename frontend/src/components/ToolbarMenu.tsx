@@ -32,7 +32,7 @@ export type BarScope = "wide" | "roomy";
  */
 const MENU_SURFACE_BASE =
   "fixed inset-x-2 bottom-[calc(1rem+var(--resting-strip,0px))] z-40 max-h-[60vh] overflow-y-auto rounded-2xl border " +
-  "border-bg-border bg-bg-primary py-1 shadow-lg animate-fade-in-scale " +
+  "border-bg-border bg-bg-primary py-1 shadow-lg " +
   "sm:absolute sm:inset-x-auto sm:max-h-[70vh] sm:min-w-[200px]";
 
 /**

@@ -262,6 +262,10 @@ dd {
   animation: fade-in-scale 200ms ease-out both;
 }
 
+@utility animate-backdrop-in {
+  animation: fade-in 150ms ease-out both;
+}
+
 @utility animate-slide-up {
   animation: slide-up 250ms ease-out both;
 }

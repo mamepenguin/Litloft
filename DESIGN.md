@@ -1274,15 +1274,28 @@ The tag row in edit mode.
 |---|---|---|
 | `animate-fade-in` | 200ms fade | General element appearance |
 | `animate-fade-in-scale` | 200ms fade + scale 0.95→1 | Modals, dialogs |
-| `animate-slide-up` | 250ms slide (center-anchored) | Toasts |
+| `animate-backdrop-in` | 150ms fade | The dim behind a menu, a palette or an edge sheet |
+| `animate-slide-up` | 250ms slide (center-anchored) | — |
 | `animate-slide-up-bar` | 300ms cubic-bezier slide | Selection bar |
 | `animate-pop` | 250ms scale 1→1.25→1 | Heart / favorite icons |
 
-**The search palette, the shortcut cheat sheet, the quick note panel and the context
-menu appear without animation**, however they are opened. Each is a surface the viewer
-opens to type or choose in, from a shortcut key or a right-click, dozens of times a
-day; the motion would only stand between the press and the input. Bars and modes that
-follow from an action — the selection bar after a long-press — keep their motion.
+**Menus and palettes appear without animation**, however they are opened: the
+search palette, the shortcut cheat sheet, the quick note panel, the context menu and
+every dropdown menu of choices. Each is opened to type or choose in, many times a
+day; motion would only stand between the press and the input. **Modal dialogs**
+(confirm, rename, move, pick a collection) keep their fade, and **sheets that slide
+from an edge** (the overlay sidebar, the player settings sheet, the selection bar)
+keep their slide: they are not opened to pick at once, and the slide says where
+they came from.
+
+**The dim behind a menu, a palette or an edge sheet fades in over 150ms
+(`animate-backdrop-in`) and disappears at once.** Darkening the whole screen in one
+frame reads as a flash; brightening it does not, and a dim that lingers after its
+surface closes would swallow the next press. A modal dialog's dim follows its
+dialog.
+
+**A toast fades out, and the toasts that stay travel** to their new places over
+200ms `ease-out`.
 
 A box returning to where it belongs — a released pull on the Bottom Sheet, a
 listing cell moving — travels over **200ms `ease-out`**.

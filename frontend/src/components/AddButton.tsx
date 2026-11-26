@@ -136,7 +136,7 @@ export function AddButton({
       // Not `useMenuSurface`: its classes are `sm:`-scoped because it is
       // a bottom sheet on phones, and this menu stays anchored at every
       // width. Capped because addon rows can push it past the fold.
-      className={`absolute z-30 max-h-[60vh] min-w-[180px] overflow-y-auto rounded-xl border border-bg-border bg-bg-primary py-1 shadow-lg animate-fade-in-scale sm:max-h-[70vh] ${
+      className={`absolute z-30 max-h-[60vh] min-w-[180px] overflow-y-auto rounded-xl border border-bg-border bg-bg-primary py-1 shadow-lg sm:max-h-[70vh] ${
         ANCHORED_VERTICAL[1][openUp ? "up" : "down"]
       } ${
         side === "right"

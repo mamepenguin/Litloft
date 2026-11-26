@@ -813,7 +813,7 @@ export function GlobalSearch() {
         // flush against the viewport edge.
         <div className="fixed inset-0 z-50 flex items-start justify-center px-4 pt-[10vh]">
           <div
-            className="fixed inset-0 bg-black/50"
+            className="fixed inset-0 bg-black/40 animate-backdrop-in"
             onClick={closeSearch}
           />
           <div

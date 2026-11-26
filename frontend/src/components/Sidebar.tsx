@@ -315,7 +315,7 @@ export function Sidebar({ hiddenKeys = EMPTY_HIDDEN_KEYS }: SidebarProps) {
 
       {isOpen && isOverlay && (
         <div
-          className="fixed inset-0 z-30 bg-black/50"
+          className="fixed inset-0 z-30 bg-black/40 animate-backdrop-in"
           onClick={close}
           aria-hidden
         />
