@@ -484,9 +484,10 @@ I1. A sidecar is listed for, served for, carried with, copied with and purged wi
     `movie.ja.srt` while a `movie.ja.*` subtitle-serving row exists in that folder.
 I2. A rename, move (single, or each file of a batch), batch rename or video upload that would
     land a sidecar on a name holding different content, or would change owners, answers 409
-    (an `errors` entry for a batch move). Moving or renaming every owner of a shared sidecar,
-    together or one after another, to one place succeeds and leaves one copy there. The refused file, its sidecars and its row are
-    byte- and field-identical afterwards, and no existing file is overwritten.
+    (an `errors` entry for a batch move). The refused file, its sidecars and its row are byte-
+    and field-identical afterwards, and no existing file is overwritten. Moving or renaming
+    every owner of a shared sidecar, together or one after another, to one place succeeds and
+    leaves one copy there.
 I3. When no I/O error occurs, after a rename or move every own sidecar of the video sits beside
     it under its new stem with the same bytes. Every owner that did not move still lists every
     sidecar it listed before.
