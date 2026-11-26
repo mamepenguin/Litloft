@@ -62,7 +62,7 @@ describe("SPEC-CORE-032 I17 a toast without an action", () => {
     },
   );
 
-  it("SPEC-CORE-032 I17 still times out after five seconds", () => {
+  it("SPEC-CORE-032 I17 SPEC-CORE-182 I5 still times out after five seconds, then leaves over 150ms", () => {
     render(
       <ToastProvider>
         <Trigger kind="success" message="saved" />
@@ -74,10 +74,16 @@ describe("SPEC-CORE-032 I17 a toast without an action", () => {
     act(() => {
       vi.advanceTimersByTime(4999);
     });
-    expect(screen.getByText("saved")).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("saved");
 
     act(() => {
       vi.advanceTimersByTime(1);
+    });
+    expect(screen.queryByRole("status")).toBeNull();
+    expect(screen.getByText("saved")).toBeInTheDocument();
+
+    act(() => {
+      vi.advanceTimersByTime(150);
     });
     expect(screen.queryByText("saved")).toBeNull();
   });
@@ -124,7 +130,7 @@ describe("SPEC-CORE-032 I17 a toast with an action", () => {
     expect(onClick).toHaveBeenCalledTimes(1);
   });
 
-  it("SPEC-CORE-032 I17 gives the action the toast's five seconds too", () => {
+  it("SPEC-CORE-032 I17 SPEC-CORE-182 I8 gives the action the toast's five seconds too", () => {
     render(
       <ToastProvider>
         <Trigger
@@ -139,6 +145,10 @@ describe("SPEC-CORE-032 I17 a toast with an action", () => {
       vi.advanceTimersByTime(5000);
     });
     expect(screen.queryByRole("button", { name: "Undo" })).toBeNull();
+    act(() => {
+      vi.advanceTimersByTime(150);
+    });
     expect(screen.queryByText("2 marked done")).toBeNull();
+    expect(onClick).not.toHaveBeenCalled();
   });
 });

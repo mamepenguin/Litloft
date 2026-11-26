@@ -98,7 +98,7 @@ describe("the sidebar-shell fixture draws the app's markup", () => {
     expect(s.scrims).toHaveLength(0);
   });
 
-  it("open over the page", () => {
+  it("SPEC-CORE-181 I2 open over the page, behind a fading /40 dim", () => {
     const s = shell(true, true);
     expect(tokens(s.aside.className)).toEqual(tokens(SPEC.asideOpen as string));
     expect(tokens(s.content.className)).toEqual(tokens(SPEC.content as string));

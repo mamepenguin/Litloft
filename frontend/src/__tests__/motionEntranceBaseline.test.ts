@@ -1,7 +1,7 @@
 /**
- * SPEC-CORE-178 I1 / I2 — which product files carry the fade-in entrance.
- * The four frequent surfaces carry none; every other file keeps the count it
- * had at the branch base.
+ * SPEC-CORE-178 I1 / I2 and SPEC-CORE-183 I9 — which product files carry the
+ * fade-in entrance. The four frequent surfaces and the five choice menus carry
+ * none; every other file keeps the count it had at the SPEC-CORE-178 base.
  */
 
 import { readdirSync, readFileSync } from "node:fs";
@@ -12,7 +12,6 @@ import { describe, expect, it } from "vitest";
 const SRC = resolve(process.cwd(), "src");
 
 const BASELINE: Record<string, number> = {
-  "components/AddButton.tsx": 1,
   "components/appshell/ManageTargetsDialog.tsx": 2,
   "components/BatchRenameDialog.tsx": 2,
   "components/CollectionPicker.tsx": 2,
@@ -24,12 +23,16 @@ const BASELINE: Record<string, number> = {
   "components/NameInputDialog.tsx": 2,
   "components/player/MediaControls/GestureOverlay.tsx": 3,
   "components/RenameDialog.tsx": 2,
-  "components/SelectionBar.tsx": 1,
   "components/SmartFolderSaveDialog.tsx": 2,
-  "components/SortButton.tsx": 1,
-  "components/ToolbarMenu.tsx": 1,
-  "components/trash/TrashToolbar.tsx": 1,
 };
+
+const CHOICE_MENUS = [
+  "components/AddButton.tsx",
+  "components/SelectionBar.tsx",
+  "components/SortButton.tsx",
+  "components/ToolbarMenu.tsx",
+  "components/trash/TrashToolbar.tsx",
+];
 
 const WITHOUT_ENTRANCE = [
   "components/ContextMenu.tsx",
@@ -62,8 +65,8 @@ function entranceCounts(): Record<string, number> {
   return counts;
 }
 
-describe("SPEC-CORE-178 the fade-in entrance", () => {
-  it("SPEC-CORE-178 I2 stays on every other file at its baseline count, and appears nowhere else", () => {
+describe("SPEC-CORE-178 / SPEC-CORE-183 the fade-in entrance", () => {
+  it("SPEC-CORE-178 I2 SPEC-CORE-183 I9 stays on every other file at its baseline count, and appears nowhere else", () => {
     expect(entranceCounts()).toEqual(BASELINE);
   });
 
@@ -71,6 +74,13 @@ describe("SPEC-CORE-178 the fade-in entrance", () => {
     const counts = entranceCounts();
     expect(WITHOUT_ENTRANCE.map((file) => [file, counts[file] ?? 0])).toEqual(
       WITHOUT_ENTRANCE.map((file) => [file, 0]),
+    );
+  });
+
+  it("SPEC-CORE-183 I9 is gone from the sort, toolbar, add, trash filter and selection-bar menus", () => {
+    const counts = entranceCounts();
+    expect(CHOICE_MENUS.map((file) => [file, counts[file] ?? 0])).toEqual(
+      CHOICE_MENUS.map((file) => [file, 0]),
     );
   });
 });

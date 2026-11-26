@@ -216,7 +216,7 @@ describe("FilterMenu", () => {
     }
   });
 
-  it("keeps the popover's recipe, which is what keeps it on screen", () => {
+  it("SPEC-CORE-183 I9 keeps the popover's recipe, which is what keeps it on screen, with no entrance", () => {
     // `sm:max-h-[70vh]` without `sm:overflow-visible` is what makes a
     // twelve-row menu fit a short screen; any edit to this recipe has to be
     // re-measured in a browser.
@@ -227,7 +227,7 @@ describe("FilterMenu", () => {
     ).toEqual([
       "fixed", "inset-x-2", "bottom-[calc(1rem+var(--resting-strip,0px))]", "z-40", "max-h-[60vh]",
       "overflow-y-auto", "rounded-2xl", "border", "border-bg-border",
-      "bg-bg-primary", "py-1", "shadow-lg", "animate-fade-in-scale",
+      "bg-bg-primary", "py-1", "shadow-lg",
       "sm:absolute", "sm:inset-x-auto", "sm:max-h-[70vh]",
       "sm:min-w-[200px]",
       "sm:bottom-auto", "sm:top-full", "sm:mt-1",

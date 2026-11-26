@@ -58,7 +58,7 @@ describe("ToastProvider", () => {
     expect(toast).toHaveTextContent("saved");
   });
 
-  it("auto-dismisses after the default duration", () => {
+  it("SPEC-CORE-182 I5 auto-dismisses after the default duration, then leaves over 150ms", () => {
     render(
       <ToastProvider>
         <Trigger kind="info" message="hello" />
@@ -69,10 +69,14 @@ describe("ToastProvider", () => {
     act(() => {
       vi.advanceTimersByTime(5000);
     });
+    expect(screen.getByText("hello")).toBeInTheDocument();
+    act(() => {
+      vi.advanceTimersByTime(150);
+    });
     expect(screen.queryByText("hello")).toBeNull();
   });
 
-  it("dismisses via the close button", () => {
+  it("SPEC-CORE-182 I5 dismisses via the close button, then leaves over 150ms", () => {
     render(
       <ToastProvider>
         <Trigger kind="error" message="bye" />
@@ -81,6 +85,10 @@ describe("ToastProvider", () => {
     fireEvent.click(screen.getByText("fire"));
     expect(screen.getByText("bye")).toBeInTheDocument();
     fireEvent.click(screen.getByLabelText("Dismiss"));
+    expect(screen.getByText("bye")).toBeInTheDocument();
+    act(() => {
+      vi.advanceTimersByTime(150);
+    });
     expect(screen.queryByText("bye")).toBeNull();
   });
 
