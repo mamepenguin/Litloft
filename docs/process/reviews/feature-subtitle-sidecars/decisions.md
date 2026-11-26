@@ -2,10 +2,81 @@
 
 decision:
 ran_in_app: yes
-at: 1ae8d4876e99bbc0989bd16d1e8a971d04521287
+at: 0ede039b559bf46928b0ffba22bd87aff7814e56
 by: agent
 evidence: |
-  Environment: worktree /Users/libre/Sources/video_share-subtitles at the SHA above, knowledge
+  Re-run at the SHA above (fixes 32729b296 and 0ede039b5), knowledge submodule at 7a94f8d.
+  Fresh `scripts/dev/r5_stack.py clone` + `up` (frontend image rebuilt at the start of the run) on
+  http://video-share-subtitles.localhost:3101; the main video_share stack was not touched. Scratch
+  drive `R5字幕` (bind of .r5-stack/scratch added to the clone's overlay and drives.json) of
+  6-second ffmpeg H.264 videos and subtitles whose cue text differs per file. Headless Chromium
+  (Playwright 1.58), ja locale, 1440x900 unless stated. Tracks read from the `<video>`'s
+  TextTrack list (mode, first cue / activeCues); disk checked on the host bind. Stack downed and
+  destroyed afterwards. Screenshots: docs/process/reviews/feature-subtitle-sidecars/r5/rerun-*.png.
+
+  FAIL-1 (fixed). B/two.mp4 (two.en.srt, two.ja.srt). Player menu → Japanese, then → English:
+    English `showing`, Japanese `disabled`. Deleted 英語 from the Info tab (dialog → 削除): list
+    `字幕 1 日本語`, only textTrack Japanese `showing` with cue `B 日本語キュー`; with one track the menu
+    shows no track list (rerun-fail1-after-delete-en.png, rerun-fail1-after-delete-en-menu.png). Deleted 日本語 (the
+    last): list `字幕はありません`, the one textTrack is `自動生成` (und) `showing` — the generated
+    track offered as before (rerun-fail1-none-left-menu.png). Three-track case on A/movie.mp4
+    (en, ja): picked Japanese, added a bare movie.srt (指定しない) → tracks 字幕 `disabled`, English
+    `disabled`, Japanese `showing`; deleted 日本語 → 字幕 (movie.srt, the first) `showing` with its
+    cue, English `disabled`; menu `オフ / ✓字幕 / English`
+    (rerun-fail1-3track-after-delete-ja-menu.png). Then on A (movie.srt, movie.en.srt) picked
+    English and deleted 英語: 字幕 `showing` with cue `x cue`, and the settings sheet's captions
+    toggle `字幕` has aria-checked=true. PASS.
+  FAIL-2 (fixed). M/multi.mp4 (multi.ja.srt), added ko; picked Korean then Japanese in the menu
+    (Japanese `showing`). Added `de`: German `disabled`, Japanese `showing`, Korean `disabled`.
+    Added `en`: German, English, Korean `disabled`, Japanese `showing` — exactly one. At 1.5 s
+    activeCues: only Japanese (`M 日本語キュー`) (rerun-fail2-after-add-de-en.png, where the
+    drawn line under the controls is not legible); menu `オフ / German / English / Japanese / Korean`
+    (rerun-fail2-menu.png). Files multi.{de,en,ja,ko}.srt on disk. Drawn frame: M with
+    Japanese picked (after the replace in regression 3), playing muted at 0:03: one caption line
+    `二回目の差し替えキュー` drawn, nothing else (rerun-fail2-drawn-frame.png). Fresh-page variant
+    without the menu: C/solo.mp4 (solo.ja.srt only, Japanese `showing` by default), added `en`
+    → English `disabled`, Japanese `showing`. PASS.
+  Captions off (extra). C/solo.mp4 (ja, en), picked オフ in the menu (all `disabled`); added `ko`
+    → all three `disabled`; deleted 英語 → Japanese and Korean `disabled`; captions toggle
+    aria-checked=false (rerun-captions-off-after-add-delete.png). PASS.
+  DIFF-1 / D8 (fixed). D/vid.mp4 with vid.srt and vid.ja.srt; D/target.srt and D/target.ja.srt
+    with other content. Rename vid.mp4 → target.mp4 from the file page (ファイル操作 → 名前を変更):
+    the dialog's alert box holds `行き先に同じ名前の字幕があります。` (weight 400), then `D/target.srt`
+    and `D/target.ja.srt` each on its own line (block spans 20px apart) at font-weight 600; input
+    border rgb(158,10,10) = --danger #9e0a0a. Same at a 440px viewport (phone layout, dialog
+    408px wide, document scrollWidth 440) (rerun-d8-rename-refused-440.png) and at 1440
+    (rerun-d8-rename-refused-1440.png). Same result from the folder listing's right-click
+    FileContextMenu → 名前を変更 (rerun-d8-contextmenu-rename-refused.png). Disk unchanged
+    (sha1 of all five files identical before and after). PASS. Differences from Rename.dc.html
+    seen: the names carry the folder (`D/target.srt`; the design shows `Night.ja.srt`), the input
+    has no `新しい名前` label, the title has a pencil icon, and the alert box has an alert icon
+    the design does not draw.
+  Other-code observation (fixed). N/plain.mp4, 字幕を追加, file abc.srt, その他のコード…: field
+    empty → 追加 disabled, no result line (rerun-other-empty.png); `a`, `あい`, `aé`, `12` → 追加
+    disabled, no result line (rerun-other-one-letter.png, rerun-other-non-ascii.png); `abc` →
+    追加 enabled, result `plain.abc.srt` (rerun-other-abc.png); 追加 → list one row (ABC), track
+    `abc` showing cue `abc code cue`, plain.abc.srt on disk (rerun-other-after-add.png). With
+    指定しない the result line is `plain.srt` and 追加 enabled, as before. PASS.
+  Regression of the first run's items:
+  - 1. M list `字幕 4 ドイツ語/multi.de.srt, 英語/multi.en.srt, 日本語/multi.ja.srt,
+    韓国語/multi.ko.srt`; row button wrapper opacity 0 without hover, 1 on hover
+    (rerun-reg1-list-nohover.png, rerun-reg1-list-hover.png). PASS.
+  - 3. Japanese picked on M, replaced multi.ja.srt via the row's replace button: track src `?v=`
+    changed for index 2 only, Japanese still `showing`, cue `差し替え後の新しいキュー` →
+    `二回目の差し替えキュー`, disk bytes match (rerun-reg3-after-replace.png). PASS.
+  - 4. C/movie.mp4 (movie.srt shared with movie.mkv): dialog `字幕を削除しますか？ | movie.srt |
+    ディスクから削除します。元に戻せません。 | 同じ名前の動画 1 本からも消えます。 | キャンセル | 削除`;
+    キャンセル keeps the row and the file (rerun-reg4-delete-dialog-shared.png). Unshared delete
+    and the confirm path were exercised in FAIL-1 above (files removed from disk). PASS.
+  - 6. F (f1.mp4 + f1.srt, f2.mp4), その他の操作 → 選択モード, both selected → 移動 → E (E/f1.srt
+    holds other content) → ここに移動: toast `1 件は字幕のため移動しませんでした`; f2.mp4 in E,
+    f1.mp4 and f1.srt still in F, E/f1.srt unchanged (rerun-reg6-move-notice.png). PASS.
+  Unrelated to this change, as in the first run: `チャプター候補を読み込めませんでした。` on every
+  video's Info tab. Resizing the window from 1440 to 440 with the rename dialog open closed the
+  dialog (the page swaps to the phone layout); the 440px shot was taken by opening at 440.
+
+  First run (at 1ae8d4876e99bbc0989bd16d1e8a971d04521287):
+  Environment: worktree /Users/libre/Sources/video_share-subtitles at 1ae8d4876, knowledge
   submodule checked out at 7a94f8d. Stack started with `scripts/dev/r5_stack.py clone` + `up`
   (images rebuilt by `up --build`; the frontend bundle contained the new subtitle codes) on
   http://video-share-subtitles.localhost:3101, data cloned, the main stack untouched. A scratch
@@ -93,7 +164,8 @@ evidence: |
   - Rename (rename-refused.png): title with pencil, input with red border, red alert box with the
     message and `D/target.srt` in regular weight, キャンセル / 変更.
 
-  Failures and differences found:
+  Failures and differences found in the first run (results after the fixes are in the re-run
+  section at the top):
   - FAIL-1. Deleting the track being shown, with captions on, turns captions off instead of showing
     the first remaining track (spec 185 States, "Player tracks"). B/plain.mp4 with ja + en, English
     picked in the player menu, English deleted: every remaining textTrack is `disabled`, the player
@@ -115,7 +187,9 @@ pending: |
     PROJECT.md agent_cannot_verify "Audio and video as heard and seen". Cue text was read from the
     browser's TextTrack objects and one paused frame only.
   - The iOS app and other household devices, the real home LAN (agent_cannot_verify).
+  - The caption-track fix in the native-shell player (ShellVideoPlayer / useShellCaptions, used only
+    inside the iOS app) — only the browser VideoPlayer was exercised (agent_cannot_verify, iOS app).
   - Not exercised: paste (ClipboardProvider) with a subtitle refusal, batch rename refusal,
-    FileContextMenu and folder-tree inline rename entry points, quick note with a .srt name,
+    the folder-tree inline rename entry point, quick note with a .srt name,
     pasting a subtitle into the knowledge editor, sidecar carry failure (needs a disk error),
     a 404 stale-list on replace/delete, and the 30-day auto-purge.
