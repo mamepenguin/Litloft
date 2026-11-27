@@ -59,6 +59,7 @@ test("SPEC-CORE-193 I9 / D6 (390×844): the queue opens at the viewport's width,
   });
   expect(paneBox.left).toBe(0);
   expect(paneBox.width).toBe(390);
+  await expect(page.getByTestId("mobile-inspector-peek")).not.toBeVisible();
   expect(await isPlaying(page)).toBe(true);
 
   const widths = await page.evaluate(() => ({
@@ -102,6 +103,28 @@ test("SPEC-CORE-193 I9 / D6 (390×844): the queue opens at the viewport's width,
     );
   for (const height of buttonHeights) expect(height).toBeGreaterThanOrEqual(44);
 
+  const firstRow = pane.locator("li").first();
+  for (const name of ["Move up", "Move down", "Remove"]) {
+    const width = await firstRow
+      .getByRole("button", { name })
+      .evaluate((button) => button.getBoundingClientRect().width);
+    expect(width).toBeGreaterThanOrEqual(44);
+  }
+
+  const thumbs = await pane
+    .locator('[data-testid="queue-thumb"]')
+    .evaluateAll((elements) =>
+      elements.map((element) => {
+        const r = element.getBoundingClientRect();
+        return { width: r.width, height: r.height };
+      }),
+    );
+  expect(thumbs.length).toBe(3);
+  for (const thumb of thumbs) {
+    expect(thumb.width).toBe(56);
+    expect(thumb.height).toBe(32);
+  }
+
   const loop = await pane
     .getByRole("button", { name: /^Loop / })
     .evaluate((button) => button.getBoundingClientRect().height);
@@ -109,5 +132,40 @@ test("SPEC-CORE-193 I9 / D6 (390×844): the queue opens at the viewport's width,
 
   await page.getByRole("button", { name: "Close the queue" }).click();
   await expect(pane).toHaveCSS("width", "0px");
+  expect(await isPlaying(page)).toBe(true);
+});
+
+test("SPEC-CORE-193 I9 / D6 (390×844): the open queue covers the file sheet, and closing it brings the sheet back", async ({
+  page,
+}) => {
+  await open(page);
+
+  await page.getByRole("button", { name: "Open the sheet" }).click();
+  const sheet = page.getByTestId("mobile-inspector-sheet");
+  await expect(sheet).toBeVisible();
+  const snap = await sheet.getAttribute("data-snap");
+
+  await play(page);
+  await page
+    .locator("video")
+    .evaluate((element) => ((element as HTMLVideoElement).loop = true));
+
+  await page.getByRole("button", { name: "Show the queue" }).click();
+  const pane = page.locator('aside[aria-label="Queue"]');
+  await expect(pane).toBeVisible();
+
+  const covered = await page.evaluate(() => {
+    const element = document.elementFromPoint(195, 780);
+    return element?.closest('aside[aria-label="Queue"]') !== null;
+  });
+  expect(covered).toBe(true);
+  await expect(page.getByTestId("mobile-inspector-peek")).not.toBeVisible();
+  await expect(sheet).not.toBeVisible();
+  expect(await isPlaying(page)).toBe(true);
+
+  await page.getByRole("button", { name: "Close the queue" }).click();
+  await expect(pane).toHaveCSS("width", "0px");
+  await expect(sheet).toBeVisible();
+  await expect(sheet).toHaveAttribute("data-snap", snap!);
   expect(await isPlaying(page)).toBe(true);
 });

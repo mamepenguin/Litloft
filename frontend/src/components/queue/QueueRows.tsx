@@ -38,33 +38,33 @@ export function QueueRows({ entries, currentId, onSelect }: QueueRowsProps) {
             <button
               type="button"
               onClick={() => onSelect(entry.id)}
-              className={`flex min-h-11 w-full items-center gap-2 rounded-lg px-1.5 py-1 text-left text-sm transition-colors md:min-h-0 ${
+              className={`flex min-h-11 w-full items-center gap-2 rounded-[10px] py-2 pr-2 pl-1.5 text-left text-xs transition-colors md:min-h-0 ${
                 isCurrent
                   ? "bg-accent/10 ring-1 ring-accent/40"
                   : "hover:bg-bg-elevated"
               }`}
             >
               <span
-                className={`w-5 flex-shrink-0 text-center font-mono text-[10px] ${
+                className={`w-[18px] flex-shrink-0 text-center font-mono text-[10px] ${
                   isCurrent ? "font-bold text-accent" : "text-text-muted/60"
                 }`}
               >
                 {index + 1}
               </span>
-              <span className="flex min-w-0 flex-1 flex-col">
-                <span
-                  className={`min-w-0 truncate ${
-                    isCurrent ? "text-text-primary" : "text-text-muted"
-                  }`}
-                >
-                  {entry.title}
-                </span>
-                {entry.duration !== null && (
-                  <span className="text-[11px] text-text-muted">
-                    {formatDuration(entry.duration)}
-                  </span>
-                )}
+              <span
+                className={`min-w-0 flex-1 truncate ${
+                  isCurrent
+                    ? "font-semibold text-text-primary"
+                    : "text-text-muted"
+                }`}
+              >
+                {entry.title}
               </span>
+              {entry.duration !== null && (
+                <span className="flex-shrink-0 text-[11px] text-text-muted">
+                  {formatDuration(entry.duration)}
+                </span>
+              )}
             </button>
           </li>
         );

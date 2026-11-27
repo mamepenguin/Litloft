@@ -7,6 +7,8 @@ export interface LeftPaneState {
   element: HTMLElement | null;
   /** The stored tree setting shows the pane at this width. */
   shownBySetting: boolean;
+  /** The pane covers the page below md, so nothing of the page may paint over it. */
+  coversFilePage: boolean;
 }
 
 export const LeftPaneContext = createContext<LeftPaneState | null>(null);

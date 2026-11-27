@@ -138,6 +138,7 @@ import {
   QueuePageManyArrangement,
   QueuePagePlayArrangement,
   QueuePageOverlayArrangement,
+  QueuePageFolderArrangement,
   QueuePageLateArrangement,
 } from "./queuePage";
 import {
@@ -2947,6 +2948,7 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "queue-page-many": QueuePageManyArrangement,
   "queue-page-play": QueuePagePlayArrangement,
   "queue-page-overlay": QueuePageOverlayArrangement,
+  "queue-page-folder": QueuePageFolderArrangement,
   "queue-page-late": QueuePageLateArrangement,
 };
 

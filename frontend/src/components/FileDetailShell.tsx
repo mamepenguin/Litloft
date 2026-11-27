@@ -191,6 +191,7 @@ export function FileDetailShell({
     [publishesForm, fileId, isMobile],
   );
   const leftPane = useLeftPane();
+  const paneCoversPage = leftPane?.coversFilePage ?? false;
   const yieldable =
     leftPane !== null &&
     leftPane.shownBySetting &&
@@ -534,7 +535,7 @@ export function FileDetailShell({
           <InspectorPane wide={inspectorWide}>{inspector}</InspectorPane>
         )}
       </div>
-      {isMobile && (
+      {isMobile && !paneCoversPage && (
         <MobileInspectorSheet
           state={sheetOverride ?? sheetState}
           onStateChange={handleSheetStateChange}

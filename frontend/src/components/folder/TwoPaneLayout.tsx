@@ -154,8 +154,18 @@ export function TwoPaneLayout({
     () => ({
       element: paneElement,
       shownBySetting: (treeEnabled || visit.active) && besideViewport,
+      coversFilePage: treeOpen && !focusLayout && hasFile && queuePane,
     }),
-    [paneElement, treeEnabled, visit.active, besideViewport],
+    [
+      paneElement,
+      treeEnabled,
+      visit.active,
+      besideViewport,
+      treeOpen,
+      focusLayout,
+      hasFile,
+      queuePane,
+    ],
   );
 
   // The sidebar and the tree both name where you are, and only one such

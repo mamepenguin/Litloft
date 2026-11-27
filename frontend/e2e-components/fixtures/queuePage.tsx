@@ -29,6 +29,7 @@ import {
   type QueuePageState,
 } from "@/components/queue/QueuePageContext";
 import { QueuePane } from "@/components/queue/QueuePane";
+import { QueueRows } from "@/components/queue/QueueRows";
 import { requestPlay } from "@/components/queue/playIntent";
 import { setQueuePage } from "@/components/queue/queuePagePresence";
 import { queueWalk, type QueueEntry } from "@/components/queue/queue";
@@ -224,12 +225,15 @@ interface QueueFixtureProps {
   extraQuery?: string;
   /** Draw the listing first, and the queue page only after a press. */
   deferred?: boolean;
+  /** A folder queue draws `QueueRows`; a collection draws its own item pane. */
+  folder?: boolean;
 }
 
 function QueueFixture({
   entries,
   extraQuery = "",
   deferred = false,
+  folder = false,
 }: QueueFixtureProps): ReactElement {
   installFetch();
   installMedia();
@@ -299,6 +303,10 @@ function QueueFixture({
     />
   );
 
+  const queueRows = (
+    <QueueRows entries={entries} currentId={fileId} onSelect={go} />
+  );
+
   const leftPane = fileId ? (
     <QueuePane
       name="Road Trip"
@@ -309,8 +317,10 @@ function QueueFixture({
       loop={false}
       onToggleLoop={() => {}}
     >
-      {items}
+      {folder ? queueRows : items}
     </QueuePane>
+  ) : folder ? (
+    queueRows
   ) : (
     items
   );
@@ -353,6 +363,8 @@ const COLLECTION_ENTRIES: QueueEntry[] = [
   entryFrom(VIDEO),
   entryFrom(LONG),
 ];
+
+const FOLDER_ENTRIES: QueueEntry[] = [entryFrom(VIDEO), entryFrom(LONG)];
 
 const MANY_ENTRIES: QueueEntry[] = [
   entryFrom(VIDEO),
@@ -412,6 +424,10 @@ export function QueuePagePlayArrangement(): ReactElement {
 
 export function QueuePageOverlayArrangement(): ReactElement {
   return <QueueFixture entries={COLLECTION_ENTRIES} />;
+}
+
+export function QueuePageFolderArrangement(): ReactElement {
+  return <QueueFixture entries={FOLDER_ENTRIES} folder />;
 }
 
 export function QueuePageLateArrangement(): ReactElement {

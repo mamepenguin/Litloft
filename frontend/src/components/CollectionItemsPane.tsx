@@ -145,10 +145,14 @@ export function CollectionItemsPane({
                 <img
                   src={getThumbnailUrl(item.file.id)}
                   alt=""
-                  className="h-7 w-12 flex-shrink-0 rounded object-cover"
+                  data-testid="queue-thumb"
+                  className="h-7 w-12 flex-shrink-0 rounded object-cover pointer-coarse:h-8 pointer-coarse:w-14"
                 />
               ) : (
-                <span className="h-7 w-12 flex-shrink-0 rounded bg-bg-elevated" />
+                <span
+                  data-testid="queue-thumb"
+                  className="h-7 w-12 flex-shrink-0 rounded bg-bg-elevated pointer-coarse:h-8 pointer-coarse:w-14"
+                />
               )}
               <span className="flex min-w-0 flex-1 flex-col">
                 <span className="min-w-0 truncate text-xs">
@@ -169,7 +173,7 @@ export function CollectionItemsPane({
                   onMoveUp(index);
                 }}
                 disabled={index === 0}
-                className="flex h-7 w-7 items-center justify-center rounded text-text-muted hover:bg-bg-elevated hover:text-text-primary disabled:opacity-30 disabled:hover:bg-transparent pointer-coarse:h-11 pointer-coarse:w-11"
+                className="flex h-7 w-[26px] items-center justify-center rounded text-text-muted hover:bg-bg-elevated hover:text-text-primary disabled:opacity-30 disabled:hover:bg-transparent pointer-coarse:h-11 pointer-coarse:w-11"
                 aria-label={t("moveUp")}
               >
                 <ChevronUp size={14} />
@@ -181,7 +185,7 @@ export function CollectionItemsPane({
                   onMoveDown(index);
                 }}
                 disabled={index === items.length - 1}
-                className="flex h-7 w-7 items-center justify-center rounded text-text-muted hover:bg-bg-elevated hover:text-text-primary disabled:opacity-30 disabled:hover:bg-transparent pointer-coarse:h-11 pointer-coarse:w-11"
+                className="flex h-7 w-[26px] items-center justify-center rounded text-text-muted hover:bg-bg-elevated hover:text-text-primary disabled:opacity-30 disabled:hover:bg-transparent pointer-coarse:h-11 pointer-coarse:w-11"
                 aria-label={t("moveDown")}
               >
                 <ChevronDown size={14} />
@@ -192,7 +196,7 @@ export function CollectionItemsPane({
                   e.stopPropagation();
                   onRemove(item.id);
                 }}
-                className="flex h-7 w-7 items-center justify-center rounded text-text-muted hover:bg-bg-elevated hover:text-danger pointer-coarse:h-11 pointer-coarse:w-11"
+                className="flex h-7 w-[26px] items-center justify-center rounded text-text-muted hover:bg-bg-elevated hover:text-danger pointer-coarse:h-11 pointer-coarse:w-11"
                 aria-label={t("removeItem")}
               >
                 <Trash2 size={14} />

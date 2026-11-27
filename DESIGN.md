@@ -1193,6 +1193,8 @@ row.
 - **Touch targets: 44px on a coarse pointer, 32px on a fine one.** 32px clears the
   24px minimum for repeated controls; 44px everywhere costs height long
   transcripts cannot spare.
+- **The collection queue's reorder and remove controls are 26 × 28 on a fine
+  pointer**; they still reach 44px on a coarse pointer.
 - **Every control in the row reaches the floor**, or the finger still lands on the
   small one.
 - **Several controls together are one group.** On a coarse pointer they sit with

@@ -160,9 +160,44 @@ test("SPEC-CORE-190 D1 / I8 (1440×900): the queue pane is 280px, every collecti
     await expect(row.getByRole("button", { name: "Move up" })).toBeVisible();
     await expect(row.getByRole("button", { name: "Move down" })).toBeVisible();
     await expect(row.getByRole("button", { name: "Remove" })).toBeVisible();
+    for (const name of ["Move up", "Move down", "Remove"]) {
+      expect(
+        (await box(row.getByRole("button", { name }))).width,
+      ).toBe(26);
+    }
   }
 
   await expect(page.locator('aside[aria-label="Folder tree"]')).toHaveCount(0);
+});
+
+test("SPEC-CORE-191 D4 (1440×900): a folder queue's rows are one line, with the duration at the right end", async ({
+  page,
+}) => {
+  await open(
+    page,
+    "queue-page-folder",
+    { width: 1440, height: 900 },
+    { tree: true },
+  );
+  await expect(page.getByTestId("file-detail-shell")).toBeVisible();
+
+  const rows = queuePane(page).locator("ul > li");
+  await expect(rows).toHaveCount(2);
+
+  const first = rows.first();
+  expect((await box(first)).height).toBeLessThanOrEqual(36);
+
+  const title = first.getByText("Fixture clip", { exact: true });
+  const duration = first.getByText("0:03", { exact: true });
+  const titleBox = await box(title);
+  const durationBox = await box(duration);
+  expect(durationBox.left).toBeGreaterThanOrEqual(titleBox.right - 0.5);
+  expect(
+    Math.abs(
+      (titleBox.top + titleBox.bottom) / 2 -
+        (durationBox.top + durationBox.bottom) / 2,
+    ),
+  ).toBeLessThanOrEqual(2);
 });
 
 test("SPEC-CORE-190 D3 (1024×768): the queue pane yields and previous / next stay in the page row", async ({
