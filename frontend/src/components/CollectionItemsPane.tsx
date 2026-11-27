@@ -121,7 +121,7 @@ export function CollectionItemsPane({
               if (el) rowRefs.current.set(item.id, el);
               else rowRefs.current.delete(item.id);
             }}
-            className={`flex items-center gap-1 rounded-lg px-1.5 py-1 transition-colors pointer-coarse:min-h-11 ${
+            className={`flex items-center gap-1 rounded-lg py-1 pl-1.5 pr-1 transition-colors pointer-coarse:min-h-11 ${
               isCurrent
                 ? "bg-accent/10 ring-1 ring-accent/40"
                 : "hover:bg-bg-elevated"
@@ -135,7 +135,7 @@ export function CollectionItemsPane({
               }`}
             >
               <span
-                className={`w-5 flex-shrink-0 text-center font-mono text-[10px] ${
+                className={`w-[18px] flex-shrink-0 text-center font-mono text-[10px] ${
                   isCurrent ? "font-bold text-accent" : "text-text-muted/60"
                 }`}
               >
@@ -155,7 +155,7 @@ export function CollectionItemsPane({
                 />
               )}
               <span className="flex min-w-0 flex-1 flex-col">
-                <span className="min-w-0 truncate text-xs">
+                <span className="min-w-0 truncate text-xs max-md:text-[13px]">
                   {item.file.title}
                 </span>
                 {item.file.duration !== null && (
@@ -165,7 +165,7 @@ export function CollectionItemsPane({
                 )}
               </span>
             </button>
-            <div className="flex flex-shrink-0 items-center gap-0.5">
+            <div className="flex flex-shrink-0 items-center">
               <button
                 type="button"
                 onClick={(e) => {

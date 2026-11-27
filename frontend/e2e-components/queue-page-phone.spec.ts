@@ -125,6 +125,14 @@ test("SPEC-CORE-193 I9 / D6 (390×844): the queue opens at the viewport's width,
     expect(thumb.height).toBe(32);
   }
 
+  const titleSizes = await pane
+    .locator("li span.truncate")
+    .evaluateAll((titles) =>
+      titles.map((title) => getComputedStyle(title).fontSize),
+    );
+  expect(titleSizes.length).toBe(3);
+  for (const size of titleSizes) expect(size).toBe("13px");
+
   const loop = await pane
     .getByRole("button", { name: /^Loop / })
     .evaluate((button) => button.getBoundingClientRect().height);

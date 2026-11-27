@@ -38,7 +38,7 @@ export function QueueRows({ entries, currentId, onSelect }: QueueRowsProps) {
             <button
               type="button"
               onClick={() => onSelect(entry.id)}
-              className={`flex min-h-11 w-full items-center gap-2 rounded-[10px] py-2 pr-2 pl-1.5 text-left text-xs transition-colors md:min-h-0 ${
+              className={`flex min-h-11 w-full items-center gap-2 rounded-[10px] py-2 pr-2 pl-1.5 text-left text-xs max-md:text-[13px] transition-colors md:min-h-0 ${
                 isCurrent
                   ? "bg-accent/10 ring-1 ring-accent/40"
                   : "hover:bg-bg-elevated"

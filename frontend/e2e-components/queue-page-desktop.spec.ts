@@ -165,6 +165,9 @@ test("SPEC-CORE-190 D1 / I8 (1440×900): the queue pane is 280px, every collecti
         (await box(row.getByRole("button", { name }))).width,
       ).toBe(26);
     }
+    expect(
+      (await box(row.locator("span.truncate").first())).width,
+    ).toBeGreaterThanOrEqual(88);
   }
 
   await expect(page.locator('aside[aria-label="Folder tree"]')).toHaveCount(0);
