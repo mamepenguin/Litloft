@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "MEDIUM",
+  "findings": [],
+  "verification": [],
+  "unspecified_scores": [
+    {
+      "source_reviewer": "claude-read",
+      "index": 0,
+      "frequency": 3,
+      "impact": 1,
+      "reason": "On every successful unlock (unlock/page.tsx:35 then :43) or setup completion (CompleteStep.tsx:58 then :62), the button turns enabled again and its label goes back from the loading text while window.location.href loads. On a home LAN this lasts only a moment. A second click in that moment sends a harmless extra unlock, or re-runs the setup writes just before the page is replaced."
+    }
+  ],
+  "specification_compliance": [
+    "unlock/page.tsx:33-35 calls loadFullPage(resolveRedirect()) only when result.success is true. resolveRedirect (:19-25) accepts only paths that start with '/' and not '//'.",
+    "CompleteStep.tsx:46-58 calls loadFullPage('/admin') only after res.ok. The !res.ok branch returns before it.",
+    "fullPageLoad.ts:7-9 sets window.location.href, which loads the whole document again.",
+    "HEAD commit 35386f02: SetupWizard.test.tsx:497-499 first waits for the rejection message to appear and then asserts that complete-setup was not called and loadFullPage was not called. Without that wait, the negative assertion could pass before the async handler had run."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "window.location.href does not add a Next.js basePath. None is configured today, but adding one later would break both redirects.",
+    "If complete-setup succeeds but the browser is slow to load /admin, the re-enabled Complete button lets the user re-run onBeforeSubmit after setup has finished. The setup token may then be rejected, so an error could show briefly before the page is replaced."
+  ],
+  "test_coverage": [
+    "unlock/__tests__/page.test.tsx:45-59 checks the redirect target passed to loadFullPage for five inputs, and that router.push and router.replace are not used.",
+    "unlock/__tests__/page.test.tsx:61-78 checks that loadFullPage is not called for a wrong password or a network failure.",
+    "In SetupWizard.test.tsx, the tests at :474-504 (addon-policy rejected), :893-922 (password rejected) and :924-947 (drives rejected) check that loadFullPage is not called. The first two wait for the rejection message before asserting; the drives test also waits for its message.",
+    "No test asserts the button state after a successful navigation."
+  ],
+  "not_verified": [
+    "Tests were not executed (no command tool).",
+    "Did not check the backend's response to setup-token writes or complete-setup after setup has already completed, which is what a re-click on the Complete button would hit.",
+    "Did not open the git diff against origin/develop. I reviewed the files as they are in the worktree at HEAD."
+  ],
+  "confidence": 85
+}

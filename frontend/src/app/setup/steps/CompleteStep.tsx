@@ -1,10 +1,10 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 
 import { SETUP_TOKEN_HEADER } from "@/lib/adminConfig";
+import { loadFullPage } from "@/lib/fullPageLoad";
 
 export interface CompleteSummary {
   driveCount: number;
@@ -27,7 +27,6 @@ export function CompleteStep({
 }: Props): React.ReactElement {
   const t = useTranslations("setup");
   const tComplete = useTranslations("setup.complete");
-  const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -55,13 +54,14 @@ export function CompleteStep({
         setError(message);
         return;
       }
-      router.push("/admin");
+      // The wizard may have unlocked a session.
+      loadFullPage("/admin");
     } catch (err) {
       setError(err instanceof Error ? err.message : tComplete("errorMessage"));
     } finally {
       setSubmitting(false);
     }
-  }, [onBeforeSubmit, router, setupToken, tComplete]);
+  }, [onBeforeSubmit, setupToken, tComplete]);
 
   const accessModeLabel =
     summary.accessMode === "public"

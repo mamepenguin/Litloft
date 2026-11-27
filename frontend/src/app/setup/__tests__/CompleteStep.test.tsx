@@ -2,6 +2,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 
 const pushMock = vi.fn();
+const loadFullPageMock = vi.fn();
+vi.mock("@/lib/fullPageLoad", () => ({
+  loadFullPage: (path: string) => loadFullPageMock(path),
+}));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -22,6 +26,7 @@ const DEFAULT_SUMMARY = {
 const mockFetch = vi.fn();
 
 beforeEach(() => {
+  loadFullPageMock.mockReset();
   pushMock.mockReset();
   vi.stubGlobal("fetch", mockFetch);
 });
@@ -50,7 +55,7 @@ describe("CompleteStep", () => {
       );
     });
     await waitFor(() => {
-      expect(pushMock).toHaveBeenCalledWith("/admin");
+      expect(loadFullPageMock).toHaveBeenCalledWith("/admin");
     });
   });
 
@@ -66,10 +71,8 @@ describe("CompleteStep", () => {
     mockFetch.mockResolvedValueOnce(jsonResponse({ detail: "error" }, 500));
     render(<CompleteStep onBack={vi.fn()} setupToken="t" summary={DEFAULT_SUMMARY} />);
     fireEvent.click(screen.getByRole("button", { name: /完了|finish|complete/i }));
-    await waitFor(() => {
-      expect(mockFetch).toHaveBeenCalled();
-    });
-    expect(pushMock).not.toHaveBeenCalled();
+    expect(await screen.findByText("Failed to complete setup")).toBeTruthy();
+    expect(loadFullPageMock).not.toHaveBeenCalled();
   });
 });
 

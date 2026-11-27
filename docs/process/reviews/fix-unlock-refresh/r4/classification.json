@@ -1,0 +1,48 @@
+{
+  "risk": "MEDIUM",
+  "score": 5,
+  "base": 1,
+  "zone_max": "MEDIUM",
+  "modifiers": [],
+  "promotions": [],
+  "zones_touched": [
+    {
+      "path": ".claude/rules/design-decisions.md",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/app/setup/__tests__/CompleteStep.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/app/setup/__tests__/SetupWizard.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/app/setup/steps/CompleteStep.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/app/unlock/__tests__/page.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/app/unlock/page.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/__tests__/fullPageLoad.test.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/fullPageLoad.ts",
+      "level": "MEDIUM"
+    }
+  ],
+  "human_zones_touched": [],
+  "protected_paths_touched": [],
+  "docs_only": false,
+  "reasons": [
+    "highest zone MEDIUM (4 points)"
+  ]
+}

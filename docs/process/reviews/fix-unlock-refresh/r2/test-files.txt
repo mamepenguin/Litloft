@@ -1,0 +1,3 @@
+frontend/src/app/setup/__tests__/CompleteStep.test.tsx
+frontend/src/app/setup/__tests__/SetupWizard.test.tsx
+frontend/src/app/unlock/__tests__/page.test.tsx

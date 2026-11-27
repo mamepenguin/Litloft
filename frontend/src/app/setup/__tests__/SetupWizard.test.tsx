@@ -2,6 +2,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 
 const pushMock = vi.fn();
+const loadFullPageMock = vi.fn();
+vi.mock("@/lib/fullPageLoad", () => ({
+  loadFullPage: (path: string) => loadFullPageMock(path),
+}));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -43,6 +47,7 @@ function defaultMockImpl(url: string) {
 const SETUP_TOKEN = "a-valid-setup-token";
 
 beforeEach(() => {
+  loadFullPageMock.mockReset();
   pushMock.mockReset();
   mockFetch.mockReset();
   mockFetch.mockImplementation(defaultMockImpl);
@@ -195,7 +200,7 @@ describe("SetupWizard (detected drives)", () => {
     expect(body[1].name).toBe("docs");
 
     await waitFor(() => {
-      expect(pushMock).toHaveBeenCalledWith("/admin");
+      expect(loadFullPageMock).toHaveBeenCalledWith("/admin");
     });
 
     const passwordCall = mockFetch.mock.calls.find(
@@ -491,10 +496,10 @@ describe("SetupWizard addon choices across drive edits", () => {
 
     expect(await screen.findByText("drive 'media' is not configured")).toBeInTheDocument();
     expect(urlsCalled()).not.toContain("/api/admin/config/complete-setup");
-    expect(pushMock).not.toHaveBeenCalled();
+    expect(loadFullPageMock).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole("button", { name: /finish|complete/i }));
-    await waitFor(() => expect(pushMock).toHaveBeenCalledWith("/admin"));
+    await waitFor(() => expect(loadFullPageMock).toHaveBeenCalledWith("/admin"));
     expect(screen.queryByText("drive 'media' is not configured")).toBeNull();
   });
 });
@@ -516,7 +521,7 @@ describe("SetupWizard when the addon list does not load", () => {
     fireEvent.click(screen.getByRole("button", { name: /skip/i }));
     fireEvent.click(await screen.findByRole("button", { name: /finish|complete/i }));
 
-    await waitFor(() => expect(pushMock).toHaveBeenCalledWith("/admin"));
+    await waitFor(() => expect(loadFullPageMock).toHaveBeenCalledWith("/admin"));
     const policyPut = mockFetch.mock.calls.find(
       ([url, opts]) =>
         url === "/api/admin/config/addon-policy" && (opts as RequestInit)?.method === "PUT",
@@ -745,7 +750,7 @@ describe("SetupWizard unlock step", () => {
     );
     fireEvent.click(await screen.findByRole("button", { name: /finish|complete/i }));
 
-    await waitFor(() => expect(pushMock).toHaveBeenCalledWith("/admin"));
+    await waitFor(() => expect(loadFullPageMock).toHaveBeenCalledWith("/admin"));
 
     const call = mockFetch.mock.calls.find(
       ([u, opts]) =>
@@ -787,7 +792,7 @@ describe("SetupWizard unlock step", () => {
     );
     fireEvent.click(await screen.findByRole("button", { name: /finish|complete/i }));
 
-    await waitFor(() => expect(pushMock).toHaveBeenCalledWith("/admin"));
+    await waitFor(() => expect(loadFullPageMock).toHaveBeenCalledWith("/admin"));
 
     const verify = mockFetch.mock.calls.find(
       ([url]) => url === "/api/admin/config/setup-token/verify",
@@ -826,7 +831,7 @@ describe("SetupWizard unlock step", () => {
     );
     fireEvent.click(await screen.findByRole("button", { name: /finish|complete/i }));
 
-    await waitFor(() => expect(pushMock).toHaveBeenCalledWith("/admin"));
+    await waitFor(() => expect(loadFullPageMock).toHaveBeenCalledWith("/admin"));
 
     const gated = [
       "/api/admin/config/drives",
@@ -872,7 +877,7 @@ describe("SetupWizard in protected mode", () => {
   it("saves the password with the admin sentinel and finishes", async () => {
     fireEvent.click(await reachCompleteStepProtected());
 
-    await waitFor(() => expect(pushMock).toHaveBeenCalledWith("/admin"));
+    await waitFor(() => expect(loadFullPageMock).toHaveBeenCalledWith("/admin"));
 
     const [passwordPut] = callsTo("/api/admin/config/passwords");
     expect(passwordPut).toBeDefined();
@@ -913,7 +918,7 @@ describe("SetupWizard in protected mode", () => {
     const urls = mockFetch.mock.calls.map((c) => c[0] as string);
     expect(urls).not.toContain("/api/admin/config/complete-setup");
     expect(urls).not.toContain("/api/auth/unlock");
-    expect(pushMock).not.toHaveBeenCalled();
+    expect(loadFullPageMock).not.toHaveBeenCalled();
   });
 
   it("stops before the password when the drives are not saved", async () => {
@@ -938,7 +943,7 @@ describe("SetupWizard in protected mode", () => {
     expect(urls).not.toContain("/api/admin/config/passwords");
     expect(urls).not.toContain("/api/admin/config/addon-policy");
     expect(urls).not.toContain("/api/admin/config/complete-setup");
-    expect(pushMock).not.toHaveBeenCalled();
+    expect(loadFullPageMock).not.toHaveBeenCalled();
   });
 
   it("finishes when only the unlock fails, since the password is already stored", async () => {
@@ -951,7 +956,7 @@ describe("SetupWizard in protected mode", () => {
 
     fireEvent.click(await reachCompleteStepProtected());
 
-    await waitFor(() => expect(pushMock).toHaveBeenCalledWith("/admin"));
+    await waitFor(() => expect(loadFullPageMock).toHaveBeenCalledWith("/admin"));
     expect(callsTo("/api/admin/config/passwords")).toHaveLength(1);
   });
 });
