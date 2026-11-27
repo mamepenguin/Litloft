@@ -188,7 +188,7 @@ export function FileDetailChrome({
               {backControl}
             </div>
           )}
-          <div className="flex min-w-0 flex-1 flex-col md:flex-row md:items-center md:gap-1">
+          <div className="flex min-w-0 flex-1 flex-col overflow-hidden md:flex-row md:items-center md:gap-1">
             {isMobile && (
               <div className="flex min-w-0 items-center">{backControl}</div>
             )}

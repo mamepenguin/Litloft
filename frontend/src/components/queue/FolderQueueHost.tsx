@@ -26,6 +26,7 @@ import { QueueRows } from "./QueueRows";
 import { setQueuePage } from "./queuePagePresence";
 import {
   nextPlayableAfter,
+  previousPlayableBefore,
   queueEntryFromFile,
   queueWalk,
   type QueueEntry,
@@ -247,6 +248,12 @@ export function FolderQueueHost({
     if (next) playFile(next.id);
   }, [status, entries, fileId, loop, playFile]);
 
+  const previousTrack = useCallback(() => {
+    if (status !== "ready" || !fileId) return;
+    const previous = previousPlayableBefore(entries, fileId, loop);
+    if (previous) playFile(previous.id);
+  }, [status, entries, fileId, loop, playFile]);
+
   const handleClose = useCallback(() => {
     const params = new URLSearchParams(searchParams.toString());
     params.delete("queue");
@@ -270,8 +277,19 @@ export function FolderQueueHost({
       navigatePrev,
       navigateNext,
       onEnded,
+      previousTrack,
     };
-  }, [isQueue, name, trailHref, status, walk, navigatePrev, navigateNext, onEnded]);
+  }, [
+    isQueue,
+    name,
+    trailHref,
+    status,
+    walk,
+    navigatePrev,
+    navigateNext,
+    onEnded,
+    previousTrack,
+  ]);
 
   const leftPane = isQueue ? (
     <QueuePane

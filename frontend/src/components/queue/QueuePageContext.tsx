@@ -15,6 +15,8 @@ export interface QueuePageState extends FileNavState {
   /** Where the name goes: the collection list, or the folder's listing. */
   href: string;
   onEnded: () => void;
+  /** The previous playable item, wrapping with loop on. */
+  previousTrack: () => void;
 }
 
 const QueuePageContext = createContext<QueuePageState | null>(null);

@@ -34,6 +34,7 @@ import { setQueuePage } from "@/components/queue/queuePagePresence";
 import {
   isPlayable,
   nextPlayableAfter,
+  previousPlayableBefore,
   queueEntryFromFile,
   queueWalk,
 } from "@/components/queue/queue";
@@ -347,6 +348,12 @@ export function CollectionDetail({ drive, collectionId }: CollectionDetailProps)
     if (next) playFile(next.id);
   }, [entries, fileId, loop, playFile]);
 
+  const previousTrack = useCallback(() => {
+    if (!fileId) return;
+    const previous = previousPlayableBefore(entries, fileId, loop);
+    if (previous) playFile(previous.id);
+  }, [entries, fileId, loop, playFile]);
+
   const queuePage = useMemo<QueuePageState>(
     () => ({
       name: detail?.name ?? "",
@@ -358,8 +365,17 @@ export function CollectionDetail({ drive, collectionId }: CollectionDetailProps)
       navigatePrev,
       navigateNext,
       onEnded,
+      previousTrack,
     }),
-    [detail?.name, listHref, walk, navigatePrev, navigateNext, onEnded],
+    [
+      detail?.name,
+      listHref,
+      walk,
+      navigatePrev,
+      navigateNext,
+      onEnded,
+      previousTrack,
+    ],
   );
 
   if (loading) {

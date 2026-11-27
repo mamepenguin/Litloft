@@ -59,6 +59,28 @@ export function nextPlayableAfter(
   return null;
 }
 
+/**
+ * The first playable entry before `currentId`, wrapping to the queue's end
+ * only when looping. The current entry itself is never chosen.
+ */
+export function previousPlayableBefore(
+  entries: readonly QueueEntry[],
+  currentId: string,
+  loop: boolean,
+): QueueEntry | null {
+  const current = entries.findIndex((entry) => entry.id === currentId);
+  if (current === -1) return null;
+
+  for (let i = current - 1; i >= 0; i -= 1) {
+    if (isPlayable(entries[i])) return entries[i];
+  }
+  if (!loop) return null;
+  for (let i = entries.length - 1; i > current; i -= 1) {
+    if (isPlayable(entries[i])) return entries[i];
+  }
+  return null;
+}
+
 /** The item before and after the open file, over every entry and never wrapping. */
 export function queueWalk(
   entries: readonly QueueEntry[],

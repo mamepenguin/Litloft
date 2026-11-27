@@ -96,10 +96,10 @@ export function RightPaneFile({ fileId, drive }: RightPaneFileProps) {
     countable: navOrdering.countable,
     fileType: file?.file_type ?? null,
     mimeType: file?.mime_type ?? null,
-    enabled: queuePage === null,
+    queue: queuePage,
     onNavigate: selectFile,
   });
-  const nav = queuePage ?? fileNav;
+  const nav = fileNav;
 
   const tParam = searchParams.get("t");
   const pageParam = searchParams.get("page");
