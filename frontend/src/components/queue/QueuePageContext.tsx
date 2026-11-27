@@ -23,7 +23,7 @@ export function QueuePageProvider({
   value,
   children,
 }: {
-  value: QueuePageState;
+  value: QueuePageState | null;
   children: React.ReactNode;
 }) {
   return (

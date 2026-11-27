@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { treeEnabledStore } from "@/lib/treeEnabledStore";
 import { treeNarrowOpenStore } from "@/lib/treeNarrowOpenStore";
+import { setQueuePage } from "@/components/queue/queuePagePresence";
 
 // jsdom has no `matchMedia`. The toggle asks it whether the tree fits
 // beside the content; `setBeside` is how a test moves the window.
@@ -45,6 +46,7 @@ beforeEach(() => {
   localStorage.clear();
   treeEnabledStore.reset();
   treeNarrowOpenStore.reset();
+  setQueuePage("work", false);
   besideMatches = true;
   mediaListeners.clear();
   mockPathname = "/drive/work";
@@ -54,6 +56,7 @@ beforeEach(() => {
 afterEach(() => {
   localStorage.clear();
   treeEnabledStore.reset();
+  setQueuePage("work", false);
 });
 
 describe("TreeToggle", () => {
@@ -199,6 +202,44 @@ describe("TreeToggle", () => {
       act(() => setBeside(true));
 
       expect(screen.getByRole("button")).toHaveAttribute("aria-pressed", "true");
+    });
+  });
+
+  describe("on a queue page", () => {
+    it("says it opens the queue, and stays in the row below md", () => {
+      mockSearchParams = new URLSearchParams("file=f1&queue=folder");
+      render(<TreeToggle drive="work" />);
+      const button = screen.getByRole("button");
+      expect(button).toHaveAttribute("aria-label", "Show the queue");
+      expect(button.className.split(/\s+/)).toContain("flex");
+      expect(button.className.split(/\s+/)).not.toContain("hidden");
+      expect(button).toHaveAttribute("aria-pressed", "false");
+    });
+
+    it("opens the queue pane below md and says it can hide it", () => {
+      besideMatches = false;
+      mockSearchParams = new URLSearchParams("file=f1&queue=folder");
+      render(<TreeToggle drive="work" />);
+
+      fireEvent.click(screen.getByRole("button"));
+
+      expect(screen.getByRole("button")).toHaveAttribute(
+        "aria-label",
+        "Hide the queue",
+      );
+      expect(treeNarrowOpenStore.get("work")).toBe(true);
+      expect(localStorage.getItem("tree:enabled:work")).toBeNull();
+    });
+
+    it("knows a collection's open file is a queue even without a queue parameter", () => {
+      mockPathname = "/drive/work/collections/c1";
+      mockSearchParams = new URLSearchParams("file=f1");
+      setQueuePage("work", true);
+      render(<TreeToggle drive="work" />);
+      const button = screen.getByRole("button");
+      expect(button).toHaveAttribute("aria-label", "Show the queue");
+      expect(button.className.split(/\s+/)).toContain("flex");
+      expect(button.className.split(/\s+/)).not.toContain("hidden");
     });
   });
 });

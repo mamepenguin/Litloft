@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Repeat } from "lucide-react";
+import { Repeat, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
@@ -17,6 +17,8 @@ interface QueuePaneProps {
   total?: number | null;
   loop: boolean;
   onToggleLoop: () => void;
+  /** The × that ends the queue; a collection has none. */
+  onClose?: () => void;
   status?: QueuePaneStatus;
   children?: ReactNode;
 }
@@ -31,6 +33,7 @@ export function QueuePane({
   total,
   loop,
   onToggleLoop,
+  onClose,
   status = "ready",
   children,
 }: QueuePaneProps) {
@@ -76,6 +79,17 @@ export function QueuePane({
         >
           <Repeat size={17} />
         </button>
+        {onClose && (
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label={t("queueEnd")}
+            title={t("queueEnd")}
+            className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-[10px] text-text-muted transition-colors hover:bg-bg-elevated hover:text-text-primary pointer-coarse:h-11 pointer-coarse:w-11"
+          >
+            <X size={17} />
+          </button>
+        )}
       </div>
       {status === "loading" ? (
         <div className="border-r border-bg-border p-4 text-xs text-text-muted">

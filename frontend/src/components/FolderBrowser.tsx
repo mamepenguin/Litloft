@@ -38,6 +38,7 @@ import { useTreeRefresh } from "@/components/TreeRefreshContext";
 import { FolderToolbar } from "@/components/folder/FolderToolbar";
 import { FolderContent } from "@/components/folder/FolderContent";
 import { folderQueueHref, storeFolderQueue } from "@/components/queue/folderQueue";
+import { requestPlay } from "@/components/queue/playIntent";
 import { PassageList } from "@/components/search/PassageList";
 import { passageCounts } from "@/lib/searchPassages";
 import { buildWidenTagScope } from "@/components/folder/WidenTagScopeLink";
@@ -650,6 +651,7 @@ export function FolderBrowser({
       params.set("sort", effectiveSort);
       params.set("order", effectiveOrder);
     }
+    requestPlay(firstPlayable.id);
     folderRouter.push(
       `${folderQueueHref(driveName, folderPath ?? "")}?${params.toString()}`,
     );

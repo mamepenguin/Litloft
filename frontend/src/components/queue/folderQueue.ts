@@ -79,22 +79,20 @@ export async function fetchFolderQueue(
   order?: string,
 ): Promise<FileItem[]> {
   const allFiles: FileItem[] = [];
-  for (const type of ["audio", "video"] as const) {
-    let page = 1;
-    let hasMore = true;
-    while (hasMore) {
-      const res = await getDriveFiles(drive, {
-        path,
-        type,
-        sort: (sort || "created_at") as SortField,
-        order: (order || "desc") as SortOrder,
-        limit: 500,
-        page,
-      });
-      allFiles.push(...res.data);
-      hasMore = res.meta.total > page * 500;
-      page++;
-    }
+  let page = 1;
+  let hasMore = true;
+  while (hasMore) {
+    const res = await getDriveFiles(drive, {
+      path,
+      type: ["audio", "video"],
+      sort: (sort || "created_at") as SortField,
+      order: (order || "desc") as SortOrder,
+      limit: 500,
+      page,
+    });
+    allFiles.push(...res.data);
+    hasMore = res.meta.total > page * 500;
+    page++;
   }
   return allFiles;
 }

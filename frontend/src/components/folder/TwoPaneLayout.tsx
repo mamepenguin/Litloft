@@ -43,6 +43,8 @@ interface TwoPaneLayoutProps {
   leftPaneAriaLabel?: string;
   /** This page has a queue, so its pane is shown for the visit when the tree setting is off. */
   queuePane?: boolean;
+  /** A queue's pane replaces the tree on screen while the tree stays mounted. */
+  treeUnderPane?: boolean;
 }
 
 export function TwoPaneLayout({
@@ -52,9 +54,11 @@ export function TwoPaneLayout({
   leftPane,
   leftPaneAriaLabel,
   queuePane = false,
+  treeUnderPane = false,
 }: TwoPaneLayoutProps) {
   const t = useTranslations("rightPane");
   const tView = useTranslations("view");
+  const tPlayback = useTranslations("playback");
   const router = useGuardedRouter();
   const pathname = usePathname();
   const { fileId, selectFile, clearFile } = useSelectedFile();
@@ -166,10 +170,22 @@ export function TwoPaneLayout({
   const treeAsideWidth =
     !treeOpen || focusLayout
       ? "w-0"
-      : hasFile
+      : hasFile && !queuePane
         ? "w-0 md:w-[280px]"
         : "w-[100vw] md:w-[280px]";
   const showSectionOnMobile = !treeOpen || hasFile;
+
+  const treeNode = hasEverEnabled ? (
+    <FolderTreePane
+      drive={drive}
+      selectedPath={selectedTreePath}
+      selectedFileId={fileId}
+      currentFolderPath={folderPath}
+      onSelectFolder={handleSelectFolder}
+      onSelectFile={handleSelectFile}
+      externalRefreshKey={treeRefreshKey}
+    />
+  ) : null;
 
   return (
     <TreeRefreshContext.Provider value={refreshTree}>
@@ -192,25 +208,27 @@ export function TwoPaneLayout({
               <button
                 type="button"
                 onClick={() => treeNarrowOpenStore.set(drive, false)}
-                aria-label={tView("treeOff")}
+                aria-label={
+                  queuePane ? tPlayback("queueOverlayClose") : tView("treeOff")
+                }
                 className="rounded-lg p-2 text-text-muted hover:text-text-primary"
               >
                 <X size={18} />
               </button>
             </div>
-            {hasEverEnabled
-              ? leftPane ?? (
-                  <FolderTreePane
-                    drive={drive}
-                    selectedPath={selectedTreePath}
-                    selectedFileId={fileId}
-                    currentFolderPath={folderPath}
-                    onSelectFolder={handleSelectFolder}
-                    onSelectFile={handleSelectFile}
-                    externalRefreshKey={treeRefreshKey}
-                  />
-                )
-              : null}
+            {treeUnderPane ? (
+              <>
+                <div
+                  className={leftPane ? "hidden" : "contents"}
+                  aria-hidden={leftPane ? true : undefined}
+                >
+                  {treeNode}
+                </div>
+                {leftPane}
+              </>
+            ) : hasEverEnabled ? (
+              leftPane ?? treeNode
+            ) : null}
           </div>
         </aside>
         <section

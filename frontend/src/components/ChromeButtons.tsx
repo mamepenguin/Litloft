@@ -1,10 +1,15 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useSyncExternalStore } from "react";
 import { Menu } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useSearchParams } from "next/navigation";
 
 import { useIsMobile } from "@/hooks/useIsMobile";
+import {
+  queuePagePresent,
+  subscribeQueuePage,
+} from "@/components/queue/queuePagePresence";
 import { DriveTreeToggle } from "./DriveTreeToggle";
 import { useFileHeaderRowHost } from "./FileHeaderRowProvider";
 import { useSidebar } from "./SidebarProvider";
@@ -52,9 +57,16 @@ export function ChromeButtons({
     [setChromeButtons],
   );
   // The tree has no width beside a file on a phone, so its toggle would do
-  // nothing there.
+  // nothing there. A queue page's pane is what the button opens there.
   const isMobile = useIsMobile();
-  const hideTree = !!rowHost?.top && isMobile;
+  const searchParams = useSearchParams();
+  const queueShown = useSyncExternalStore(
+    subscribeQueuePage,
+    () => queuePagePresent(null),
+    () => false,
+  );
+  const onQueuePage = searchParams.get("queue") !== null || queueShown;
+  const hideTree = !!rowHost?.top && isMobile && !onQueuePage;
 
   return (
     <div

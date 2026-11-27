@@ -30,6 +30,7 @@ import { QueuePane } from "@/components/queue/QueuePane";
 import { QueueTrail } from "@/components/queue/QueueTrail";
 import { getLoop, setLoopStorage } from "@/components/queue/loopStorage";
 import { clearPlayIntent, requestPlay } from "@/components/queue/playIntent";
+import { setQueuePage } from "@/components/queue/queuePagePresence";
 import {
   isPlayable,
   nextPlayableAfter,
@@ -45,6 +46,7 @@ import { subscribeCollectionChanged } from "@/lib/collectionChanged";
 import { FileNavigationOverrideProvider } from "@/lib/fileNavigationOverride";
 import { useImeKeyGuard } from "@/lib/ime";
 import { focusEnd, isNameInUse } from "@/lib/nameInUse";
+import { treeNarrowOpenStore } from "@/lib/treeNarrowOpenStore";
 import { useNameSubmission } from "@/hooks/useNameSubmission";
 import type { CollectionDetail as CollectionDetailType } from "@/types";
 
@@ -102,6 +104,12 @@ export function CollectionDetail({ drive, collectionId }: CollectionDetailProps)
     setOverrideDrive(drive);
     return () => setOverrideDrive(null);
   }, [drive, setOverrideDrive]);
+
+  const collectionLoaded = detail !== null;
+  useEffect(() => {
+    setQueuePage(drive, collectionLoaded && fileId !== null);
+    return () => setQueuePage(drive, false);
+  }, [drive, collectionLoaded, fileId]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -219,10 +227,11 @@ export function CollectionDetail({ drive, collectionId }: CollectionDetailProps)
 
   const playFile = useCallback(
     (id: string) => {
+      treeNarrowOpenStore.set(drive, false);
       requestPlay(id);
       selectFile(id);
     },
-    [selectFile],
+    [drive, selectFile],
   );
 
   const selectWithoutPlay = useCallback(
