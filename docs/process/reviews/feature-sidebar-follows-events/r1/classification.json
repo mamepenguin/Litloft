@@ -1,0 +1,144 @@
+{
+  "risk": "CRITICAL",
+  "score": 11,
+  "base": 3,
+  "zone_max": "HIGH",
+  "modifiers": [],
+  "promotions": [],
+  "zones_touched": [
+    {
+      "path": ".claude/rules/design-decisions.md",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "backend/app/routers/collections.py",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "backend/app/routers/drives.py",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "backend/app/routers/internal.py",
+      "level": "HIGH"
+    },
+    {
+      "path": "backend/app/services/ws.py",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "backend/tests/test_sidebar_change_events.py",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/ADDON-DEVELOPMENT.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/developer-guide/known-issues.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/reference/websocket-events.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/INDEX.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/sidebar-follows-events.md",
+      "level": "LOW"
+    },
+    {
+      "path": "frontend/src/__tests__/uploadLock.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/Sidebar.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/SidebarActiveRow.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/SidebarAddonNav.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/SidebarAddonNavCatalogue.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/SmartFolderSidebar.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/driveSwitchBoundary.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/imeEnterGuard.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/sidebarShellFixtureParity.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/sidebar/SidebarCollectionsSection.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/sidebar/__tests__/SidebarCollectionsSection.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/sidebar/__tests__/SidebarItemReorder.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/sidebar/__tests__/SmartCollectionDialogPortal.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/sidebar/__tests__/sidebarFollowsEvents.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/sidebar/__tests__/useCollectionManagement.test.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/sidebar/__tests__/useSidebarData.events.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/sidebar/__tests__/useSidebarData.summaryError.test.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/sidebar/__tests__/useSidebarData.test.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/sidebar/useCollectionManagement.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/sidebar/useDriveScopedReads.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/sidebar/useSidebarData.ts",
+      "level": "MEDIUM"
+    }
+  ],
+  "human_zones_touched": [],
+  "protected_paths_touched": [],
+  "docs_only": false,
+  "reasons": [
+    "highest zone HIGH (8 points)"
+  ]
+}

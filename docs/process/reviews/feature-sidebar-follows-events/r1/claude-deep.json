@@ -1,0 +1,227 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-deep",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [
+    {
+      "id": "SCOPE-1",
+      "origin": "reviewer",
+      "claim": "The diff adds a new product module, frontend/src/components/sidebar/useDriveScopedReads.ts, that the touch-point list does not name; it holds the subscription, the gathering timers, the per-list sequence and reloadCollections, which the touch-point list places in useSidebarData.ts.",
+      "impact": "No user impact. The behaviour the spec assigns to useSidebarData.ts lives in an unlisted file, and the ScopedTags type moved there (useSidebarData.ts still re-exports it). A reviewer or a later change that checks only the listed files would miss where the sequence and failure rules are enforced.",
+      "evidence": "frontend/src/components/sidebar/useDriveScopedReads.ts:1-250 is a new file (createTrackedList at :57, startGathering at :192, useWebSocketRefresh at :235, reloadCollections at :237). frontend/src/components/sidebar/useSidebarData.ts:14-15 imports useDriveScopedReads and re-exports ScopedTags, and :41-45 delegates everything except drives and auth. The spec's touch points list only useSidebarData.ts, useCollectionManagement.ts, SidebarCollectionsSection.tsx and Sidebar.tsx under frontend/src/components.",
+      "repro": "Compare the file list of the diff with the Touch points section of docs/specs/sidebar-follows-events.md: useDriveScopedReads.ts is the only product path in the diff that the list does not name.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "It breaks no invariant: useSidebarData's public behaviour is what the spec describes. Only the touch-point list is incomplete.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add useDriveScopedReads.ts to the touch-point list in the invariants revision, or record that the hook was extracted from useSidebarData.ts."
+    }
+  ],
+  "specification_compliance": [
+    "I1: useDriveScopedReads.ts:20-29 watches all eight events through useWebSocketRefresh with currentDrive. runRound -> readAll reads tags (folderRef at round start), pins, collections and summary. useSidebarData.events.test.tsx covers each event with it.each.",
+    "I2: useWebSocketRefresh drops events whose data.drive is another drive. startGathering returns early when driveRef is null, which covers reconnects too (:193). Every watched backend event carries drive (scanner.py:914, upload.py:260/487, notify_drive).",
+    "I3: the cap timer is set at the first event and the idle timer uses min(500, untilCap). runRound clears both. The 500/300/stream timings are tested.",
+    "I4/I5: createTrackedList (:57-87) applies a success only when seq > shownSeq and its scope is current. A failure applies empty only when shownScope differs and does not raise shownSeq. Tags use drive+folder as scope; pins, collections and summary use drive only, so a folder change discards only tags.",
+    "I6: notify_drive is called once after db.commit() in all six collection handlers, pin_folder, unpin_folder and replace_file_tags_internal. All 4xx raises come before the commit. The backend test asserts there are no other WebSocket events or webhooks (manager.broadcast and the event_hooks emitters are patched and recorded).",
+    "I7: notify_drive wraps the module-global broadcast_from_thread in try/except Exception and logs it. The handlers are sync defs, so call_soon_threadsafe is valid from the threadpool. The test patches the module attribute, which notify_drive looks up at call time.",
+    "I8: the broadcast goes through ConnectionManager.broadcast with drive=..., which filters on the access group. The test drives the real manager.",
+    "I9: the reconnect path of useWebSocketRefresh calls startGathering, so the round is gathered (tested).",
+    "I10: useCollectionManagement.ts:120-127 closes the rename input and the context menu when their id leaves collectionList. The 404 branch at :173-177 closes silently. The create input is untouched by rounds. These are tested in sidebarFollowsEvents.test.tsx.",
+    "I11: reloadCollections never rejects (try/catch at :241-246), so the catch blocks in create, rename, delete and handleDrop no longer see re-read failures."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    {
+      "behavior": "Any 404 from a sidebar rename closes the input silently and re-reads the list, including when the collection is still listed (deleted in another tab before any round arrived) or when the 404 is the drive-not-found answer.",
+      "frequency": 1,
+      "impact": 2,
+      "reason": "A rename of a collection that another tab or MCP just deleted closes with no message; the row then disappears after the re-read, so the user sees no explanation, but nothing is lost."
+    },
+    {
+      "behavior": "A watched event matched just before a drive switch, whose onMatch runs in a queued microtask, can start a gathering, and then a round, for the newly shown drive.",
+      "frequency": 1,
+      "impact": 1,
+      "reason": "An event for the previous drive that arrives during a drive switch causes one extra set of four GETs for the new drive; nothing visible changes."
+    },
+    {
+      "behavior": "When currentDrive becomes null, tags and summary are set to null directly without updating the tracked list's shown scope, so a later failed tags read for the same drive leaves tags null instead of an empty scoped list.",
+      "frequency": 1,
+      "impact": 1,
+      "reason": "SidebarTagsSection renders null and empty items the same way (return null at SidebarTagsSection.tsx:85), so the user sees no difference."
+    }
+  ],
+  "regression_risks": [
+    "Pins and collections of the previous drive stay visible after a drive switch until the new drive's read lands (unchanged from before; a failure now empties them because shownScope differs).",
+    "A Markdown autosave stream emits drive.file_updated and starts four GETs about every 500 ms pause, as the spec describes. Load on a home LAN is small but not zero.",
+    "The Knowledge scanner's internal tag write now broadcasts once per note. During a large scan only the sidebar reacts, gathered to one round per 500 ms to 2 s."
+  ],
+  "test_coverage": [
+    "Backend test_sidebar_change_events.py covers every write in I6 (parametrized success, 4xx silence including the 403 secret case, once per request), I7 (a raising broadcast still leaves the commit, the status and the body) and I8 through the real ConnectionManager.",
+    "useSidebarData.events.test.tsx covers I1 per event, I2 (other drive, unwatched events, no drive), I3 timings, I4 overlapping rounds, refreshKey and reloadCollections ordering, I5 keep/empty/older-success, I9 reconnect, drive change, folder change and unmount.",
+    "sidebarFollowsEvents.test.tsx covers I10 (rename kept, create in 409 kept, rename closed, menu closed, 404 in flight with no toast) and I11 for create, rename and delete through the full Sidebar, plus the drag-and-drop re-read ordering.",
+    "Mutation thought-checks: removing the 404 branch fails the in-flight 404 test; removing the shownScope check in fail() fails 'a failed round keeps every list'; dropping the scope check in succeed() fails the drive-change discard test; making the folder change discard all lists fails the folder-change test.",
+    "Gap: no test that a failed re-read after a drag-and-drop add shows no toast (I11 drag-and-drop). handleDrop swallows every error anyway, so it is low risk."
+  ],
+  "not_verified": [
+    "I did not run any test (frontend or backend). Pass/fail is not observed.",
+    "I did not check that the conftest `client` fixture yields the 4-tuple the backend test unpacks.",
+    "I did not check other callers that write pins or collections outside the listed routers (for example home on_home toggles), or whether the sidebar shows anything they change.",
+    "I did not read the sidebarHarness helper's fetch routing beyond its exported names.",
+    "I did not inspect submodules; the diff shows none touched."
+  ],
+  "coverage": [
+    {
+      "path": "backend/app/routers/collections.py",
+      "read": "full",
+      "reason": "Read the whole file."
+    },
+    {
+      "path": "backend/app/routers/drives.py",
+      "read": "partial",
+      "reason": "Read lines 1900-1969 (list, pin and unpin handlers containing every changed hunk) plus the import hunk in the diff."
+    },
+    {
+      "path": "backend/app/routers/internal.py",
+      "read": "partial",
+      "reason": "Read lines 150-209 (replace_file_tags_internal with its changed hunk) plus the import hunk in the diff."
+    },
+    {
+      "path": "backend/app/services/ws.py",
+      "read": "full",
+      "reason": "Read the whole file."
+    },
+    {
+      "path": "frontend/src/components/Sidebar.tsx",
+      "read": "partial",
+      "reason": "Read the changed hunks (around lines 97-110 and 187-190) in the diff; not opened in full."
+    },
+    {
+      "path": "frontend/src/components/sidebar/SidebarCollectionsSection.tsx",
+      "read": "partial",
+      "reason": "Read lines 155-244 (menu items, drag handlers, handleDrop) and 415-464, plus the import and props hunks in the diff."
+    },
+    {
+      "path": "frontend/src/components/sidebar/useCollectionManagement.ts",
+      "read": "full",
+      "reason": "Read the whole file."
+    },
+    {
+      "path": "frontend/src/components/sidebar/useDriveScopedReads.ts",
+      "read": "full",
+      "reason": "Read the whole file."
+    },
+    {
+      "path": "frontend/src/components/sidebar/useSidebarData.ts",
+      "read": "full",
+      "reason": "The whole new file content is visible in the diff (48 lines)."
+    },
+    {
+      "path": "backend/tests/test_sidebar_change_events.py",
+      "read": "full",
+      "reason": "New file; read in full in the diff."
+    },
+    {
+      "path": "frontend/src/__tests__/uploadLock.test.tsx",
+      "read": "partial",
+      "reason": "Read only the diff hunk (mock return shape)."
+    },
+    {
+      "path": "frontend/src/components/__tests__/SidebarActiveRow.test.tsx",
+      "read": "partial",
+      "reason": "Read only the diff hunk."
+    },
+    {
+      "path": "frontend/src/components/__tests__/SidebarAddonNav.test.tsx",
+      "read": "partial",
+      "reason": "Read only the diff hunk."
+    },
+    {
+      "path": "frontend/src/components/__tests__/SidebarAddonNavCatalogue.test.tsx",
+      "read": "partial",
+      "reason": "Read only the diff hunk."
+    },
+    {
+      "path": "frontend/src/components/__tests__/SmartFolderSidebar.test.tsx",
+      "read": "partial",
+      "reason": "Read only the diff hunk."
+    },
+    {
+      "path": "frontend/src/components/__tests__/driveSwitchBoundary.test.tsx",
+      "read": "partial",
+      "reason": "Read only the diff hunk."
+    },
+    {
+      "path": "frontend/src/components/__tests__/imeEnterGuard.test.tsx",
+      "read": "partial",
+      "reason": "Read only the diff hunk."
+    },
+    {
+      "path": "frontend/src/components/__tests__/sidebarShellFixtureParity.test.tsx",
+      "read": "partial",
+      "reason": "Read only the diff hunk."
+    },
+    {
+      "path": "frontend/src/components/sidebar/__tests__/SidebarCollectionsSection.test.tsx",
+      "read": "partial",
+      "reason": "Read only the diff hunk."
+    },
+    {
+      "path": "frontend/src/components/sidebar/__tests__/SidebarItemReorder.test.tsx",
+      "read": "partial",
+      "reason": "Read only the two diff hunks."
+    },
+    {
+      "path": "frontend/src/components/sidebar/__tests__/SmartCollectionDialogPortal.test.tsx",
+      "read": "partial",
+      "reason": "Read only the diff hunk."
+    },
+    {
+      "path": "frontend/src/components/sidebar/__tests__/sidebarFollowsEvents.test.tsx",
+      "read": "full",
+      "reason": "New file; read in full in the diff, and checked that the helper exports it imports exist."
+    },
+    {
+      "path": "frontend/src/components/sidebar/__tests__/useCollectionManagement.test.ts",
+      "read": "partial",
+      "reason": "Read only the diff hunks."
+    },
+    {
+      "path": "frontend/src/components/sidebar/__tests__/useSidebarData.events.test.tsx",
+      "read": "full",
+      "reason": "New file; read in full in the diff."
+    },
+    {
+      "path": "frontend/src/components/sidebar/__tests__/useSidebarData.summaryError.test.ts",
+      "read": "partial",
+      "reason": "Read the diff hunks, which cover most of the file."
+    },
+    {
+      "path": "frontend/src/components/sidebar/__tests__/useSidebarData.test.ts",
+      "read": "full",
+      "reason": "Read the whole file."
+    }
+  ],
+  "confidence": 80,
+  "perspectives": [
+    {
+      "name": "scope",
+      "notes": "Only useDriveScopedReads.ts falls outside the touch-point list (SCOPE-1). SidebarAddonNavCatalogue.test.tsx matches the listed SidebarAddonNav* pattern. The new tests are under sidebar/__tests__ and backend/tests as listed. The specs, INDEX and review records are implicit touch points."
+    },
+    {
+      "name": "submodules",
+      "notes": "The diff touches no submodule paths."
+    },
+    {
+      "name": "persistence",
+      "notes": "No schema or storage change. Every broadcast comes after db.commit(), and every 4xx raise comes before the commit and the broadcast."
+    },
+    {
+      "name": "concurrency",
+      "notes": "The backend handlers are sync and run in the threadpool, so broadcast_from_thread's call_soon_threadsafe is valid. On the frontend, the per-list sequence and scope checks settle overlapping rounds, refreshKey reads and reloadCollections. A failure does not raise shownSeq, so an older success can still land, as I5 requires. One harmless extra round is possible when a queued microtask runs after a drive switch."
+    }
+  ]
+}
