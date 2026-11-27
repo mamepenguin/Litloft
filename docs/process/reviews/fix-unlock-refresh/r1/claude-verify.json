@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "MEDIUM",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R1",
+      "status": "confirmed",
+      "note": "docs/process/reviews/fix-unlock-refresh/r1/classification.json:10 lists .claude/rules/design-decisions.md among the zones the change touches. The file has the new bullet at .claude/rules/design-decisions.md:9 ('Unlock and Lock end in a full page load'). The Lock half matches frontend/src/components/Sidebar.tsx:62-66 (lockApi() followed by window.location.href = \"/\"). The /unlock half matches frontend/src/app/unlock/page.tsx:37 (window.location.assign(resolveRedirect())). The review folder has no invariants file, so no declared touch-point list names this rules file."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R2",
+      "status": "confirmed",
+      "note": "I confirmed the part the reader left open. SetupWizard.tsx:281-291 calls unlock(password.password, false), and CompleteStep.tsx:58 then calls router.push('/admin'), which is a client-side navigation. layout.tsx:84 wraps every route in AppShell. AppShell.tsx:367 renders <Sidebar> with no path condition, so the sidebar is mounted on /setup. useSidebarData.ts:43-46 fetches getAuthStatus only on mount or when refreshKey changes. As a result, after the wizard's unlock and router.push the sidebar keeps the auth status it fetched before passwords existed: no Lock button (Sidebar.tsx:244 requires has_protected_drives) and no admin entries (Sidebar.tsx:241 isAdmin) until the user reloads. This path does not follow the new rule at design-decisions.md:9. The behavior is pre-existing; the diff does not touch the setup files (product-files.txt lists only unlock/page.tsx)."
+    }
+  ],
+  "unspecified_scores": [
+    {
+      "source_reviewer": "claude-read",
+      "index": 0,
+      "frequency": 1,
+      "impact": 1,
+      "reason": "After a successful unlock, the finally block at unlock/page.tsx:44-45 re-enables the button while window.location.assign is still loading. On a home LAN that window is brief, and a second click only sends another successful unlock before the page changes, which does no harm."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "index": 1,
+      "frequency": 2,
+      "impact": 2,
+      "reason": "Pressing Back after an unlock shows the /unlock form again even though the cookie is already set, as router.push did before. The user just goes forward or navigates elsewhere."
+    }
+  ],
+  "specification_compliance": [
+    "behavior.md:9-12 says a successful unlock ends in a full page load of the redirect target (a same-origin path, otherwise /). unlock/page.tsx:18-24 and :37 do this with window.location.assign.",
+    "behavior.md:20-21 says a wrong password or a failed request leaves the viewer on /unlock with the error. unlock/page.tsx:38-43 does this."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "The new rule at design-decisions.md:9 states that every unlock ends in a full page load, but the setup wizard's unlock (SetupWizard.tsx:287 followed by CompleteStep.tsx:58 router.push) still does not, so the rule is broken by existing code."
+  ],
+  "test_coverage": [
+    "unlock/__tests__/page.test.tsx:43-57 checks that location.assign gets the correct target for an empty redirect, an encoded path, a path with a query, a protocol-relative URL and an absolute URL, and that router.push and router.replace are not called.",
+    "page.test.tsx:59-76 covers a wrong password and a network failure: the page stays on /unlock and does not navigate.",
+    "No test covers the Lock path in Sidebar.tsx:62-66 or the setup wizard's unlock path."
+  ],
+  "not_verified": [
+    "I did not run the test suite; I could not execute commands.",
+    "I could not run git diff, so I did not check the exact diff hunks. I took the touched files from classification.json and product-files.txt.",
+    "I did not check whether the /admin page or any middleware forces a full reload after setup completes, which would hide the effect described in R2.",
+    "I did not check whether the WebSocket provider reconnects on route change."
+  ],
+  "confidence": 85
+}

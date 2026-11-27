@@ -1,0 +1,28 @@
+{
+  "risk": "MEDIUM",
+  "score": 5,
+  "base": 1,
+  "zone_max": "MEDIUM",
+  "modifiers": [],
+  "promotions": [],
+  "zones_touched": [
+    {
+      "path": ".claude/rules/design-decisions.md",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/app/unlock/__tests__/page.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/app/unlock/page.tsx",
+      "level": "MEDIUM"
+    }
+  ],
+  "human_zones_touched": [],
+  "protected_paths_touched": [],
+  "docs_only": false,
+  "reasons": [
+    "highest zone MEDIUM (4 points)"
+  ]
+}

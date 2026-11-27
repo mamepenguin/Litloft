@@ -1,0 +1,94 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "MEDIUM",
+  "findings": [
+    {
+      "id": "R1",
+      "origin": "reviewer",
+      "claim": "The diff reaches `.claude/rules/design-decisions.md`, a repository-wide rules file that is not one of the implicit touch points (docs/specs, INDEX.md, docs/process/reviews); no invariants file exists, so there is no declared touch-point list that names it.",
+      "impact": "No runtime effect. A new standing rule ('Unlock and Lock end in a full page load') now binds every future change to auth flows; a person should confirm that adding a project-wide rule was intended as part of this fix.",
+      "evidence": ".claude/rules/design-decisions.md:9 (added bullet). The Lock half of the rule matches code at frontend/src/components/Sidebar.tsx:64-65 (`await lockApi(); window.location.href = \"/\"`); the /unlock half matches frontend/src/app/unlock/page.tsx:37.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariant is declared, so nothing is broken; this is only a place reached outside a (nonexistent) touch-point list.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    },
+    {
+      "id": "R2",
+      "origin": "reviewer",
+      "claim": "The setup wizard also grants an unlock session (SetupWizard.tsx:287 `await unlock(password.password, false)`) and then navigates client-side with `router.push(\"/admin\")` (CompleteStep.tsx:58), so it is an unlock path that does not end in a full page load, unlike the /unlock page after this change.",
+      "impact": "After finishing first-run setup in protected mode, providers mounted in the root layout (WebSocketProvider, AddonSlotsProvider, sidebar data via useSidebarData's mount-time getDrives/getAuthStatus, frontend/src/components/sidebar/useSidebarData.ts:43-46) may keep state read under the pre-unlock cookie until a reload. Happens at most once per install.",
+      "evidence": "frontend/src/app/setup/SetupWizard.tsx:281-291 unlocks; frontend/src/app/setup/steps/CompleteStep.tsx:58 router.push('/admin'); frontend/src/app/layout.tsx:73-87 mounts WebSocketProvider/AddonSlotsProvider/SidebarProvider above every page including /setup. Whether the Sidebar component is actually mounted on /setup (AppShell.tsx:367) and whether the WS filter matters before passwords exist was not established.",
+      "repro": "not_reproduced",
+      "introduced": "pre-existing",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No declared invariant; the code path was not touched by this change and reads inconsistent with the new rules bullet and with the stated fix rationale.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Decide whether CompleteStep should end in window.location.assign('/admin') when the wizard unlocked a session; out of this change's scope unless a person extends it."
+    }
+  ],
+  "specification_compliance": [
+    "behavior.md (UNSPEC fix-unlock-refresh): successful unlock ends in a full page load of the redirect target — met by page.tsx:37 `window.location.assign(resolveRedirect())`.",
+    "Redirect sanitising is unchanged: same-origin path starting with '/' and not '//' is used, otherwise '/' (page.tsx:18-24).",
+    "Wrong password / failed request leave the viewer on /unlock with the error — unchanged branches page.tsx:38-43.",
+    "next.config.ts sets no basePath or assetPrefix (only the next-intl plugin), so switching from router.push to location.assign does not lose a path prefix.",
+    "Design-decision 'locked drive hidden / 404' is not touched by this change."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    {
+      "behavior": "After a successful unlock the `finally` block sets loading=false, so the submit button re-enables while the full page load is still in flight and a second click sends another unlock request.",
+      "frequency": 1,
+      "impact": 1,
+      "reason": "Triggered only by clicking submit again during the brief page load; the second POST is harmless and the user still lands on the target."
+    },
+    {
+      "behavior": "The /unlock page remains in browser history after the full page load, so Back returns to the unlock form (same as the previous router.push behavior).",
+      "frequency": 2,
+      "impact": 1,
+      "reason": "Pressing Back after unlocking shows the password form again; nothing is lost."
+    }
+  ],
+  "regression_risks": [
+    "Any future basePath in next.config.ts would not be prepended by window.location.assign, unlike router.push.",
+    "Full page load discards any in-memory client state (e.g., UploadProgress) that was live while on /unlock; unlikely to be active on that page."
+  ],
+  "test_coverage": [
+    "Mutation: revert page.tsx:37 to router.push(resolveRedirect()) — killed (assignMock not called; pushMock asserted not called).",
+    "Mutation: drop the `!param.startsWith(\"//\")` guard — killed by the '//evil.example' case.",
+    "Mutation: drop the `param.startsWith(\"/\")` guard — killed by the 'https://evil.example' case.",
+    "Mutation: call unlock(password, false) instead of passing `remember` — survives; no test asserts unlockMock arguments.",
+    "Mutation: remove setError(t(\"connectionError\")) in the catch — survives; the network-failure test only checks the button re-enables and assign/push not called.",
+    "Mutation: remove the `|| t(\"invalidPassword\")` fallback — survives; only an explicit error string is tested.",
+    "Mutation: remove setPassword(\"\") on wrong password — survives.",
+    "The test stubs `location` via vi.stubGlobal; next-intl is globally mocked in src/test/setup.ts:106, so the component can render under vitest/jsdom."
+  ],
+  "not_verified": [
+    "Tests were not executed (no command tool); in particular that vi.stubGlobal('location', ...) is what `window.location.assign` resolves to under the vitest jsdom environment.",
+    "Whether the Sidebar is mounted on /setup and whether the WebSocket drive filter on the setup page actually leaves stale state after CompleteStep's router.push (finding R2).",
+    "Backend behavior of /api/auth/unlock and the WebSocket group fixing at connect time.",
+    "The in-app evidence recorded in decisions.md was not reproduced."
+  ],
+  "coverage": [
+    {
+      "path": "frontend/src/app/unlock/page.tsx",
+      "read": "full",
+      "reason": "Read the whole file (101 lines)."
+    },
+    {
+      "path": "frontend/src/app/unlock/__tests__/page.test.tsx",
+      "read": "full",
+      "reason": "Read the whole file (77 lines)."
+    }
+  ],
+  "confidence": 80
+}
