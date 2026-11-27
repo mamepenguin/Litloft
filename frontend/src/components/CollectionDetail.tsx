@@ -407,11 +407,11 @@ export function CollectionDetail({ drive, collectionId }: CollectionDetailProps)
   const currentFileTitle =
     items.find((item) => item.file.id === fileId)?.file.title ?? fileId ?? "";
 
-  const leftPane = fileId ? (
+  const leftPane = (
     <QueuePane
       name={detail.name}
       href={listHref}
-      showPosition
+      showPosition={fileId !== null}
       position={walk.position}
       total={walk.total}
       loop={loop}
@@ -422,17 +422,10 @@ export function CollectionDetail({ drive, collectionId }: CollectionDetailProps)
         onMoveUp={handleMoveUp}
         onMoveDown={handleMoveDown}
         onRemove={handleRemove}
-        onSelect={playFile}
-        scrollCurrentIntoView
+        onSelect={fileId ? playFile : undefined}
+        scrollCurrentIntoView={fileId !== null}
       />
     </QueuePane>
-  ) : (
-    <CollectionItemsPane
-      items={items}
-      onMoveUp={handleMoveUp}
-      onMoveDown={handleMoveDown}
-      onRemove={handleRemove}
-    />
   );
 
   return (

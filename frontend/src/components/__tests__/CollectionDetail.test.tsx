@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent, within } from "@testing-library/react";
 
 import { CollectionDetail } from "../CollectionDetail";
 import { accentFills } from "@/__tests__/helpers/accentFills";
@@ -344,10 +344,16 @@ describe("CollectionDetail", () => {
       expect(apiMocks.updateCollection).not.toHaveBeenCalled();
     });
 
-    it("names the collection once, in the heading and not the trail", () => {
+    it("names the collection in the heading and the queue pane, not the trail", () => {
       render(<CollectionDetail drive="main" collectionId="c1" />);
       return waitFor(() => {
-        expect(screen.getAllByText("My Collection")).toHaveLength(1);
+        expect(screen.getByRole("button", { name: "My Collection" })).toBeInTheDocument();
+        expect(
+          within(screen.getByTestId("left-pane")).getByText("My Collection"),
+        ).toBeInTheDocument();
+        expect(
+          within(screen.getByTestId("right-pane")).getAllByText("My Collection"),
+        ).toHaveLength(1);
         expect(screen.getByRole("link", { name: "main" })).toBeInTheDocument();
       });
     });

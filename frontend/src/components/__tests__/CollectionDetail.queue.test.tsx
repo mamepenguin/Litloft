@@ -605,6 +605,18 @@ describe("SPEC-CORE-190 §9 / D1 / I8 the collection's queue pane", () => {
   });
 });
 
+describe("SPEC-CORE-190 §3 / D1 a collection with no file open", () => {
+  it("draws the top block with the collection name and loop, and no n / N", async () => {
+    openAt("");
+    const queue = await waitFor(() => pane());
+    expect(within(queue).getByText("Road Trip")).toBeInTheDocument();
+    expect(
+      within(queue).getByRole("button", { name: /^Loop (ON|OFF)$/ }),
+    ).toBeInTheDocument();
+    expect(positionIn(queue)).toBeNull();
+  });
+});
+
 describe("SPEC-CORE-190 step 9 / I12 the current row is scrolled into view", () => {
   it("scrolls v2's row with block nearest on load, and v4's row after the advance", async () => {
     const scroll = vi.mocked(Element.prototype.scrollIntoView);
