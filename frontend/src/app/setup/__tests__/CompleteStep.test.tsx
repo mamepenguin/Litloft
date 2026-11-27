@@ -74,7 +74,7 @@ describe("CompleteStep", () => {
     await waitFor(() => {
       expect(mockFetch).toHaveBeenCalled();
     });
-    expect(pushMock).not.toHaveBeenCalled();
+    expect(loadFullPageMock).not.toHaveBeenCalled();
   });
 });
 

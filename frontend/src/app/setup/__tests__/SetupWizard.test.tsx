@@ -496,7 +496,7 @@ describe("SetupWizard addon choices across drive edits", () => {
 
     expect(await screen.findByText("drive 'media' is not configured")).toBeInTheDocument();
     expect(urlsCalled()).not.toContain("/api/admin/config/complete-setup");
-    expect(pushMock).not.toHaveBeenCalled();
+    expect(loadFullPageMock).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole("button", { name: /finish|complete/i }));
     await waitFor(() => expect(loadFullPageMock).toHaveBeenCalledWith("/admin"));
@@ -918,7 +918,7 @@ describe("SetupWizard in protected mode", () => {
     const urls = mockFetch.mock.calls.map((c) => c[0] as string);
     expect(urls).not.toContain("/api/admin/config/complete-setup");
     expect(urls).not.toContain("/api/auth/unlock");
-    expect(pushMock).not.toHaveBeenCalled();
+    expect(loadFullPageMock).not.toHaveBeenCalled();
   });
 
   it("stops before the password when the drives are not saved", async () => {
@@ -943,7 +943,7 @@ describe("SetupWizard in protected mode", () => {
     expect(urls).not.toContain("/api/admin/config/passwords");
     expect(urls).not.toContain("/api/admin/config/addon-policy");
     expect(urls).not.toContain("/api/admin/config/complete-setup");
-    expect(pushMock).not.toHaveBeenCalled();
+    expect(loadFullPageMock).not.toHaveBeenCalled();
   });
 
   it("finishes when only the unlock fails, since the password is already stored", async () => {

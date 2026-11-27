@@ -11,3 +11,7 @@ author_resolutions:
   - claude-read:R1 accept: the rule line is intended; it states the convention this fix relies on so a later change does not reintroduce router.push after an auth change.
   - claude-read:1 accept: 1x1; a second click during the page load sends another successful unlock and lands on the same page.
   - claude-read:2 accept: 2x2; Back shows the password form as router.push did before, nothing is lost.
+  - r2 claude-read:R1 fix: the four negative assertions now check loadFullPageMock; moving loadFullPage("/admin") into finally fails 4 setup tests.
+  - r2 claude-read:R2 fix: fullPageLoad.test.ts checks the helper sets location.href and does not pushState; a pushState body fails it.
+  - r2 claude-read:1 accept: 1x1; a public-mode finish reloads /admin once per install.
+  - r2 claude-read:2 accept: 1x2; a second click during the reload re-posts complete-setup and still lands on /admin.
