@@ -2,7 +2,7 @@
 
 decision:
 ran_in_app: yes
-at: 5fa146b9ccd19b66a22ced240879468ea5549ed0
+at: bcb9210ce244c190e1352a72a29228ffb2cf327c
 by: agent
 evidence: |
   Stack: http://video-share-collection-play.localhost:3101 (frontend image built 2026-11-28 03:58 JST, after HEAD's commit), its own cloned data. Desktop Chrome, fine pointer. Viewports: 1440x900 for the artboard shots 19 and 23 (shots 01-18 are 1440x757), 1024x768, and 390x844 drawn in a same-origin iframe inside a 500px window (Chrome's minimum window width). Origin storage was empty at the start (tree setting off, Autoplay off). Screenshots, kept locally (gitignored): docs/process/reviews/feature-collection-play-two-pane/r5/.
@@ -88,3 +88,15 @@ Decided by the owner on 2026-11-28:
 - D-4: fix (the open phone queue overlay covers the file sheet's peek bar).
 - D-5: fix (phone queue thumbnails 56x32, as PhoneQueue.dc.html).
 - D-6: fix (per-row buttons 26px wide at a fine pointer, as Main.dc.html; 44px at a coarse pointer stays).
+
+## R-5 re-run at bcb9210ce244c190e1352a72a29228ffb2cf327c (design fixes D-1, D-4, D-5, D-6)
+
+Scope: the four design differences the owner chose to fix. Same stack (http://video-share-collection-play.localhost:3101, frontend container recreated from HEAD), its cloned data. Google Chrome driven by Playwright, headless, dark theme, each scenario in a fresh context with empty origin storage. Desktop at a fine pointer; phone at 390x844 both as a mobile context (isMobile + touch, pointer: coarse) and as a plain 390px window (pointer: fine). Screenshots (gitignored): r5/rr2-*.
+- D-6, fixed (sizes), title width still short of the design: R5 videos item 3 (?file=avDVaYmov12T), loop on, tree on, 1440x900, playing. Every up / down / remove button is 26x28. Title column 81px; titles read "7417-父さん…", "7988-お彼岸…" (about 7 characters; before the fix about 6). The design leaves about 89px: the implementation's ordinal is 20px (design 18), the button group has gap 2px (design 0), and the row's right padding is 6px (design 4). Thumbnails 48x28 (design 48x27). Pane 280px, no horizontal scroll (rr2-01, rr2-Main).
+- D-1, fixed: アニメ Play (tree off, loop off) → ?file=Alx1ShvKJ5ny&queue=folder&sort=created_at&order=desc, playing, "1 / 28". Each row is one line, 32px high: ordinal at x 6 (18px), title at x 32 truncated on the same line, duration at y 9 on the title's line with its right edge 8px from the row's right edge (rr2-02, rr2-FolderPlay). Smart (?file=BVtZs91FE2MA&queue=smart:iJoo9-NqbcRO): rows 32px, one line; the .loft rows have no duration and their title runs to the right edge, the video row has 14:29 at the right end (rr2-03).
+- D-4, fixed: 390x844, R5 videos item 3 playing, sheet at peek. Before opening: peek bar present, elementFromPoint at y 800 / 830 is the peek bar. Pane button ("Show the queue") → queue aside x 0, y 56, 390x788; the peek bar is not in the DOM, and every probed point (y 300, 600, 760, 800, 830) hits the aside; scrollWidth 390; the same <video> kept playing (t 1.73 → 3.33 → 5.42) (rr2-04). "Close the queue" → peek bar back, playing (t 6.96), ?file= unchanged (rr2-05). With the sheet opened to half ("Open the sheet", data-snap=half) first: the overlay covered it entirely (no sheet in the DOM, all probes on the aside); after closing, the sheet came back at data-snap=half and playback continued (t 8.57 → 10.16 → 11.73) (rr2-06, rr2-07, rr2-08). Folder queue (アニメ, queue=folder) the same: peek gone while open, back after close, playing t 1.38 → 2.92 → 4.52 (rr2-09). Identical results with a fine pointer at 390 (rr2-*-fine-*).
+- D-5, fixed at a coarse pointer: in the overlay every thumbnail is 56x32, rows 52px high, per-row buttons 44x44, title 12px (rr2-04, rr2-PhoneQueue). The design draws buttons 36x44 and the title 13px. At a fine pointer in a 390px window thumbnails stay 48x28, buttons 26x28, rows 40px (rr2-04-D4-D5-fine).
+- Artboard shots re-taken at HEAD: Main rr2-Main-collection-3of9-loop-on-1440x900.jpg; Narrow rr2-Narrow-collection-yield-1024x768.jpg (pane yielded, page row ‹ 3 / 9 ›, inspector beside the player); FolderPlay rr2-FolderPlay-tree-off-loop-off-1440x900.jpg; Phone rr2-Phone-collection-playing-390x844.jpg (coarse) and rr2-Phone-fine-collection-playing-390x844.jpg; PhoneQueue rr2-PhoneQueue-collection-overlay-390x844.jpg.
+- Left behind: nothing on the server (no collection or file was changed); every browser context was closed.
+- Differences remaining against the design: D-6 title column 81px against about 89px (ordinal 20 vs 18, button gap 2 vs 0, right padding 6 vs 4); phone overlay buttons 44x44 against 36x44 and title 12px against 13px at a coarse pointer.
+
