@@ -1,14 +1,13 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { Lock } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { unlock } from "@/lib/api";
 
 export default function UnlockPage() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const t = useTranslations("unlock");
   const [password, setPassword] = useState("");
@@ -32,7 +31,10 @@ export default function UnlockPage() {
     try {
       const result = await unlock(password, remember);
       if (result.success) {
-        router.push(resolveRedirect());
+        // Not router.push: the sidebar, jump destinations, addon catalogue and the
+        // WebSocket's drive filter were all read under the old cookie, so only a
+        // full page load shows what the new one unlocks.
+        window.location.assign(resolveRedirect());
       } else {
         setError(result.error || t("invalidPassword"));
         setPassword("");
