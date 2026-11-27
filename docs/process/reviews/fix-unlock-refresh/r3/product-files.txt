@@ -1,0 +1,3 @@
+frontend/src/app/setup/steps/CompleteStep.tsx
+frontend/src/app/unlock/page.tsx
+frontend/src/lib/fullPageLoad.ts

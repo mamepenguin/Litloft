@@ -71,9 +71,7 @@ describe("CompleteStep", () => {
     mockFetch.mockResolvedValueOnce(jsonResponse({ detail: "error" }, 500));
     render(<CompleteStep onBack={vi.fn()} setupToken="t" summary={DEFAULT_SUMMARY} />);
     fireEvent.click(screen.getByRole("button", { name: /完了|finish|complete/i }));
-    await waitFor(() => {
-      expect(mockFetch).toHaveBeenCalled();
-    });
+    expect(await screen.findByText("Failed to complete setup")).toBeTruthy();
     expect(loadFullPageMock).not.toHaveBeenCalled();
   });
 });

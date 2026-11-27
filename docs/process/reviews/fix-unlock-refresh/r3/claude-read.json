@@ -1,0 +1,99 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "MEDIUM",
+  "findings": [
+    {
+      "id": "R1",
+      "origin": "reviewer",
+      "claim": "CompleteStep's 'does not redirect on failure' test checks that loadFullPage was not called right after `waitFor(() => mockFetch called)`. fetch is called synchronously when the button is clicked, so the check does not wait for the handler's failure branch (await res.json(), setError, finally) to finish.",
+      "impact": "The negative assertion now targets the correct mock, but it runs before the handler settles. Suppose a regression navigated on failure late in the handler, for example from the `finally` block after `await res.json()`. Whether this test catches it depends on whether that continuation finishes within RTL's waitFor drain (one setTimeout(0)). A user would then land on /admin with setup unfinished and never see the error.",
+      "evidence": "frontend/src/app/setup/__tests__/CompleteStep.test.tsx:70-78 waits only for `mockFetch` to have been called (line 74-76), then asserts `loadFullPageMock` not called (line 77). CompleteStep.tsx:38 calls fetch synchronously inside handleComplete when onBeforeSubmit is absent. The failure branch at CompleteStep.tsx:46-55 awaits res.json() before it returns, and the finally block runs at :61-63. The SetupWizard negatives (SetupWizard.test.tsx:497-499, :913-921, :939-946) are not affected, because they first await the error text through findByText.",
+      "repro": "not_reproduced. Mutation from reading: move `loadFullPage(\"/admin\")` from CompleteStep.tsx:58 into the `finally` block. Whether CompleteStep.test.tsx:70-78 kills this depends on microtask and macrotask timing that I could not run. Calling loadFullPage before the `!res.ok` check (with no await in between) is probably killed by the waitFor drain.",
+      "introduced": "pre-existing",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No invariant is declared. This is a test-synchronization weakness that could let a navigate-on-failure regression through, not a product defect.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Before asserting that loadFullPageMock was not called, await the rendered error (`await screen.findByText(...)`) or wait for the submit button to re-enable, as the SetupWizard negatives already do."
+    }
+  ],
+  "specification_compliance": [
+    "r2 R1 is resolved. CompleteStep.test.tsx:77 and SetupWizard.test.tsx:499, :921 and :946 now assert `loadFullPageMock` not called. Grep shows that no assertion on `pushMock` remains in SetupWizard.test.tsx, only its declaration and reset (lines 4, 12, 51).",
+    "r2 R2 is resolved. frontend/src/lib/__tests__/fullPageLoad.test.ts imports the real helper and asserts that `location.href` is set to the path and that history.pushState is not called.",
+    "Product code is unchanged in this commit. unlock/page.tsx:34-35 calls loadFullPage(resolveRedirect()) only on success, CompleteStep.tsx:46-58 calls loadFullPage('/admin') only after res.ok, and fullPageLoad.ts:8 sets window.location.href.",
+    "The redirect sanitizing at unlock/page.tsx:19-25 is unchanged: the redirect must start with '/' and must not start with '//'."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    {
+      "behavior": "After a successful unlock or setup completion, the `finally` block re-enables the submit button while the full page load is still in flight.",
+      "frequency": 1,
+      "impact": 1,
+      "reason": "Only a second click during the brief reload triggers it; that click re-POSTs unlock or complete-setup, and the user still lands on the target page."
+    }
+  ],
+  "regression_risks": [
+    "CompleteStep's failure test is not synchronized with the end of the handler (R1). A navigation added late in the failure path may not be caught.",
+    "window.location.href does not prepend a Next.js basePath. None is configured today.",
+    "The SetupWizard and unlock tests still declare the unused pushMock and router mocks. This is harmless dead scaffolding."
+  ],
+  "test_coverage": [
+    "Mutation (from reading): change fullPageLoad.ts:8 to `window.history.pushState(null, '', path)`. Killed: the spy calls through, so the pushState-not-called assertion fails and href stays unchanged.",
+    "Mutation: change fullPageLoad.ts:8 to `window.location.assign(path)` or `replace(path)`. Killed: the stubbed location object has no assign or replace, so the call throws a TypeError.",
+    "Mutation: make fullPageLoad a no-op. Killed: href stays 'http://host/unlock'.",
+    "Mutation: revert CompleteStep.tsx:58 to router.push. Killed by CompleteStep.test.tsx:58 and eight positive SetupWizard tests.",
+    "Mutation: call loadFullPage when onBeforeSubmit throws (password or drive save failure). Killed by SetupWizard.test.tsx:921 and :946, which await the error text first.",
+    "Mutation: move loadFullPage into the finally block. CompleteStep.test.tsx:70-78 may not kill it because of timing (R1). SetupWizard.test.tsx:497-499 kills it, because there onBeforeSubmit fails (addon-policy 422) and the finally block still runs.",
+    "unlock page tests: success with five redirect cases, wrong password, and network failure all assert loadFullPageMock, so their negatives are meaningful.",
+    "As noted in r1, these survive: unlock(password, false) in place of passing `remember`, and removal of the connectionError message."
+  ],
+  "not_verified": [
+    "Tests were not executed (I have no command tool). Mutation results come from reading the code.",
+    "I did not confirm that under vitest's jsdom environment `window.location` resolves to the object installed by vi.stubGlobal('location', ...). If it does not, fullPageLoad.test.ts would fail visibly rather than pass silently.",
+    "I did not confirm the exact timing of RTL waitFor's drain relative to Response.json() in the CompleteStep failure test (R1).",
+    "I did not check real-browser behavior after the full page load (fresh sidebar, addon and WebSocket state)."
+  ],
+  "coverage": [
+    {
+      "path": "frontend/src/app/setup/steps/CompleteStep.tsx",
+      "read": "full",
+      "reason": "Read the whole file (152 lines)."
+    },
+    {
+      "path": "frontend/src/app/unlock/page.tsx",
+      "read": "full",
+      "reason": "Read the whole file (99 lines)."
+    },
+    {
+      "path": "frontend/src/lib/fullPageLoad.ts",
+      "read": "full",
+      "reason": "Read the whole file (9 lines)."
+    },
+    {
+      "path": "frontend/src/app/setup/__tests__/CompleteStep.test.tsx",
+      "read": "full",
+      "reason": "Read the whole file (146 lines)."
+    },
+    {
+      "path": "frontend/src/app/setup/__tests__/SetupWizard.test.tsx",
+      "read": "partial",
+      "reason": "Read lines 470-529 and 885-962 (every hunk this commit changed, with the enclosing tests). Grepped all pushMock and loadFullPageMock usages (lines 4-12, 50-51, 203, 499, 502, 524, 753, 795, 834, 880, 921, 946, 959)."
+    },
+    {
+      "path": "frontend/src/app/unlock/__tests__/page.test.tsx",
+      "read": "full",
+      "reason": "Read the whole file (79 lines)."
+    },
+    {
+      "path": "frontend/src/lib/__tests__/fullPageLoad.test.ts",
+      "read": "full",
+      "reason": "Read the whole file (20 lines)."
+    }
+  ],
+  "confidence": 82,
+  "trajectory": "The r3 fix commit 38784498c changes only test files. It moves four negative assertions from pushMock to loadFullPageMock and adds a direct test of the real loadFullPage helper. It adds no branch, state or prediction to product code, and it repeats nothing an earlier round added. The earlier rounds were r1 (an inline window.location.assign in unlock/page.tsx) and a321dac75 (consolidation into one shared helper, also applied to CompleteStep). This round closes the test gaps that r2 reported. The rounds converge; the design is not being patched."
+}

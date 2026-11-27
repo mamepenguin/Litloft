@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "MEDIUM",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "R1",
+      "status": "confirmed",
+      "note": "Confirmed by reading the code. In CompleteStep.test.tsx:74-77 the test waits only until mockFetch has been called. CompleteStep.tsx:33-38 calls fetch synchronously in the click handler when onBeforeSubmit is undefined, so the waitFor callback passes on its first check. The test does not wait for `await fetch`, the `!res.ok` branch, `await res.json()` (:49), setError (:54) or the finally block (:61-63) to run. The negative assertion at :77 therefore makes no explicit guarantee about the failure branch. A regression that called loadFullPage after the json await, for example, could run after the assertion and the test would not detect it. I did not run the tests. Whether RTL's asyncWrapper/act happens to flush enough microtasks is not established by the test itself."
+    }
+  ],
+  "unspecified_scores": [
+    {
+      "source_reviewer": "claude-read",
+      "index": 0,
+      "frequency": 1,
+      "impact": 2,
+      "reason": "After a successful unlock (unlock/page.tsx:42-44) or complete-setup (CompleteStep.tsx:61-63), the button becomes clickable again during the short window before the browser navigates; on a home LAN the user would rarely see or click it, and a second click at most sends a redundant request or flashes an error before the page load."
+    }
+  ],
+  "specification_compliance": [
+    "The success path of CompleteStep calls loadFullPage('/admin') (CompleteStep.tsx:58), and the success test asserts this (CompleteStep.test.tsx:57-59).",
+    "UnlockPage calls loadFullPage(resolveRedirect()) on success (unlock/page.tsx:35)."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "The CompleteStep failure test would not reliably detect a regression that calls loadFullPage late in the failure branch, because it does not await the error state."
+  ],
+  "test_coverage": [
+    "CompleteStep failure test: the negative assertion runs before the failure branch has settled. Awaiting the error text (for example, findByText of the error message) would make it meaningful.",
+    "fullPageLoad.test.ts covers assignment of location.href."
+  ],
+  "not_verified": [
+    "Did not run vitest, so the actual microtask ordering under RTL's waitFor/act wrapper is not checked empirically.",
+    "Did not inspect the SetupWizard.test.tsx line ranges cited as unaffected.",
+    "Did not check the backend behavior of a second complete-setup POST."
+  ],
+  "confidence": 85
+}
