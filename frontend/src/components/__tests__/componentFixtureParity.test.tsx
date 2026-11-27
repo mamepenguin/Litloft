@@ -370,6 +370,7 @@ describe("the component fixture's page", () => {
       "queue-page-many",
       "queue-page-play",
       "queue-page-overlay",
+      "queue-page-late",
     ]);
   });
 });

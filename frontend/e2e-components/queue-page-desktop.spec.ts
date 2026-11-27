@@ -206,6 +206,26 @@ test("SPEC-CORE-190 step 12 / D3 (1024×768, tree setting off after Play): the s
   ).toBeNull();
 });
 
+test("SPEC-CORE-191 step 3 (1440×900, the sidebar still inline when the page mounts): the queue pane is shown at 280px", async ({
+  page,
+}) => {
+  await page.addInitScript(() =>
+    localStorage.setItem("sidebar-open", "true"),
+  );
+  await open(page, "queue-page-late", { width: 1440, height: 900 }, { tree: true });
+  await expect(page.locator("[data-app-sidebar]")).toHaveAttribute(
+    "aria-hidden",
+    "false",
+  );
+
+  await page.getByRole("button", { name: "Start" }).click();
+  await expect(page.getByTestId("file-detail-shell")).toBeVisible();
+
+  const pane = queuePane(page);
+  await expect(pane).toHaveCSS("width", "280px");
+  expect((await box(pane)).width).toBe(280);
+});
+
 test("SPEC-CORE-064 I4 as revised (280px, mouse): the queue pane has no horizontal scroll and keeps every row reachable by vertical scroll", async ({
   page,
 }) => {

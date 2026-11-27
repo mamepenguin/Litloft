@@ -8,6 +8,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useState,
   type ReactElement,
   type ReactNode,
 } from "react";
@@ -221,14 +222,18 @@ interface QueueFixtureProps {
   entries: readonly QueueEntry[];
   /** A date query string kept on every selection this page makes. */
   extraQuery?: string;
+  /** Draw the listing first, and the queue page only after a press. */
+  deferred?: boolean;
 }
 
 function QueueFixture({
   entries,
   extraQuery = "",
+  deferred = false,
 }: QueueFixtureProps): ReactElement {
   installFetch();
   installMedia();
+  const [started, setStarted] = useState(!deferred);
   const { fileId } = useSelectedFile();
 
   useEffect(() => {
@@ -313,23 +318,31 @@ function QueueFixture({
   return (
     <Providers>
       <AppShell>
-        <div className="h-below-header">
-          <QueuePageProvider value={queuePage}>
-            <TwoPaneLayout
-              drive={DRIVE}
-              folderPath=""
-              queuePane={fileId !== null}
-              leftPane={leftPane}
-              leftPaneAriaLabel={fileId ? "Queue" : "Collection items"}
-            >
-              <div className="p-4 text-sm">
-                <button type="button" onClick={() => go(VIDEO_ID)}>
-                  Play
-                </button>
-              </div>
-            </TwoPaneLayout>
-          </QueuePageProvider>
-        </div>
+        {deferred && !started ? (
+          <div className="p-4 text-sm">
+            <button type="button" onClick={() => setStarted(true)}>
+              Start
+            </button>
+          </div>
+        ) : (
+          <div className="h-below-header">
+            <QueuePageProvider value={queuePage}>
+              <TwoPaneLayout
+                drive={DRIVE}
+                folderPath=""
+                queuePane={fileId !== null}
+                leftPane={leftPane}
+                leftPaneAriaLabel={fileId ? "Queue" : "Collection items"}
+              >
+                <div className="p-4 text-sm">
+                  <button type="button" onClick={() => go(VIDEO_ID)}>
+                    Play
+                  </button>
+                </div>
+              </TwoPaneLayout>
+            </QueuePageProvider>
+          </div>
+        )}
       </AppShell>
     </Providers>
   );
@@ -399,4 +412,8 @@ export function QueuePagePlayArrangement(): ReactElement {
 
 export function QueuePageOverlayArrangement(): ReactElement {
   return <QueueFixture entries={COLLECTION_ENTRIES} />;
+}
+
+export function QueuePageLateArrangement(): ReactElement {
+  return <QueueFixture entries={COLLECTION_ENTRIES} deferred />;
 }

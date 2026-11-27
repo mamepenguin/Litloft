@@ -96,6 +96,17 @@ interface FileDetailShellProps {
  * unmount when collapsed, or the keystroke would only close the pane and
  * never reopen it.
  */
+/**
+ * The width the page frame still gives an inline sidebar. A queue page's
+ * first frames are measured while that width is on its way back to the
+ * page, so it has to count as part of the row.
+ */
+function inlineSidebarWidth(host: HTMLElement): number {
+  const content = host.closest("main")?.parentElement;
+  if (!content) return 0;
+  return Number.parseFloat(getComputedStyle(content).paddingLeft) || 0;
+}
+
 export function FileDetailShell({
   drive,
   folderPath,
@@ -200,6 +211,7 @@ export function FileDetailShell({
     isPlayerFile,
     onMeasure: handleMeasuredForm,
     paneToYield,
+    extraRowWidth: inlineSidebarWidth,
     onYield: handleYield,
   });
   const attachInspectorFitHost = useCallback(
