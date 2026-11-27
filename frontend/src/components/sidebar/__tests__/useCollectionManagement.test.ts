@@ -223,6 +223,25 @@ describe("useCollectionManagement", () => {
     );
   });
 
+  it("SPEC-CORE-188 I10 a rename answering 404 before the list drops the collection closes the input silently and re-reads", async () => {
+    const { ApiStatusError } = await import("@/lib/apiError");
+    vi.mocked(updateCollection).mockRejectedValueOnce(new ApiStatusError(404, "Not found"));
+    const { result } = renderCM();
+
+    act(() => {
+      result.current.setRenamingId("c1");
+      result.current.setRenameValue("Gone elsewhere");
+    });
+
+    await act(async () => {
+      await result.current.handleRenameCollection();
+    });
+
+    expect(toastErrorSpy).not.toHaveBeenCalled();
+    expect(result.current.renamingId).toBeNull();
+    expect(reloadCollections).toHaveBeenCalledTimes(1);
+  });
+
   it("surfaces a toast when delete fails", async () => {
     vi.mocked(deleteCollection).mockRejectedValueOnce(new Error("500"));
     const { result } = renderCM();

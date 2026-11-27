@@ -55,9 +55,6 @@ export function useCollectionManagement({
   const resetCreate = createName.reset;
   const resetRename = renameName.reset;
 
-  const collectionListRef = useRef(collectionList);
-  collectionListRef.current = collectionList;
-
   useEffect(() => {
     resetCreate();
     resetRename();
@@ -173,12 +170,9 @@ export function useCollectionManagement({
         rejectRename(name);
         return;
       }
-      if (
-        e instanceof ApiStatusError &&
-        e.status === 404 &&
-        !collectionListRef.current.some((c) => c.id === renamingId)
-      ) {
+      if (e instanceof ApiStatusError && e.status === 404) {
         cancelRename();
+        void reloadCollections();
         return;
       }
       toast.error(t("errorRename"));
