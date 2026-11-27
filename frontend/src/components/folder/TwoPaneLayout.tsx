@@ -10,6 +10,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
 import type { ReactNode } from "react";
 
@@ -25,6 +26,7 @@ import { useTreeBeside } from "@/hooks/useTreeBeside";
 import { useTreeEnabled } from "@/hooks/useTreeEnabled";
 import { useTreeVisible } from "@/hooks/useTreeVisible";
 import { treeNarrowOpenStore } from "@/lib/treeNarrowOpenStore";
+import { treeVisitStore } from "@/lib/treeVisitStore";
 import { treeYieldStore } from "@/lib/treeYieldStore";
 import { driveHref } from "@/lib/driveViews";
 import { TreeRefreshContext } from "@/components/TreeRefreshContext";
@@ -39,6 +41,8 @@ interface TwoPaneLayoutProps {
   children: ReactNode;
   leftPane?: ReactNode;
   leftPaneAriaLabel?: string;
+  /** This page has a queue, so its pane is shown for the visit when the tree setting is off. */
+  queuePane?: boolean;
 }
 
 export function TwoPaneLayout({
@@ -47,6 +51,7 @@ export function TwoPaneLayout({
   children,
   leftPane,
   leftPaneAriaLabel,
+  queuePane = false,
 }: TwoPaneLayoutProps) {
   const t = useTranslations("rightPane");
   const tView = useTranslations("view");
@@ -105,6 +110,23 @@ export function TwoPaneLayout({
   const { visible: treeOpen, beside: treeBeside, yielded } = useTreeVisible(drive);
   const { enabled: treeEnabled } = useTreeEnabled(drive);
   const besideViewport = useTreeBeside();
+  const visit = useSyncExternalStore(
+    treeVisitStore.subscribe,
+    () => treeVisitStore.get(drive),
+    () => treeVisitStore.get(drive),
+  );
+
+  // A queue started with the tree setting off shows its pane for this visit.
+  // The pane's own visibility (yield, narrow) is the tree's, unchanged.
+  useLayoutEffect(() => {
+    if (queuePane && hasFile && !treeEnabled && besideViewport) {
+      treeVisitStore.show(drive);
+    } else {
+      treeVisitStore.clear(drive);
+    }
+  }, [queuePane, hasFile, treeEnabled, besideViewport, drive]);
+
+  useLayoutEffect(() => () => treeVisitStore.clear(drive), [drive]);
   // The pane keeps its setting, its mounted tree and its yield, and only stops
   // taking width: the focus layout gives that width to the page, and the pane
   // is back the way that state left it when the layout ends.
@@ -125,8 +147,11 @@ export function TwoPaneLayout({
   useLayoutEffect(() => () => treeYieldStore.clear(drive), [drive]);
 
   const leftPaneState = useMemo(
-    () => ({ element: paneElement, shownBySetting: treeEnabled && besideViewport }),
-    [paneElement, treeEnabled, besideViewport],
+    () => ({
+      element: paneElement,
+      shownBySetting: (treeEnabled || visit.active) && besideViewport,
+    }),
+    [paneElement, treeEnabled, visit.active, besideViewport],
   );
 
   // The sidebar and the tree both name where you are, and only one such

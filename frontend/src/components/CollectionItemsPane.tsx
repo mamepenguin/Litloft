@@ -1,12 +1,13 @@
 "use client";
 
-import { useLayoutEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import { ChevronDown, ChevronUp, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { useSelectedFile } from "@/hooks/useSelectedFile";
+import { formatDuration } from "@/lib/format";
 import { getThumbnailUrl } from "@/lib/api";
-import { prefersReducedMotion } from "@/lib/reducedMotion";
+import { prefersReducedMotion, scrollBehavior } from "@/lib/reducedMotion";
 import type { CollectionItemEntry } from "@/types";
 
 interface CollectionItemsPaneProps {
@@ -14,6 +15,10 @@ interface CollectionItemsPaneProps {
   onMoveUp: (index: number) => void;
   onMoveDown: (index: number) => void;
   onRemove: (itemId: number) => void;
+  /** A queue action, so the file starts whatever the Autoplay preference says. */
+  onSelect?: (id: string) => void;
+  /** Keeps the open file's row in the pane as the selection moves. */
+  scrollCurrentIntoView?: boolean;
 }
 
 /**
@@ -26,9 +31,12 @@ export function CollectionItemsPane({
   onMoveUp,
   onMoveDown,
   onRemove,
+  onSelect,
+  scrollCurrentIntoView = false,
 }: CollectionItemsPaneProps) {
   const t = useTranslations("collection");
   const { fileId, selectFile } = useSelectedFile();
+  const select = onSelect ?? selectFile;
 
   // Reorders must cancel any in-flight animation before measuring —
   // ``getBoundingClientRect()`` reflects active transforms, so reading it
@@ -83,6 +91,15 @@ export function CollectionItemsPane({
     prevRectsRef.current = newRects;
   }, [items]);
 
+  useEffect(() => {
+    if (!scrollCurrentIntoView) return;
+    const current = items.find((item) => item.file.id === fileId);
+    const row = current ? rowRefs.current.get(current.id) : null;
+    if (row && typeof row.scrollIntoView === "function") {
+      row.scrollIntoView({ block: "nearest", behavior: scrollBehavior() });
+    }
+  }, [fileId, items, scrollCurrentIntoView]);
+
   if (items.length === 0) {
     return (
       <div className="flex h-full flex-col border-r border-bg-border bg-bg-card">
@@ -112,14 +129,14 @@ export function CollectionItemsPane({
           >
             <button
               type="button"
-              onClick={() => selectFile(item.file.id)}
+              onClick={() => select(item.file.id)}
               className={`flex min-w-0 flex-1 items-center gap-2 text-left text-sm ${
                 isCurrent ? "text-text-primary" : "text-text-muted"
               }`}
             >
               <span
                 className={`w-5 flex-shrink-0 text-center font-mono text-[10px] ${
-                  isCurrent ? "text-accent" : "text-text-muted/60"
+                  isCurrent ? "font-bold text-accent" : "text-text-muted/60"
                 }`}
               >
                 {index + 1}
@@ -128,13 +145,20 @@ export function CollectionItemsPane({
                 <img
                   src={getThumbnailUrl(item.file.id)}
                   alt=""
-                  className="h-6 w-6 flex-shrink-0 rounded object-cover"
+                  className="h-7 w-12 flex-shrink-0 rounded object-cover"
                 />
               ) : (
-                <span className="h-6 w-6 flex-shrink-0 rounded bg-bg-elevated" />
+                <span className="h-7 w-12 flex-shrink-0 rounded bg-bg-elevated" />
               )}
-              <span className="min-w-0 flex-1 truncate text-xs">
-                {item.file.title}
+              <span className="flex min-w-0 flex-1 flex-col">
+                <span className="min-w-0 truncate text-xs">
+                  {item.file.title}
+                </span>
+                {item.file.duration !== null && (
+                  <span className="text-[11px] text-text-muted">
+                    {formatDuration(item.file.duration)}
+                  </span>
+                )}
               </span>
             </button>
             <div className="flex flex-shrink-0 items-center gap-0.5">

@@ -20,6 +20,8 @@ import {
 import { FileDetailShell } from "../FileDetailShell";
 import type { SheetPeek } from "../MobileInspectorSheet";
 import { FindButton } from "../FileDetail/find/FindButton";
+import { FileNavControls } from "../FileDetail/FileNavControls";
+import { useQueuePage } from "../queue/QueuePageContext";
 import { MarkdownViewModeToggle } from "../MarkdownViewModeToggle";
 import { EditableTitle } from "./EditableTitle";
 import { SaveDot } from "./SaveDot";
@@ -62,6 +64,7 @@ export function MarkdownDocumentLayout({
 }: MarkdownDocumentLayoutProps): ReactElement {
   const searchParams = useSearchParams();
   const isMobile = useIsMobile();
+  const queuePage = useQueuePage();
   // Default to "preview" so a user navigating to an existing note sees
   // the rendered output first. `useCreateFile` carries `?edit=1` through
   // the canonical-URL redirect for freshly created notes; that's the one
@@ -135,10 +138,14 @@ export function MarkdownDocumentLayout({
         titleNode={titleNode}
         chromeControls={
           previewOnly ? (
-            findEnabled ? <FindButton /> : undefined
+            <>
+              {findEnabled && <FindButton />}
+              {queuePage !== null && <FileNavControls />}
+            </>
           ) : (
             <>
               {findEnabled && <FindButton />}
+              {queuePage !== null && <FileNavControls />}
               {!isMobile && <SaveDot state={saveState} />}
               <MarkdownViewModeToggle
                 mode={viewMode}

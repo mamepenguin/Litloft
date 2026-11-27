@@ -8,6 +8,8 @@ import { FileDetailContent } from "@/components/FileDetailContent";
 import { FileDetailChrome } from "@/components/FileDetail/FileDetailChrome";
 import { FileRowAlignProvider } from "@/components/FileHeaderRowProvider";
 import { ImageGallery } from "@/components/ImageGallery";
+import { useQueuePage } from "@/components/queue/QueuePageContext";
+import { takePlayIntent } from "@/components/queue/playIntent";
 import { useFileNav } from "@/hooks/useFileNav";
 import { FileNavProvider } from "@/lib/fileNavContext";
 import { InboxDetailHostProvider } from "@/components/inbox/inboxDetailHost";
@@ -42,8 +44,19 @@ export function RightPaneFile({ fileId, drive }: RightPaneFileProps) {
   const t = useTranslations("rightPane");
   const { clearFile, selectFile } = useSelectedFile();
   const searchParams = useSearchParams();
+  const queuePage = useQueuePage();
 
   const [state, setState] = useState<PaneState>(() => initialState(fileId));
+  // Read once per file mount: the action that selected it asked for sound,
+  // and a later render of the same still gets that answer.
+  const [play, setPlay] = useState(() => ({
+    fileId,
+    requested: takePlayIntent(fileId),
+  }));
+  if (play.fileId !== fileId) {
+    setPlay({ fileId, requested: takePlayIntent(fileId) });
+  }
+  const autoPlay = play.fileId === fileId ? play.requested : false;
   const [galleryOpen, setGalleryOpen] = useState(false);
   // The pane's own left edge is where the header's file row starts.
   const [paneRoot, setPaneRoot] = useState<HTMLDivElement | null>(null);
@@ -83,9 +96,10 @@ export function RightPaneFile({ fileId, drive }: RightPaneFileProps) {
     countable: navOrdering.countable,
     fileType: file?.file_type ?? null,
     mimeType: file?.mime_type ?? null,
-    enabled: true,
+    enabled: queuePage === null,
     onNavigate: selectFile,
   });
+  const nav = queuePage ?? fileNav;
 
   const tParam = searchParams.get("t");
   const pageParam = searchParams.get("page");
@@ -126,7 +140,7 @@ export function RightPaneFile({ fileId, drive }: RightPaneFileProps) {
       >
         {/* The hook has to stay with the host because only the host
             knows what "navigate" means in its URL model. */}
-        <FileNavProvider value={fileNav}>
+        <FileNavProvider value={nav}>
           <InboxDetailHostProvider
             value={{ onNext: selectFile, onClose: clearFile }}
           >
@@ -141,6 +155,8 @@ export function RightPaneFile({ fileId, drive }: RightPaneFileProps) {
               miniPlayerRoot={scrollRoot}
               onRequestImageGallery={() => setGalleryOpen(true)}
               onAfterDelete={clearFile}
+              onEnded={queuePage?.onEnded}
+              autoPlay={autoPlay}
               onBack={
                 searchParams.get("nav") === "inbox" ? clearFile : undefined
               }

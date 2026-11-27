@@ -5,6 +5,7 @@ import { Library, Plus, X } from "lucide-react";
 
 import { useTranslations } from "next-intl";
 import { addCollectionItems, createCollection, getCollections } from "@/lib/api";
+import { emitCollectionChanged } from "@/lib/collectionChanged";
 import { useNameSubmission } from "@/hooks/useNameSubmission";
 import { useImeKeyGuard } from "@/lib/ime";
 import { focusEnd, isNameInUse } from "@/lib/nameInUse";
@@ -58,6 +59,7 @@ export function CollectionPicker({ open, drive, fileIds, onClose }: CollectionPi
     setAdding(true);
     try {
       await addCollectionItems(drive, collectionId, fileIds);
+      emitCollectionChanged({ drive, collectionId });
       onClose();
     } catch {
       // error
@@ -74,6 +76,7 @@ export function CollectionPicker({ open, drive, fileIds, onClose }: CollectionPi
     try {
       const c = await createCollection(drive, name);
       await addCollectionItems(drive, c.id, fileIds);
+      emitCollectionChanged({ drive, collectionId: c.id });
       onClose();
     } catch (e) {
       if (isNameInUse(e)) {

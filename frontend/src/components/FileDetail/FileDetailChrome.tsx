@@ -8,6 +8,7 @@ import { ChevronLeft, PanelBottom, PanelBottomClose, PanelRight, PanelRightClose
 
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { useMarkdownChrome } from "@/lib/markdownChromeContext";
+import { useQueuePage } from "../queue/QueuePageContext";
 import { Breadcrumb } from "../Breadcrumb";
 import { InboxDetailActions } from "../inbox/InboxDetailActions";
 import {
@@ -55,6 +56,7 @@ export function FileDetailChrome({
   const hosted = useFileHeaderRowHost() !== null;
   const searchParams = useSearchParams();
   const markdown = useMarkdownChrome();
+  const queuePage = useQueuePage();
 
   // A narrow row gives everything right of the heading to the heading: the
   // Inbox walk has no room for the file's own controls, and a rename needs
@@ -65,9 +67,14 @@ export function FileDetailChrome({
   const hideInboxActions = isMobile && renaming;
 
   const segments = folderPath ? folderPath.split("/").filter(Boolean) : [];
-  const parentName = segments.length > 0 ? segments[segments.length - 1] : drive;
-  const parentHref =
-    segments.length > 0
+  const parentName = queuePage
+    ? queuePage.name
+    : segments.length > 0
+      ? segments[segments.length - 1]
+      : drive;
+  const parentHref = queuePage
+    ? queuePage.href
+    : segments.length > 0
       ? `/drive/${encodeURIComponent(drive)}/${segments
           .map(encodeURIComponent)
           .join("/")}`
@@ -187,7 +194,12 @@ export function FileDetailChrome({
             )}
             <Breadcrumb
               driveName={drive}
-              folderPath={folderPath}
+              folderPath={queuePage ? undefined : folderPath}
+              ancestorSegments={
+                queuePage
+                  ? [{ label: queuePage.name, href: queuePage.href }]
+                  : undefined
+              }
               trailingSegment={wideLeaf}
               compact
             />
