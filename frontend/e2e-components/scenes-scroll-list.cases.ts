@@ -6,7 +6,6 @@ import { PAGE } from "./build-bundle";
 const FIXTURE = pathToFileURL(PAGE).href;
 
 export const CANONICAL = "#inspector-video";
-export const COLLECTION = "#inspector-video-collection";
 export const BOUNDED = "#scenes-bounded-1024";
 export const BOUNDED_SHORT = "#scenes-bounded-short";
 export const TILE = 'button[aria-label^="Play from"]';

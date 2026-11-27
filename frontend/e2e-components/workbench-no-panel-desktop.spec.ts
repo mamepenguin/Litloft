@@ -10,7 +10,6 @@ import { PAGE } from "./build-bundle";
 
 const FIXTURE = pathToFileURL(PAGE).href;
 const CANONICAL = "#inspector-video";
-const COLLECTION = "#inspector-video-collection";
 const AREA = ".media-detail-workbench-grid";
 
 let navigation = 0;
@@ -34,20 +33,13 @@ async function areaUnderTheRow(page: Page) {
   }));
 }
 
-const SURFACES = [
-  ["canonical", CANONICAL],
-  ["collection", COLLECTION],
-] as const;
+test("SPEC-CORE-085 I2 the file page draws no panel area with no panel on", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await open(page, CANONICAL);
 
-for (const [surface, hash] of SURFACES) {
-  test(`SPEC-CORE-085 I2 the ${surface} surface draws no panel area with no panel on`, async ({
-    page,
-  }) => {
-    await page.setViewportSize({ width: 1440, height: 900 });
-    await open(page, hash);
-
-    const area = await areaUnderTheRow(page);
-    expect(area.display).toBe("none");
-    expect(area.height).toBe(0);
-  });
-}
+  const area = await areaUnderTheRow(page);
+  expect(area.display).toBe("none");
+  expect(area.height).toBe(0);
+});

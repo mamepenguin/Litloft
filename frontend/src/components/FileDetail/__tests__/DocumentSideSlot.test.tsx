@@ -194,7 +194,6 @@ afterEach(() => {
 
 async function renderKind(
   kind: Partial<FileItem>,
-  surface?: "collection",
 ) {
   setApiResponses(
     makeFile({
@@ -204,20 +203,14 @@ async function renderKind(
     }),
   );
   const utils = render(
-    <FileDetailContent fileId="f1" drive="main" surface={surface} />,
+    <FileDetailContent fileId="f1" drive="main" />,
   );
-  if (surface === "collection") {
-    // The page row is drawn by the full-screen host around this component,
-    // not by the collection canvas itself.
-    await loaded();
-  } else {
-    await loaded();
-    await waitFor(() =>
-      expect(screen.getByTestId("inspector-fit-host")).toHaveAttribute(
-        "data-inspector-fit",
-      ),
-    );
-  }
+  await loaded();
+  await waitFor(() =>
+    expect(screen.getByTestId("inspector-fit-host")).toHaveAttribute(
+      "data-inspector-fit",
+    ),
+  );
   return utils;
 }
 
@@ -594,7 +587,7 @@ describe("SPEC-CORE-132 §1.7 - select() from the entry", () => {
 });
 
 describe("SPEC-CORE-132 §1.6 - openInViewer is given only on the file page's document-side tab", () => {
-  it("is a document-side prop on the file page, and absent on the collection surface", async () => {
+  it("is a document-side prop on the file page", async () => {
     claimSlot("document-side", [DETAIL]);
     claimSlot("file-detail-sections", [DETAIL]);
     await renderKind(PDF);
@@ -602,20 +595,6 @@ describe("SPEC-CORE-132 §1.6 - openInViewer is given only on the file page's do
     expect(typeof propsOf(entryNode("detailed-summary")).openInViewer).toBe(
       "function",
     );
-    cleanup();
-
-    await renderKind(PDF, "collection");
-    expect(tabs()).not.toContain(DETAIL_LABEL);
-    const nodes = [
-      ...screen.queryAllByTestId(/^addon-slot-/),
-      ...screen.queryAllByTestId(/^slot-entry-/),
-    ];
-    expect(nodes.length).toBeGreaterThan(0);
-    for (const node of nodes) {
-      const props = slotPropsByNode.get(node) ?? {};
-      expect(props.openInViewer).toBeUndefined();
-      expect(props.select).toBeUndefined();
-    }
   });
 
   it("answers false when the open file has no document controller", async () => {

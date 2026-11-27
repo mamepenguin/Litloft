@@ -5,7 +5,6 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 
 import { RightPaneFile } from "../../folder/RightPaneFile";
-import { FileDetailContent } from "../../FileDetailContent";
 import { ShortcutsProvider } from "../../ShortcutsProvider";
 import type { FileItem } from "@/types";
 import type { MediaController } from "@/lib/mediaController";
@@ -645,39 +644,7 @@ describe("SPEC-CORE-028 I7 I10 the find button exists only on the file page of a
     await flush();
     expect(pressCtrlF()).toBe(true);
     expect(document.activeElement?.tagName).not.toBe("INPUT");
-  });
-
-  it("has no button and no shortcut on the collection surface", async () => {
-    // HTML rides the shared shell on every surface, so the collection
-    // surface draws a page row here and the absence of the button is
-    // the surface rule, not a missing row.
-    const page = makeFile({
-      id: "html00000001",
-      filename: "page.html",
-      mime_type: "text/html",
-      drive: DRIVE,
-    });
-    shared.getFile = async () => page;
-    setUrl(page);
-    const canonical = render(
-      <ShortcutsProvider>
-        <FileDetailContent fileId={page.id} drive={DRIVE} />
-      </ShortcutsProvider>,
-    );
-    expect(await findButton()).toBeInTheDocument();
-    canonical.unmount();
-
-    render(
-      <ShortcutsProvider>
-        <FileDetailContent fileId={page.id} drive={DRIVE} surface="collection" />
-      </ShortcutsProvider>,
-    );
-    await shellLoaded();
-    await flush();
-    expect(screen.queryByRole("button", { name: FIND_BUTTON })).toBeNull();
-    expect(pressCtrlF()).toBe(true);
-  });
-});
+  });});
 
 /* ---------- opening ---------- */
 

@@ -80,9 +80,6 @@ import { folderTransitionKind } from "@/lib/folderTransition";
 import { showOpenGhost } from "@/lib/openGhost";
 import { JustifiedHoldArrangement } from "./justifiedHold";
 import {
-  HeaderRowCollectionArrangement,
-  HeaderRowCollectionNoteArrangement,
-  HeaderRowCollectionSwapArrangement,
   HeaderRowLateArrangement,
   HeaderRowMissingArrangement,
   HeaderRowSwapArrangement,
@@ -136,11 +133,9 @@ import { SubtitlesSectionPhoneArrangement } from "./subtitlesSection";
 import {
   InspectorArchiveArrangement,
   InspectorPdfArrangement,
-  InspectorPdfCollectionArrangement,
   InspectorVideoArrangement,
   InspectorVideoSidebarArrangement,
   InspectorVideoTwoPaneArrangement,
-  InspectorVideoCollectionArrangement,
 } from "./inspectorResponsive";
 import AskTab from "../../src/addons/intelligence/AskTab";
 import { getAskThread } from "../../src/addons/intelligence/askStore";
@@ -2168,31 +2163,6 @@ function FileDetailChromePlainPhoneArrangement(): ReactElement {
 }
 
 /**
- * Playing a collection: the host supplies `onBack`, so the row draws the
- * back control *and* the trail above `md` — the one form where both are on
- * screen at once.
- */
-function FileDetailChromeCollectionArrangement(): ReactElement {
-  const noop = () => {};
-  return (
-    <NextIntlClientProvider locale="en" messages={enMessages}>
-      <div className="w-full bg-bg-primary">
-        <FileDetailChrome
-          drive="Household Archive"
-          folderPath={DEEP_FOLDER}
-          title={DEEP_LEAF}
-          titleNode={<EditableTitle title={DEEP_LEAF} onRename={async () => {}} />}
-          onBack={noop}
-          inspector={{ open: false, onToggle: noop }}
-        >
-          <RowControl />
-        </FileDetailChrome>
-      </div>
-    </NextIntlClientProvider>
-  );
-}
-
-/**
  * A note opened normally, above `md`: the trail has the whole row rather than
  * the half a collection's back control leaves it, and the rename control is
  * the trail's last segment.
@@ -2779,7 +2749,6 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "file-detail-chrome-note": FileDetailChromeNoteArrangement,
   "file-detail-chrome-plain-phone": FileDetailChromePlainPhoneArrangement,
   "plain-text-document": PlainTextDocumentArrangement,
-  "file-detail-chrome-collection": FileDetailChromeCollectionArrangement,
   "file-detail-chrome-note-deep": FileDetailChromeNoteDeepArrangement,
   "archive-toolbar-deep": ArchiveToolbarArrangement,
   "viewer-zoom": ViewerZoomFrame,
@@ -2929,10 +2898,8 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "inspector-video": InspectorVideoArrangement,
   "inspector-video-sidebar": InspectorVideoSidebarArrangement,
   "inspector-pdf": InspectorPdfArrangement,
-  "inspector-pdf-collection": InspectorPdfCollectionArrangement,
   "inspector-archive": InspectorArchiveArrangement,
   "inspector-video-two-pane": InspectorVideoTwoPaneArrangement,
-  "inspector-video-collection": InspectorVideoCollectionArrangement,
   "header-row-ordinary": HeaderRowOrdinaryArrangement,
   "header-row-video": HeaderRowVideoArrangement,
   "header-row-note": HeaderRowNoteArrangement,
@@ -2942,9 +2909,6 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   "header-row-leave": HeaderRowLeaveArrangement,
   "header-row-text": HeaderRowTextArrangement,
   "header-row-two-pane": HeaderRowTwoPaneArrangement,
-  "header-row-collection": HeaderRowCollectionArrangement,
-  "header-row-collection-note": HeaderRowCollectionNoteArrangement,
-  "header-row-collection-swap": HeaderRowCollectionSwapArrangement,
   "header-row-late": HeaderRowLateArrangement,
   "header-row-missing": HeaderRowMissingArrangement,
   "header-row-swap": HeaderRowSwapArrangement,

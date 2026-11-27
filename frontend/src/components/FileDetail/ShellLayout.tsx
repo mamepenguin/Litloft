@@ -273,7 +273,6 @@ export function ShellLayout({
   const storedPanels = useWorkbenchPanels();
   const playerFocus = useWorkbenchPlayerFocus();
   const workbenchItems = buildWorkbenchPanels({
-    surface: "canonical",
     hasPlayer,
     file,
     fileId,

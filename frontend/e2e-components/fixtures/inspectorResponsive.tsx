@@ -592,17 +592,6 @@ export function InspectorArchiveArrangement(): ReactElement {
   );
 }
 
-/** The collection playback surface around a PDF. */
-export function InspectorPdfCollectionArrangement(): ReactElement {
-  installFetch();
-  installMedia();
-  return (
-    <Providers>
-      <FileDetailContent fileId={PDF_ID} drive={DRIVE} surface="collection" />
-    </Providers>
-  );
-}
-
 export function InspectorPdfArrangement(): ReactElement {
   installFetch();
   installMedia();
@@ -649,17 +638,3 @@ export function InspectorVideoTwoPaneArrangement(): ReactElement {
   );
 }
 
-/**
- * The collection playback surface, which scrolls the document rather than a
- * box of its own.
- */
-export function InspectorVideoCollectionArrangement(): ReactElement {
-  installFetch();
-  installMedia();
-  installScenePictures();
-  return (
-    <Providers>
-      <FileDetailContent fileId={VIDEO_ID} drive={DRIVE} surface="collection" />
-    </Providers>
-  );
-}

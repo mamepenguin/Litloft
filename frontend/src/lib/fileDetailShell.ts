@@ -22,10 +22,8 @@ export function usesDocumentShell(
 
 /**
  * `"canonical"` is `/drive/{drive}/{path}?file={id}`, the file's address.
- * `"collection"` is `/files/{id}` with a queue. The collection route is not
- * where the inspector goes.
  */
-export type FileDetailSurface = "canonical" | "collection";
+export type FileDetailSurface = "canonical";
 
 const DOCUMENT_VIEWER_MIMES: ReadonlySet<string> = new Set([
   "application/pdf",
@@ -58,6 +56,5 @@ export function ridesFileDetailShell(args: {
   ) {
     return true;
   }
-  if (args.surface !== "canonical") return false;
   return args.fileType !== undefined;
 }

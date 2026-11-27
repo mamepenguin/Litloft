@@ -83,7 +83,6 @@ describe("no shelf hides its own scrollbar", () => {
         "frontend/src/app/admin/settings/AddonPolicySection.tsx",
         "frontend/src/app/setup/steps/DriveStep.tsx",
         "frontend/src/components/Breadcrumb.tsx",
-        "frontend/src/components/CollectionPanel.tsx",
         "frontend/src/components/FileDetail/inspector/InspectorShell.tsx",
         "frontend/src/components/PageTabs.tsx",
         "frontend/src/components/appshell/FolderPositionRows.tsx",

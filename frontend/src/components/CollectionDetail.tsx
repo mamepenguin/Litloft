@@ -185,13 +185,16 @@ export function CollectionDetail({ drive, collectionId }: CollectionDetailProps)
 
   const handlePlay = useCallback(() => {
     if (!detail) return;
-    const firstMedia = detail.items.find(
+    const firstPlayable = detail.items.find(
       (item) =>
-        item.file.file_type === "video" || item.file.file_type === "audio",
+        (item.file.file_type === "video" ||
+          item.file.file_type === "audio") &&
+        !item.file.missing_since &&
+        !item.file.deleted_at,
     );
-    if (!firstMedia) return;
-    router.push(`/files/${firstMedia.file.id}?collection=${collectionId}`);
-  }, [detail, collectionId, router]);
+    if (!firstPlayable) return;
+    selectFile(firstPlayable.file.id);
+  }, [detail, selectFile]);
 
   const handleMoveUp = useCallback(
     async (index: number) => {
@@ -282,8 +285,11 @@ export function CollectionDetail({ drive, collectionId }: CollectionDetailProps)
 
   const items = detail.items;
   const files = items.map((i) => i.file);
-  const hasMedia = items.some(
-    (i) => i.file.file_type === "video" || i.file.file_type === "audio",
+  const hasPlayable = items.some(
+    (i) =>
+      (i.file.file_type === "video" || i.file.file_type === "audio") &&
+      !i.file.missing_since &&
+      !i.file.deleted_at,
   );
 
   return (
@@ -407,7 +413,7 @@ export function CollectionDetail({ drive, collectionId }: CollectionDetailProps)
             }
             actions={
               <>
-                {hasMedia && (
+                {hasPlayable && (
                   <Button variant="primary" onClick={handlePlay}>
                     <Play size={16} />
                     {t("play")}

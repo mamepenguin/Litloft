@@ -176,21 +176,6 @@ const CASES = [
     ancestors: 2,
   },
   {
-    name: "the file-detail chrome during collection playback",
-    arrangement: "file-detail-chrome-collection",
-    // This form draws the back control beside the trail at every width and
-    // caps it at 45%, so the trail has roughly half the row.
-    widths: [
-      { px: 768 },
-      { px: 1024, leafCut: false },
-    ] as const,
-    selectors: FILE_DETAIL,
-    // Three, not two: this is the form that draws the back control beside
-    // the trail rather than instead of it.
-    controls: 3,
-    ancestors: 2,
-  },
-  {
     // The form the `EditableTitle` basis fix was written for: the trail has
     // the whole row, and its last segment is a control rather than a label.
     name: "the file-detail chrome showing a note",

@@ -36,7 +36,6 @@ export const DESKTOP_ONLY = [
   "**/video-card-spacing-desktop.spec.ts",
   "**/inspector-responsive-layout-desktop.spec.ts",
   "**/player-workbench-desktop.spec.ts",
-  "**/collection-workbench-metrics-desktop.spec.ts",
   "**/workbench-first-frame-desktop.spec.ts",
   "**/workbench-no-panel-desktop.spec.ts",
   "**/workbench-no-page-scroll-desktop.spec.ts",

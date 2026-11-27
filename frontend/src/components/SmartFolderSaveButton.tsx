@@ -370,7 +370,7 @@ export function SmartFolderController({
       });
       finish();
       router.push(
-        `/files/${files[0].id}?smart_collection=${encodeURIComponent(targetId)}`,
+        `/drive/${encodeURIComponent(start.drive)}?file=${files[0].id}&queue=smart:${encodeURIComponent(targetId)}`,
       );
     })();
   }, [router, t]);

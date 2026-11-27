@@ -293,29 +293,6 @@ for (const width of [1280, 900]) {
       .toBeLessThanOrEqual(1);
   });
 }
-
-test("SPEC-CORE-094 D2 / I2 (collection route): the back control starts at the centred column's padded edge", async ({
-  page,
-}) => {
-  await open(page, "header-row-collection");
-  const header = page.locator("header");
-  const back = header.getByRole("button", { name: /^Back/ });
-  await expect(back).toBeVisible();
-
-  const column = await page.locator("video").first().evaluate((video) => {
-    for (let node: Element | null = video; node; node = node.parentElement) {
-      const s = getComputedStyle(node);
-      if (s.maxWidth === "1024px" || s.maxWidth === "1152px") {
-        return node.getBoundingClientRect().left + parseFloat(s.paddingLeft);
-      }
-    }
-    return null;
-  });
-  expect(column, "no max-w-5xl / max-w-6xl column around the player").not.toBeNull();
-  const expected = Math.max((await fixedButtons(page)).right + 12, column!);
-  expect(Math.abs((await box(back)).left - expected)).toBeLessThanOrEqual(1);
-});
-
 test("SPEC-CORE-094 D2 (canonical route, inline sidebar): the trail keeps 16px from the sidebar's edge, and the fixed buttons share the row's centre line with it", async ({
   page,
 }) => {
@@ -395,19 +372,6 @@ async function expectNoUnit(page: Page): Promise<void> {
   expect(Math.abs(headerBox.right - profile.right - 16), "profile 16px from the header's right end").toBeLessThanOrEqual(0.5);
 }
 
-/** A page with no inspector: the Focus mode button is the last control, 16px in. */
-async function expectFocusAtRightEnd(page: Page): Promise<void> {
-  await expect(headerToggle(page)).toHaveCount(0);
-  const headerBox = await box(page.locator("header"));
-  const focus = await box(focusButton(page));
-  expect(await dividersIn(page, focus.right, headerBox.right)).toHaveLength(0);
-  for (const control of await headerControls(page)) {
-    if (control.focus) continue;
-    expect(control.right, "a control right of the Focus mode button").toBeLessThanOrEqual(focus.left + 0.5);
-  }
-  expect(Math.abs(headerBox.right - focus.right - 16), "Focus mode 16px from the header's right end").toBeLessThanOrEqual(0.5);
-}
-
 for (const width of [1280, 900]) {
   test(`SPEC-CORE-098 I1 as revised (${width}px): outside the focus layout and with the header revealed in it, the inspector toggle is the header's last control, past the profile button, 16px from the header's right end`, async ({
     page,
@@ -421,17 +385,6 @@ for (const width of [1280, 900]) {
     await expectUnitAtRightEnd(page);
   });
 }
-
-test("SPEC-CORE-098 I1 (collection route, a note that rides the shell): the toggle is the header's last control", async ({
-  page,
-}) => {
-  await open(page, "header-row-collection-note");
-  await expect(
-    page.locator("header").getByText("meeting-notes.md", { exact: true }).filter({ visible: true }),
-  ).not.toHaveCount(0);
-  await expectUnitAtRightEnd(page);
-});
-
 test("SPEC-CORE-098 I2 as revised: exactly one divider right of the profile button, 12px from it and 12px from the Focus mode button that follows it; the toggle follows the Focus mode button 12px away; the first divider is still there", async ({
   page,
 }) => {
@@ -501,20 +454,6 @@ test("SPEC-CORE-098 I10 as revised: Tab from the profile button reaches the Focu
   await expect(page.locator(":focus")).toHaveAttribute("data-testid", "focus-mode-toggle");
   await page.keyboard.press("Tab");
   await expect(page.locator(":focus")).toHaveAttribute("data-testid", "inspector-toggle");
-  await page.keyboard.press("Tab");
-  expect(
-    await page.evaluate(() => {
-      const active = document.activeElement;
-      return active !== null && document.querySelector("header")!.contains(active);
-    }),
-  ).toBe(false);
-
-  await open(page, "header-row-collection");
-  await expect(page.locator("header").getByRole("button", { name: /^Back/ })).toBeVisible();
-  await expect(headerToggle(page)).toHaveCount(0);
-  await profileButton(page).focus();
-  await page.keyboard.press("Tab");
-  await expect(page.locator(":focus")).toHaveAttribute("data-testid", "focus-mode-toggle");
   await page.keyboard.press("Tab");
   expect(
     await page.evaluate(() => {
@@ -696,7 +635,6 @@ test("SPEC-CORE-098 I6: a file page outside the shell keeps its toggle at the en
 const drawn: Record<string, (page: Page) => Locator> = {
   "header-row-ordinary": (page) => page.locator("main").getByText("Folder listing"),
   "header-row-missing": (page) => page.locator("main").getByText("File not found"),
-  "header-row-collection": (page) => page.locator("header").getByRole("button", { name: /^Back/ }),
 };
 
 for (const [arrangement, label] of [
@@ -712,16 +650,6 @@ for (const [arrangement, label] of [
     await expectNoUnit(page);
   });
 }
-
-test("SPEC-CORE-098 I3 (a collection-route video, a hosted file page without an inspector): no toggle, and the Focus mode button is the header's last control 16px from its right end", async ({
-  page,
-}) => {
-  await open(page, "header-row-collection");
-  await expect(drawn["header-row-collection"](page)).toBeVisible();
-  await expect(profileButton(page)).toBeVisible();
-  await expectFocusAtRightEnd(page);
-});
-
 /* SPEC-CORE-098 I5, sampled on every animation frame. */
 
 type Frame = {
@@ -888,39 +816,5 @@ test("SPEC-CORE-098 I5 / flow 5 (leaving the file page): the toggle and its divi
   await page.getByRole("button", { name: "leave-file-page" }).click();
   await expect(trailIn(page.locator("header"))).toHaveCount(0);
   await expectNoUnit(page);
-  expectEveryFrameWhole(await unitFrames(page));
-});
-
-test("SPEC-CORE-098 I5 (collection route): a video that does not ride the shell has the Focus mode button and its divider only, a note that does gains the toggle too, and note → note keeps the unit in every frame", async ({
-  page,
-}) => {
-  await recordUnitFrames(page);
-  await open(page, "header-row-collection-swap");
-  await expect(page.locator("header").getByRole("button", { name: /^Back/ })).toBeVisible();
-  await expectFocusAtRightEnd(page);
-
-  await page.getByRole("button", { name: "to-note" }).click();
-  await expect(
-    page.locator("header").getByText("meeting-notes.md", { exact: true }).filter({ visible: true }),
-  ).not.toHaveCount(0);
-  await expectUnitAtRightEnd(page);
-  expectEveryFrameWhole(await unitFrames(page));
-
-  const from = (await unitFrames(page)).length;
-  await page.getByRole("button", { name: "to-long-note" }).click();
-  await expect(
-    page.locator("header").getByText(`${"n".repeat(197)}.md`, { exact: true }).filter({ visible: true }),
-  ).not.toHaveCount(0);
-  await expectUnitAtRightEnd(page);
-  expectUnitThroughout((await unitFrames(page)).slice(from));
-});
-
-test("SPEC-CORE-098 I5 (collection route, loading → a loaded note): the unit appears whole", async ({ page }) => {
-  await recordUnitFrames(page);
-  await open(page, "header-row-collection-note");
-  await expect(
-    page.locator("header").getByText("meeting-notes.md", { exact: true }).filter({ visible: true }),
-  ).not.toHaveCount(0);
-  await expectUnitAtRightEnd(page);
   expectEveryFrameWhole(await unitFrames(page));
 });

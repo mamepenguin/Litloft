@@ -349,31 +349,6 @@ describe("SPEC-CORE-036 I10 - an id shared with another slot or a core tab does 
     expect(entryNode("pages")).toBeInTheDocument();
   });
 });
-
-describe("SPEC-CORE-036 I10 - the collection surface draws no inspector tab", () => {
-  it.each<[string, Partial<FileItem>]>([
-    ["a PDF", PDF],
-    ["a video", VIDEO],
-    ["a Markdown note", MARKDOWN],
-  ])("%s: listed on the file page, gone on the collection surface", async (_name, kind) => {
-    claimSlot("inspector-tabs", [ASK]);
-    const { rerender } = await renderKind(kind);
-    report("ask", true);
-    expect(tabs()).toContain("Ask");
-
-    setApiResponses(
-      makeFile({ has_chapters: false, description: "", ...kind }),
-    );
-    rerender(
-      <FileDetailContent fileId="f1" drive="main" surface="collection" />,
-    );
-    await loaded();
-
-    expect(tabs()).not.toContain("Ask");
-    expect(screen.queryByTestId("inspector-tabs")).toBeNull();
-  });
-});
-
 describe("SPEC-CORE-036 I12 - player-side keeps its order and its silence", () => {
   it("orders player-side tabs by priority", async () => {
     claimSlot("player-side", [
