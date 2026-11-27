@@ -2,7 +2,7 @@
 
 decision:
 ran_in_app: yes
-at: 67f5b26e9c6222b01986be4e302d132c25aa1cf2
+at: 5fa146b9ccd19b66a22ced240879468ea5549ed0
 by: agent
 evidence: |
   Stack: http://video-share-collection-play.localhost:3101 (frontend image built 2026-11-28 03:58 JST, after HEAD's commit), its own cloned data. Desktop Chrome, fine pointer. Viewports: 1440x900 for the artboard shots 19 and 23 (shots 01-18 are 1440x757), 1024x768, and 390x844 drawn in a same-origin iframe inside a 500px window (Chrome's minimum window width). Origin storage was empty at the start (tree setting off, Autoplay off). Screenshots, kept locally (gitignored): docs/process/reviews/feature-collection-play-two-pane/r5/.
@@ -64,3 +64,16 @@ pending: |
     - a reorder or remove request that fails
     - a drop onto the sidebar collection
     - the server-side watch record at an end (I1): there was no viewer profile, so only the localStorage record was seen, with progress equal to duration
+
+## R-5 re-run at 5fa146b9ccd19b66a22ced240879468ea5549ed0 (fixes 6b633812b..5fa146b9c)
+
+Scope: the five defects above, plus collection Play, folder Play all and an advance at 1440. Same stack (http://video-share-collection-play.localhost:3101, rebuilt from HEAD), desktop Chrome, 1440 wide; 390x844 in a same-origin iframe. Origin storage cleared at the start, then tree:enabled:動画=true. Screenshots (gitignored): r5/rr1-01 to rr1-05.
+- Defect 1, fixed: sidebar あんこ動画 → saved search page → Play → ?file=BVtZs91FE2MA&queue=smart:iJoo9-NqbcRO. The queue aside is 280px with "あんこ動画 1 / 8", the button reads "Hide the queue" (rr1-01).
+- Defect 2, fixed: /collections/oO1ntCEA3B1n?file=BVtZs91FE2MA (not in R5 videos): the page row and the pane both read "– / 9", arrows disabled (rr1-02). Removing the current item (row 9, playing) from the pane: the page row and pane read "– / 8", the video kept playing (rr1-04). Re-adding it from the file menu gave "9 / 9", which is also the original order.
+- Defect 3, fixed: /collections/oO1ntCEA3B1n with no file, tree on: the pane's top block is "R5 videos" and the loop button, no n / N (rr1-03).
+- Defect 4, fixed: 390px, R5 videos item 1 playing. Before: header buttons at x 12, 60, 194, 234, 268, 300, 338; scrollWidth 390; playing, t 2.18. Overlay opened by clicking the pane button: queue aside left 0, width 390, header buttons at the same x, scrollWidth 390, playing, t 9.07 (rr1-05). Closed with the close row's ×: same header, scrollWidth 390, playing, t 14.62, ?file= unchanged. Folder queue (アニメ, queue=folder) the same: aside 0/390, scrollWidth 390 before / during / after, playing with t 0.91 → 1.91 → 2.91.
+- Defect 5, fixed: a new tab on /drive/動画/アニメ?file=Alx1ShvKJ5ny&queue=folder&sort=random with empty sessionStorage. The queue reads "1 / 28" with rows in the same order as the created_at desc queue of the first tab (【ピカチュウ】…, 【約200万円】…, Vol.144…). On reload, the requests were /files?…&sort=created_at&order=desc (listing and type=audio&type=video queue fetch); none carried sort=random. Nothing was written to sessionStorage.
+- Regression checks at 1440, tree on: collection Play on R5 videos → ?file=I3e9u7RiDzz2, playing, pane 280px "1 / 9"; a seek to the end advanced to "2 / 9", playing, pane 280px. Folder Play all on アニメ → queue=folder&sort=created_at&order=desc, pane 280px "1 / 28", playing; a seek to the end advanced to "2 / 28", playing, pane 280px.
+- Left behind: R5 videos ends in its original order. Origin localStorage and sessionStorage cleared, tabs closed, window back to 1440x900.
+- Defects remaining: none of the five.
+
