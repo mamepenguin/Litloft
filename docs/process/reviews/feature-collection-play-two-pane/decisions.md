@@ -77,3 +77,14 @@ Scope: the five defects above, plus collection Play, folder Play all and an adva
 - Left behind: R5 videos ends in its original order. Origin localStorage and sessionStorage cleared, tabs closed, window back to 1440x900.
 - Defects remaining: none of the five.
 
+
+## Design check (design-check.md, 6 findings)
+
+Decided by the owner on 2026-11-28:
+
+- D-1: fix (folder / Smart queue rows on one line, duration at the right end, as FolderPlay.dc.html).
+- D-2: accepted. The phone row is SPEC-CORE-094's file-page row, and its extra controls are that page's own; the design drew a simplified row.
+- D-3: accepted. The phone sheet's open or peek state is the file page's existing behaviour; the design drew it open.
+- D-4: fix (the open phone queue overlay covers the file sheet's peek bar).
+- D-5: fix (phone queue thumbnails 56x32, as PhoneQueue.dc.html).
+- D-6: fix (per-row buttons 26px wide at a fine pointer, as Main.dc.html; 44px at a coarse pointer stays).
