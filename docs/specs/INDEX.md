@@ -380,3 +380,7 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-187 | implemented | docs/specs/subtitle-sidecars.md | sha256:a4f02644cb6995df4e62ebb72e0f86523974d57e56e96a038f6bd9b518812d8d |
 | SPEC-CORE-188 | implemented | docs/specs/sidebar-follows-events.md | sha256:c0630a41f8072f90a1f9cfbde1a80830d6b007dfc552f6324dee157f1efe5cac |
 | SPEC-CORE-189 | implemented | docs/specs/sidebar-follows-events.md | sha256:c0630a41f8072f90a1f9cfbde1a80830d6b007dfc552f6324dee157f1efe5cac |
+| SPEC-CORE-190 | draft | docs/specs/collection-play-two-pane.md | |
+| SPEC-CORE-191 | draft | docs/specs/collection-play-two-pane.md | |
+| SPEC-CORE-192 | draft | docs/specs/collection-play-two-pane.md | |
+| SPEC-CORE-193 | draft | docs/specs/collection-play-two-pane.md | |
