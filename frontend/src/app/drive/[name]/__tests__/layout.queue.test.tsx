@@ -197,6 +197,8 @@ const SMART_FILES = [makeFile("s1", "video", "S one", "2026-02-01T00:00:00Z"), m
 
 const server = vi.hoisted(() => ({ listing: "ok" as "ok" | "fail" | "hang" }));
 
+let wire: ReturnType<typeof installWireFetch>;
+
 function sortFiles(files: FileItem[], sort: string, order: string): FileItem[] {
   const key = (f: FileItem): string | number =>
     sort === "title" ? f.title : sort === "file_size" ? f.file_size : f.created_at;
@@ -298,7 +300,7 @@ beforeEach(() => {
   view.props.length = 0;
   view.mounts = 0;
   evaluation.fn.mockReset();
-  installWireFetch(answer);
+  wire = installWireFetch(answer);
 });
 
 afterEach(() => {
@@ -346,6 +348,20 @@ describe("SPEC-CORE-191 step 3 / I15 the folder queue holds the folder's video a
     await fileOpen("v3");
     const pane = await findQueuePane();
     await waitFor(() => expect(titleOrder(pane)).toEqual(["Alpha", "Delta", "Bravo"]));
+  });
+
+  it("with sort=random and nothing stored, asks the listing for created_at desc", async () => {
+    openAt("/drive/work/Q1", "file=v3&queue=folder&sort=random");
+    await fileOpen("v3");
+    await findQueuePane();
+    await waitFor(() => {
+      const call = [...wire.calls]
+        .reverse()
+        .find((c) => c.url.pathname === "/api/drives/work/files");
+      expect(call).toBeDefined();
+      expect(call!.url.searchParams.get("sort")).toBe("created_at");
+      expect(call!.url.searchParams.get("order")).toBe("desc");
+    });
   });
 });
 

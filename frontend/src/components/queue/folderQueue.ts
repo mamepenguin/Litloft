@@ -78,6 +78,10 @@ export async function fetchFolderQueue(
   sort?: string,
   order?: string,
 ): Promise<FileItem[]> {
+  // `random` is a listing order the queue cannot store; with nothing stored
+  // for the tab, it falls back to the default rather than a new shuffle.
+  const effectiveSort = sort === "random" ? undefined : sort;
+  const effectiveOrder = sort === "random" ? undefined : order;
   const allFiles: FileItem[] = [];
   let page = 1;
   let hasMore = true;
@@ -85,8 +89,8 @@ export async function fetchFolderQueue(
     const res = await getDriveFiles(drive, {
       path,
       type: ["audio", "video"],
-      sort: (sort || "created_at") as SortField,
-      order: (order || "desc") as SortOrder,
+      sort: (effectiveSort || "created_at") as SortField,
+      order: (effectiveOrder || "desc") as SortOrder,
       limit: 500,
       page,
     });
