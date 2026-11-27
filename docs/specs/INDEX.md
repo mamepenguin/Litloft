@@ -378,3 +378,5 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-CORE-185 | implemented | docs/specs/subtitle-sidecars.md | sha256:a4f02644cb6995df4e62ebb72e0f86523974d57e56e96a038f6bd9b518812d8d |
 | SPEC-CORE-186 | implemented | docs/specs/subtitle-sidecars.md | sha256:a4f02644cb6995df4e62ebb72e0f86523974d57e56e96a038f6bd9b518812d8d |
 | SPEC-ADDON-187 | implemented | docs/specs/subtitle-sidecars.md | sha256:a4f02644cb6995df4e62ebb72e0f86523974d57e56e96a038f6bd9b518812d8d |
+| SPEC-CORE-188 | draft | docs/specs/sidebar-follows-events.md | |
+| SPEC-CORE-189 | draft | docs/specs/sidebar-follows-events.md | |
