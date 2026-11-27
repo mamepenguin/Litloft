@@ -61,6 +61,34 @@ test("SPEC-CORE-193 I9 / D6 (390×844): the queue opens at the viewport's width,
   expect(paneBox.width).toBe(390);
   expect(await isPlaying(page)).toBe(true);
 
+  const widths = await page.evaluate(() => ({
+    scrollWidth: document.documentElement.scrollWidth,
+    clientWidth: document.documentElement.clientWidth,
+  }));
+  expect(widths.scrollWidth).toBe(widths.clientWidth);
+  expect(widths.clientWidth).toBe(page.viewportSize()!.width);
+
+  const header = await page.locator("header").evaluate((element) => {
+    const r = element.getBoundingClientRect();
+    return { left: r.left, right: r.right };
+  });
+  expect(header.left).toBe(0);
+  expect(header.right).toBeLessThanOrEqual(390.5);
+
+  const controls = await page
+    .locator("header button, header a[href]")
+    .filter({ visible: true })
+    .evaluateAll((elements) =>
+      elements.map((element) => {
+        const r = element.getBoundingClientRect();
+        return { left: r.left, right: r.right };
+      }),
+    );
+  for (const control of controls) {
+    expect(control.left).toBeGreaterThanOrEqual(-0.5);
+    expect(control.right).toBeLessThanOrEqual(390.5);
+  }
+
   const heights = await pane.locator("li").evaluateAll((rows) =>
     rows.map((row) => row.getBoundingClientRect().height),
   );

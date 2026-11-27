@@ -173,7 +173,9 @@ export function TwoPaneLayout({
       : hasFile && !queuePane
         ? "w-0 md:w-[280px]"
         : "w-[100vw] md:w-[280px]";
-  const showSectionOnMobile = !treeOpen || hasFile;
+  // A queue pane takes the phone's full width; the file page stays mounted
+  // behind it but must not keep the document wider than the viewport.
+  const showSectionOnMobile = !treeOpen || (hasFile && !queuePane);
 
   const treeNode = hasEverEnabled ? (
     <FolderTreePane
