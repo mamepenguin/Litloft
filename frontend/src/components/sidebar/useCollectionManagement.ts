@@ -7,9 +7,9 @@ import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.
 import {
   createCollection,
   deleteCollection,
-  getCollections,
   updateCollection,
 } from "@/lib/api";
+import { ApiStatusError } from "@/lib/apiError";
 import { useToast } from "@/components/ToastProvider";
 import { useNameSubmission } from "@/hooks/useNameSubmission";
 import { collectionHref } from "@/lib/driveViews";
@@ -19,7 +19,7 @@ import type { CollectionSummary } from "@/types";
 interface UseCollectionManagementParams {
   currentDrive: string | null;
   collectionList: CollectionSummary[];
-  setCollectionList: React.Dispatch<React.SetStateAction<CollectionSummary[]>>;
+  reloadCollections: () => Promise<void>;
   close: () => void;
   router: AppRouterInstance;
   setOverrideDrive: (drive: string | null) => void;
@@ -28,7 +28,7 @@ interface UseCollectionManagementParams {
 export function useCollectionManagement({
   currentDrive,
   collectionList,
-  setCollectionList,
+  reloadCollections,
   close,
   router,
   setOverrideDrive,
@@ -117,6 +117,15 @@ export function useCollectionManagement({
     [resetCreate, resetRename],
   );
 
+  useEffect(() => {
+    if (renamingId && !collectionList.some((c) => c.id === renamingId)) {
+      cancelRename();
+    }
+    if (contextMenu && !collectionList.some((c) => c.id === contextMenu.id)) {
+      setContextMenu(null);
+    }
+  }, [collectionList, renamingId, contextMenu, cancelRename]);
+
   // No listener here. The menu is `ContextMenu`, which goes through
   // `DismissScrim`: an outside press closes it and the click that press
   // produces is swallowed.
@@ -131,8 +140,7 @@ export function useCollectionManagement({
     beginCreate();
     try {
       await createCollection(currentDrive, name);
-      const updated = await getCollections(currentDrive);
-      setCollectionList(updated);
+      await reloadCollections();
     } catch (e) {
       if (isNameInUse(e)) {
         rejectCreate(name);
@@ -144,7 +152,7 @@ export function useCollectionManagement({
     }
     setCreatingCollection(false);
     setNewCollectionName("");
-  }, [currentDrive, newCollectionName, setCollectionList, toast, t, isCreateBusy, isCreateRejected, beginCreate, rejectCreate, settleCreate, cancelCreate]);
+  }, [currentDrive, newCollectionName, reloadCollections, toast, t, isCreateBusy, isCreateRejected, beginCreate, rejectCreate, settleCreate, cancelCreate]);
 
   const handleRenameCollection = useCallback(async () => {
     const name = renameValue.trim();
@@ -156,11 +164,15 @@ export function useCollectionManagement({
     beginRename();
     try {
       await updateCollection(currentDrive, renamingId, { name });
-      const updated = await getCollections(currentDrive);
-      setCollectionList(updated);
+      await reloadCollections();
     } catch (e) {
       if (isNameInUse(e)) {
         rejectRename(name);
+        return;
+      }
+      if (e instanceof ApiStatusError && e.status === 404) {
+        cancelRename();
+        void reloadCollections();
         return;
       }
       toast.error(t("errorRename"));
@@ -169,19 +181,18 @@ export function useCollectionManagement({
     }
     setRenamingId(null);
     setRenameValue("");
-  }, [currentDrive, renamingId, renameValue, setCollectionList, toast, t, isRenameBusy, isRenameRejected, beginRename, rejectRename, settleRename, cancelRename]);
+  }, [currentDrive, renamingId, renameValue, reloadCollections, toast, t, isRenameBusy, isRenameRejected, beginRename, rejectRename, settleRename, cancelRename]);
 
   const handleDeleteCollection = useCallback(async (id: string) => {
     if (!currentDrive) return;
     try {
       await deleteCollection(currentDrive, id);
-      const updated = await getCollections(currentDrive);
-      setCollectionList(updated);
+      await reloadCollections();
     } catch {
       toast.error(t("errorDelete"));
     }
     setContextMenu(null);
-  }, [currentDrive, setCollectionList, toast, t]);
+  }, [currentDrive, reloadCollections, toast, t]);
 
   const handleCollectionClick = useCallback((c: CollectionSummary) => {
     setOverrideDrive(c.drive);

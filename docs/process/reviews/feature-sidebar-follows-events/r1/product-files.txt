@@ -1,0 +1,9 @@
+backend/app/routers/collections.py
+backend/app/routers/drives.py
+backend/app/routers/internal.py
+backend/app/services/ws.py
+frontend/src/components/Sidebar.tsx
+frontend/src/components/sidebar/SidebarCollectionsSection.tsx
+frontend/src/components/sidebar/useCollectionManagement.ts
+frontend/src/components/sidebar/useDriveScopedReads.ts
+frontend/src/components/sidebar/useSidebarData.ts

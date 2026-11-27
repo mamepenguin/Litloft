@@ -1,0 +1,208 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "CRITICAL",
+  "findings": [
+    {
+      "id": "F1",
+      "origin": "reviewer",
+      "claim": "The diff adds a new product file, frontend/src/components/sidebar/useDriveScopedReads.ts, which the declared touch-point list does not name; the list places the subscription, gathering, per-list sequence, failure behaviour and reloadCollections in useSidebarData.ts, but they live in this new file.",
+      "impact": "No user-visible effect. A reviewer or later spec that reads the touch-point list to find where the sidebar's sequence rule and WebSocket gathering live is pointed at useSidebarData.ts, which now only delegates; related-spec lookups keyed on touch-point paths will not find this file.",
+      "evidence": "frontend/src/components/sidebar/useDriveScopedReads.ts:1-250 (new file: WATCHED_EVENTS at :20, createTrackedList at :57, gathering timers at :175-205, useWebSocketRefresh at :235, reloadCollections at :237); frontend/src/components/sidebar/useSidebarData.ts:41-45 only calls useDriveScopedReads. Touch points list only useSidebarData.ts, useCollectionManagement.ts, SidebarCollectionsSection.tsx, Sidebar.tsx and useWebSocketRefresh.ts on the frontend product side.",
+      "repro": "Compare the files in the diff against the `## Touch points` section of docs/specs/sidebar-follows-events.md: every other product and test path is listed (tests via §7 and 'new tests under frontend/src/components/sidebar/__tests__/'), docs and rules paths are listed, INDEX.md and the spec are implicit; useDriveScopedReads.ts is the only unlisted path.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No declared invariant is broken; the behavior described for useSidebarData.ts is implemented, only in an extracted helper module. It is a gap in the planned-reach list, not a code defect.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add frontend/src/components/sidebar/useDriveScopedReads.ts to the touch-point list (as the home of the subscription, gathering, sequence and reloadCollections), or record it as a revision in invariants.md."
+    }
+  ],
+  "specification_compliance": [
+    "I1: useDriveScopedReads.ts:20-29 watches exactly the eight events; runRound -> readAll reads tags (current folder), pins, collections, summary (:168-173). Covered by useSidebarData.events.test.tsx it.each(WATCHED) and sidebarFollowsEvents I1 test.",
+    "I2: drive filter is delegated to useWebSocketRefresh (drive passed at :235); startGathering returns when no drive (:193); reconnect also goes through startGathering so no-drive reconnect reads nothing. Backend events checked (scan:complete, upload:complete) carry `drive`.",
+    "I3: idle timer 500 ms capped by untilCap, separate 2 s cap timer, gathering reset in runRound (:179-205). Tests cover single event, 300 ms pair, 400 ms stream.",
+    "I4/I5: createTrackedList (:57-87) applies success only when seq > shownSeq and scope current; failure empties only when shownScope differs and does not raise shownSeq. Tag scope includes folder; drive lists check drive only. reloadCollections uses the same tracker and never rejects (:237-247).",
+    "I6: every listed backend handler calls ws.notify_drive once, after db.commit, after all HTTPException raises (collections.py:123,168,185,233,264,296; drives.py:1943,1966; internal.py:195). No other event or webhook emitted from these lines.",
+    "I7: notify_drive wraps broadcast_from_thread in try/except Exception and logs (ws.py:79-84); it is looked up through the module at call time, so the test patch works.",
+    "I8: broadcasts go through ConnectionManager.broadcast with drive=drive, which filters by access group (ws.py:49-59).",
+    "I9: useWebSocketRefresh reconnect catch-up calls startGathering, so a gathered round runs.",
+    "I10: useCollectionManagement.ts:120-127 closes rename input / context menu when the id leaves the list; :173-177 suppresses the toast on a 404 rename and re-reads.",
+    "I11: own writes await reloadCollections, which never rejects, so the catch block (and its toast) is not reached by a failed re-read (useCollectionManagement.ts:143,167,190; SidebarCollectionsSection.tsx:229)."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    {
+      "behavior": "A rename that answers 404 closes the input silently with no toast even when the collection is still in the shown list (e.g. deleted in another tab before its event arrived), not only when it has already left the list.",
+      "frequency": 1,
+      "impact": 2,
+      "reason": "Triggered by renaming a collection someone just deleted elsewhere; the user sees the input close and the row disappear after the re-read, with no error message."
+    },
+    {
+      "behavior": "After the sidebar's own collection write it re-reads collections immediately and then runs a full four-GET round about 500 ms later when its own broadcast arrives.",
+      "frequency": 5,
+      "impact": 1,
+      "reason": "Every sidebar create/rename/delete/drop produces the immediate reloadCollections plus the round from drive.collections_changed; nothing visible, only extra requests."
+    },
+    {
+      "behavior": "The no-drive branch sets tags and summary to null directly without telling the tracker, so returning to the same drive and folder with a failing tag read leaves tags null instead of an empty scoped value.",
+      "frequency": 0,
+      "impact": 1,
+      "reason": "Needs a failed tags request right after returning to the same drive; SidebarTagsSection renders null and empty identically, so the user sees no difference."
+    }
+  ],
+  "regression_risks": [
+    "useWebSocketRefresh keeps only the last event per tick (WebSocketProvider); a watched event swallowed by an unwatched one is still missed, as the spec acknowledges.",
+    "Pins and collections of the previous drive are still shown while currentDrive is null (pre-existing; not reset by the no-drive branch).",
+    "refreshKey failure semantics changed from emptying lists to keeping them; intended by the spec but any consumer relying on emptying would change."
+  ],
+  "test_coverage": [
+    "Backend: test_sidebar_change_events.py covers each of the nine handlers for one broadcast after commit and nothing else, 4xx silence for ten failure paths and the secret 403, raising broadcast keeps commit/status/body, and group filtering through the real ConnectionManager for three handlers.",
+    "Not covered: add_collection_items answering 400 for a file of another drive (code raises before commit, so it is silent, but no test asserts it).",
+    "Frontend: useSidebarData.events.test.tsx covers I1-I5, I9, drive/folder change, unmount and reloadCollections sequencing; sidebarFollowsEvents.test.tsx covers I10 and I11 through the whole Sidebar with fetch-level answers.",
+    "Not covered: a rename 404 while the collection is still listed through the full Sidebar (only the hook-level unit test with a mocked reloadCollections).",
+    "I8 test patches config.get_drive_access_group rather than using a configured protected drive."
+  ],
+  "not_verified": [
+    "Did not run any backend or frontend tests; behaviour judged by reading only.",
+    "Did not verify that WebSocketContext's default value lets useSidebarData.test.ts render without a provider after its useWebSocket mock was removed.",
+    "Did not read the test helper modules sidebarHarness and nameInUse used by sidebarFollowsEvents.test.tsx.",
+    "Did not read the whole of the modified test files, only their diff hunks."
+  ],
+  "coverage": [
+    {
+      "path": "backend/app/routers/collections.py",
+      "read": "full",
+      "reason": "Read lines 95-298, covering every changed hunk and its enclosing handler; the import hunk seen in the diff."
+    },
+    {
+      "path": "backend/app/routers/drives.py",
+      "read": "full",
+      "reason": "Read pin_folder and unpin_folder (1915-1969), the only changed functions; import hunk seen in the diff."
+    },
+    {
+      "path": "backend/app/routers/internal.py",
+      "read": "full",
+      "reason": "Read replace_file_tags_internal (160-199); import hunk seen in the diff."
+    },
+    {
+      "path": "backend/app/services/ws.py",
+      "read": "full",
+      "reason": "Read the whole file."
+    },
+    {
+      "path": "frontend/src/components/Sidebar.tsx",
+      "read": "full",
+      "reason": "Read lines 80-209 including both changed hunks and the enclosing SidebarNav body."
+    },
+    {
+      "path": "frontend/src/components/sidebar/SidebarCollectionsSection.tsx",
+      "read": "full",
+      "reason": "Read handleDrop (200-249) and the props/import hunks in the diff."
+    },
+    {
+      "path": "frontend/src/components/sidebar/useCollectionManagement.ts",
+      "read": "full",
+      "reason": "Read the whole file."
+    },
+    {
+      "path": "frontend/src/components/sidebar/useDriveScopedReads.ts",
+      "read": "full",
+      "reason": "Read the whole file."
+    },
+    {
+      "path": "frontend/src/components/sidebar/useSidebarData.ts",
+      "read": "full",
+      "reason": "Read the whole file."
+    },
+    {
+      "path": "backend/tests/test_sidebar_change_events.py",
+      "read": "full",
+      "reason": "New file, read entirely in the diff."
+    },
+    {
+      "path": "frontend/src/__tests__/uploadLock.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunk only (mock return shape)."
+    },
+    {
+      "path": "frontend/src/components/__tests__/SidebarActiveRow.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunk only (mock return shape)."
+    },
+    {
+      "path": "frontend/src/components/__tests__/SidebarAddonNav.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunk only (mock return shape)."
+    },
+    {
+      "path": "frontend/src/components/__tests__/SidebarAddonNavCatalogue.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunk only (mock return shape)."
+    },
+    {
+      "path": "frontend/src/components/__tests__/SmartFolderSidebar.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunk only (props)."
+    },
+    {
+      "path": "frontend/src/components/__tests__/driveSwitchBoundary.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunk only (mock return shape)."
+    },
+    {
+      "path": "frontend/src/components/__tests__/imeEnterGuard.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunk only (prop rename)."
+    },
+    {
+      "path": "frontend/src/components/__tests__/sidebarShellFixtureParity.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunk only (mock return shape)."
+    },
+    {
+      "path": "frontend/src/components/sidebar/__tests__/SidebarCollectionsSection.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunk only (defaultProps)."
+    },
+    {
+      "path": "frontend/src/components/sidebar/__tests__/SidebarItemReorder.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunks only (props and the drop test)."
+    },
+    {
+      "path": "frontend/src/components/sidebar/__tests__/SmartCollectionDialogPortal.test.tsx",
+      "read": "partial",
+      "reason": "Diff hunk only (mock return shape)."
+    },
+    {
+      "path": "frontend/src/components/sidebar/__tests__/sidebarFollowsEvents.test.tsx",
+      "read": "full",
+      "reason": "New file, read entirely in the diff."
+    },
+    {
+      "path": "frontend/src/components/sidebar/__tests__/useCollectionManagement.test.ts",
+      "read": "partial",
+      "reason": "Diff hunks only (setup, create/rename/delete, new I10 and I11 tests)."
+    },
+    {
+      "path": "frontend/src/components/sidebar/__tests__/useSidebarData.events.test.tsx",
+      "read": "full",
+      "reason": "New file, read entirely in the diff."
+    },
+    {
+      "path": "frontend/src/components/sidebar/__tests__/useSidebarData.summaryError.test.ts",
+      "read": "partial",
+      "reason": "Diff hunks only (wrapper and rewritten refresh test)."
+    },
+    {
+      "path": "frontend/src/components/sidebar/__tests__/useSidebarData.test.ts",
+      "read": "partial",
+      "reason": "Diff hunk only (removed useWebSocket mock)."
+    }
+  ],
+  "confidence": 82
+}

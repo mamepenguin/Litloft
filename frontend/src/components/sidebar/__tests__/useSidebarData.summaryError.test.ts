@@ -1,7 +1,9 @@
 /** SPEC-CORE-125 I8: a rejected drive summary, whatever its status, leaves the sidebar as before. */
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createElement, type ReactNode } from "react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { WebSocketContext, type WebSocketContextValue } from "@/components/WebSocketProvider";
 import { ApiStatusError } from "@/lib/apiError";
 import { useSidebarData } from "../useSidebarData";
 
@@ -14,18 +16,23 @@ vi.mock("@/lib/api", () => ({
   getDriveSummary: vi.fn(),
 }));
 
-let scanEvent: unknown = null;
-vi.mock("@/hooks/useWebSocket", () => ({
-  useWebSocket: () => scanEvent,
-}));
-
 import { getDriveSummary } from "@/lib/api";
 
 const GOOD = { name: "main", trash_count: 3, missing_count: 2 };
 
+let wsValue: WebSocketContextValue = { lastEvent: null, connected: true };
+
+function wrapper({ children }: { children: ReactNode }) {
+  return createElement(WebSocketContext.Provider, { value: wsValue }, children);
+}
+
 beforeEach(() => {
-  scanEvent = null;
+  wsValue = { lastEvent: null, connected: true };
   vi.mocked(getDriveSummary).mockReset();
+});
+
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 describe("SPEC-CORE-125 I8 useSidebarData with a rejected summary", () => {
@@ -39,18 +46,24 @@ describe("SPEC-CORE-125 I8 useSidebarData with a rejected summary", () => {
     expect(result.current.driveSummary).toBeNull();
   });
 
-  it("keeps its previous value after a refresh from a scan event", async () => {
+  it("keeps its previous value after a refresh from a drive.structure_changed round", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     vi.mocked(getDriveSummary).mockResolvedValueOnce(GOOD);
-    const { result, rerender } = renderHook(() => useSidebarData("main", null, 0));
-    await waitFor(() => expect(result.current.driveSummary).toEqual(GOOD));
+    const { result, rerender } = renderHook(() => useSidebarData("main", null, 0), { wrapper });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(result.current.driveSummary).toEqual(GOOD);
 
     vi.mocked(getDriveSummary).mockRejectedValue(new ApiStatusError(404, "API error: 404 Not Found"));
-    scanEvent = { type: "scan:complete" };
-    rerender();
-    await waitFor(() => expect(getDriveSummary).toHaveBeenCalledTimes(2));
+    wsValue = { lastEvent: { event: "drive.structure_changed", data: { drive: "main" } }, connected: true };
     await act(async () => {
-      await Promise.resolve();
+      rerender();
     });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+    expect(getDriveSummary).toHaveBeenCalledTimes(2);
     expect(result.current.driveSummary).toEqual(GOOD);
   });
 });

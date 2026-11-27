@@ -1,0 +1,17 @@
+backend/tests/test_sidebar_change_events.py
+frontend/src/__tests__/uploadLock.test.tsx
+frontend/src/components/__tests__/SidebarActiveRow.test.tsx
+frontend/src/components/__tests__/SidebarAddonNav.test.tsx
+frontend/src/components/__tests__/SidebarAddonNavCatalogue.test.tsx
+frontend/src/components/__tests__/SmartFolderSidebar.test.tsx
+frontend/src/components/__tests__/driveSwitchBoundary.test.tsx
+frontend/src/components/__tests__/imeEnterGuard.test.tsx
+frontend/src/components/__tests__/sidebarShellFixtureParity.test.tsx
+frontend/src/components/sidebar/__tests__/SidebarCollectionsSection.test.tsx
+frontend/src/components/sidebar/__tests__/SidebarItemReorder.test.tsx
+frontend/src/components/sidebar/__tests__/SmartCollectionDialogPortal.test.tsx
+frontend/src/components/sidebar/__tests__/sidebarFollowsEvents.test.tsx
+frontend/src/components/sidebar/__tests__/useCollectionManagement.test.ts
+frontend/src/components/sidebar/__tests__/useSidebarData.events.test.tsx
+frontend/src/components/sidebar/__tests__/useSidebarData.summaryError.test.ts
+frontend/src/components/sidebar/__tests__/useSidebarData.test.ts

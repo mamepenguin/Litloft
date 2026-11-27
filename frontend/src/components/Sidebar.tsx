@@ -97,13 +97,13 @@ function SidebarNav({ hiddenKeys }: { hiddenKeys: ReadonlySet<string> | null }) 
     [pathname, primaryAddons, sourceAddons, utilityAddons],
   );
 
-  const { drives, tags, pins, collectionList, setCollectionList, authStatus, driveSummary } =
+  const { drives, tags, pins, collectionList, reloadCollections, authStatus, driveSummary } =
     useSidebarData(currentDrive, currentFolderPath, refreshKey);
 
   const collection = useCollectionManagement({
     currentDrive,
     collectionList,
-    setCollectionList,
+    reloadCollections,
     close: closeIfOverlay,
     router,
     setOverrideDrive,
@@ -187,7 +187,7 @@ function SidebarNav({ hiddenKeys }: { hiddenKeys: ReadonlySet<string> | null }) 
               <SidebarCollectionsSection
                 driveBase={driveBase}
                 currentDrive={currentDrive}
-                setCollectionList={setCollectionList}
+                reloadCollections={reloadCollections}
                 dragHandle={handle}
                 close={closeIfOverlay}
                 {...collection}

@@ -76,6 +76,14 @@ def set_event_loop(loop: asyncio.AbstractEventLoop) -> None:
     _event_loop = loop
 
 
+def notify_drive(event: str, drive: str) -> None:
+    """Broadcast a drive-scoped event; a failure is logged, never raised at the caller."""
+    try:
+        broadcast_from_thread(event, {"drive": drive}, drive=drive)
+    except Exception:
+        logger.exception("Broadcast failed: %s", event)
+
+
 def broadcast_from_thread(
     event: str,
     data: dict[str, Any],

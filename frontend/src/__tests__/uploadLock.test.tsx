@@ -43,7 +43,7 @@ vi.mock("@/components/sidebar/useSidebarData", () => ({
     tags: null,
     pins: [],
     collectionList: [],
-    setCollectionList: vi.fn(),
+    reloadCollections: vi.fn().mockResolvedValue(undefined),
     authStatus: {
       is_admin: false,
       has_protected_drives: true,

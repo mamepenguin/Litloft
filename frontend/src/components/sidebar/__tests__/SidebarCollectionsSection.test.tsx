@@ -69,7 +69,7 @@ const defaultProps = {
   driveBase: "/drive/main",
   close: vi.fn(),
   collectionList: [makeCol("c1", "Rock"), makeCol("c2", "Jazz", 0)],
-  setCollectionList: vi.fn(),
+  reloadCollections: vi.fn().mockResolvedValue(undefined),
   creatingCollection: false,
   setCreatingCollection: vi.fn(),
   newCollectionName: "",

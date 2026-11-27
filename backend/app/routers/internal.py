@@ -20,6 +20,7 @@ from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 
 import app.config as config
+import app.services.ws as ws
 from app.services.markdown_relations import INTERNAL_ORIGIN
 from app.auth import filter_drives, get_unlocked_groups
 from app.database import get_db
@@ -191,6 +192,7 @@ def replace_file_tags_internal(
     replace_file_tags(db, file, update.tags)
     cleanup_orphan_tags(db, file.drive)
     db.commit()
+    ws.notify_drive("drive.tags_changed", file.drive)
     return Response(status_code=204)
 
 

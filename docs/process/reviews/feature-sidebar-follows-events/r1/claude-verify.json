@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "CRITICAL",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1",
+      "status": "confirmed",
+      "note": "frontend/src/components/sidebar/useDriveScopedReads.ts is a product file (listed in r1/product-files.txt:8) holding WATCHED_EVENTS (:20), createTrackedList (:57), gathering timers (:175-205), useWebSocketRefresh call (:235) and reloadCollections (:237); useSidebarData.ts:41-45 only delegates to it. docs/specs/sidebar-follows-events.md Touch points (:206-219) name useSidebarData.ts for all of this and never name useDriveScopedReads.ts; invariants.md has no revisions."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "source_finding_id": "SCOPE-1",
+      "status": "confirmed",
+      "note": "Same fact as F1: useSidebarData.ts:13-15 imports useDriveScopedReads and re-exports ScopedTags, :41-45 delegates; the new module is not in the spec's touch-point list (sidebar-follows-events.md:206-219) nor added by a revision."
+    }
+  ],
+  "unspecified_scores": [
+    {
+      "source_reviewer": "claude-read",
+      "index": 0,
+      "frequency": 1,
+      "impact": 2,
+      "reason": "Renaming a collection that was deleted in another tab within the ~500 ms before its event arrives gets a 404 (useCollectionManagement.ts:173-175); the input closes silently and the re-read removes the row, which is the right end state."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "index": 1,
+      "frequency": 5,
+      "impact": 1,
+      "reason": "Every own collection write in the sidebar triggers an immediate collections re-read and then a four-GET round ~500 ms later from its own broadcast; the user sees nothing beyond extra LAN requests."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "index": 2,
+      "frequency": 1,
+      "impact": 2,
+      "reason": "After leaving drive pages (setTags(null) at useDriveScopedReads.ts:229 without updating the tracker's shownScope) and returning to the same drive/folder, a failing tag read hits fail()'s shownScope===key early return (:82), so the Tags section stays in its null/loading state instead of empty; needs a failed read on a home LAN."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "index": 0,
+      "frequency": 1,
+      "impact": 2,
+      "reason": "A sidebar rename that 404s (collection deleted elsewhere just before, or drive gone) closes the input with no toast and re-reads; the row disappears, so the user sees a correct but unexplained close."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "index": 1,
+      "frequency": 0,
+      "impact": 1,
+      "reason": "An event matched in the same tick as a drive switch runs onMatch in a microtask (useWebSocketRefresh.ts:67-70) after driveRef updated, starting a round for the new drive; this needs precise timing and only causes a harmless extra read of the current drive."
+    },
+    {
+      "source_reviewer": "claude-deep",
+      "index": 2,
+      "frequency": 1,
+      "impact": 2,
+      "reason": "Same as claude-read index 2: returning to the same drive after the no-drive state with a failing tag read leaves tags null (loading state) instead of an empty scoped list."
+    }
+  ],
+  "specification_compliance": [
+    "The product file set includes frontend/src/components/sidebar/useDriveScopedReads.ts, which the spec's touch points do not name; the logic the spec places in useSidebarData.ts lives there.",
+    "Frontend watched-event list (useDriveScopedReads.ts:20-29) matches the eight events of I1; timing constants 500/2000 ms match I3.",
+    "Tracked-list fail() does not raise shownSeq, matching §3 and I5."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "Logic moved into an undeclared module may be missed by later reviews or rules keyed on the declared touch points."
+  ],
+  "test_coverage": [
+    "Did not inspect the frontend or backend tests for this change."
+  ],
+  "not_verified": [
+    "Backend broadcast code (collections.py, drives.py, internal.py, ws.py) and its tests were not read.",
+    "Docs changes (websocket-events.md, ADDON-DEVELOPMENT.md, known-issues.md, design-decisions.md) were not checked.",
+    "SidebarCollectionsSection.tsx and Sidebar.tsx were not read.",
+    "No code was run; behaviors were reasoned from source only."
+  ],
+  "confidence": 85
+}

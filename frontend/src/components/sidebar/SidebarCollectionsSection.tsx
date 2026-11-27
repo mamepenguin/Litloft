@@ -12,7 +12,7 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { ContextMenu, type MenuItem } from "@/components/ContextMenu";
 import { SmartFolderSaveDialog } from "@/components/SmartFolderSaveDialog";
 import { useSmartFolders } from "@/hooks/useSmartFolders";
-import { addCollectionItems, getCollections } from "@/lib/api";
+import { addCollectionItems } from "@/lib/api";
 import { useImeKeyGuard } from "@/lib/ime";
 import { focusEnd } from "@/lib/nameInUse";
 import { smartFolderHref } from "@/lib/driveViews";
@@ -31,7 +31,7 @@ interface SidebarCollectionsSectionProps {
   driveBase: string;
   close: () => void;
   collectionList: CollectionSummary[];
-  setCollectionList: (v: CollectionSummary[]) => void;
+  reloadCollections: () => Promise<void>;
   creatingCollection: boolean;
   setCreatingCollection: (v: boolean) => void;
   newCollectionName: string;
@@ -62,7 +62,7 @@ export function SidebarCollectionsSection({
   currentDrive,
   close,
   collectionList,
-  setCollectionList,
+  reloadCollections,
   creatingCollection,
   setCreatingCollection,
   newCollectionName,
@@ -226,13 +226,12 @@ export function SidebarCollectionsSection({
         const fileIds: string[] = JSON.parse(raw);
         if (fileIds.length === 0) return;
         await addCollectionItems(currentDrive, collectionId, fileIds);
-        const updated = await getCollections(currentDrive);
-        setCollectionList(updated);
+        await reloadCollections();
       } catch {
         // silently ignore errors (e.g. duplicate items)
       }
     },
-    [currentDrive, setCollectionList],
+    [currentDrive, reloadCollections],
   );
 
   const handleSmartClick = useCallback(

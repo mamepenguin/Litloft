@@ -11,10 +11,6 @@ vi.mock("@/lib/api", () => ({
   getDriveSummary: vi.fn().mockResolvedValue({ name: "", trash_count: 0, missing_count: 0 }),
 }));
 
-vi.mock("@/hooks/useWebSocket", () => ({
-  useWebSocket: vi.fn().mockReturnValue(null),
-}));
-
 import { getDrives, getDriveTags, getPins, getCollections, getAuthStatus } from "@/lib/api";
 
 describe("useSidebarData", () => {

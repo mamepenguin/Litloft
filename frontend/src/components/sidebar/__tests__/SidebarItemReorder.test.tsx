@@ -155,7 +155,7 @@ const collectionsProps = (collectionList: CollectionSummary[]) => ({
   driveBase: "/drive/main",
   close: vi.fn(),
   collectionList,
-  setCollectionList: vi.fn(),
+  reloadCollections: vi.fn().mockResolvedValue(undefined),
   creatingCollection: false,
   setCreatingCollection: vi.fn(),
   newCollectionName: "",
@@ -441,11 +441,11 @@ describe("(f) Collections file-ids drop still calls addCollectionItems", () => {
   });
 
   it("dropping application/x-file-ids onto a collection adds the files (reorder wrapper does not break it)", async () => {
-    const setCollectionList = vi.fn();
+    const reloadCollections = vi.fn().mockResolvedValue(undefined);
     render(
       <SidebarCollectionsSection
         {...collectionsProps([makeCol("c1", "Rock")])}
-        setCollectionList={setCollectionList}
+        reloadCollections={reloadCollections}
       />,
     );
 

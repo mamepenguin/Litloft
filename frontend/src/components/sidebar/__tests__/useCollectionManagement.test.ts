@@ -53,13 +53,13 @@ describe("useCollectionManagement", () => {
   const close = vi.fn();
   const setOverrideDrive = vi.fn();
   let collectionList: CollectionSummary[];
-  let setCollectionList: ReturnType<typeof vi.fn>;
+  let reloadCollections: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     vi.clearAllMocks();
     toastErrorSpy.mockClear();
     collectionList = [makeCol("c1", "Collection 1", 3)];
-    setCollectionList = vi.fn();
+    reloadCollections = vi.fn().mockResolvedValue(undefined);
   });
 
   function renderCM() {
@@ -67,7 +67,7 @@ describe("useCollectionManagement", () => {
       useCollectionManagement({
         currentDrive: "main",
         collectionList,
-        setCollectionList,
+        reloadCollections,
         close,
         router: mockRouter,
         setOverrideDrive,
@@ -82,9 +82,7 @@ describe("useCollectionManagement", () => {
     expect(result.current.contextMenu).toBeNull();
   });
 
-  it("creates a collection and refreshes list", async () => {
-    const updated = [makeCol("c1", "Collection 1"), makeCol("c2", "New")];
-    vi.mocked(getCollections).mockResolvedValueOnce(updated);
+  it("SPEC-CORE-188 creates a collection and re-reads the list through reloadCollections", async () => {
     const { result } = renderCM();
 
     act(() => {
@@ -96,7 +94,7 @@ describe("useCollectionManagement", () => {
     });
 
     expect(createCollection).toHaveBeenCalledWith("main", "New");
-    expect(setCollectionList).toHaveBeenCalledWith(updated);
+    expect(reloadCollections).toHaveBeenCalledTimes(1);
     expect(result.current.creatingCollection).toBe(false);
     expect(result.current.newCollectionName).toBe("");
   });
@@ -126,9 +124,7 @@ describe("useCollectionManagement", () => {
     expect(createCollection).toHaveBeenCalledWith("main", "Trimmed");
   });
 
-  it("renames a collection and refreshes list", async () => {
-    const updated = [makeCol("c1", "Renamed")];
-    vi.mocked(getCollections).mockResolvedValueOnce(updated);
+  it("SPEC-CORE-188 renames a collection and re-reads the list through reloadCollections", async () => {
     const { result } = renderCM();
 
     act(() => {
@@ -141,7 +137,7 @@ describe("useCollectionManagement", () => {
     });
 
     expect(updateCollection).toHaveBeenCalledWith("main", "c1", { name: "Renamed" });
-    expect(setCollectionList).toHaveBeenCalledWith(updated);
+    expect(reloadCollections).toHaveBeenCalledTimes(1);
     expect(result.current.renamingId).toBeNull();
   });
 
@@ -160,8 +156,7 @@ describe("useCollectionManagement", () => {
     expect(updateCollection).not.toHaveBeenCalled();
   });
 
-  it("deletes a collection and refreshes list", async () => {
-    vi.mocked(getCollections).mockResolvedValueOnce([]);
+  it("SPEC-CORE-188 deletes a collection and re-reads the list through reloadCollections", async () => {
     const { result } = renderCM();
 
     await act(async () => {
@@ -169,7 +164,7 @@ describe("useCollectionManagement", () => {
     });
 
     expect(deleteCollection).toHaveBeenCalledWith("main", "c1");
-    expect(setCollectionList).toHaveBeenCalledWith([]);
+    expect(reloadCollections).toHaveBeenCalledTimes(1);
     expect(result.current.contextMenu).toBeNull();
   });
 
@@ -228,6 +223,25 @@ describe("useCollectionManagement", () => {
     );
   });
 
+  it("SPEC-CORE-188 I10 a rename answering 404 before the list drops the collection closes the input silently and re-reads", async () => {
+    const { ApiStatusError } = await import("@/lib/apiError");
+    vi.mocked(updateCollection).mockRejectedValueOnce(new ApiStatusError(404, "Not found"));
+    const { result } = renderCM();
+
+    act(() => {
+      result.current.setRenamingId("c1");
+      result.current.setRenameValue("Gone elsewhere");
+    });
+
+    await act(async () => {
+      await result.current.handleRenameCollection();
+    });
+
+    expect(toastErrorSpy).not.toHaveBeenCalled();
+    expect(result.current.renamingId).toBeNull();
+    expect(reloadCollections).toHaveBeenCalledTimes(1);
+  });
+
   it("surfaces a toast when delete fails", async () => {
     vi.mocked(deleteCollection).mockRejectedValueOnce(new Error("500"));
     const { result } = renderCM();
@@ -239,12 +253,40 @@ describe("useCollectionManagement", () => {
     expect(toastErrorSpy).toHaveBeenCalledWith("Failed to delete collection");
   });
 
+  it("SPEC-CORE-188 I11 a successful create, rename or delete shows no failure toast when the list cannot be read again", async () => {
+    vi.mocked(getCollections).mockRejectedValue(new Error("500"));
+    const { result } = renderCM();
+
+    act(() => {
+      result.current.setNewCollectionName("New");
+    });
+    await act(async () => {
+      await result.current.handleCreateCollection();
+    });
+    act(() => {
+      result.current.setRenamingId("c1");
+      result.current.setRenameValue("Renamed");
+    });
+    await act(async () => {
+      await result.current.handleRenameCollection();
+    });
+    await act(async () => {
+      await result.current.handleDeleteCollection("c1");
+    });
+
+    expect(createCollection).toHaveBeenCalledTimes(1);
+    expect(updateCollection).toHaveBeenCalledTimes(1);
+    expect(deleteCollection).toHaveBeenCalledTimes(1);
+    expect(reloadCollections).toHaveBeenCalledTimes(3);
+    expect(toastErrorSpy).not.toHaveBeenCalled();
+  });
+
   it("does nothing when currentDrive is null", async () => {
     const { result } = renderHook(() =>
       useCollectionManagement({
         currentDrive: null,
         collectionList: [],
-        setCollectionList,
+        reloadCollections,
         close,
         router: mockRouter,
         setOverrideDrive,

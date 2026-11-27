@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 import app.config as config
+import app.services.ws as ws
 from app.auth import check_drive_access, get_unlocked_groups
 from app.database import get_db
 from app.models import Collection, CollectionItem, File, active_file_filter
@@ -119,6 +120,7 @@ def create_collection(
     db.add(collection)
     db.commit()
     db.refresh(collection)
+    ws.notify_drive("drive.collections_changed", drive_name)
     return _to_summary(collection)
 
 
@@ -163,6 +165,7 @@ def update_collection(
 
     db.commit()
     db.refresh(collection)
+    ws.notify_drive("drive.collections_changed", drive_name)
     return _to_summary(collection)
 
 
@@ -179,6 +182,7 @@ def delete_collection(
     collection = _get_collection_or_404(db, collection_id, drive_name)
     db.delete(collection)
     db.commit()
+    ws.notify_drive("drive.collections_changed", drive_name)
 
 
 @router.post(
@@ -226,6 +230,7 @@ def add_collection_items(
 
     db.commit()
     db.refresh(collection)
+    ws.notify_drive("drive.collections_changed", drive_name)
     return _to_detail(collection)
 
 
@@ -256,6 +261,7 @@ def remove_collection_item(
 
     db.delete(item)
     db.commit()
+    ws.notify_drive("drive.collections_changed", drive_name)
 
 
 @router.put(
@@ -287,4 +293,5 @@ def reorder_collection_items(
 
     db.commit()
     db.refresh(collection)
+    ws.notify_drive("drive.collections_changed", drive_name)
     return _to_detail(collection)
