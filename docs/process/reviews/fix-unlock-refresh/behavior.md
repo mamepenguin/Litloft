@@ -20,6 +20,10 @@ one, with no reload by the viewer:
 A wrong password or a failed request leaves the viewer on `/unlock` with the error, as
 before.
 
+Finishing the first-run wizard (`/setup`, **Finish**) ends the same way: a full page load
+of `/admin`, since the protected flow unlocks a session just before it. A failed finish
+stays on the wizard with its error, as before.
+
 ## User-visible result
 
 Unlocking from the drive picker or from a locked drive's **Unlock** link lands on the

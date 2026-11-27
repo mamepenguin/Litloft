@@ -2,6 +2,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 
 const pushMock = vi.fn();
+const loadFullPageMock = vi.fn();
+vi.mock("@/lib/fullPageLoad", () => ({
+  loadFullPage: (path: string) => loadFullPageMock(path),
+}));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -22,6 +26,7 @@ const DEFAULT_SUMMARY = {
 const mockFetch = vi.fn();
 
 beforeEach(() => {
+  loadFullPageMock.mockReset();
   pushMock.mockReset();
   vi.stubGlobal("fetch", mockFetch);
 });
@@ -50,7 +55,7 @@ describe("CompleteStep", () => {
       );
     });
     await waitFor(() => {
-      expect(pushMock).toHaveBeenCalledWith("/admin");
+      expect(loadFullPageMock).toHaveBeenCalledWith("/admin");
     });
   });
 

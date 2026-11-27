@@ -16,7 +16,10 @@ vi.mock("@/lib/api", () => ({
   unlock: (...args: unknown[]) => unlockMock(...args),
 }));
 
-const assignMock = vi.fn();
+const loadFullPageMock = vi.fn();
+vi.mock("@/lib/fullPageLoad", () => ({
+  loadFullPage: (path: string) => loadFullPageMock(path),
+}));
 
 import UnlockPage from "../page";
 
@@ -24,9 +27,8 @@ beforeEach(() => {
   pushMock.mockReset();
   replaceMock.mockReset();
   unlockMock.mockReset();
-  assignMock.mockReset();
+  loadFullPageMock.mockReset();
   searchParams = new URLSearchParams();
-  vi.stubGlobal("location", { ...window.location, assign: assignMock });
 });
 
 afterEach(() => {
@@ -51,7 +53,7 @@ describe("UnlockPage", () => {
     unlockMock.mockResolvedValue({ success: true });
     render(<UnlockPage />);
     submit("pw");
-    await waitFor(() => expect(assignMock).toHaveBeenCalledWith(expected));
+    await waitFor(() => expect(loadFullPageMock).toHaveBeenCalledWith(expected));
     expect(pushMock).not.toHaveBeenCalled();
     expect(replaceMock).not.toHaveBeenCalled();
   });
@@ -61,7 +63,7 @@ describe("UnlockPage", () => {
     render(<UnlockPage />);
     submit("bad");
     expect(await screen.findByText("Wrong password")).toBeTruthy();
-    expect(assignMock).not.toHaveBeenCalled();
+    expect(loadFullPageMock).not.toHaveBeenCalled();
     expect(pushMock).not.toHaveBeenCalled();
   });
 
@@ -71,7 +73,7 @@ describe("UnlockPage", () => {
     submit("pw");
     await waitFor(() => expect(unlockMock).toHaveBeenCalled());
     await waitFor(() => expect(screen.getByRole("button")).toHaveProperty("disabled", false));
-    expect(assignMock).not.toHaveBeenCalled();
+    expect(loadFullPageMock).not.toHaveBeenCalled();
     expect(pushMock).not.toHaveBeenCalled();
   });
 });

@@ -6,7 +6,7 @@ Invariant rules to follow whenever you edit code. Read these as a "this is how w
 
 - When a protected drive is locked, exclude it from API responses entirely. Return 404 (not 403) so its existence stays hidden.
 - The root drive picker may link to `/unlock` as a generic access action. Do not list locked drive names, counts, thumbnails, or group names before unlock.
-- **Unlock and Lock end in a full page load**, not `router.push`. The sidebar, Cmd+K destinations, addon catalogue and the WebSocket's drive filter (fixed when it connects) are all read under the cookie of the moment, and nothing re-reads them on a client-side navigation.
+- **Unlock, Lock and the end of `/setup` end in a full page load** (`loadFullPage` in `lib/fullPageLoad.ts`), not `router.push`. The sidebar, Cmd+K destinations, addon catalogue and the WebSocket's drive filter (fixed when it connects) are all read under the cookie of the moment, and nothing re-reads them on a client-side navigation.
 - When `passwords.json` is absent **or empty `[]`**, every drive is public (graceful degradation — `auth.load_passwords()` treats absent and `[]` identically). Do not raise errors.
 - `configure.py` generates `passwords.json` as an empty `[]` when it is absent (single-file bind-mount footgun guard, symmetric with `drives.json`), never overwrites an existing one (its contents are the GUI's), and writes an **unconditional read-write** mount `./passwords.json:/app/passwords.json` into the backend volumes of `docker-compose.override.yml`. **`:ro` is forbidden** — the GUI (`/setup`, `/admin/settings` PasswordsSection) writes this file in place and `:ro` causes EBUSY / write rejection. Do not edit `docker-compose.yml`.
 

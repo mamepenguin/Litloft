@@ -6,6 +6,7 @@ import { Lock } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { unlock } from "@/lib/api";
+import { loadFullPage } from "@/lib/fullPageLoad";
 
 export default function UnlockPage() {
   const searchParams = useSearchParams();
@@ -31,10 +32,7 @@ export default function UnlockPage() {
     try {
       const result = await unlock(password, remember);
       if (result.success) {
-        // Not router.push: the sidebar, jump destinations, addon catalogue and the
-        // WebSocket's drive filter were all read under the old cookie, so only a
-        // full page load shows what the new one unlocks.
-        window.location.assign(resolveRedirect());
+        loadFullPage(resolveRedirect());
       } else {
         setError(result.error || t("invalidPassword"));
         setPassword("");
