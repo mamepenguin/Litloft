@@ -101,6 +101,17 @@ describe("useSelectedFile", () => {
     expect(mockPush).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ["file=A&queue=folder&sort=title&order=asc&tag=foo", "/drive/work/Q1?tag=foo"],
+    ["file=A&queue=folder", "/drive/work/Q1"],
+    ["file=A&queue=smart%3A7", "/drive/work/Q1"],
+  ])("SPEC-CORE-191 step 7 / I5 clearFile from ?%s ends the queue: %s", (query, want) => {
+    mockSearchParams = new URLSearchParams(query);
+    const { result } = renderHook(() => useSelectedFile());
+    act(() => result.current.clearFile());
+    expect(mockReplace).toHaveBeenCalledWith(want, { scroll: false });
+  });
+
   it("clearFile is a no-op when no ?file present", () => {
     const { result } = renderHook(() => useSelectedFile());
     act(() => result.current.clearFile());

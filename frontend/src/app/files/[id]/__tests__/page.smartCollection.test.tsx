@@ -20,13 +20,6 @@ vi.mock("next/headers", () => ({
   cookies: () => mocks.cookies(),
 }));
 
-vi.mock("@/components/FileDetailFullScreen", () => ({
-  FileDetailFullScreen: ({ fileId }: { fileId: string }) => ({
-    type: "div",
-    props: { "data-testid": "fullscreen", children: `fs:${fileId}` },
-  }),
-}));
-
 const fetchSpy = vi.fn();
 const originalFetch = globalThis.fetch;
 
@@ -46,18 +39,20 @@ afterEach(() => {
   globalThis.fetch = originalFetch;
 });
 
-describe("SPEC-CORE-109 I5 /files/[id] renders the player for ?smart_collection=", () => {
-  it("renders FileDetailFullScreen without the canonical redirect", async () => {
+describe("SPEC-CORE-109 I5 / SPEC-CORE-192 /files/[id]?smart_collection= redirects to the drive root's queue", () => {
+  it("redirects to /drive/{drive}?file={id}&queue=smart:{id} on the file's own drive", async () => {
     fetchSpy.mockResolvedValue({
       ok: true,
       json: async () => ({ id: "abc", drive: "main", folder_path: "movies" }),
     });
-    const result = await FileRoute({
-      params: Promise.resolve({ id: "abc" }),
-      searchParams: Promise.resolve({ smart_collection: "7" }),
-    });
-    expect(mocks.redirect).not.toHaveBeenCalled();
-    expect(fetchSpy).not.toHaveBeenCalled();
-    expect((result as { props: { fileId: string } }).props.fileId).toBe("abc");
+    await expect(
+      FileRoute({
+        params: Promise.resolve({ id: "abc" }),
+        searchParams: Promise.resolve({ smart_collection: "7" }),
+      }),
+    ).rejects.toThrow(/__REDIRECT__/);
+    const url = new URL(`http://localhost${mocks.redirect.mock.calls[0][0] as string}`);
+    expect(url.pathname).toBe("/drive/main");
+    expect(Object.fromEntries(url.searchParams)).toEqual({ file: "abc", queue: "smart:7" });
   });
 });
