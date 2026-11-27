@@ -9,132 +9,233 @@ Approval:
 
 ## Summary
 
-Playing a collection, a Smart Collection or a folder opens a separate page today,
-`/files/{id}` with `?collection=`, `?playlist=`, `?smart_collection=` or `?folder_play=1`
-(`FileDetailFullScreen`, the "collection surface"). It has none of the file page's recent
-work: no inspector, a vertical stack of player, panels, information and a queue card. Earlier
-specs left it out on purpose. This change retires that page. A queue becomes the left pane of
-the ordinary two-pane file page, and the file is drawn by the same `RightPaneFile` and
-`FileDetailShell` as any other file:
+Playing a collection, a Smart Collection or a folder opens a separate page today:
+`/files/{id}` with `?collection=`, `?playlist=`, `?smart_collection=` or `?folder_play=1`.
+This is `FileDetailFullScreen`, the "collection surface". It has none of the file page's
+recent work: no inspector, and a vertical stack of player, panels, information and a queue
+card. Earlier specs left it out on purpose.
 
-- SPEC-CORE-190: on a collection's page, the item list in the left pane is the queue. A
-  file opened from it advances to the next playable item when it ends. The pane carries the
-  loop switch and the position. The previous and next controls walk the collection.
-- SPEC-CORE-191: folder playback and Smart Collection playback show their queue in the
-  left pane in place of the folder tree, until the queue is closed or a file outside it is
-  opened.
-- SPEC-CORE-192: the legacy `/files/{id}` queue URLs redirect to these pages, and the
+This change retires that page. A queue becomes the left pane of the ordinary two-pane file
+page, and the file is drawn by the same `RightPaneFile` and `FileDetailShell` as any other
+file.
+
+- SPEC-CORE-190: on a collection's page, the item list in the left pane is the queue.
+  - A video or audio file opened from the collection advances to the next playable item
+    when it ends.
+  - The pane carries the loop switch and the position.
+  - The page row's previous and next walk the collection.
+- SPEC-CORE-191: folder playback and Smart Collection playback show their queue in the left
+  pane in place of the folder tree. It stays until the queue is closed or a file outside it
+  is chosen.
+- SPEC-CORE-192: the legacy `/files/{id}` queue URLs redirect to these pages. The
   collection surface, its layout and every branch that exists only for it are removed.
-- SPEC-CORE-193: on a phone, with a file open, the pane button opens the queue at full
-  width over the file page, and choosing a row closes it.
+- SPEC-CORE-193: on a phone, with a file open and a queue present, the pane button opens the
+  queue at full width over the file page, and choosing a row closes it.
 
-It is for the owner, who plays collections and folders and gets two different file pages
-depending on how a file was reached.
+It is for the owner, who plays collections and folders and today gets two different file
+pages depending on how a file was reached.
 
-Agreed design: https://claude.ai/artifact/AGk6sEgbnzY5re6k7ASoVa, saved in
+### Agreed design
+
+https://claude.ai/artifact/AGk6sEgbnzY5re6k7ASoVa, saved in
 `docs/process/reviews/feature-collection-play-two-pane/design/`. Its visible decisions:
 
-- D1 (`Main.dc.html`, 1440px). Regions, left to right: queue pane 280px wide, then the file
-  page: page row, player column, inspector. The queue pane's top block holds the queue name
-  (for a collection, a link to the collection's list), the position `n / N` under it, and the
-  loop button at its right. Below are rows. Each row has its 1-based ordinal, a thumbnail, the
-  title, and the duration under the title. On a collection each row also has move up, move
-  down and remove buttons, always visible. The current row has the accent tint and a 1px
-  accent ring, and its ordinal is in accent and bold.
-- D2 (`Main.dc.html`). The page row's previous / next controls and their `n / N` count the
-  queue, not the folder. On a collection the breadcrumb is drive / collection name / file
-  title.
-- D3 (`Narrow.dc.html`, 1024px). Where the inspector does not fit beside the pane, the
-  queue pane yields as the folder tree does (SPEC-CORE-082), and the page row still has the
-  queue's previous / next.
-- D4 (`FolderPlay.dc.html`). Folder or Smart Collection playback: the same pane in place
-  of the tree. Its top block has the folder's or the Smart Collection's name, `n / N`, the
-  loop button and a close button (×). Rows have the ordinal, title and duration, and no
-  reorder or remove buttons.
-- D5 (`Phone.dc.html`, 390px). Playing: the header has the pane button and the previous /
-  next controls. The file page is the usual phone layout.
-- D6 (`PhoneQueue.dc.html`, 390px). The pane button opens the queue at full width with a
-  close row on top. Rows are at least 44px tall, and so are the loop and per-row buttons.
+- **D1 (`Main.dc.html`, 1440px).**
+  - Regions, left to right: the queue pane, 280px wide; then the file page, which is the
+    page row, the player column and the inspector.
+  - The queue pane's top block holds the queue name, with the position `n / N` under it and
+    the loop button at its right.
+  - Below the top block are rows. Each row has its 1-based ordinal, a thumbnail, the title,
+    and the duration under the title.
+  - On a collection, each row also has move up, move down and remove buttons, always
+    visible.
+  - The current row has the accent tint and a 1px accent ring, and its ordinal is in accent
+    and bold.
+- **D2 (`Main.dc.html`).**
+  - The page row has previous / next with `n / N` beside them, for every file type. They
+    count the queue, not the folder.
+  - On a collection page the trail is drive / collection name / file title.
+  - The page row is SPEC-CORE-094's single header row. The design drawing it under a
+    separate header is a simplification, not a decision.
+- **D3 (`Narrow.dc.html`, 1024px).** Where the inspector does not fit beside the pane, the
+  queue pane yields as the folder tree does (SPEC-CORE-082). The page row keeps the queue's
+  previous / next.
+- **D4 (`FolderPlay.dc.html`).**
+  - Folder or Smart Collection playback draws the same pane in place of the tree.
+  - Its top block has the folder's or the Smart Collection's name, `n / N`, the loop button
+    and a close button (×).
+  - Rows have the ordinal, title and duration, and no reorder or remove buttons.
+- **D5 (`Phone.dc.html`, 390px).** While playing, the row has the pane button and previous /
+  next. The file page is the usual phone layout.
+- **D6 (`PhoneQueue.dc.html`, 390px).**
+  - The pane button opens the queue at full width, with a close row on top.
+  - Rows are at least 44px tall, and so are the loop button and the per-row buttons.
+
+## Terms
+
+**Queue.** An ordered list of items, each naming one file id.
+
+| Kind | Shown on | Items |
+|---|---|---|
+| Collection | a collection's page, `/drive/{drive}/collections/{id}` | the collection's items, any type |
+| Folder | a folder route with `queue=folder` (`/drive/{drive}` or `/drive/{drive}/{folder}`) | that route's folder's video and audio files |
+| Smart | a folder route with `queue=smart:{smartId}` | the stored Smart Collection queue (video and audio only) |
+
+**Queue action.** Any of the following:
+
+- **Play** on a collection page
+- folder **Play all**
+- Smart Collection **Play**
+- choosing a row in the queue pane
+- previous / next in the page row while a queue is shown
+- an advance
+
+**Playable item.** An item whose file is a video or audio file, and is neither missing nor
+in the trash as far as the queue's data says. A Smart queue entry carries no state, so every
+Smart entry counts as playable.
 
 ## Required items
 
 ### 1. Normal flow
 
-**Collection (SPEC-CORE-190).**
+#### Collection (SPEC-CORE-190)
 
-1. The viewer opens `/drive/{drive}/collections/{id}`. The left pane lists the items; the
-   right pane shows the collection's grid or list (unchanged).
-2. **Play** (shown when an item is a video or audio file) selects the first video or audio
-   item with `?file=` on the same page, and that file starts playing without a further
-   press. Choosing a row in the pane, or a card in the grid or list, selects that file the
-   same way. Such a file starts playing only when the viewer's existing **Autoplay**
-   preference (`video-share-autoplay`) is on.
-3. The right pane draws the file with `RightPaneFile`, exactly as on a folder page:
-   inspector, workbench, page row.
-4. When a video or audio file reaches its end, the playback position is recorded as
-   today. The page then selects the next item after it in the collection's order whose file
-   is a video or audio file and is neither missing nor in the trash. That file starts
-   playing. With loop on, the search continues from the first item after the last. With
-   loop off and nothing after it, the page stays on the ended file.
-5. The previous / next controls in the page row (`FileNavControls`) and the keyboard file
-   navigation that already drives them move to the item before or after the current one in
-   the collection's order, any file type. `n / N` is the item's position among the
-   collection's items.
-6. Reordering or removing an item in the pane takes effect in the queue at once. The
-   next advance uses the new order. Removing the current item leaves its file open; the next
-   advance then starts from the position the item had.
+1. The viewer opens `/drive/{drive}/collections/{id}`. The left pane lists the items, and
+   the right pane shows the collection's grid or list. Both are unchanged.
+2. **Play** is shown when an item is a video or audio file. It selects the first playable
+   item with `?file=` on the same page.
+3. Choosing a row in the pane, or a card in the grid or list, selects that file the same
+   way.
+4. The right pane draws the file with `RightPaneFile`, exactly as on a folder page, with
+   the inspector, the workbench and the page row.
+5. A file reached by a queue action starts playing without a further press, whatever the
+   **Autoplay** preference (`video-share-autoplay`) says. A file reached any other way
+   starts only when that preference is on. The other ways are:
+   - a card in the grid or list
+   - a reload
+   - Back / Forward
+   - a link
+   - a legacy redirect
+   - a Smart URL with no stored queue
 
-**Folder and Smart Collection (SPEC-CORE-191).**
+   Which way the file was reached is known from the action that selected it, held in
+   memory for that one selection. It is not carried in the URL.
+6. When a video or audio file reaches its end:
+   - The final position is recorded as today.
+   - The page then selects the next playable item after the ended one, in the queue's
+     order, and it starts playing.
+   - With loop on, the search continues from the first item after the last.
+   - With loop off and nothing after the ended one, the page stays on the ended file.
+7. Previous / next in the page row select the item before / after the current one in the
+   collection's order, any file type.
+   - `n / N` is the item's 1-based position and the item count.
+   - Previous is disabled on the first item and next on the last. They do not wrap, even
+     with loop on.
+   - The arrow keys are unchanged: on a player file they still seek, and on an image they
+     still walk the folder as today.
+8. Reordering or removing an item in the pane takes effect in the queue at once.
+   - The next advance and previous / next use the new order.
+   - Removing the current item leaves its file open as a file outside the collection (§2).
+9. On each change of the selected file, and on first load, the pane scrolls the current row
+   into view with `block: "nearest"`. The scroll is smooth, or instant under reduced motion
+   (SPEC-CORE-178 I5).
+10. The collection name in the pane's top block, and the collection crumb in the trail, go
+    to the collection's list on the same page by clearing `?file=`.
+11. A trash or restore of a file, or an add to this collection, made from this page reads
+    the collection again. The open file and its playback stay as they are.
+12. When the stored tree setting for the drive is off, **Play** shows the pane for this
+    visit and does not write `tree:enabled:{drive}`. While shown this way, the pane button
+    hides it again without writing the setting either. Leaving the page ends the visit.
+
+#### Folder and Smart Collection (SPEC-CORE-191)
 
 1. A folder's **Play all** selects its first video or audio file on the folder's own page,
-   `/drive/{drive}/{folder}?file={id}&queue=folder`, with the folder's sort and order when
-   they are not random, as today. A Smart Collection's **Play** evaluates and stores the
-   queue as today (`storeSmartQueue`), then selects its first file on the drive's root page,
+   `/drive/{drive}/{folder}?file={id}&queue=folder`. When the folder's sort is not random it
+   adds that `sort` and `order`.
+2. A Smart Collection's **Play** evaluates and stores the queue as today
+   (`storeSmartQueue`). It then selects the first file on the drive's root page,
    `/drive/{drive}?file={id}&queue=smart:{smartId}`.
-2. While `queue=` is in the URL, the left pane holds the queue (D4) instead of the folder
-   tree. The folder queue is the folder's video and audio files in the URL's sort and order,
-   fetched as `CollectionPanel` fetches them today. The Smart Collection queue is the stored
-   queue, or one evaluation when nothing is stored (`loadSmartQueue`).
-3. The file starts playing. Ending, advancing, loop, previous and next behave as for a
-   collection (steps 4 and 5 above), over the queue's files.
-4. The close button removes `queue=` from the URL. The left pane returns to the tree and
-   the open file stays open and keeps playing. Selecting a file that is not in the queue
-   (from the tree, a listing, search, a link) also removes `queue=`.
+3. While `queue=` is in the URL of a folder route, the left pane holds the queue (D4)
+   instead of the folder tree.
+   - **The folder queue.** The folder's video and audio files as one sequence, in the URL's
+     `sort` and `order`. When those are absent, `created_at`, `desc`, which is today's
+     default. It is fetched page by page, 500 at a time, as today.
+   - **The Smart queue.** The stored queue. When nothing is stored, one evaluation of the
+     saved query (`loadSmartQueue`).
+4. The file starts playing (step 5 of the collection flow). Ending, advancing, loop,
+   previous / next, the current-row scroll and the tree-off rule behave as for a
+   collection, over the queue's items.
+5. Previous, next, a row choice, an advance and gallery close keep `queue=`, and for a
+   folder queue they also keep `sort` and `order`.
+6. The name in the top block is a link:
+   - for a folder, to the folder's listing;
+   - for a Smart Collection, to its saved search page (`smartFolderHref`).
 
-**Legacy URLs (SPEC-CORE-192).**
+   Following it ends the queue.
+7. The queue ends, by removing `queue=` from the URL and showing the tree again, when any of
+   these happens:
+   - the close button (×) is pressed: the open file stays open and keeps playing;
+   - a file the ready queue does not hold is chosen anywhere (tree, listing, search, link);
+   - the file is closed (`clearFile`: the crumb, Escape, trashing the open file);
+   - the name link is followed.
+8. A trash or restore made from this page reads a folder queue again. The Smart queue is
+   frozen as SPEC-CORE-109 I3 states.
 
-1. `/files/{id}?collection={c}` and `?playlist={c}` redirect (307) to
-   `/drive/{drive}/collections/{c}?file={id}`.
-2. `/files/{id}?smart_collection={s}` redirects to
-   `/drive/{drive}?file={id}&queue=smart:{s}`.
-3. `/files/{id}?folder_play=1` redirects to
-   `/drive/{drive}/{folder}?file={id}&queue=folder`, keeping `sort` and `order`.
-4. Each redirect keeps `t`, `page`, `section` and `highlight`, and drops `nav`. `{drive}`
-   and `{folder}` are the file's, read from `GET /api/files/{id}` as the route does today for
-   its canonical redirect.
+#### Legacy URLs (SPEC-CORE-192)
 
-**Phone (SPEC-CORE-193).** Below `md` with a file open and a queue present, the header's
-pane button opens the queue pane at full width (D6). Playback continues underneath.
-Choosing a row selects that file and closes the pane. The close row closes it without
-changing the file.
+1. `/files/{id}` with a queue parameter redirects (307). When several are present, the
+   first that applies wins, in this order:
+
+   | Parameter | Redirects to |
+   |---|---|
+   | `?collection={c}`, else `?playlist={c}` | `/drive/{drive}/collections/{c}?file={id}` |
+   | `?smart_collection={s}` | `/drive/{drive}?file={id}&queue=smart:{s}` |
+   | `?folder_play=1` | `/drive/{drive}/{folder}?file={id}&queue=folder`, keeping `sort` and `order` |
+
+2. Every form keeps `t`, `page`, `section`, `highlight`, `find` and `edit`. Every form
+   drops `nav`. Only the folder form keeps `sort` and `order`.
+3. `{drive}` and `{folder}` are the file's own, read from `GET /api/files/{id}` as the route
+   does today for its canonical redirect.
+
+#### Phone (SPEC-CORE-193)
+
+1. Below `md`, with a file open and a queue present, the row shows the pane button
+   (labelled as in §9).
+2. Pressing the button opens the queue pane at full width (D6). Playback continues
+   underneath. The open state is the existing narrow-open state (`treeNarrowOpenStore`).
+3. Choosing a row selects that file and closes the pane. The close row closes it without
+   changing the file or the queue.
 
 ### 2. Failure cases
 
-- The collection fails to load: the page's not-found view, as today.
-- The folder queue fetch fails: the pane shows the tree, `queue=` stays in the URL, and the
-  open file plays with no advance. This is today's "no tracks, no panel" behaviour, moved
-  to the pane.
-- The Smart Collection queue cannot be evaluated or is incomplete: the pane shows one line
-  (`queueFailed`, existing text) where the rows would be. Previous and next are disabled.
-  The failure is remembered for the tab per Smart Collection, as `failedSmartQueues` does
+- **The collection fails to load.** The page shows its not-found view, as today.
+- **A queue is loading.**
+  - The pane draws the top block and the existing `queueLoading` line in place of the
+    rows.
+  - Previous and next are disabled, `n / N` shows `– / –`, and nothing advances.
+  - A selection made meanwhile keeps `queue=`, because the queue cannot yet answer whether
+    it holds the file.
+- **A queue fails.** This covers a failed folder fetch, and a Smart evaluation that fails
+  or is incomplete.
+  - The pane draws the top block and the existing `queueFailed` line.
+  - Previous and next are disabled, and nothing advances.
+  - × still ends the queue, and any selection ends it.
+  - A Smart failure is remembered for the tab, per Smart Collection, as
+    `failedSmartQueues` does today.
+- **The open file is not in the ready queue.** This happens after a URL edit, after the
+  current collection item is removed, or after the file is moved elsewhere.
+  - No row is current, and `n / N` shows `– / N`.
+  - Previous and next are disabled, and nothing advances at its end.
+- **The next queued file fails to load.** The right pane shows its existing not-found
+  state. The queue does not skip past it on its own.
+- **A legacy URL names a file that does not exist or is locked.** 404, as the route does
   today.
-- The open file is not in the queue (it was removed elsewhere, or the URL was edited):
-  no row is current, `n / N` shows `– / N`, and on end nothing advances.
-- The next queued file fails to load: the right pane's existing not-found state. The
-  queue does not skip past it on its own.
-- A legacy URL names a file that does not exist or is locked: 404, as the route does
-  today.
-- A reorder or remove request fails: the existing toast and reload of the collection.
+- **A reorder or remove request fails.** The existing toast shows and the collection is
+  read again. The open file stays mounted and keeps playing.
+- **`queue=` reaches a route that does not show a folder's two-pane layout.** These routes
+  are a collection page, a cross-folder view (`?view=`), the search route, an addon route
+  and an app route. There `queue=` is ignored: no queue pane, no advance. The next
+  selection drops it.
 
 ### 3. States
 
@@ -142,30 +243,48 @@ The left pane on a page under `/drive/{drive}`:
 
 | State | Pane shows | Entered by | Left by |
 |---|---|---|---|
-| Tree | folder tree | default | `queue=` added |
-| Collection queue | the collection's items as a queue | being on a collection page | leaving the page |
-| Folder queue | folder queue | `queue=folder` | close, or selecting a file outside it |
-| Smart queue (loading / failed / ready) | smart queue | `queue=smart:{id}` | close, or selecting a file outside it |
+| Tree | folder tree | default on a folder route | `queue=` added |
+| Collection, no file | item list (top block with name and loop; `n / N` not drawn) | opening a collection page | selecting a file; leaving |
+| Collection, file | item list as queue | selecting a file | clearing `?file=`; leaving; the collection deleted (page's not-found view) |
+| Folder / Smart: loading | top block + `queueLoading` | `queue=` on a folder route | ready; failed; any rule of §1 Folder step 7 |
+| Folder / Smart: ready | queue rows | load done | any rule of §1 Folder step 7 |
+| Folder / Smart: failed | top block + `queueFailed` | load failed | × or any selection |
 
-Visibility (open, yielded, hidden by the tree setting, phone overlay) is the existing
-tree-pane state and applies to every row of the table unchanged, apart from the phone rule
-of SPEC-CORE-193.
+Transitions that are not allowed:
+
+- a queue pane and the tree mounted together;
+- two queues on one page (a collection page ignores `queue=`);
+- `queue=` kept after the close button, a choice outside a ready queue, or `clearFile`.
+
+Visibility is the existing tree-pane state. It covers open, yielded and hidden by the
+setting, and applies to every row of the table unchanged, with two exceptions: the phone rule
+of SPEC-CORE-193, and the tree-off rule of §1 Collection step 12 (also applied to folder and
+Smart queues).
+
+The folder tree stays mounted under a queue pane. It is only not shown, so its expansion and
+scroll state survive a queue.
 
 Loop is one boolean per browser (`collection-loop` in localStorage, as today), shared by
-every queue.
+every queue and written only by the loop button.
 
 ### 4. Data read and written
 
-- Read: `GET /api/drives/{drive}/collections/{id}` (collection items), `GET
-  /api/drives/{drive}/files` (folder queue), the Smart Collection evaluation (unchanged),
-  `GET /api/files/{id}` (legacy redirect, the right pane).
-- Written: `PUT …/collections/{id}/reorder` and `DELETE …/items/{itemId}`, as today, from
-  the pane only. Watch progress is written by the players as today
-  (`POST /api/files/{id}/progress`). Playback completion records the final position and
-  never deletes the record.
-- Browser storage: `collection-loop` (localStorage, read and written),
-  `smart-queue:<drive>:<id>` (sessionStorage, read and written as today),
-  `video-share-autoplay` (read only).
+- **Read:**
+  - `GET /api/drives/{drive}/collections/{id}` (collection items)
+  - `GET /api/drives/{drive}/files` (folder queue)
+  - the Smart Collection evaluation (unchanged)
+  - `GET /api/files/{id}` (legacy redirect, the right pane)
+- **Written:**
+  - `PUT …/collections/{id}/reorder` and `DELETE …/items/{itemId}`, as today, from the pane
+    only.
+  - Watch progress, by the players as today (`POST /api/files/{id}/progress`). Playback
+    completion records the final position and never deletes the record.
+- **Browser storage:**
+  - `collection-loop` (localStorage, read and written)
+  - `smart-queue:<drive>:<id>` (sessionStorage, read and written as today)
+  - `video-share-autoplay` (read only)
+  - the tree-pane stores (`tree:enabled:{drive}`, `treeNarrowOpenStore`, `treeYieldStore`):
+    read, and written only as they are today
 - No table, column, endpoint or event is added or changed.
 
 ### 5. External services
@@ -179,71 +298,107 @@ collection or file is 404 before and after the redirect.
 
 ### 7. Effect on existing features
 
-- Every caller of the collection surface moves: `CollectionDetail` Play,
-  `FolderBrowser` Play all, `SmartFolderSaveButton` Play. `FileDetailFullScreen`,
-  `CollectionPanel`, `SmartQueuePanel`, `CollectionPlayerCanvas`, the `"collection"` value of
-  `FileDetailSurface` and the branches that exist only for it are removed. The branches
-  are: `ridesFileDetailShell`'s surface test, `FileDetailSkeleton`'s non-canonical branch,
-  `FileDetailContainer`'s surface checks for the intelligence entry and `hasInspector`, the
-  collection-only `chapters` panel in `panels.tsx`, `ArchivePreview`'s collection height, the
-  `data-collection-workbench` rule in `globals.css`, and `window.__collectionOnEnded`. On
-  every playback page the chapters appear where they do on the file page (the inspector),
-  and the detailed summary and in-file jumps behave as on the file page.
-- `useSelectedFile.selectFile` keeps `queue=` only when the selected file is in the
-  current queue.
-- `FileNavControls` and the keyboard file navigation read a queue-ordered source on a
-  queue page and `/neighbors` elsewhere. The Inbox walk (`nav=inbox`) is unchanged.
-- The mini player, focus mode, find in file, the workbench and the split layout apply on
-  queue pages as on any file page.
-- Addon slots: `collection-actions` is unchanged. `player-side`, `file-preview-actions`,
-  `file-detail-sections` and `document-side` entries now render where the file page renders
-  them, also during playback. The extension-point contract does not change (no slot, prop or
-  name is added or removed).
-- The iOS app opens the web UI. It has no link to `/files/{id}?collection=`
-  (checked: no hit under `ios/`).
-- `mcp-server/` builds no playback URL (checked).
+- **Callers move.** Every caller of the collection surface moves: `CollectionDetail` Play,
+  `FolderBrowser` Play all and `SmartFolderSaveButton` Play.
+- **Removed.** These go, together with the branches that exist only for them:
+  - `FileDetailFullScreen`, `CollectionPanel`, `SmartQueuePanel` and `CollectionPlayerCanvas`
+  - the `"collection"` value of `FileDetailSurface`
+  - `ridesFileDetailShell`'s surface test
+  - `FileDetailSkeleton`'s non-canonical branch
+  - `FileDetailContainer`'s surface checks for the intelligence entry and `hasInspector`
+  - the collection-only `chapters` panel in `panels.tsx`
+  - `ArchivePreview`'s collection height
+  - the `data-collection-workbench` rule in `globals.css`
+  - `window.__collectionOnEnded`
+
+  On every playback page, the chapters appear where they do on the file page (the
+  inspector), and the detailed summary and in-file jumps behave as on the file page.
+- **SPEC-CORE-090** (the collection surface uses the workbench) has nothing left to
+  describe. Its ledger row becomes `superseded` in this change.
+- **Selection.** `useSelectedFile.selectFile` keeps `queue=` only as §1 Folder steps 5 and 7
+  and §2 say.
+- **Previous / next.** `FileNavControls` reads a queue-ordered source on a queue page and
+  `/neighbors` elsewhere. `ShellLayout` draws it for every file type on a queue page, and
+  for images elsewhere, as today. The Inbox walk (`nav=inbox`, SPEC-CORE-032) and
+  `useFileNav`'s key handling are unchanged.
+- **The phone row.** It shows the pane button on a queue page (`ChromeButtons`,
+  `TreeToggle`), and the aside can take the full width there (`TwoPaneLayout`).
+- **Other file-page features.** The mini player, focus mode, find in file, the workbench and
+  the split layout apply on queue pages as on any file page.
+- **Addon slots.**
+  - `collection-actions` is unchanged.
+  - `player-side`, `file-preview-actions`, `file-detail-sections` and `document-side`
+    entries now render where the file page renders them, also during playback.
+  - The extension-point contract does not change: no slot, prop or name is added or
+    removed.
+- **iOS and MCP.** The iOS app has no link to a legacy playback URL, and `mcp-server/`
+  builds none (both checked).
 
 ### 8. Error behavior
 
-As in §2. No new message text except the pane's close label and the queue pane's
-accessible name. No logging is added.
+As in §2. No logging is added.
 
 ### 9. User-visible behavior
 
-- Playback from a collection, a folder or a Smart Collection stays on a two-pane page
-  (D1–D6). There is no separate centred playback page.
-- On a collection page, any video or audio file opened from the collection advances to
-  the next playable item when it ends, whether it was opened with **Play** or from a row or
-  card.
-- Advance skips items that are not video or audio, and items that are missing or in the
-  trash.
-- The collection's previous / next and `n / N` follow the collection, not the file's
-  folder.
-- The breadcrumb on a collection page names the collection (D2), and the collection name
-  links back to the collection's list (clears `?file=`).
-- Loop keeps its current meaning and storage.
-- New text: `queueClose` ("Close the queue" / "キューを閉じる") and `queueLabel` ("Queue" /
-  "キュー"). Existing `playback.*` strings are reused for the position and loop.
-- Old bookmarks with `?collection=`, `?playlist=`, `?smart_collection=` or `?folder_play=1`
-  land on the new pages.
-- User docs: `docs/user-guide/playlists-favorites.md` ("Playing a collection"),
-  `docs/user-guide/search.md` (Smart Collection Play), `docs/user-guide/tags-and-relations.md`
-  (the "below the player" sentence).
+- **The page.** Playback from a collection, a folder or a Smart Collection stays on a
+  two-pane page (D1–D6). There is no separate centred playback page.
+- **Advancing.**
+  - On a collection page, any video or audio file opened from the collection advances to
+    the next playable item when it ends.
+  - A file starts playing on its own after a queue action, and otherwise per the
+    Autoplay preference.
+- **Previous / next.** They are now shown for video and audio on a queue page, and on a
+  collection they follow the collection, not the file's folder.
+- **The trail.** On a collection page it names the collection (D2). On a phone, the narrow
+  heading's line 1 is the collection name.
+- **Loop.** It keeps its current meaning and storage.
+- **New text, in en and ja.** It follows the agreed design:
+
+  | Key | en | ja |
+  |---|---|---|
+  | `queueLabel` (the pane's accessible name) | "Queue" | 「キュー」 |
+  | `queueShow` / `queueHide` (the pane button on a queue page) | "Show the queue" / "Hide the queue" | 「キューを表示」 / 「キューを隠す」 |
+  | `queueEnd` (×: removes `queue=`) | "Close the queue and show the folder tree" | 「キューを閉じてフォルダツリーに戻す」 |
+  | `queueOverlayClose` (the phone close row: hides only) | "Close the queue" | 「キューを閉じる」 |
+
+  Existing `playback.*` strings are reused for the position, loop, loading and failure.
+- **Old bookmarks.** Links with `?collection=`, `?playlist=`, `?smart_collection=` or
+  `?folder_play=1` land on the new pages.
+- **User docs.**
+  - `docs/user-guide/playlists-favorites.md` ("Playing a collection"): advancing no longer
+    depends on Autoplay; the queue is the left pane.
+  - `docs/user-guide/search.md`: Smart Collection Play.
+  - `docs/user-guide/tags-and-relations.md`: the "below the player" sentence.
+
+  No key binding changes, so `keyboard-shortcuts.md` is untouched.
 
 ### 10. Non-functional
 
-- The folder queue keeps today's 500-per-page fetch and has no new cap. The Smart queue
-  keeps its existing caps.
-- The queue rows are not virtualised. A collection of a few hundred items renders as the
-  item pane does today.
-- No new request per advance beyond loading the next file.
+- **Size.** The folder queue keeps today's 500-per-page fetch and has no new cap. The Smart
+  queue keeps its existing caps.
+- **Rendering.** The queue rows are not virtualised. A collection of a few hundred items
+  renders as the item pane does today.
+- **Requests.** An advance makes no new request beyond loading the next file.
+- **Measured in a real browser (`frontend/e2e-components/`, against the real components).**
+  - I8 and D1 at 1440×900: the pane is 280px; each row's buttons are visible without hover;
+    the tree is not shown.
+  - D3 at 1024×768: the pane yields and previous / next are in the row.
+  - I9 and D6 at 390×844: the overlay is the viewport's width; rows and buttons are at least
+    44px; the video element is not paused by opening or closing.
+  - The queue pane enters the no-horizontal-scroll check at 280px on a mouse
+    (SPEC-CORE-064).
+- **`agent_cannot_verify`: the owner checks by hand on iOS.**
+  - Background audio and Now Playing across an advance.
+  - Full screen and Picture in Picture across an advance.
+  - The mini player while the phone queue overlay is open.
 
 ## Touch points
 
 - `frontend/src/app/files/[id]/page.tsx`
+- `frontend/src/lib/canonicalFileUrl.ts`
 - `frontend/src/components/FileDetailFullScreen.tsx` (removed)
 - `frontend/src/components/CollectionPanel.tsx` (removed; the loop storage and the folder
-  fetch move to a queue module)
+  fetch move to the queue module)
 - `frontend/src/components/CollectionItemsPane.tsx`
 - `frontend/src/components/CollectionDetail.tsx`
 - `frontend/src/components/folder/TwoPaneLayout.tsx`
@@ -251,94 +406,184 @@ accessible name. No logging is added.
 - `frontend/src/app/drive/[name]/layout.tsx`
 - `frontend/src/hooks/useSelectedFile.ts`
 - `frontend/src/hooks/useFileNav.ts`
+- `frontend/src/hooks/useTreeVisible.ts`
+- `frontend/src/lib/treeNarrowOpenStore.ts`
+- `frontend/src/lib/treeYieldStore.ts`
 - `frontend/src/lib/fileNavContext.tsx`
+- `frontend/src/components/ChromeButtons.tsx`
+- `frontend/src/components/TreeToggle.tsx`
 - `frontend/src/components/FileDetail/FileNavControls.tsx`
+- `frontend/src/components/FileDetail/ShellLayout.tsx`
+- `frontend/src/components/FileDetailShell.tsx`
+- `frontend/src/components/FileDetail/FileDetailChrome.tsx`
 - `frontend/src/components/FolderBrowser.tsx`
 - `frontend/src/components/SmartFolderSaveButton.tsx`
 - `frontend/src/lib/smartQueue.ts`
+- `frontend/src/lib/driveViews.ts` (read: `smartFolderHref`)
 - `frontend/src/lib/fileDetailShell.ts`
 - `frontend/src/components/FileDetail/FileDetailPresenter.tsx`
 - `frontend/src/components/FileDetail/FileDetailContainer.tsx`
 - `frontend/src/components/FileDetail/FileDetailSkeleton.tsx`
-- `frontend/src/components/FileDetail/FileDetailChrome.tsx`
 - `frontend/src/components/FileDetail/workbench/panels.tsx`
 - `frontend/src/components/ArchivePreview.tsx`
 - `frontend/src/app/globals.css`
-- `frontend/src/messages-core/en.json`, `frontend/src/messages-core/ja.json`
-- New: a queue module under `frontend/src/components/queue/` (pane, queue sources, the
-  ended → next rule)
-- Tests that exist only for the removed surface are removed with it:
-  `frontend/src/components/__tests__/FileDetailFullScreen.test.tsx`,
-  `FileDetailFullScreen.smartCollection.test.tsx`, `FileDetailFullScreen.inboxNav.test.tsx`,
-  `FileDetailFullScreen.headerRow.test.tsx`, `CollectionPanel.test.tsx`,
-  `frontend/src/components/FileDetail/__tests__/WorkbenchCollection.test.tsx`,
-  `frontend/src/app/__tests__/mediaDetailTheaterCss.test.ts`. The collection cases inside
-  `frontend/src/app/files/[id]/__tests__/page.test.tsx`,
-  `page.smartCollection.test.tsx`, `FileDetailPageRow.test.tsx`, `FileDetailCanvas.test.tsx`,
-  `FindInFile.test.tsx`, `InspectorTabsSlot.test.tsx`, `LoftMetadataPlacement.test.tsx`,
-  `WorkbenchRowBeside.test.tsx`, `WorkbenchPlayerFocus.test.tsx`,
-  `FileDetailContent.test.tsx`, `SearchPage.smartCollectionPlay.test.tsx`,
-  `frontend/src/lib/__tests__/fileDetailShell.test.ts` and
-  `frontend/src/__tests__/section-rows.test.tsx` are rewritten to the new page or removed
-  where they test the removed surface only.
-- e2e fixtures that draw the collection surface: `frontend/e2e-components/fixtures/focusMode.tsx`,
-  `fileHeaderRow.tsx`, `inspectorResponsive.tsx`, and
-  `frontend/e2e-layout/no-horizontal-scroll.spec.ts`, `frontend/e2e-layout/no-horizontal-scroll-states.spec.ts` with
-  `frontend/e2e-layout/fixtures/no-horizontal-scroll.html`, plus
-  `frontend/src/components/__tests__/noHorizontalScrollFixtureParity.test.tsx`.
-- `docs/user-guide/playlists-favorites.md`, `docs/user-guide/search.md`,
-  `docs/user-guide/tags-and-relations.md`
+- `frontend/src/messages-core/en.json`
+- `frontend/src/messages-core/ja.json`
+- New: a queue module under `frontend/src/components/queue/`. It holds the pane, the queue
+  sources, the ended → next rule and the one-shot play intent.
+- **Tests removed with the surface they test.** Where each SPEC citation remains is given
+  after the arrow:
+  - `frontend/src/components/__tests__/FileDetailFullScreen.test.tsx`
+  - `FileDetailFullScreen.smartCollection.test.tsx` → SPEC-CORE-109 stays in
+    `frontend/src/components/__tests__/SearchPage.smartCollectionPlay.test.tsx` and the
+    rewritten `page.smartCollection.test.tsx`
+  - `FileDetailFullScreen.inboxNav.test.tsx` → SPEC-CORE-032 stays in
+    `frontend/src/components/folder/__tests__/RightPaneFile.inboxNav.test.tsx` and the
+    sidebar tests
+  - `FileDetailFullScreen.headerRow.test.tsx` → SPEC-CORE-094 stays in
+    `frontend/src/components/folder/__tests__/RightPaneFile.headerRow.test.tsx`
+  - `CollectionPanel.test.tsx` → SPEC-CORE-179 stays in
+    `frontend/src/components/__tests__/CollectionItemsPane.reducedMotion.test.tsx`
+  - `frontend/src/components/FileDetail/__tests__/WorkbenchCollection.test.tsx` →
+    SPEC-CORE-089 stays in `Workbench.test.tsx`; SPEC-CORE-090 is superseded
+  - `frontend/src/app/__tests__/mediaDetailTheaterCss.test.ts`
+  - `frontend/e2e-components/collection-workbench-metrics-desktop.spec.ts`
+- **Tests rewritten to the new page, or with their collection-surface cases removed.**
+  - `frontend/src/app/files/[id]/__tests__/page.test.tsx`
+  - `page.smartCollection.test.tsx`
+  - `frontend/src/components/__tests__/CollectionDetail.test.tsx`
+  - `FileDetailPageRow.test.tsx`
+  - `FileDetailCanvas.test.tsx`
+  - `FindInFile.test.tsx`
+  - `InspectorTabsSlot.test.tsx`
+  - `LoftMetadataPlacement.test.tsx`
+  - `WorkbenchRowBeside.test.tsx`
+  - `WorkbenchPlayerFocus.test.tsx`
+  - `FileDetailContent.test.tsx`
+  - `SearchPage.smartCollectionPlay.test.tsx`
+  - `frontend/src/lib/__tests__/fileDetailShell.test.ts`
+  - `frontend/src/__tests__/section-rows.test.tsx`
+- **e2e files that draw or assert the collection surface.**
+  - `frontend/e2e-components/player-workbench-desktop.spec.ts`
+  - `frontend/e2e-components/scenes-scroll-list-desktop.spec.ts`
+  - `frontend/e2e-components/workbench-no-panel-desktop.spec.ts`
+  - `frontend/e2e-components/workbench-split-desktop.spec.ts`
+  - `frontend/e2e-components/fixtures/app.tsx`
+  - `frontend/e2e-components/fixtures/focusMode.tsx`
+  - `frontend/e2e-components/fixtures/fileHeaderRow.tsx`
+  - `frontend/e2e-components/fixtures/inspectorResponsive.tsx`
+  - `frontend/e2e-layout/no-horizontal-scroll.spec.ts`
+  - `frontend/e2e-layout/no-horizontal-scroll-states.spec.ts`
+  - `frontend/e2e-layout/fixtures/no-horizontal-scroll.html`
+  - `frontend/src/components/__tests__/noHorizontalScrollFixtureParity.test.tsx`
+  - New e2e-components specs for §10's measurements.
+- `docs/specs/INDEX.md` (SPEC-CORE-090 → superseded)
+- `docs/user-guide/playlists-favorites.md`
+- `docs/user-guide/search.md`
+- `docs/user-guide/tags-and-relations.md`
 - `DESIGN.md` (the left pane: a queue may take the tree's place)
 - `docs/process/reviews/feature-collection-play-two-pane/design/`
-- Rules passed through: `.claude/rules/design-decisions.md` (watch history: completion
-  records the final position, never deletes; SPA navigation), `.claude/rules/frontend-conventions.md`,
-  `DESIGN.md`.
+- **Rules passed through.**
+  - `.claude/rules/design-decisions.md`: watch history (completion records the final
+    position and never deletes); SPA navigation.
+  - `.claude/rules/frontend-conventions.md`
+  - `DESIGN.md`
 
 No protected path is edited.
 
 ## Invariants
 
-I1. On a queue page, when a video or audio file ends with a finite positive duration, its
-watch record holds `position = currentTime` and `duration = duration` after the end. No
+I1. On every queue kind, when a video or audio file ends with a finite positive duration, its
+watch record holds `position = currentTime` and `duration = duration` after the advance. No
 playback-completion path calls `deleteWatchProgress` or `clearProgress`.
 
-I2. After a file ends on a queue page, the selected file is the first item after the
-ended one, in the queue's order, whose file is a video or audio file with `deleted_at` and
-`missing_since` both null. With loop on, the search continues from the start of the queue
-after its end and stops at the ended item. When no item qualifies, the selected file does
-not change.
+I2. Selection after an end:
 
-I3. On a collection page, previous / next select the item immediately before / after the
-open file's item in the collection's order, and the shown `n / N` is that item's 1-based
-position and the collection's item count. They never select a file outside the
-collection.
+- After a file in a ready queue ends, the selected file is the first item after the ended
+  one, in the queue's order, that is a playable item.
+- With loop on, the search continues from the queue's start and stops at the ended item.
+- When no item qualifies, the selected file does not change.
+- The newly selected file starts playing.
 
-I4. A reorder or removal in the queue pane changes which file the next advance selects
-without a reload. Advancing after a reorder follows the new order.
+I3. On a page with a ready queue holding the open file, previous / next select the item
+immediately before / after it in the queue's order. They are disabled at the first and the
+last item, whether loop is on or off. The shown `n / N` is the item's 1-based position and
+the item count. They never select a file outside the queue. They are drawn for every file
+type on such a page.
 
-I5. `queue=` is present in the URL only while the selected file is in that queue: selecting
-a file outside it, or pressing close, yields a URL without `queue=`, and the left pane then
-shows the folder tree.
+I4. A reorder or removal in the collection pane changes the queue without a reload. The
+next previous / next and advance follow the new order. A failed reorder or removal leaves
+the open file mounted and its playback running.
 
-I6. Each legacy URL form (`?collection=`, `?playlist=`, `?smart_collection=`,
-`?folder_play=1`) on `/files/{id}` answers with a 307 to the page in §1 for the file's own
-drive. The target carries the same file id and the `t`, `page`, `section` and `highlight`
-values of the request.
+I5. `queue=` lifetime:
 
-I7. No route renders `FileDetailFullScreen`, and `FileDetailSurface` has no value other
-than the file page's. A file reached from a queue renders the same inspector, workbench
-and page row as the same file reached from its folder at the same width.
+- On a folder route, `queue=` is removed by ×, by the name link, by `clearFile`, and by
+  choosing a file the ready queue does not hold.
+- It is kept by previous, next, a row choice, an advance and gallery close. For a folder
+  queue, `sort` and `order` are kept along with it.
+- Without `queue=`, the left pane shows the folder tree with its prior expansion and
+  scroll state.
 
-I8. Exactly one queue pane is mounted on a page, and the folder tree is not shown while it
-is. Every row of a collection queue has its move up, move down and remove buttons
-visible without hover. A folder or Smart queue row has none of them.
+I6. Legacy redirects:
 
-I9. Below `md` with a file open and a queue present, the pane button shows the queue at
-the full viewport width. Choosing a row selects that file and hides the queue. Playback of
-the open file is not paused by opening or closing the pane.
+- Each legacy form on `/files/{id}` answers with a 307 to the target of §1 for the file's
+  own drive, following the stated precedence.
+- The target carries the same file id and the request's `t`, `page`, `section`,
+  `highlight`, `find` and `edit` values.
+- For the folder form, the target also carries `sort` and `order`.
+- The target never carries `nav`.
 
-I10. Opening a collection page with `?file=` for a file that is not in the collection
-shows the file with no current row, `– / N`, and no advance at its end.
+I7. No route renders `FileDetailFullScreen`, and `FileDetailSurface` has no value other than
+the file page's. A file reached from a queue renders the same inspector, workbench and
+player as the same file reached from its folder at the same width. The page row differs
+only in the trail (D2), in previous / next and `n / N` (I3), and in the phone pane button
+(I9).
+
+I8. Pane content:
+
+- Exactly one queue pane is mounted on a queue page, and the folder tree is not shown
+  while it is.
+- Every row of a collection queue has its move up, move down and remove buttons visible
+  without hover. A folder or Smart queue row has none of them.
+
+I9. Below `md`, with a file open and a queue present:
+
+- The row shows the pane button, and it shows the queue at the full viewport width.
+- Choosing a row selects that file and hides the queue.
+- Opening or closing the overlay does not pause the open file's playback.
+
+I10. A file whose ready queue does not hold it shows no current row and `– / N`. Its
+previous / next are disabled, and nothing advances at its end. This holds on a collection
+page after the current item is removed, and for a `?file=` outside the collection.
+
+I11. Autoplay:
+
+- A file selected by a queue action starts playing whatever the Autoplay preference says.
+- A file reached by a reload, Back / Forward, a link, a legacy redirect, a cold Smart URL
+  or a grid or list card starts playing only when the preference is on.
+- The URL carries no parameter for this.
+
+I12. Current row and links:
+
+- On each change of the selected file and on first load, the current row is inside the
+  pane's visible box after the scroll, which uses `block: "nearest"` and the behaviour
+  SPEC-CORE-178 I5 states.
+- On a collection page, the trail is drive / collection name / file title. The collection
+  crumb and the pane's collection name both clear `?file=` and keep the viewer on the
+  collection page.
+
+I13. Tree setting:
+
+- With `tree:enabled:{drive}` off, starting a queue shows its pane.
+- Neither starting a queue, nor hiding a pane shown this way, nor ending the queue writes
+  `tree:enabled:{drive}`.
+
+I14. Freshness:
+
+- A trash, restore or add-to-collection made from a collection page is reflected in its
+  queue's next advance and previous / next, without unmounting the open file.
+- Loop is read from and written to `collection-loop` only, and only the loop button writes
+  it.
 
 ## Revises
 
@@ -350,28 +595,41 @@ SPEC-CORE-104 I7. With the stored value `"true"`, `stacked` with the inspector o
 SPEC-CORE-126 I1. The **Show panels beside the player** button is drawn exactly when the page is split-eligible, once, in the workbench row's trailing element, before **Enlarge panels** when that is drawn and before the `data-preview-actions` element, each 0.5rem apart. Its box is 2rem x 2rem at a fine pointer and 2.75rem x 2.75rem at a coarse pointer; when it is the trailing element's last item, its right edge is the row's right edge. All within 1px. It is never drawn in `stacked` with the inspector open, on the phone, for audio, with no shown panel, or while W < 61rem.
 SPEC-CORE-094 I1. On a file page (loading, loaded or failed) outside the focus layout of SPEC-CORE-128, the page shows exactly one row above the content, its height equals the header's height on a folder page of the same drive at the same width, the content's top y is the same in all three states, and the header never shows its ordinary form while the viewer stays on a file page (loading → loaded, file → file); in the focus layout with the header hidden the page shows no row, and with it revealed the row is drawn over the content without moving it.
 SPEC-CORE-094 I3. At < 768px on a file page, the row shows no quick note button, no avatar, no Focus mode button and no inspector toggle, shows the tree button only while the page has a queue (SPEC-CORE-193), and while walking the Inbox shows no search and no document controls; at ≥ 768px, outside the focus layout or with the header revealed in it, it shows the quick note button, the avatar, the tree button wherever a current drive is known, the Focus mode button, and, wherever the page has an inspector, the inspector toggle as the header's last control, including while a rename is open.
+SPEC-CORE-094 I5. Every trail link (and the narrow heading's line 1) navigates to the same destination as today's `FileDetailChrome` link, except on a collection page, where the trail is drive / collection name / file title, the collection crumb and the narrow heading's line 1 (the collection name) clear `?file=` on that page; where the host supplies `onBack`, that control calls `onBack` and does not navigate to the parent folder.
 SPEC-CORE-020 I5. A plain-text document renders in the document layout with exactly one page row on the file page, and never shows Split, on any viewport width, by the switch or by the shortcut.
 SPEC-CORE-128 I1. In the focus layout with the header hidden, at any wide viewport: no pixel of the app header, `ChromeButtons`, the sidebar or the folder tree is painted, the header and `ChromeButtons` are `inert` and still mounted, and focus mode itself draws nothing visible over the page except, where `(any-pointer: coarse)` matches, the handle (the strip of 129 step 1 is transparent); on a folder, view, collection or search file page the `h-below-header` box runs from the safe area's top to the viewport's bottom; at 1440×900 and 1280×800 with the inspector open the canvas is the viewport's width less the inspector pane's width (384px, or the wide width of SPEC-CORE-133 while a wide `document-side` tab is selected), and with no workbench panel shown a video's frame is 1024×576 and 864×486 (within 1px).
 SPEC-CORE-128 I7. Revealing and hiding move nothing on the page: the canvas, the inspector and the player frame keep their boxes (within 1px), and `--app-header-h` equals the safe-area inset in the focus layout whether hidden or revealed.
 SPEC-CORE-131 I1. On a file page, for a PDF, an EPUB and an archive, at 1440×900 and 1280×800, in the `beside` and `overlay` forms, in focus mode and with the find bar open, the filled viewer's bottom edge is within 1px of the canvas's content bottom (its inner bottom less its padding and, for the archive, the host's 16px), and the canvas's `scrollHeight` equals its `clientHeight`, also when the find bar opens after the viewer has mounted; at 390×844 (phone) the same holds with the bottom reference above the sheet's peek.
 SPEC-CORE-131 I8. On a file page, a citation's jump in the detailed summary tab to a page or section of the open file calls `goTo` with that location and leaves `location.pathname` and `location.search` unchanged; on a phone it also lowers the sheet; after it, on desktop, the detailed summary tab is still selected and the pane still wide; to another file, or with no controller, it navigates to `/files/{id}?page=` / `?section=` as today.
-SPEC-CORE-109 I5. Smart Collection playback is `/drive/{drive}?file={id}&queue=smart:{smartId}` (SPEC-CORE-191); `/files/{id}?smart_collection=<id>` redirects there (SPEC-CORE-192). Ending a file opens the next queued entry, `queue=` survives next, previous, a queue-row choice and gallery close, and no reorder or remove control is drawn; with no stored queue the page evaluates the saved query once with relevance, and a failure shows the failure line in the queue pane and is not retried by later navigations; a file not in the queue shows no current row and nothing follows it.
+SPEC-CORE-109 I5. Smart Collection playback is `/drive/{drive}?file={id}&queue=smart:{smartId}` (SPEC-CORE-191), and `/files/{id}?smart_collection=<id>` redirects there (SPEC-CORE-192). Ending a file opens the next queued entry; `queue=` survives next, previous, a queue-row choice, an advance and gallery close; no reorder or remove control is drawn. With no stored queue the page evaluates the saved query once with relevance, and the file starts playing only when the Autoplay preference is on. A failure shows the failure line in the queue pane and is not retried by later navigations. A file not in the queue shows no current row and nothing follows it.
 SPEC-CORE-064 I3. On a touch environment, the shelf, page tabs, inspector tabs and the breadcrumb remain horizontally scrollable, as they were. The intelligence Scenes section scrolls on no horizontal axis; its list scrolls vertically.
+SPEC-CORE-064 I4. On a mouse environment, no drawn item is clipped by a wrapper: the bounding box of every drawn card, tab and breadcrumb segment lies inside its container's box. A shelf with a "see all" link draws at most two rows. A shelf without one draws every card in wrapped rows. The queue pane keeps every row reachable through its vertical scroll, with no horizontal scroll at its 280px width. The intelligence Scenes section keeps every tile reachable through its list's vertical scroll, with no horizontal scroll.
 
 ## Checked, no action
 
 - **The Autoplay preference does not gate advancing.** The user guide says a collection
-  advances "when Autoplay is on". The code advances regardless (`CollectionPanel.handleEnded`)
-  and forces `autoPlay` on the collection route. The owner chose "always advance" on
-  2026-11-27, so the user-guide sentence is corrected, not the behaviour.
+  advances "when Autoplay is on". The code advances regardless
+  (`CollectionPanel.handleEnded`) and forces `autoPlay` on the collection route. The owner
+  chose "always advance" and "queue actions play" on 2026-11-27, so the user-guide sentence
+  is corrected, not the behaviour.
+- **Arrow keys.** On a player they keep seeking (owner, 2026-11-27). Only the page row's
+  buttons walk the queue there, so no key binding changes.
 - **Shuffle.** None exists today, and none is added.
-- **Missing / trashed items in the pane.** Neither the pane nor the old queue greys them
-  today. Only the advance rule (I2) skips them. Drawing them differently is left out.
+- **Drawing missing / trashed items differently in the pane.** Neither the pane nor the old
+  queue greys them today. Only the advance rule (I2) skips them.
+- **Changes made in another tab or by a scan.** They are not followed while a queue plays
+  (owner, 2026-11-27). Only writes made from the same page refresh the queue (I14).
 - **Inbox with a queue (`nav=inbox` together with `?collection=`).** It was possible only on
   the legacy route and has no entry point in the UI. The redirect drops `nav`.
-- **A separate page for Smart Collection playback.** The search page is a cross-folder
-  route with no left pane. Playback lands on the drive root instead (§1), which has the
-  two-pane layout. Moving the search page into the two-pane layout is a different change.
+- **A two-pane search page for Smart Collection playback.** The search page is a
+  cross-folder route with no left pane. Playback lands on the drive root, and the queue's
+  name links back to the search page (§1 Folder step 6). Moving the search page into the
+  two-pane layout is a different change.
+- **Previous / next wrapping with loop on.** They do not wrap. Loop governs only the
+  advance at the end (I3).
 - **iOS and MCP.** Neither builds a legacy playback URL (checked with grep), so neither
-  changes.
+  changes. The iOS behaviours that depend on playback are listed in §10 as hand checks.
 - **Backend.** No endpoint changes. The redirect reads the file the route already fetches.
+- **The design's two-row header.** The design draws the page row under a separate header.
+  The implementation keeps SPEC-CORE-094's single row (D2); this is not a design difference
+  to fix.
