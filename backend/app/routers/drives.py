@@ -13,6 +13,7 @@ from sqlalchemy import Integer, case, cast, distinct, func, not_, or_
 from sqlalchemy.orm import Session
 
 import app.config as config
+import app.services.ws as ws
 from app.auth import check_drive_access, filter_drives, get_unlocked_groups
 from app.database import get_db
 from app.models import (
@@ -1939,6 +1940,7 @@ def pin_folder(
     db.add(pin)
     db.commit()
     db.refresh(pin)
+    ws.notify_drive("drive.pins_changed", drive_name)
     return PinnedFolderResponse(path=pin.path, on_home=pin.on_home)
 
 
@@ -1961,6 +1963,7 @@ def unpin_folder(
 
     db.delete(pin)
     db.commit()
+    ws.notify_drive("drive.pins_changed", drive_name)
 
 
 @router.get("/{drive_name}/watch-history", response_model=WatchHistoryResponse)
