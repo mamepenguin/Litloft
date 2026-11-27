@@ -17,3 +17,4 @@ author_resolutions:
   - r2 claude-read:2 accept: 1x2; a second click during the reload re-posts complete-setup and still lands on /admin.
   - r3 claude-read:R1 fix: the failure test awaits the rendered error before asserting no page load; moving loadFullPage into finally fails it.
   - r3 claude-read:1 accept: 1x2; same as r2 entry 2, a second click during the reload re-posts and still lands on the target.
+  - r4 claude-read:1 accept: 1x3; the button returns to its resting label for the moment before the page is replaced, and a second click only repeats a harmless request.

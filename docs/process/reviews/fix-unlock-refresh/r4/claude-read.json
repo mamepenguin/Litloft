@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "MEDIUM",
+  "findings": [],
+  "specification_compliance": [
+    "r3 R1 is resolved. CompleteStep.test.tsx:74 now awaits `screen.findByText(\"Failed to complete setup\")` before it asserts at :75 that loadFullPageMock was not called. The string is the en value of setup.complete.errorMessage (messages-core/en.json:1300, merged into the gitignored src/messages/en.json that src/test/setup.ts:4 loads). The mocked 500 body is {detail: \"error\"}, so body.detail.message is undefined and CompleteStep.tsx:47-54 shows the default message. The assertion therefore waits until setError has run.",
+    "Product code did not change in this commit. CompleteStep.tsx:46-58 calls loadFullPage('/admin') only after res.ok. unlock/page.tsx:34-35 calls loadFullPage(resolveRedirect()) only on success. fullPageLoad.ts:8 sets window.location.href.",
+    "Redirect sanitizing is unchanged (unlock/page.tsx:19-25): the target must start with '/' and must not start with '//', otherwise '/' is used."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    {
+      "behavior": "After a successful unlock or setup completion, the `finally` block re-enables the submit button while the full page load is still in flight.",
+      "frequency": 1,
+      "impact": 1,
+      "reason": "This only matters if the user clicks again during the brief reload. That click re-POSTs unlock or complete-setup, and the user still lands on the target page."
+    }
+  ],
+  "regression_risks": [
+    "window.location.href does not add a Next.js basePath. None is configured today.",
+    "pushMock and the next/navigation router mock are still declared in CompleteStep.test.tsx:4-16 and SetupWizard.test.tsx:4-12 but are no longer asserted. This is harmless leftover scaffolding.",
+    "CompleteStep.test.tsx covers only the `!res.ok` failure branch. A rejected fetch (the catch at CompleteStep.tsx:59-60) has no direct CompleteStep negative test. SetupWizard.test.tsx:921/:946 cover the onBeforeSubmit-throws path."
+  ],
+  "test_coverage": [
+    "Mutation (from reading): move loadFullPage('/admin') into the finally block. Killed by CompleteStep.test.tsx:70-76. setError, return and finally run in the same continuation, before React re-renders the error, so findByText resolves only after the mock has been called.",
+    "Mutation: call loadFullPage before the `!res.ok` check. Killed by CompleteStep.test.tsx:75.",
+    "Mutation: revert CompleteStep.tsx:58 to router.push. Killed by CompleteStep.test.tsx:58 and the SetupWizard positives at :203, 502, 524, 753, 795, 834, 880 and 959.",
+    "Mutation: change the fullPageLoad.ts body to pushState, assign or a no-op. Killed by fullPageLoad.test.ts:11-19.",
+    "unlock/page.test.tsx: the success tests cover five redirect cases. The wrong-password test awaits the error text. The network-failure test waits for the button to re-enable, which happens after finally, so its negatives are meaningful.",
+    "Survivors carried from r1 and not addressed: unlock(password, false) in place of passing `remember`, and removal of the connectionError message. Neither is asserted."
+  ],
+  "not_verified": [
+    "I did not run the tests (no command tool). Mutation results come from reading the code.",
+    "I did not confirm that the generated src/messages/en.json currently contains setup.complete.errorMessage = 'Failed to complete setup'. I inferred it from messages-core/en.json:1300 and the merge script.",
+    "I did not read SetupWizard.test.tsx in full. Its pushMock and loadFullPageMock usages were checked only by grep, and this commit does not touch it.",
+    "I did not check real-browser behavior after the full page load."
+  ],
+  "coverage": [
+    {
+      "path": "frontend/src/app/setup/steps/CompleteStep.tsx",
+      "read": "full",
+      "reason": "Read the whole file (152 lines)."
+    },
+    {
+      "path": "frontend/src/app/unlock/page.tsx",
+      "read": "full",
+      "reason": "Read the whole file (99 lines)."
+    },
+    {
+      "path": "frontend/src/lib/fullPageLoad.ts",
+      "read": "full",
+      "reason": "Read the whole file (9 lines)."
+    },
+    {
+      "path": "frontend/src/app/setup/__tests__/CompleteStep.test.tsx",
+      "read": "full",
+      "reason": "Read the whole file (144 lines), including the hunk changed in this commit at lines 70-76."
+    },
+    {
+      "path": "frontend/src/app/setup/__tests__/SetupWizard.test.tsx",
+      "read": "partial",
+      "reason": "Not changed in this commit. I grepped every pushMock and loadFullPageMock usage (lines 4-12, 50-51, 203, 499, 502, 524, 753, 795, 834, 880, 921, 946, 959) and relied on the diff hunks."
+    },
+    {
+      "path": "frontend/src/app/unlock/__tests__/page.test.tsx",
+      "read": "full",
+      "reason": "Read the whole file (79 lines)."
+    },
+    {
+      "path": "frontend/src/lib/__tests__/fullPageLoad.test.ts",
+      "read": "full",
+      "reason": "Read the whole file (20 lines)."
+    }
+  ],
+  "confidence": 85,
+  "trajectory": "The r4 fix commit 35386f027 changes one test only. It replaces `waitFor(mockFetch called)` with `await findByText(error)` before the negative assertion in CompleteStep.test.tsx. It adds no branch, state or prediction to product code. Product code has not changed since a321dac75 consolidated the change into the shared loadFullPage helper. The rounds after that (38784498c, 35386f027) only tighten tests, each closing the gap the previous review reported: r2 found vacuous assertions on pushMock, and r3 found an unsynchronized negative assertion. No round repeats something an earlier round added. The rounds converge; the design is not being patched."
+}
