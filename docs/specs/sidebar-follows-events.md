@@ -60,16 +60,13 @@ and its response never depend on it.
 
 ### 2. Failure cases
 
-Per read kind, on failure:
-
-| Read | On failure |
-|---|---|
-| mount, drive change | the list is empty and the summary `null` (today's behaviour; SPEC-CORE-125 I8) |
-| folder change (tags only) | tags are empty for the new scope (today's behaviour; the old scope's tags are wrong for it) |
-| a round, `refreshKey`, the sidebar's own re-read after its own collection write | the list keeps what it showed |
-
-A failure obeys the same sequence rule as an answer (§3): a failure of a read older than
-another started read of that list changes nothing.
+On failure, every read kind (mount, drive change, folder change, a round, `refreshKey`,
+the sidebar's own re-read after its own collection write) follows one rule, stated in §3:
+a list that shows rows of the scope the read was for keeps them; a list that shows nothing
+yet, or rows of another drive or (tags) another folder, becomes empty (the summary `null`).
+This reproduces today's mount and drive-change behaviour (SPEC-CORE-125 I8) and today's
+folder-change behaviour, and keeps rows on a failed round. It changes one case: a failed
+`refreshKey` read used to empty the lists and now keeps them.
 
 - **The WebSocket is disconnected** when the change happens: the event is lost; on
   reconnect the sidebar runs one round (`useWebSocketRefresh`'s catch-up), gathered like
@@ -88,8 +85,16 @@ another started read of that list changes nothing.
 
 **Sequence rule.** Per list, every read (mount, drive change, folder change for tags,
 `refreshKey`, a round, and the sidebar's own re-read after its own collection write) takes
-a sequence number when it starts. Its answer or failure is applied only if no later read
-of that list has started; an older read never replaces a newer one.
+an increasing sequence number and records its scope (drive; for tags also the folder) when
+it starts. The list remembers the sequence number and scope of the rows it shows.
+
+- A read whose scope is no longer current is discarded, success or failure.
+- A successful read is applied when its sequence number is higher than the shown one; it
+  then becomes the shown one. An older success arriving after a newer one is discarded.
+- A failed read never replaces rows of its own scope. When the shown rows are of another
+  scope, or nothing has been shown yet, the list becomes empty (summary `null`) for the
+  read's scope, without raising the shown sequence number, so a still-running older read of
+  the same scope can still be applied when it succeeds.
 
 - No drive shown (`currentDrive` null, outside drive pages): watched events and reconnects
   start no gathering and no round.
@@ -104,8 +109,10 @@ of that list has started; an older read never replaces a newer one.
 - Unmount cancels the timer and discards every answer.
 - The first connection after mount may count as a reconnect in `useWebSocketRefresh` (when
   the hook mounts before the socket connects); the round it starts is allowed.
-- A round whose collection list no longer holds the collection whose rename input is open
-  closes that input and discards its text; nothing else is shown (the row is gone).
+- Any newly applied collection list (from any read) that no longer holds the collection
+  whose rename input or context menu is open closes that input or menu and discards the
+  typed text; nothing else is shown (the row is gone). If that rename's request is already
+  in flight and answers 404, no toast is shown.
 
 ### 4. Data read and written
 
@@ -136,9 +143,13 @@ re-reads are the same authorized GETs the sidebar makes today.
   effect is folded into the round, which is drive-filtered: a scan of another public drive
   no longer re-reads this drive's summary.
 - The hook's return value drops `setCollectionList` and gains `reloadCollections(): Promise<void>`,
-  which runs a sequenced, keep-on-failure read of the collections. Every own-write re-read
-  uses it: `useCollectionManagement` (create, rename, delete) and the drag-and-drop add in
-  `SidebarCollectionsSection` (`handleDrop`).
+  which runs a sequenced read of the collections under the rule of §3 and always resolves
+  (it never rejects, whether the read fails or is discarded). Every own-write re-read uses
+  it: `useCollectionManagement` (create, rename, delete) and the drag-and-drop add in
+  `SidebarCollectionsSection` (`handleDrop`). A write that succeeded therefore never shows
+  its failure toast because the re-read after it failed; today it does.
+- A failed `refreshKey` read (after a tag save or rename on a file page, or a pin change)
+  keeps the lists instead of emptying them; this is intended.
 - An inline rename input, a create input and their 409 state stay open with the typed text
   when a round replaces the list and the row is still there (SPEC-CORE-108 I9); the saved
   section and item order is applied to the new list as to any list (SPEC-CORE-107 I5).
@@ -154,7 +165,10 @@ re-reads are the same authorized GETs the sidebar makes today.
   `setCollectionList(updated)`), `sidebar/__tests__/SidebarItemReorder.test.tsx`,
   `components/__tests__/SidebarActiveRow*`, `SidebarAddonNav*`, `SmartFolderSidebar*`,
   `driveSwitchBoundary*`, `imeEnterGuard*`, `sidebarShellFixtureParity*`,
-  `src/__tests__/uploadLock.test.tsx`. `useSidebarData.summaryError.test.ts`
+  `src/__tests__/uploadLock.test.tsx`, `sidebar/__tests__/SidebarCollectionsSection.test.tsx`,
+  `sidebar/__tests__/SmartCollectionDialogPortal.test.tsx`. Tests that mock
+  `@/hooks/useWebSocket` to drive the sidebar (`useSidebarData.test.ts`) deliver events
+  through the real `useWebSocketRefresh` and context instead. `useSidebarData.summaryError.test.ts`
   (SPEC-CORE-125 I8, "keeps its previous value after a refresh") is rewritten to deliver
   `drive.structure_changed` through the real `useWebSocketRefresh` and context, advance
   past 500 ms, and assert the previous summary is kept after a failed round; I8's meaning is
@@ -210,8 +224,13 @@ not change unless the tags did.
 - `backend/app/routers/drives.py`: broadcast after commit in `pin_folder`, `unpin_folder`.
 - `backend/app/routers/internal.py`: `replace_file_tags_internal` broadcasts
   `drive.tags_changed` after commit.
-- `backend/app/services/ws.py`: `broadcast_from_thread`, used through a wrapper that logs
-  and swallows exceptions.
+- `backend/app/services/ws.py`: a new `notify_drive(event: str, drive: str) -> None` that
+  calls this module's `broadcast_from_thread(event, {"drive": drive}, drive=drive)` inside a
+  `try` that logs and swallows any exception. Every call site calls it as
+  `ws.notify_drive(...)` through the module (not a name imported into the router), and
+  `notify_drive` looks up `broadcast_from_thread` through the module at call time, so a test
+  that patches `app.services.ws.broadcast_from_thread` sees every call and can make it
+  raise.
 - `backend/tests/`: tests for the broadcasts.
 - `docs/reference/websocket-events.md`: document the three new events; change "The core
   broadcasts these six events" to the new count; the paragraph on derived `drive.*` events
@@ -244,21 +263,22 @@ I3. A round starts 500 ms after the last watched event of a gathering, or 2 s af
 first, whichever is earlier; events less than 500 ms apart within those 2 s produce one
 round.
 
-I4. For each list, a read's answer or failure is applied only if no later read of that
-list has started; a drive change discards every read started for the previous drive; a
-folder change discards only tag reads started for the previous folder, and tags are always
-read with the folder current when the read starts.
+I4. For each list, a successful read is shown only if no read of that list that started
+later has already been shown; a read for a drive, or (tags) a folder, that is no longer
+current is never shown; tags are always read with the folder current when the read starts.
 
-I5. A failed round, `refreshKey` read or own-write re-read leaves the failed list as it was
-shown. A failed mount or drive-change read leaves the list empty and the summary `null`; a
-failed folder-change tag read leaves tags empty.
+I5. A failed read of any kind never removes rows the list shows for the same scope. When
+the list shows nothing yet or rows of another drive or folder, a failed read leaves it
+empty (summary `null`), and an older read of the current scope that then succeeds is
+shown.
 
 I6. Each successful create, update, delete, add-items, remove-item and reorder on a
 collection of drive D broadcasts `drive.collections_changed`, each successful pin and unpin
 in D broadcasts `drive.pins_changed`, and each successful internal tag write on a file of D
 broadcasts `drive.tags_changed`, with payload exactly `{"drive": "D"}`, scoped to D, once
-per request and after the commit; a request that answers 4xx broadcasts nothing; no
-webhook is sent for any of them.
+per request and after the commit; a request that answers 4xx broadcasts nothing; these
+handlers send no webhook and no other WebSocket event (no `drive.file_updated`,
+`drive.structure_changed` or `inbox.updated`).
 
 I7. When the broadcast raises or cannot be sent, the write is committed and the response's
 status and body are those of a successful write.
@@ -269,8 +289,13 @@ groups include it.
 I9. After the WebSocket reconnects with a drive shown, the sidebar runs one round.
 
 I10. A round that replaces the collection list while a collection that is still listed is
-being renamed or created keeps that input open with its typed text and its 409 state; when
-the renamed collection is no longer listed, the input closes and no request is sent for it.
+being renamed or created keeps that input open with its typed text and its 409 state.
+When a newly shown collection list no longer holds the collection whose rename input or
+context menu is open, that input or menu closes and no request is sent for it afterwards;
+a rename already in flight that answers 404 shows no toast.
+
+I11. After a successful own collection write (create, rename, delete, drag-and-drop add),
+no failure toast is shown because the re-read after it failed.
 
 ## Checked, no action
 
