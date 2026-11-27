@@ -129,6 +129,8 @@ On a video's page, the ruler in the **Scenes** panel is one tab stop; these keys
 
 On video and audio pages the arrows seek instead. On PDF and EPUB pages they turn pages; use the previous / next buttons to change file. On an Excel file, after you click the grid the arrows move the selected cell; click outside the grid to step files again.
 
+On a collection, folder or Smart Collection queue, `←` / `→` walk the queue on a file where they change file — images, Office and text files — exactly as the page row's previous / next do. On a player they still seek, and on a paged viewer they still turn pages.
+
 ## PDF viewer
 
 | Key | Action |

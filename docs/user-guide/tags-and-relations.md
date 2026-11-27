@@ -67,6 +67,6 @@ Click a row to open that file. Files in the trash are left out. Missing files st
 
 Addons add more below the lists: **Similar files** from the intelligence addon, and on notes and text files **See connections as a graph** from the Knowledge addon.
 
-While a collection is playing, the same lists appear under **Related** below the player.
+While a collection is playing, the same lists appear under **Related** in the inspector.
 
 For scripts, see the [HTTP API reference](../reference/api.md).
