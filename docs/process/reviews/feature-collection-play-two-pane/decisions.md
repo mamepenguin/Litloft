@@ -100,3 +100,7 @@ Scope: the four design differences the owner chose to fix. Same stack (http://vi
 - Left behind: nothing on the server (no collection or file was changed); every browser context was closed.
 - Differences remaining against the design: D-6 title column 81px against about 89px (ordinal 20 vs 18, button gap 2 vs 0, right padding 6 vs 4); phone overlay buttons 44x44 against 36x44 and title 12px against 13px at a coarse pointer.
 
+
+## Design re-check (design-check.md, D-7 and D-8)
+
+Decided by the owner on 2026-11-28: fix both. Fixed in 42c045a1c. Verified in a real browser by e2e-components/queue-page-desktop.spec.ts (collection row title at least 88px at 1440px; it measured 81px before the fix) and queue-page-phone.spec.ts (row titles 13px at 390px; 12px before the fix). No other design difference remains open.

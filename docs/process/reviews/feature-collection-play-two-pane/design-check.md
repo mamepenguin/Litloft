@@ -1,55 +1,38 @@
 # Design check
 
-at: 5fa146b9ccd19b66a22ced240879468ea5549ed0
+at: bcb9210ce244c190e1352a72a29228ffb2cf327c
 design: docs/process/reviews/feature-collection-play-two-pane/design/
 
-(Screenshots are R-5 shots in the dark theme; the design is drawn in the light theme. Theme, sample data, tab labels and the Transcript/Scenes toggles versus the design's Chapters/Notes are not counted. Separate page row under the header is excluded by spec D2.)
+(Re-check after the owner's decisions on the first check. Screenshots are the rr2-* R-5 shots in r5/, dark theme; the design is light. Theme, sample data, tab labels, Transcript/Scenes toggles, the separate page row (spec D2), the accepted D-2 and D-3, and the 44px coarse-pointer touch target are not counted. HEAD 28ca20fc1 is later than the commit the screenshots were taken at, per decisions.md.)
 
 ## Decisions read from the design
-- Main (1440): queue pane width 280px, border-right 1px (Main.dc.html:27)
-- Main: top block padding 16/12/12/16, name 15px 600 with ellipsis, `n / N` 12px muted under it, loop button 36x36 at right (Main.dc.html:28-33)
-- Main: rows = ordinal (10px mono, 18px wide), thumb 48x27, title 12px, duration 11px muted under title; row gap 2px, padding 6/4/6/6, radius 10 (Main.dc.html:35-45, 137-147)
-- Main: up / down / remove buttons 26x28 each, always visible (Main.dc.html:46-50)
-- Main: current row tint rgba(214,48,49,.08) + 1px inset ring .4, ordinal accent+bold, title 600 (Main.dc.html:144-146)
-- Main: page row 48px: trail drive / collection / title, spacer, prev, `3 / 12`, next, inspector toggle (Main.dc.html:57-67)
-- Main: inspector 384px (Main.dc.html:90)
-- Narrow (1024): pane not shown, pane button unpressed, page row keeps prev `3 / 12` next, inspector 384px beside player (Narrow.dc.html:19, 32-35, 46)
-- FolderPlay (1440): top block name 15px, `5 / 24`, loop button then x button, both 36x36 (FolderPlay.dc.html:28-35)
-- FolderPlay: row is ONE line: ordinal, title (flex:1, ellipsis), duration at the right end of the same line (11px muted); padding 8/8/8/6; no thumbnail, no reorder buttons (FolderPlay.dc.html:38-44, 83-89)
-- Phone (390): header 52px with menu, pane button, one-line title 14px 600, prev, next only (Phone.dc.html:17-23)
-- Phone: player 390x219 directly under header; below it an open bottom sheet 420px high with tabs and title/actions (Phone.dc.html:24-43)
-- PhoneQueue (390): header with menu + pane button only; close row 44px button right-aligned with border; top block name 16px 600, `3 / 12`, loop 44x44; rows min-height 44, thumb 56x32, title 13px, per-row buttons 36x44, row padding 4 (PhoneQueue.dc.html:17-47, 66-73)
-- PhoneQueue: nothing else drawn below the list (no sheet or bar over it) (PhoneQueue.dc.html:16-50)
+- Main (1440): pane 280px, border-right 1px (Main.dc.html:27)
+- Main: top block name 15px 600, `n / N` 12px muted, loop button 36x36 right (Main.dc.html:28-33)
+- Main: rows = ordinal 10px mono 18px wide, thumb 48x27, title 12px, duration 11px muted under title; gap 2, padding 6/4/6/6, radius 10 (Main.dc.html:35-45, 137-147)
+- Main: up / down / remove 26x28, always visible (Main.dc.html:46-50)
+- Main: current row tint + 1px ring, accent bold ordinal, title 600 (Main.dc.html:144-146)
+- Main: page row trail, prev `3 / 12` next, inspector toggle; inspector 384px (Main.dc.html:57-67, 90)
+- Narrow (1024): pane folded, pane button unpressed, page row keeps prev `3 / 12` next, inspector beside player (Narrow.dc.html:19, 32-35, 46)
+- FolderPlay (1440): top block name 15px, `5 / 24`, loop then x, 36x36; one-line rows with duration at right end, no thumb, no reorder buttons (FolderPlay.dc.html:28-44, 83-89)
+- Phone (390): header 52px, menu, pane button, one-line title, prev, next; player 390x219; sheet (Phone.dc.html:17-43)
+- PhoneQueue (390): close row 44px; top block name 16px, `3 / 12`, loop 44x44; rows min-height 44, thumb 56x32, title 13px (current 600), buttons 36x44, row padding 4; nothing below the list (PhoneQueue.dc.html:17-50, 66-73)
+
+## Re-check of the fixed items
+- D-1 (folder / Smart rows): one line, 32px, duration at the right end (rr2-FolderPlay-tree-off-loop-off-1440x900.jpg). Matches.
+- D-4 (peek bar over overlay): gone while the overlay is open (rr2-04, rr2-PhoneQueue). Matches.
+- D-5 (phone thumbnails): 56x32 at a coarse pointer (rr2-PhoneQueue). Matches.
+- D-6 (button size): 26x28 at a fine pointer. The title width remains short, see D-7.
+- Narrow (rr2-Narrow-collection-yield-1024x768.jpg): pane folded, `3 / 9` kept, inspector beside the player. Matches.
 
 ## Findings
-### D-1 FolderPlay: duration is under the title, not at the row's right end
-- design: one-line row, duration right-aligned on the title's line, row about 33px tall (FolderPlay.dc.html:39-43, 87)
-- implementation: ordinal, then title with the duration on a second line under it, rows about 44px tall, so fewer rows fit (r5/23-D4-folder-play-tree-off-loop-off-1440x900.jpg)
-- visible: at a glance
-
-### D-2 Phone (D5): the row carries extra controls
-- design: menu, pane button, one-line title, prev, next, nothing else (Phone.dc.html:17-23)
-- implementation: menu, pane button, two-line heading (collection name over title), a document-info icon, prev, next, search and capture buttons (r5/21-D5-phone-video-playing-390.jpg). The title is cut to "7417-父…".
-- visible: at a glance
-
-### D-3 Phone (D5): the bottom sheet is a collapsed peek, the design draws it open
-- design: sheet 420px high with tabs (情報 / チャプター / 文字起こし / 関連), title, meta and action chips below the player (Phone.dc.html:25-43)
-- implementation: a one-line peek bar at the bottom with the title and like / favourite / more, and a large empty dark area between the player and the bar (r5/21-D5-phone-video-playing-390.jpg)
-- visible: at a glance
-
-### D-4 PhoneQueue (D6): the sheet's peek bar is drawn over the open queue
-- design: queue overlay shows only header, close row, top block and rows; nothing below the list (PhoneQueue.dc.html:16-50)
-- implementation: the file's peek bar (title, like, favourite, more) stays at the bottom over the overlay (r5/22-D6-phone-video-queue-overlay-390.jpg; r5/rr1-05-phone-overlay-390.jpg shows the overlay without it)
-- visible: side by side
-
-### D-5 PhoneQueue (D6): row and thumbnail size is not the design's touch size in the shots
-- design: rows min-height 44 (about 52 with padding), thumb 56x32, title 13px, buttons 36x44 (PhoneQueue.dc.html:34-45, 70)
-- implementation: in the 390px shots rows are about 42px apart, thumbs about 48x27, buttons about 30px wide (r5/22-D6-phone-video-queue-overlay-390.jpg, r5/rr1-05-phone-overlay-390.jpg). decisions.md says the shots were taken at a fine pointer, so the coarse-pointer 44px form is not shown in R-5 and cannot be checked from it.
+### D-7 Main (D1): title column is narrower than the design's
+- design: ordinal 18px, button group gap 0, row right padding 4, leaving the title about 89px at 12px (Main.dc.html:35-50, 137-147)
+- implementation: ordinal 20px, button gap 2px, right padding 6px, title column 81px; titles cut at about 7 characters ("7417-父さ…", "7988-お彼岸…") (rr2-Main-collection-3of9-loop-on-1440x900.jpg; decisions.md R-5 re-run at bcb9210, "D-6, fixed (sizes)"; frontend/src/components/queue/QueueRows.tsx:41 for the row padding)
 - visible: only by measuring
 
-### D-6 Main (D1): per-row buttons and title width differ slightly
-- design: buttons 26x28, leaving the title about 88px at 12px (Main.dc.html:47-49)
-- implementation: buttons spaced about 30px apart, titles cut at about 6 characters ("7417-父さ…") (r5/19-D1-video-collection-3of9-loop-on-1440x900.jpg)
+### D-8 PhoneQueue (D6): row title is 12px, the design draws 13px
+- design: title 13px, current row 600 (PhoneQueue.dc.html:72)
+- implementation: rows use `text-xs` (12px) at every width, measured 12px in the overlay (rr2-PhoneQueue-collection-overlay-390x844.jpg; frontend/src/components/queue/QueueRows.tsx:41)
 - visible: only by measuring
 
-TOTAL: 6 findings
+TOTAL: 2 findings
