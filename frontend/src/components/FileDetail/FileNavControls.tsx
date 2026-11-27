@@ -18,7 +18,10 @@ export function FileNavControls() {
   const nav = useFileNavState();
   if (!nav) return null;
 
-  const { prevId, nextId, position, total, navigatePrev, navigateNext } = nav;
+  const { prevId, nextId, position, total, queue, navigatePrev, navigateNext } =
+    nav;
+  const showsPosition =
+    queue === true || (position !== null && total !== null);
 
   const button =
     "flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg " +
@@ -49,13 +52,17 @@ export function FileNavControls() {
 
       {/* It is dropped when the ordering cannot rank this file —
           `/neighbors` reports null for both halves there, and half a
-          fraction is not a smaller readout, it is a wrong one. */}
-      {position !== null && total !== null && (
+          fraction is not a smaller readout, it is a wrong one. A queue
+          knows its count even when it does not hold the file. */}
+      {showsPosition && (
         <span
           data-testid="file-nav-position"
           className="hidden px-1 text-sm tabular-nums text-text-muted sm:inline"
         >
-          {t("positionOf", { position, total })}
+          {t("positionOf", {
+            position: position ?? "–",
+            total: total ?? "–",
+          })}
         </span>
       )}
 

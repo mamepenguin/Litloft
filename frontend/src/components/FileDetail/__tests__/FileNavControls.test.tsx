@@ -10,6 +10,7 @@ function nav(overrides: Partial<FileNavState> = {}): FileNavState {
     nextId: "after",
     position: 12,
     total: 995,
+    queue: false,
     navigatePrev: vi.fn(),
     navigateNext: vi.fn(),
     ...overrides,
@@ -83,6 +84,16 @@ describe("FileNavControls", () => {
     expect(readout()).toBeNull();
     renderControls(nav({ position: 12, total: null }));
     expect(readout()).toBeNull();
+  });
+
+  it("shows – / N for a queue that does not hold the open file", () => {
+    renderControls(nav({ queue: true, position: null, total: 995 }));
+    expect(readout()).toHaveTextContent("– / 995");
+  });
+
+  it("shows – / – for a queue that is still loading", () => {
+    renderControls(nav({ queue: true, position: null, total: null }));
+    expect(readout()).toHaveTextContent("– / –");
   });
 
   it("draws nothing where no host published a walk", () => {

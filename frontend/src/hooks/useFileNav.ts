@@ -38,6 +38,8 @@ interface UseFileNavOpts {
 interface UseFileNavResult {
   prevId: string | null;
   nextId: string | null;
+  /** This walk is a queue's, which knows its count before it can rank the file. */
+  queue: boolean;
   /**
    * Both come straight from `/neighbors`, which counts them over exactly
    * the rows `prevId` / `nextId` can reach — so a visible `n / N` and the
@@ -133,6 +135,7 @@ export function useFileNav({
   return {
     prevId: queue ? queue.prevId : (neighbors?.prev_id ?? null),
     nextId: queue ? queue.nextId : (neighbors?.next_id ?? null),
+    queue: queue !== null,
     position: queue
       ? queue.position
       : countable
