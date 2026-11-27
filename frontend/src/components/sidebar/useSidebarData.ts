@@ -2,20 +2,17 @@
 
 import { useEffect, useState } from "react";
 
-import { getCollections, getDrives, getDriveSummary, getDriveTags, getPins, getAuthStatus } from "@/lib/api";
-import { useWebSocket } from "@/hooks/useWebSocket";
-import type { AuthStatus, CollectionSummary, Drive, DriveSummary, PinnedFolder, Tag } from "@/types";
+import { getAuthStatus, getDrives } from "@/lib/api";
+import type {
+  AuthStatus,
+  CollectionSummary,
+  Drive,
+  DriveSummary,
+  PinnedFolder,
+} from "@/types";
+import { useDriveScopedReads, type ScopedTags } from "./useDriveScopedReads";
 
-/**
- * Carrying the scope with the data lets the consumer tell "these rows
- * describe the scope you are in" from "these rows are the previous
- * scope's, still on screen". The drive is part of the key as well as the
- * folder — drive is a security boundary.
- */
-export interface ScopedTags {
-  resolvedScope: { drive: string; folderPath: string | null };
-  items: Tag[];
-}
+export type { ScopedTags };
 
 interface UseSidebarDataResult {
   drives: Drive[];
@@ -23,7 +20,7 @@ interface UseSidebarDataResult {
   tags: ScopedTags | null;
   pins: PinnedFolder[];
   collectionList: CollectionSummary[];
-  setCollectionList: React.Dispatch<React.SetStateAction<CollectionSummary[]>>;
+  reloadCollections: () => Promise<void>;
   authStatus: AuthStatus | null;
   driveSummary: DriveSummary | null;
 }
@@ -34,59 +31,18 @@ export function useSidebarData(
   refreshKey: number,
 ): UseSidebarDataResult {
   const [drives, setDrives] = useState<Drive[]>([]);
-  const [tags, setTags] = useState<ScopedTags | null>(null);
-  const [pins, setPins] = useState<PinnedFolder[]>([]);
-  const [collectionList, setCollectionList] = useState<CollectionSummary[]>([]);
   const [authStatus, setAuthStatus] = useState<AuthStatus | null>(null);
-  const [driveSummary, setDriveSummary] = useState<DriveSummary | null>(null);
 
   useEffect(() => {
     getDrives().then(setDrives).catch(() => setDrives([]));
     getAuthStatus().then(setAuthStatus).catch(() => setAuthStatus(null));
   }, [refreshKey]);
 
-  useEffect(() => {
-    if (!currentDrive) {
-      setDriveSummary(null);
-      return;
-    }
-    getPins(currentDrive).then(setPins).catch(() => setPins([]));
-    getCollections(currentDrive).then(setCollectionList).catch(() => setCollectionList([]));
-    getDriveSummary(currentDrive).then(setDriveSummary).catch(() => setDriveSummary(null));
-  }, [currentDrive, refreshKey]);
+  const { tags, pins, collectionList, driveSummary, reloadCollections } = useDriveScopedReads(
+    currentDrive,
+    currentFolderPath,
+    refreshKey,
+  );
 
-  useEffect(() => {
-    if (!currentDrive) {
-      setTags(null);
-      return;
-    }
-    // currentFolderPath is published by the folder page after mount (see
-    // CurrentDriveProvider), so opening a folder URL directly fires this
-    // effect twice in quick succession: once with null, then again with
-    // the real path. Guard against the null request resolving second and
-    // clobbering the folder-scoped result.
-    const resolvedScope = { drive: currentDrive, folderPath: currentFolderPath };
-    let cancelled = false;
-    getDriveTags(currentDrive, currentFolderPath)
-      .then((items) => {
-        if (!cancelled) setTags({ resolvedScope, items });
-      })
-      .catch(() => {
-        // Record the scope on failure too. Leaving the previous value in
-        // place would strand the old rows inert forever, because nothing
-        // would ever match the current scope again.
-        if (!cancelled) setTags({ resolvedScope, items: [] });
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [currentDrive, currentFolderPath, refreshKey]);
-
-  const scanEvent = useWebSocket("scan:complete");
-  useEffect(() => {
-    if (!scanEvent || !currentDrive) return;
-    getDriveSummary(currentDrive).then(setDriveSummary).catch(() => {});
-  }, [scanEvent, currentDrive]);
-
-  return { drives, tags, pins, collectionList, setCollectionList, authStatus, driveSummary };
+  return { drives, tags, pins, collectionList, reloadCollections, authStatus, driveSummary };
 }

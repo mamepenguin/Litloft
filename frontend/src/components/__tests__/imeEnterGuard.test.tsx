@@ -77,7 +77,7 @@ function mountSidebar(props: Record<string, unknown>) {
           updated_at: "",
         },
       ]}
-      setCollectionList={vi.fn()}
+      reloadCollections={vi.fn()}
       creatingCollection={false}
       setCreatingCollection={vi.fn()}
       newCollectionName=""

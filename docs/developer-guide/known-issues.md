@@ -132,11 +132,6 @@ The drive chip in the trail and the root band in the tree both offer themselves
 as destinations while dragging. The backend answers 409 and the handler swallows
 it: the target lights up, the drop lands, nothing happens and nothing is said.
 
-**The sidebar's tag list goes stale after a paste, bulk tagging, an upload or a quick note.** It keeps its
-old rows until a reload or a change of folder or drive; the listing itself is
-current.
-
-
 **A failed Library listing reads `<drive> · 0 items`.** The listing hook sets
 the total to 0 on a failed request, so the scope line cannot tell a failure
 from an empty drive. Reached when the listing request fails.

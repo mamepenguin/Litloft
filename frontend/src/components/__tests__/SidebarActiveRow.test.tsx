@@ -67,7 +67,7 @@ vi.mock("../sidebar/useSidebarData", () => ({
     tags,
     pins,
     collectionList: collections,
-    setCollectionList: vi.fn(),
+    reloadCollections: vi.fn().mockResolvedValue(undefined),
     authStatus: { is_admin: isAdmin },
     driveSummary: { missing_count: 3 },
   }),

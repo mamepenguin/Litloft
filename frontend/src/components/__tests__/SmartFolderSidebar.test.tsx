@@ -124,7 +124,7 @@ const props = (close: () => void = vi.fn()) => ({
   driveBase: "/drive/main",
   close,
   collectionList: [],
-  setCollectionList: vi.fn(),
+  reloadCollections: vi.fn().mockResolvedValue(undefined),
   creatingCollection: false,
   setCreatingCollection: vi.fn(),
   newCollectionName: "",

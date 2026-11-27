@@ -103,6 +103,7 @@ Rules:
 - The backend is not externally exposed. WS is also proxied through the Next.js Custom Server.
 - Connections are accepted even when unauthenticated (so a fully public mode works); only protected-drive notifications are filtered.
 - WS broadcasts from the scanner are bridged with `run_in_executor` → `call_soon_threadsafe`.
+- The sidebar's drive-scoped lists (tags, pins, collections, the Missing Files count) follow the watched browser events; a write that changes one of them must make the core send one of them.
 
 ## Addons: scope and policy
 
