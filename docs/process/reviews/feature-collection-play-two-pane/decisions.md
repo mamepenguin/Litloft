@@ -2,9 +2,10 @@
 
 decision:
 ran_in_app: yes
-at: bcb9210ce244c190e1352a72a29228ffb2cf327c
+at: 8ce8366f2eece4ff968846cf4d5c3775d9906e9a
 by: agent
 evidence: |
+  Latest run, 2026-11-28, R-5 re-run at 8ce8366f2eece4ff968846cf4d5c3775d9906e9a (design fixes D-7 and D-8, product commit 42c045a1c): stack http://video-share-collection-play.localhost:3101, frontend image built 2026-11-28 08:55 JST (after 42c045a1c, its bundle carries the new classes), its cloned data. Headless Google Chrome via Playwright, dark theme, English locale, fresh contexts with empty storage. D-7 fixed: at 1440x900 every R5 videos row's title column is 89px (ordinal 18px, thumbnail 48x28, move up / move down / remove 26px each). D-8 fixed: at 390x844 with a coarse pointer the overlay's row titles are 13px (also 13px in a 390px fine-pointer window). Regression: collection Play and an advance at 1440, and the phone overlay opening and closing while playback continued, as before. Details under "R-5 re-run at 8ce8366f2"; screenshots r5/rr3-*. Earlier runs follow.
   Stack: http://video-share-collection-play.localhost:3101 (frontend image built 2026-11-28 03:58 JST, after HEAD's commit), its own cloned data. Desktop Chrome, fine pointer. Viewports: 1440x900 for the artboard shots 19 and 23 (shots 01-18 are 1440x757), 1024x768, and 390x844 drawn in a same-origin iframe inside a 500px window (Chrome's minimum window width). Origin storage was empty at the start (tree setting off, Autoplay off). Screenshots, kept locally (gitignored): docs/process/reviews/feature-collection-play-two-pane/r5/.
   Artboard screens:
   - D1 (19-D1-video-collection-3of9-loop-on-1440x900.jpg): the "R5 videos" collection, item 3 of 9, playing, loop on. Pane 280px: name, "3 / 9", loop button lit; rows have the ordinal, a 16:9 thumbnail, the title (cut to about 6 characters), the duration, and up / down / remove always visible. The current row is tinted with an accent ring and a red ordinal. The page row reads 動画 / R5 videos / title, with ‹ 3 / 9 ›, and the inspector is on the right.
@@ -104,3 +105,13 @@ Scope: the four design differences the owner chose to fix. Same stack (http://vi
 ## Design re-check (design-check.md, D-7 and D-8)
 
 Decided by the owner on 2026-11-28: fix both. Fixed in 42c045a1c. Verified in a real browser by e2e-components/queue-page-desktop.spec.ts (collection row title at least 88px at 1440px; it measured 81px before the fix) and queue-page-phone.spec.ts (row titles 13px at 390px; 12px before the fix). No other design difference remains open.
+
+## R-5 re-run at 8ce8366f2eece4ff968846cf4d5c3775d9906e9a (design fixes D-7 and D-8)
+
+Scope: D-7 and D-8 (fixed in 42c045a1c), plus collection Play, an advance, and the phone overlay. Same stack (http://video-share-collection-play.localhost:3101, frontend image built 2026-11-28 08:55 JST, after 42c045a1c), its cloned data. Headless Google Chrome via Playwright, dark theme, NEXT_LOCALE=en, each scenario in a fresh context with empty origin storage (tree setting off, Autoplay off). Screenshots (gitignored): r5/rr3-*.
+- D-7, fixed: 1440x900, fine pointer. /drive/動画/collections/oO1ntCEA3B1n → Play → ?file=I3e9u7RiDzz2, "1 / 9", playing (t 2.09), pane 280px, no horizontal scroll in the pane (scrollWidth 280). All nine rows: ordinal 18px, thumbnail 48x28, title column 89px at 12px, move up / move down / remove 26px each. Titles now read "7988-お彼岸…", "7417-父さんポ…" (rr3-01-D7-collection-play-1of9-1440x900.jpg).
+- Advance at 1440: a seek to 0.3 s before the end of item 1 → ?file=pzIoDOoWFeqf, "2 / 9", playing (t 2.30); title columns still 89px (rr3-02-advance-2of9-1440x900.jpg).
+- D-8, fixed: 390x844 mobile context (isMobile + touch, pointer: coarse matched), ?file=avDVaYmov12T (item 3). It opened paused (Autoplay off), so playback was started with the player's play (muted). "Show the queue" → aside x 0, y 56, 390x788, page scrollWidth 390. All nine row titles are 13px (title column 137px); thumbnails 56x32, buttons 44 wide (rr3-03-D8-coarse-phone-queue-overlay-390x844.jpg). In a plain 390px window (fine pointer) the titles are also 13px, thumbnails 48x28, buttons 26 (rr3-03-D8-fine-...).
+- Phone overlay and playback: coarse, t 1.46 before opening → 3.01 while open → 4.60 after "Close the queue", never paused; ?file= unchanged and the queue aside gone after closing (rr3-04-coarse-phone-after-close-390x844.jpg). Fine pointer the same (t 1.45 → 3.08 → 4.68; rr3-04-fine-...).
+- Left behind: nothing on the server (no collection or file changed); every browser context closed.
+- Differences found: none.
