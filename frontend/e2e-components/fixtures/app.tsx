@@ -131,6 +131,15 @@ import { FILE_GRID_APP_CARD_MENU_ARRANGEMENTS } from "./fileGridAppCardMenu";
 import { MOTION_ARRANGEMENTS } from "./motion";
 import { SubtitlesSectionPhoneArrangement } from "./subtitlesSection";
 import {
+  QueuePageVideoArrangement,
+  QueuePageNoteArrangement,
+  QueuePageLongArrangement,
+  QueuePageVideoFindArrangement,
+  QueuePageManyArrangement,
+  QueuePagePlayArrangement,
+  QueuePageOverlayArrangement,
+} from "./queuePage";
+import {
   InspectorArchiveArrangement,
   InspectorPdfArrangement,
   InspectorVideoArrangement,
@@ -2930,6 +2939,13 @@ const ARRANGEMENTS: Record<string, () => ReactElement> = {
   ...FILE_GRID_APP_CARD_MENU_ARRANGEMENTS,
   ...MOTION_ARRANGEMENTS,
   "subtitles-section-phone": SubtitlesSectionPhoneArrangement,
+  "queue-page-video": QueuePageVideoArrangement,
+  "queue-page-note": QueuePageNoteArrangement,
+  "queue-page-long": QueuePageLongArrangement,
+  "queue-page-video-find": QueuePageVideoFindArrangement,
+  "queue-page-many": QueuePageManyArrangement,
+  "queue-page-play": QueuePagePlayArrangement,
+  "queue-page-overlay": QueuePageOverlayArrangement,
 };
 
 function App(): ReactElement {

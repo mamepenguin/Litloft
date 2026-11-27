@@ -106,6 +106,7 @@ const AT_THE_PHONE_WIDTH = [
   "context-menu-edge.spec.ts",
   "backdrop-motion.spec.ts",
   "toast-motion.spec.ts",
+  "queue-page-phone.spec.ts",
 ] as const;
 
 const AT_THE_DESKTOP_WIDTH = [
@@ -164,6 +165,7 @@ const AT_THE_DESKTOP_WIDTH = [
   "pdf-pages-grid-desktop.spec.ts",
   "pdf-pages-grid-scrollbar-desktop.spec.ts",
   "context-menu-edge-desktop.spec.ts",
+  "queue-page-desktop.spec.ts",
 ] as const;
 
 test.describe("the component fixture lays out at the width it was given", () => {

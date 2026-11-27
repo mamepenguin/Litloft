@@ -115,6 +115,7 @@ const view = vi.hoisted(() => ({ props: [] as Array<Record<string, unknown>>, mo
 vi.mock("@/components/FileDetailContent", async () => {
   const React = await import("react");
   const { useFileNavState } = await import("@/lib/fileNavContext");
+  const { useQueuePage } = await import("@/components/queue/QueuePageContext");
   return {
     FileDetailContent: (props: Record<string, unknown>) => {
       view.props.push(props);
@@ -122,6 +123,7 @@ vi.mock("@/components/FileDetailContent", async () => {
         view.mounts += 1;
       }, []);
       const walk = useFileNavState();
+      const queue = useQueuePage();
       return (
         <div data-testid="file-view" data-file={String(props.fileId)}>
           {walk && (
@@ -131,6 +133,13 @@ vi.mock("@/components/FileDetailContent", async () => {
               data-next={walk.nextId ?? ""}
               data-position={walk.position ?? ""}
               data-total={walk.total ?? ""}
+            />
+          )}
+          {queue && (
+            <button
+              type="button"
+              data-testid="previous-track"
+              onClick={queue.previousTrack}
             />
           )}
         </div>
@@ -349,6 +358,37 @@ describe("SPEC-CORE-191 step 4 / I3 previous and next walk the folder queue", ()
     expect(walk).toHaveAttribute("data-prev", "v3");
     expect(walk).toHaveAttribute("data-position", "2");
     expect(walk).toHaveAttribute("data-total", "3");
+  });
+
+  it("the previous-track control takes the previous playable item and starts it", async () => {
+    openAt("/drive/work/Q1", "file=v2&queue=folder&sort=title&order=asc");
+    await fileOpen("v2");
+
+    fireEvent.click(screen.getByTestId("previous-track"));
+
+    await fileOpen("a1");
+    expect(lastPropsFor("a1")?.autoPlay).toBe(true);
+  });
+
+  it("the previous-track control wraps to the last playable item with loop on", async () => {
+    localStorage.setItem("collection-loop", "1");
+    openAt("/drive/work/Q1", "file=v3&queue=folder&sort=title&order=asc");
+    await fileOpen("v3");
+
+    fireEvent.click(screen.getByTestId("previous-track"));
+
+    await fileOpen("v2");
+    expect(lastPropsFor("v2")?.autoPlay).toBe(true);
+  });
+
+  it("the previous-track control changes nothing with loop off at the first playable item", async () => {
+    openAt("/drive/work/Q1", "file=v3&queue=folder&sort=title&order=asc");
+    await fileOpen("v3");
+
+    fireEvent.click(screen.getByTestId("previous-track"));
+    await act(async () => {});
+
+    expect(param("file")).toBe("v3");
   });
 });
 

@@ -363,6 +363,13 @@ describe("the component fixture's page", () => {
       "drive-unavailable",
       "drive-unavailable-long",
       "subtitles-section-phone",
+      "queue-page-video",
+      "queue-page-note",
+      "queue-page-long",
+      "queue-page-video-find",
+      "queue-page-many",
+      "queue-page-play",
+      "queue-page-overlay",
     ]);
   });
 });

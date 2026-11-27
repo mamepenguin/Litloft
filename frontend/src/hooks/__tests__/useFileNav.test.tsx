@@ -6,6 +6,7 @@ import { NextIntlClientProvider } from "next-intl";
 
 import { useFileNav } from "../useFileNav";
 import { ShortcutsProvider } from "@/components/ShortcutsProvider";
+import type { FileNavState } from "@/lib/fileNavContext";
 import * as api from "@/lib/api";
 import type { Neighbors } from "@/types";
 
@@ -432,4 +433,108 @@ describe("useFileNav", () => {
     act(() => result.current.navigatePrev());
     expect(onNavigate).toHaveBeenLastCalledWith("prev1");
   });
+});
+
+function queueWalk(): FileNavState {
+  return {
+    prevId: "queue-prev",
+    nextId: "queue-next",
+    position: 2,
+    total: 5,
+    navigatePrev: vi.fn(),
+    navigateNext: vi.fn(),
+  };
+}
+
+describe("useFileNav on a queue page", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("SPEC-CORE-190 I3 reads the queue instead of /neighbors", async () => {
+    const onNavigate = vi.fn();
+    const queue = queueWalk();
+    const { result } = renderHook(
+      () =>
+        useFileNav({
+          fileId: "current",
+          fileType: "image",
+          queue,
+          onNavigate,
+        }),
+      { wrapper: Wrapper },
+    );
+
+    expect(api.getFileNeighbors).not.toHaveBeenCalled();
+    expect(result.current.prevId).toBe("queue-prev");
+    expect(result.current.nextId).toBe("queue-next");
+    expect(result.current.position).toBe(2);
+    expect(result.current.total).toBe(5);
+  });
+
+  it("SPEC-CORE-190 I3 walks the queue with ← and → on a file whose keys change file", async () => {
+    const onNavigate = vi.fn();
+    const queue = queueWalk();
+    renderHook(
+      () =>
+        useFileNav({
+          fileId: "current",
+          fileType: "image",
+          queue,
+          onNavigate,
+        }),
+      { wrapper: Wrapper },
+    );
+
+    await dispatchKey("ArrowLeft");
+    await dispatchKey("ArrowRight");
+
+    expect(queue.navigatePrev).toHaveBeenCalledTimes(1);
+    expect(queue.navigateNext).toHaveBeenCalledTimes(1);
+    expect(onNavigate).not.toHaveBeenCalled();
+  });
+
+  it("SPEC-CORE-190 I3 leaves the arrows to the player on a video queue page", async () => {
+    const queue = queueWalk();
+    renderHook(
+      () =>
+        useFileNav({
+          fileId: "current",
+          fileType: "video",
+          queue,
+          onNavigate: vi.fn(),
+        }),
+      { wrapper: Wrapper },
+    );
+
+    await dispatchKey("ArrowLeft");
+    await dispatchKey("ArrowRight");
+
+    expect(queue.navigatePrev).not.toHaveBeenCalled();
+    expect(queue.navigateNext).not.toHaveBeenCalled();
+  });
+
+  it.each(["application/pdf", "application/epub+zip"])(
+    "SPEC-CORE-190 I3 leaves the arrows to the page turner on a %s queue page",
+    async (mimeType) => {
+      const queue = queueWalk();
+      renderHook(
+        () =>
+          useFileNav({
+            fileId: "current",
+            fileType: "document",
+            mimeType,
+            queue,
+            onNavigate: vi.fn(),
+          }),
+        { wrapper: Wrapper },
+      );
+
+      await dispatchKey("ArrowLeft");
+      await dispatchKey("ArrowRight");
+
+      expect(queue.navigatePrev).not.toHaveBeenCalled();
+      expect(queue.navigateNext).not.toHaveBeenCalled();
+    },
+  );
 });

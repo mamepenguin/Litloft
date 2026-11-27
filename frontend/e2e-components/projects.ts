@@ -60,6 +60,7 @@ export const DESKTOP_ONLY = [
   "**/pdf-pages-grid-desktop.spec.ts",
   "**/pdf-pages-grid-scrollbar-desktop.spec.ts",
   "**/context-menu-edge-desktop.spec.ts",
+  "**/queue-page-desktop.spec.ts",
 ];
 
 /** Literals rather than a device preset, which can change under it. */
