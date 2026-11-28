@@ -55,6 +55,21 @@ evidence: |
   5. A random folder queue with nothing stored (a new tab on ?queue=folder&sort=random) fetches /files?…&sort=random&order=desc, so each load shows a new shuffled order, not created_at desc (§1 Folder step 3, I15). Its first rows differed from created_at desc ("122-…" against "【約200万円】…").
   Not judged: inside a collection, row choices, previous / next and advances replace the history entry, so Back left the collection. With a Smart queue the trail reads 動画 / あんこ動画 / title.
   Left behind on the cloned data: the collections "R5 mixed" (flQ0vAgG8SXi) and "R5 videos" (oO1ntCEA3B1n); Spirit's order, with 02 Charon's Burden now last (removed, then re-added). The two trashed files (Alx1ShvKJ5ny, pzIoDOoWFeqf) were restored, and the origin's localStorage and sessionStorage were cleared. The browser tab is closed.
+author_resolutions:
+- claude-read:F7 fix: 0a1ba745d keeps the file's own trail on folder and Smart queue pages; only a collection page replaces it (FileDetailChrome.test.tsx table fails without it).
+- claude-read:F8 fix: 16ac5adaf keeps a collection page's visit-shown pane until the page is left (CollectionDetail.queue.test.tsx fails without it).
+- claude-read:F3 fix: bc6be1f19 counts the inline sidebar in the inspector fit only while it gives its place up; the tree-off 1100x800 case in TreeYield.test.tsx fails without it.
+- claude-read:F2 accept: useInspectorFit.ts is missing from the touch points; the behaviour it carries is fixed under F3 and tested, so only the list is incomplete.
+- claude-read:F1 accept: Breadcrumb.tsx gained an optional ancestorSegments prop used only by the collection trail; listing omission, no runtime effect elsewhere.
+- claude-read:F4 accept: treeVisitStore.ts is the in-memory "shown for the visit" state the spec describes in §1 step 12; listing omission.
+- claude-read:F5 accept: the removed e2e cases measured the retired collection route; the SPEC ids they cited stay cited elsewhere (checked by grep against test_dirs).
+- claude-read:F6 accept: new and adjusted unit tests are test infrastructure for this change; no runtime effect.
+- claude-read:unspecified 3 fix: 5fe9be410 sets the play intent on the first row choice of a collection page with no file open (CollectionDetail.queue.test.tsx fails without it).
+- claude-read:unspecified 1 accept: ending a folder queue drops sort/order even when the listing had them in the URL before Play all; the listing then uses its stored sort (F2 x I3 = 6, below the fix threshold).
+- claude-read:unspecified 2 accept: with the tree off, opening a collection file from a card also shows the item pane for the visit; it keeps the queue visible, which is what the page is for (F3 x I2 = 6).
+- claude-read:unspecified 4 accept: a cold Smart queue shows an empty crumb only until the Smart Collection list answers; after F7 the trail is the file's own, so this applies to the pane name only (F1 x I2 = 2).
+- claude-read:unspecified 5 accept: a hidden visit-shown pane reappears after crossing md or reopening a file (F1 x I2 = 2).
+- claude-read:unspecified 6 accept: a play intent left by a guard-cancelled selection autoplays the next arrival at that same file once (F1 x I2 = 2).
 pending: |
   - The agent_cannot_verify iOS checks of spec §10: background audio and Now Playing across an advance; full screen and Picture in Picture across an advance; the mini player while the phone overlay is open; lock screen and headphone next / previous track on a queue page with Autoplay off.
   - Not driven in this run:
