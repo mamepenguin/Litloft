@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1",
+      "status": "confirmed",
+      "note": "addons/media_import/frontend/lib/linkFailure.ts:9-19 defines linkFailureMessage. Composer.tsx:34,202 and ImportFromUrlDialog.tsx:17,86 import and call it. The touch-point list names no lib/ module. I could not run git to confirm the file is new in this diff."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F2",
+      "status": "confirmed",
+      "note": "Reproduced by tracing the code. YouTubeEmbed.tsx:264 returns early when failedVideoIdRef equals the videoId, before the setLoadFailed(false) on line 266 runs. When B's effect ran, line 266 cleared loadFailed, and the ref is set only at line 380, so it still holds A. B's cleanup at lines 407-414 destroys the player and empties the host, and line 451 then renders neither the link card nor a player. The same instance can be reused: LoftPlayer.tsx:64-81 does not reset its state to loading or key the Player when fileId changes, and line 108 renders the same component type with the new url. loadYouTubeIframeApi.ts:69-74 clears the cached promise on a failed load, so B's later load can succeed."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F3",
+      "status": "rejected_with_evidence",
+      "note": "backend/app/services/diskpath.py:72-73 raises AmbiguousPath only when strict=True, and resolve_on_disk defaults to strict=False (line 100). service.py:370 calls resolve_on_disk(drive_path, relative_path) without strict, so _walk takes matches[0] (line 74) and never raises AmbiguousPath. The refresh path in router.py:265-270 cannot get that exception."
+    }
+  ],
+  "unspecified_scores": [
+    {
+      "source_reviewer": "claude-read",
+      "index": 0,
+      "frequency": 1,
+      "impact": 5,
+      "reason": "The IFrame API load has to fail for one video, succeed for another, and then the same player instance has to return to the first (for example A→B→A in a collection or through navigation). The user then sees an empty black player box with no link and no retry, until the page reloads."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "index": 1,
+      "frequency": 5,
+      "impact": 1,
+      "reason": "Every question about a .loft video with a position now reads one small file from disk, even when the profile cannot see images, and the user notices nothing."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "index": 2,
+      "frequency": 0,
+      "impact": 2,
+      "reason": "The url field would need surrounding whitespace, and the app does not write .loft files that way, so the file would have to be hand-edited before a fetch could get a padded URL."
+    }
+  ],
+  "specification_compliance": [
+    "I6: the YouTubeEmbed sequence in F2 (a failed load, then a different video, then the failed id again on the same instance) renders an empty box rather than a link, which contradicts 'it never renders nothing'.",
+    "I4b: in the no-row refresh path, OSError/ValueError and an unusable url map to 404 (router.py:259-305). AmbiguousPath cannot occur there because resolution is non-strict."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    {
+      "behavior": "When LoftPlayer's fileId changes, it keeps showing the previous content and passes the new fileId with the old url to the embed until the new fetch resolves.",
+      "frequency": 5,
+      "impact": 2,
+      "reason": "Moving between .loft files, for example to the next video in a collection, briefly mounts or keeps the previous video's player under the new fileId, which can cause a short flash of the old video."
+    }
+  ],
+  "regression_risks": [
+    "YouTubeEmbed's failedVideoIdRef guard interacts with instance reuse across fileId changes in LoftPlayer."
+  ],
+  "test_coverage": [
+    "I did not inspect whether any test covers the reuse sequence A-fail→B-success→A in YouTubeEmbed."
+  ],
+  "not_verified": [
+    "I could not confirm with git that linkFailure.ts is new in this diff.",
+    "I did not execute any frontend or backend tests.",
+    "I did not check whether parent pages above LoftPlayer remount it per fileId (for example with a key prop), which would affect how often F2 can occur."
+  ],
+  "confidence": 82
+}

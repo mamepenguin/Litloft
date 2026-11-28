@@ -1,0 +1,9 @@
+addons/intelligence/tests/test_spec_addon_114_text_video_frames.py
+addons/media_import/backend/tests/test_spec_addon_188_189_link_errors.py
+addons/media_import/frontend/__tests__/importErrorCases.tsx
+addons/media_import/frontend/players/__tests__/EmbedLinkCard.test.tsx
+addons/media_import/frontend/players/__tests__/loadYouTubeIframeApi.test.ts
+frontend/src/components/loft/__tests__/LoftPlayer.pictureOverlay.test.tsx
+frontend/src/components/loft/__tests__/LoftPlayer.readFailure.ja.test.tsx
+frontend/src/components/loft/__tests__/LoftPlayer.readFailure.test.tsx
+frontend/src/components/loft/__tests__/LoftPlayer.test.tsx

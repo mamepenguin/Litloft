@@ -16,7 +16,12 @@ function ProbeEmbed(props: LoftEmbedProps) {
 function serve(provider: string, url: string) {
   vi.stubGlobal(
     "fetch",
-    vi.fn().mockResolvedValue({ json: async () => ({ provider, url }) }),
+    vi.fn(async () =>
+      new Response(JSON.stringify({ provider, url }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    ),
   );
 }
 

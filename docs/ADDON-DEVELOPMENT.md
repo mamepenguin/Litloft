@@ -1383,6 +1383,10 @@ provider's URLs:
   `@/components/loft/playerRegistry`, imported from `slots.ts`. The component
   receives `LoftEmbedProps` (`frontend/src/components/loft/types.ts`). The
   name `generic` is reserved; it renders a link card.
+  An embed that cannot play its URL (no video id in it, or the provider's
+  player failed to load) renders `GenericLinkCard` from
+  `@/components/loft/GenericLinkCard` with the props it received, rather than
+  nothing.
 
 `addons/media_import` registers YouTube and Vimeo this way.
 

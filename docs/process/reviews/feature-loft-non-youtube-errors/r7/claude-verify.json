@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [],
+  "unspecified_scores": [
+    {
+      "source_reviewer": "claude-read",
+      "index": 0,
+      "frequency": 1,
+      "impact": 2,
+      "reason": "The reported behavior exists in the code. YouTubeEmbed.tsx:127-130 keys failedVideoIdRef on videoId only, and the effect at :266-267 returns early when the video id matches. So if the IFrame API load failed (rare: offline or a script blocker) and the user then goes straight to a second .loft of the same video without a remount, that file shows the link card from the earlier failure (loadFailed stays true) and no new load is tried, even though loadYouTubeIframeApi.ts:69-74 resets the cache so a retry could work; the user still gets a working link and a reload fixes it."
+    }
+  ],
+  "specification_compliance": [
+    "I6: YouTubeEmbed.tsx:454-455 renders GenericLinkCard when there is no videoId or when loadFailed is set. failedVideoIdRef (:127, :267, :383) keeps a remount or rerun from building a player after a failed load, and loadYouTubeIframeApi.ts:69-74 clears the cached promise and the script tag when the script fails, so a later mount tries the load again.",
+    "I7: the embedRestricted branch (YouTubeEmbed.tsx:458) is still separate from the link card path and only applies when loadFailed is false.",
+    "I10: LoftPlayer.tsx:64-81 uses a per-effect `current` flag, so an answer for an earlier fileId cannot change the state. Keeping the previous content while the new fetch is pending is intended and covered by a test (LoftPlayer.readFailure.test.tsx:124-129).",
+    "I9: LoftPlayer.tsx:68-76 treats a non-OK status, a JSON parse failure or a body that fails isLoftContent as the `failed` state, which renders the localized loftReadFailed message."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    {
+      "behavior": "When LoftPlayer's fileId changes, the old file's content stays rendered until the new .loft fetch resolves. In that window the embed gets the new fileId together with the old URL, so a player for the previous video can briefly be bound to the new file's progress tracking.",
+      "frequency": 1,
+      "impact": 2,
+      "reason": "Moving between two .loft files in place keeps the previous video on screen for the short fetch window on a LAN; the 5-second progress threshold makes a wrong progress write unlikely."
+    }
+  ],
+  "regression_risks": [
+    "The no-retry guard in YouTubeEmbed is keyed on videoId and not fileId, so it carries across files that share a video id.",
+    "The stale content kept in LoftPlayer during a fileId transition depends on the embed handling a fileId/url pair that does not match."
+  ],
+  "test_coverage": [
+    "LoftPlayer.readFailure.test.tsx covers read failures, a stale answer after a fileId change, and recovery on a later file.",
+    "I found no test of YouTubeEmbed for the failed-load guard when two fileIds share one video id."
+  ],
+  "not_verified": [
+    "Backend router/service changes behind I1-I4b (create_loft, refresh_loft, error classification) were not read.",
+    "Composer.tsx, ImportFromUrlDialog.tsx and api.ts error mapping (I2, I2b) were not read.",
+    "The intelligence file_question _has_frame_source change (I8) and the caption badge messages (I5) were not read.",
+    "VimeoEmbed.tsx was not read.",
+    "Whether FilePreview remounts LoftPlayer on navigation in real routing was not checked."
+  ],
+  "confidence": 80,
+  "coverage": [
+    {
+      "path": "addons/media_import/frontend/players/YouTubeEmbed.tsx",
+      "read": "partial",
+      "reason": "Lines 105-464 cover the load-failure guard and the render branches."
+    },
+    {
+      "path": "addons/media_import/frontend/players/loadYouTubeIframeApi.ts",
+      "read": "full",
+      "reason": "Retry behavior after a script failure."
+    },
+    {
+      "path": "frontend/src/components/loft/LoftPlayer.tsx",
+      "read": "partial",
+      "reason": "Fetch effect and render branches (lines 40-121)."
+    }
+  ]
+}
