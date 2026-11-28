@@ -78,6 +78,12 @@ author_resolutions:
 - r8 claude-read:unspecified 2 accept: same as r7 unspecified 1 (F2 x I3 = 6).
 - r8 claude-read:unspecified 3 accept: same as r7 unspecified 6 (F1 x I3 = 3).
 - r8 claude-read:unspecified 4 accept: same as r7 unspecified 5 (F1 x I2 = 2).
+- r9 claude-read:F1 accept: a visit-shown pane the reader hid on the list stays hidden when Play is pressed again; one press of the pane button shows it (F2 x I3 = 6, below the fix threshold).
+- r9 claude-read:unspecified 1 accept: same as r9 F1 (F2 x I3 = 6).
+- r9 claude-read:unspecified 2 accept: same as r8 unspecified 1 (F4 x I2 = 8).
+- r9 claude-read:unspecified 3 accept: same as r7 unspecified 1 (F2 x I3 = 6).
+- r9 claude-read:unspecified 4 accept: same as r7 unspecified 5 (F1 x I2 = 2).
+- r9 claude-read:unspecified 5 accept: same as r7 unspecified 6 (F1 x I2 = 2).
 pending: |
   - The agent_cannot_verify iOS checks of spec §10: background audio and Now Playing across an advance; full screen and Picture in Picture across an advance; the mini player while the phone overlay is open; lock screen and headphone next / previous track on a queue page with Autoplay off.
   - Not driven in this run:

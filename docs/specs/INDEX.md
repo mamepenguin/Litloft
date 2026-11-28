@@ -380,7 +380,7 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-187 | implemented | docs/specs/subtitle-sidecars.md | sha256:a4f02644cb6995df4e62ebb72e0f86523974d57e56e96a038f6bd9b518812d8d |
 | SPEC-CORE-188 | implemented | docs/specs/sidebar-follows-events.md | sha256:c0630a41f8072f90a1f9cfbde1a80830d6b007dfc552f6324dee157f1efe5cac |
 | SPEC-CORE-189 | implemented | docs/specs/sidebar-follows-events.md | sha256:c0630a41f8072f90a1f9cfbde1a80830d6b007dfc552f6324dee157f1efe5cac |
-| SPEC-CORE-190 | approved | docs/specs/collection-play-two-pane.md | sha256:17637e522d4bd7687f504bf1d3f065b5596654d09b95229f55be0aeea30869e4 |
-| SPEC-CORE-191 | approved | docs/specs/collection-play-two-pane.md | sha256:17637e522d4bd7687f504bf1d3f065b5596654d09b95229f55be0aeea30869e4 |
-| SPEC-CORE-192 | approved | docs/specs/collection-play-two-pane.md | sha256:17637e522d4bd7687f504bf1d3f065b5596654d09b95229f55be0aeea30869e4 |
-| SPEC-CORE-193 | approved | docs/specs/collection-play-two-pane.md | sha256:17637e522d4bd7687f504bf1d3f065b5596654d09b95229f55be0aeea30869e4 |
+| SPEC-CORE-190 | implemented | docs/specs/collection-play-two-pane.md | sha256:17637e522d4bd7687f504bf1d3f065b5596654d09b95229f55be0aeea30869e4 |
+| SPEC-CORE-191 | implemented | docs/specs/collection-play-two-pane.md | sha256:17637e522d4bd7687f504bf1d3f065b5596654d09b95229f55be0aeea30869e4 |
+| SPEC-CORE-192 | implemented | docs/specs/collection-play-two-pane.md | sha256:17637e522d4bd7687f504bf1d3f065b5596654d09b95229f55be0aeea30869e4 |
+| SPEC-CORE-193 | implemented | docs/specs/collection-play-two-pane.md | sha256:17637e522d4bd7687f504bf1d3f065b5596654d09b95229f55be0aeea30869e4 |
