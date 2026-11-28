@@ -390,3 +390,5 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-191 | implemented | docs/specs/loft-non-youtube-errors.md | sha256:d08072139020e1d15e2a0e30be0caa10ce8fea2930606713ab62794f22290ba2 |
 | SPEC-ADDON-192 | implemented | docs/specs/loft-non-youtube-errors.md | sha256:d08072139020e1d15e2a0e30be0caa10ce8fea2930606713ab62794f22290ba2 |
 | SPEC-CORE-195 | implemented | docs/specs/loft-non-youtube-errors.md | sha256:d08072139020e1d15e2a0e30be0caa10ce8fea2930606713ab62794f22290ba2 |
+| SPEC-CORE-196 | implemented | docs/specs/addon-video-source.md | sha256:16ce7779a1bffec7b68d05b4779c1d9375bbe91b78b40442b8adbe614aa3da78 |
+| SPEC-CORE-197 | implemented | docs/specs/addon-video-source.md | sha256:16ce7779a1bffec7b68d05b4779c1d9375bbe91b78b40442b8adbe614aa3da78 |
