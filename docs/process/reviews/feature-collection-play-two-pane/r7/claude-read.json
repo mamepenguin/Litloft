@@ -1,0 +1,789 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "F1",
+      "origin": "reviewer",
+      "claim": "frontend/src/components/Breadcrumb.tsx is changed (new `ancestorSegments` prop) but is not in the touch-point list.",
+      "impact": "Breadcrumb is shared by every folder listing and file page trail; a change there is outside the reviewed scope, and readers of the spec are not pointed at it.",
+      "evidence": "Breadcrumb.tsx:50-54 adds `ancestorSegments`; Breadcrumb.tsx:89-93 appends them to the trail items, keyed by href. Used by FileDetailChrome.tsx:198-202 and QueueTrail.tsx.",
+      "repro": "Compare the diff's file list with the spec's Touch points: Breadcrumb.tsx is absent.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Unplanned touch point; no declared invariant is broken by the presence of the change itself.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add Breadcrumb.tsx to the spec's touch points."
+    },
+    {
+      "id": "F2",
+      "origin": "reviewer",
+      "claim": "frontend/src/components/FileDetail/hooks/useInspectorFit.ts is changed (new `extraRowWidth` input) and FileDetailShell feeds it the inline sidebar's padding, but useInspectorFit.ts is not in the touch-point list.",
+      "impact": "The inspector form decision (beside / stacked / overlay) and the yield decision for every file page, not only queue pages, now depend on this change.",
+      "evidence": "useInspectorFit.ts:23-28 and 100-105 add the extra width to `rowWidth`, which drives `fits`, `narrow` and the form; FileDetailShell.tsx `inlineSidebarWidth` reads `main.parentElement`'s padding-left and passes it as `extraRowWidth`.",
+      "repro": "Compare the diff's file list with the spec's Touch points: useInspectorFit.ts is absent.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Unplanned touch point in a shared layout hook.",
+        "invariant_ref": null
+      },
+      "severity": "MEDIUM",
+      "proposed_fix": "List useInspectorFit.ts in the touch points, or keep the adjustment inside the queue page."
+    },
+    {
+      "id": "F3",
+      "origin": "reviewer",
+      "claim": "On any file page where the sidebar stays inline (tree setting off, sidebar open, not a phone), the inspector-fit measurement adds the sidebar's 240px to the row's width even though the sidebar is not going away, so the form is decided for a row wider than the one on screen.",
+      "impact": "With the tree off and the sidebar open at laptop widths (e.g. a 1100px window: host ≈ 860px < 968px threshold), a player file that used to go to `stacked` now goes to `beside`, leaving the player column narrower than PLAYER_MIN_REM; the layout is silently wrong on ordinary folder file pages that have nothing to do with a queue.",
+      "evidence": "TwoPaneLayout.tsx:174 makes the sidebar overlay only when `treeBeside || yielded`, so with the tree off the sidebar remains inline and the content keeps its pl-60. FileDetailShell `inlineSidebarWidth` returns that padding unconditionally, and useInspectorFit.ts:100-116 computes `fits = rowWidth + paneWidth >= threshold` with it. INSPECTOR_BESIDE_MIN_REM = 60.5rem (layoutSizes.ts:15-16). The only test of the new path (TreeYield.test.tsx 'the sidebar still holds its inline width') checks the yield with the tree on, not the form with the tree off.",
+      "repro": "not_reproduced (read only). Mental mutation: tree:enabled off, sidebar-open true, 1100×800, open a video on /drive/x?file=v → host.clientWidth 860 + padding 240 = 1100 ≥ 968 → form 'beside' instead of 'stacked'.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Silently wrong layout on ordinary file pages; none of the declared invariants (I1–I36) names the form decision outside a yield.",
+        "invariant_ref": null
+      },
+      "severity": "HIGH",
+      "proposed_fix": "Count the sidebar padding only while the sidebar is transitioning to its overlay form (e.g. when the page has a left pane shown beside or yielded), not unconditionally."
+    },
+    {
+      "id": "F4",
+      "origin": "reviewer",
+      "claim": "A new store frontend/src/lib/treeVisitStore.ts is added outside the queue module and is not in the touch-point list, which names only treeNarrowOpenStore and treeYieldStore as the tree-pane stores.",
+      "impact": "A new piece of global tree-pane state (the 'shown for the visit' flag read by useTreeVisible and TwoPaneLayout) exists that the spec's §4 'tree-pane stores' list does not mention.",
+      "evidence": "treeVisitStore.ts (new); read by useTreeVisible.ts (visitVisible, toggle) and TwoPaneLayout.tsx:117-133,156.",
+      "repro": "Compare the diff with the spec's Touch points and §4 browser-storage list.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Unplanned touch point; in-memory only, so §4's 'no storage written' still holds.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add treeVisitStore.ts to the touch points."
+    },
+    {
+      "id": "F5",
+      "origin": "reviewer",
+      "claim": "Five e2e files are changed that the touch-point list does not name: document-summary-inspector-desktop.spec.ts, file-header-row-desktop.spec.ts, focus-mode-desktop.spec.ts, header-row-crowding.spec.ts and scenes-scroll-list.cases.ts; queuePage.tsx is a new fixture not named either.",
+      "impact": "Collection-route cases of SPEC-CORE-131 I1, SPEC-CORE-098 I1/I3/I5/I10, SPEC-CORE-094 D2 and SPEC-CORE-128 §1.1/§1.3 are deleted without the spec recording where those citations now live.",
+      "evidence": "document-summary-inspector-desktop.spec.ts removes the 'collection route PDF 80vh' case; file-header-row-desktop.spec.ts removes six header-row-collection cases; focus-mode-desktop.spec.ts removes two /files/{id} cases; header-row-crowding.spec.ts removes the file-detail-chrome-collection case; scenes-scroll-list.cases.ts drops COLLECTION.",
+      "repro": "Compare the diff's e2e paths with the spec's 'e2e files that draw or assert the collection surface' list.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Unplanned touch points; the removed cases test a removed surface.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Add these files to the touch-point list."
+    },
+    {
+      "id": "F6",
+      "origin": "reviewer",
+      "claim": "Unit tests outside the touch-point list are changed or added: FileNavControls.test.tsx, WorkbenchPendingEntry.test.tsx, TreeYield.test.tsx, TreeToggle.test.tsx, componentFixtureParity.test.tsx, useFileNav.test.tsx, useSelectedFile.test.tsx, and new layout.queue, CollectionDetail.queue/queueState, FolderBrowser.playAll, QueueMediaSession, queueStrings, TwoPaneLayout.queueOverlay/queuePane and queue.test.",
+      "impact": "Minor: the spec lists rewritten and removed tests but not these; TreeYield.test.tsx in particular changes its harness (sidebar state, main/padding wrapper) for the new measurement in F3.",
+      "evidence": "Diff headers for each file.",
+      "repro": "Compare the diff with the spec's test lists.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "Unplanned touch points in tests only.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    },
+    {
+      "id": "F7",
+      "origin": "reviewer",
+      "claim": "On folder and Smart queue pages, the page row's trail is replaced by drive / queue name / file title, and the narrow heading's line 1 by the queue name, although the revised SPEC-CORE-094 I5 allows a different trail only on a collection page.",
+      "impact": "On a Smart queue (drive root route) the trail no longer shows the file's own folders and its crumb points to the saved search (or to the drive root, with an empty label, while the Smart Collection list is pending); on a nested folder queue the intermediate ancestors disappear. The row differs from the same file reached from its folder in more than I7 permits.",
+      "evidence": "FileDetailChrome.tsx:70-81 uses queuePage.name/href for parentName/parentHref whenever a QueuePage is provided; FileDetailChrome.tsx:195-205 passes folderPath undefined and the queue as the only ancestor. FolderQueueHost provides a QueuePage for queue=folder and queue=smart:… with name = folder leaf or Smart name (\"\" before getSmartFolders answers for a cold queue) and href = trailHref (falls back to folderQueueHref(drive, \"\")).",
+      "repro": "not_reproduced. Open /drive/main/a/b/c?file=v&queue=folder → trail reads main / c / title instead of main / a / b / c / title. Open /drive/main?file=v&queue=smart:7 for a file in movies/2026 → trail reads main / <Smart name> / title.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "A",
+        "reason": "I28 (revised SPEC-CORE-094 I5) keeps today's destinations except on a collection page; I7 allows trail differences only per D2 (collection page).",
+        "invariant_ref": "I28"
+      },
+      "severity": "MEDIUM",
+      "proposed_fix": "Only replace the trail when the queue is a collection; keep folderPath for folder and Smart queues."
+    },
+    {
+      "id": "F8",
+      "origin": "reviewer",
+      "claim": "On a collection page with the tree setting off, the pane shown for the visit ends as soon as ?file= is cleared, so the collection list (no file open) shows no pane although the visit is supposed to last until the page is left.",
+      "impact": "After Play with the tree off, pressing the collection crumb or the pane's collection name (which clear ?file=) makes the item pane disappear from the collection page; the user loses the list they just came from.",
+      "evidence": "TwoPaneLayout.tsx:125-131 calls treeVisitStore.clear(drive) whenever `queuePane && hasFile` is false; CollectionDetail passes queuePane={fileId !== null}. With visit cleared and the setting off, useTreeVisible returns visible=false and the aside gets w-0 (TwoPaneLayout.tsx:180-185).",
+      "repro": "not_reproduced. tree:enabled off, md+ width, open /drive/main/collections/c1, press Play (pane shows for the visit), press the collection name in the pane → ?file= cleared → aside width 0.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "A",
+        "reason": "I19 (revised SPEC-CORE-082 I9): at md and wider the listing shows the pane when a queue pane is shown for the visit on a collection page; spec §1 step 12 says the visit ends when the page is left.",
+        "invariant_ref": "I19"
+      },
+      "severity": "MEDIUM",
+      "proposed_fix": "On a collection page, keep the visit active until TwoPaneLayout unmounts or the route changes, not until the file is cleared."
+    }
+  ],
+  "specification_compliance": [
+    "I6 legacy redirects: buildLegacyQueueUrl implements precedence collection > playlist > smart_collection > folder_play, carries t/page/section/highlight/find/edit, drops nav, keeps sort/order only for the folder form; page.test covers it.",
+    "I2/I10: nextPlayableAfter returns null when the ended file is not held and never re-selects the ended entry; FolderQueueHost gates on status === 'ready'.",
+    "I3: queueWalk never wraps; system next/previous track use onEnded/previousTrack with loop wrap.",
+    "I11: autoPlay comes from a one-shot in-memory intent (playIntent.ts) consumed in RightPaneFile; players OR it with the preference, so passing false does not suppress the preference.",
+    "I5: useSelectedFile drops queue/sort/order on clearFile and on a selection the ready queue does not hold; keeps them while loading.",
+    "I19 not met for the collection list after ?file= is cleared (F8).",
+    "I28/I7 not met for folder and Smart queue trails (F7).",
+    "I8: collection rows always draw move/remove buttons; QueueRows draws none."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    {
+      "behavior": "Ending a folder queue (× or a choice outside the queue, or clearFile) removes `sort` and `order` from the URL even when they were the listing's own sort rather than ones Play all added, including on a Smart queue page.",
+      "frequency": 2,
+      "impact": 3,
+      "reason": "A user who sorted the listing via URL then plays and closes the queue sees the listing fall back to its stored sort."
+    },
+    {
+      "behavior": "With the tree setting off, opening a collection file by a plain link or grid card (not a queue start) also shows the queue pane for the visit.",
+      "frequency": 3,
+      "impact": 2,
+      "reason": "Any ?file= on a collection page at md+ triggers treeVisitStore.show, not only Play or a row choice."
+    },
+    {
+      "behavior": "On a collection page with no file open, choosing a row in the item pane selects the file without a play intent, so it starts only when Autoplay is on.",
+      "frequency": 4,
+      "impact": 3,
+      "reason": "onSelect is undefined until a file is open, so the first row choice is not treated as a queue action."
+    },
+    {
+      "behavior": "While a cold Smart queue's Smart Collection list is pending or fails, the page row's trail draws an empty crumb linking to the drive root.",
+      "frequency": 1,
+      "impact": 2,
+      "reason": "name is \"\" and trailHref falls back to folderQueueHref(drive, \"\")."
+    },
+    {
+      "behavior": "Hiding a visit-shown pane with the button is forgotten when the viewport crosses md and back, or when the file is cleared and reopened, because show() resets hidden to false.",
+      "frequency": 1,
+      "impact": 2,
+      "reason": "The layout effect clears and re-shows the visit on those transitions."
+    },
+    {
+      "behavior": "A play intent left pending by a selection that the navigation guard cancels is consumed by the next arrival at that same file by any route, which then autoplays regardless of the preference.",
+      "frequency": 1,
+      "impact": 2,
+      "reason": "playIntent.ts holds the id until takePlayIntent matches it."
+    }
+  ],
+  "regression_risks": [
+    "Inspector form on every file page with an inline sidebar (F3).",
+    "FileDetailChrome's breadcrumb container gained overflow-hidden for all file pages; truncation/overlap behaviour may change outside queue pages.",
+    "FileDetailContainer now enables find on every host (no surface check) and hasInspector is always true.",
+    "FileDetailShell unmounts MobileInspectorSheet while the phone queue overlay covers the page; sheet-internal state not held by the shell is lost.",
+    "RightPaneFile consumes the play intent during render (setPlay in render); a discarded concurrent render would lose it."
+  ],
+  "test_coverage": [
+    "No test opens a non-queue file page with tree off and sidebar inline to pin the inspector form after the extraRowWidth change (F3).",
+    "No test clears ?file= on a collection page with tree off and checks the pane stays (F8); TwoPaneLayout.queuePane.test only covers the file-open state.",
+    "No test asserts the trail on folder or Smart queue pages keeps the file's folders (F7); layout.queue.test stubs FileDetailContent and never renders FileDetailChrome.",
+    "The queue-page e2e fixture builds its own QueuePageState with queueWalk instead of CollectionDetail/FolderQueueHost, so the e2e checks layout, not the real hosts' wiring.",
+    "I1 (final position recorded on end) has no new test across queue kinds; relies on existing VideoPlayer handleEnded.",
+    "Legacy redirect, folder Play all, Smart Play, advance, loop, previous-track and I10 are covered by unit tests at the route/host level."
+  ],
+  "not_verified": [
+    "I did not run any test or build; all claims are from reading.",
+    "I did not read SidebarProvider or AppShell to confirm the content frame's padding equals the sidebar width while inline (F3 relies on TreeYield.test's comment and TwoPaneLayout.tsx:174).",
+    "I did not read ShellLayout, FileDetailShell, FileDetailContainer, MarkdownDocumentLayout, CollectionItemsPane, ChromeButtons, TreeToggle beyond the diff hunks.",
+    "I did not verify watch-progress recording on end (I1) in usePlaybackProgress.",
+    "I did not check iOS/native shell media session behaviour."
+  ],
+  "coverage": [
+    {
+      "path": "frontend/e2e-components/collection-workbench-metrics-desktop.spec.ts",
+      "read": "full",
+      "reason": "Deleted file; whole content in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/document-summary-inspector-desktop.spec.ts",
+      "read": "partial",
+      "reason": "Changed hunk only (removed collection case)."
+    },
+    {
+      "path": "frontend/e2e-components/file-header-row-desktop.spec.ts",
+      "read": "partial",
+      "reason": "Changed hunks only."
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/app.tsx",
+      "read": "partial",
+      "reason": "Changed hunks only (imports and arrangement map)."
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/fileHeaderRow.tsx",
+      "read": "partial",
+      "reason": "Changed hunks only."
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/focusMode.tsx",
+      "read": "partial",
+      "reason": "Changed hunks only."
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/inspectorResponsive.tsx",
+      "read": "partial",
+      "reason": "Changed hunks only."
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/queuePage.tsx",
+      "read": "full",
+      "reason": "New file; whole content in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/focus-mode-desktop.spec.ts",
+      "read": "partial",
+      "reason": "Changed hunks only."
+    },
+    {
+      "path": "frontend/e2e-components/header-row-crowding.spec.ts",
+      "read": "partial",
+      "reason": "Changed hunk only."
+    },
+    {
+      "path": "frontend/e2e-components/player-workbench-desktop.spec.ts",
+      "read": "partial",
+      "reason": "Changed hunks only."
+    },
+    {
+      "path": "frontend/e2e-components/projects.ts",
+      "read": "partial",
+      "reason": "Changed hunks only."
+    },
+    {
+      "path": "frontend/e2e-components/queue-page-desktop.spec.ts",
+      "read": "full",
+      "reason": "New file; whole content in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/queue-page-phone.spec.ts",
+      "read": "full",
+      "reason": "New file; whole content in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/scenes-scroll-list-desktop.spec.ts",
+      "read": "partial",
+      "reason": "Changed hunks only."
+    },
+    {
+      "path": "frontend/e2e-components/scenes-scroll-list.cases.ts",
+      "read": "partial",
+      "reason": "Changed hunk only."
+    },
+    {
+      "path": "frontend/e2e-components/spec-viewport.spec.ts",
+      "read": "partial",
+      "reason": "Changed hunks only."
+    },
+    {
+      "path": "frontend/e2e-components/workbench-no-panel-desktop.spec.ts",
+      "read": "partial",
+      "reason": "Changed hunks only."
+    },
+    {
+      "path": "frontend/e2e-components/workbench-split-desktop.spec.ts",
+      "read": "partial",
+      "reason": "Changed hunks only."
+    },
+    {
+      "path": "frontend/e2e-layout/fixtures/no-horizontal-scroll.html",
+      "read": "partial",
+      "reason": "Changed hunks only."
+    },
+    {
+      "path": "frontend/e2e-layout/no-horizontal-scroll-states.spec.ts",
+      "read": "full",
+      "reason": "Deleted file; whole content in the diff."
+    },
+    {
+      "path": "frontend/e2e-layout/no-horizontal-scroll.spec.ts",
+      "read": "partial",
+      "reason": "Changed hunks only."
+    },
+    {
+      "path": "frontend/src/app/drive/[name]/layout.tsx",
+      "read": "full",
+      "reason": "Read the whole file."
+    },
+    {
+      "path": "frontend/src/app/files/[id]/page.tsx",
+      "read": "partial",
+      "reason": "Changed hunks in the diff."
+    },
+    {
+      "path": "frontend/src/app/globals.css",
+      "read": "partial",
+      "reason": "Changed hunk only (removed collection rule)."
+    },
+    {
+      "path": "frontend/src/components/ArchivePreview.tsx",
+      "read": "partial",
+      "reason": "Changed hunks (comments only)."
+    },
+    {
+      "path": "frontend/src/components/AudioPlayer.tsx",
+      "read": "partial",
+      "reason": "Changed hunks plus grep of autoPlay handling (lines 22-42,129)."
+    },
+    {
+      "path": "frontend/src/components/Breadcrumb.tsx",
+      "read": "partial",
+      "reason": "Lines 60-180 read from the file plus diff hunks."
+    },
+    {
+      "path": "frontend/src/components/ChromeButtons.tsx",
+      "read": "partial",
+      "reason": "Changed hunks only."
+    },
+    {
+      "path": "frontend/src/components/CollectionDetail.tsx",
+      "read": "partial",
+      "reason": "Changed hunks in the diff."
+    },
+    {
+      "path": "frontend/src/components/CollectionItemsPane.tsx",
+      "read": "partial",
+      "reason": "Changed hunks in the diff."
+    },
+    {
+      "path": "frontend/src/components/CollectionPanel.tsx",
+      "read": "full",
+      "reason": "Deleted file; whole content in the diff."
+    },
+    {
+      "path": "frontend/src/components/CollectionPicker.tsx",
+      "read": "partial",
+      "reason": "Changed hunks only."
+    },
+    {
+      "path": "frontend/src/components/FileActions.tsx",
+      "read": "partial",
+      "reason": "Changed hunk with its enclosing handleDelete."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/FileDetailCanvas.tsx",
+      "read": "full",
+      "reason": "Deleted file; whole content in the diff."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/FileDetailChrome.tsx",
+      "read": "partial",
+      "reason": "Lines 40-219 read from the file."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/FileDetailContainer.tsx",
+      "read": "partial",
+      "reason": "Changed hunks only."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/FileDetailPresenter.tsx",
+      "read": "partial",
+      "reason": "Changed hunks in the diff (most of the file)."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/FileDetailSkeleton.tsx",
+      "read": "partial",
+      "reason": "Changed hunks only."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/FileNavControls.tsx",
+      "read": "partial",
+      "reason": "Changed hunks only."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/ShellLayout.tsx",
+      "read": "partial",
+      "reason": "Changed hunks only."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/hooks/useInspectorFit.ts",
+      "read": "partial",
+      "reason": "Lines 60-150 read from the file plus diff hunks."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/workbench/panels.tsx",
+      "read": "partial",
+      "reason": "Changed hunks only."
+    },
+    {
+      "path": "frontend/src/components/FileDetailFullScreen.tsx",
+      "read": "full",
+      "reason": "Deleted file; whole content in the diff."
+    },
+    {
+      "path": "frontend/src/components/FileDetailShell.tsx",
+      "read": "partial",
+      "reason": "Changed hunks only."
+    },
+    {
+      "path": "frontend/src/components/FolderBrowser.tsx",
+      "read": "partial",
+      "reason": "Changed hunk with handlePlayAll."
+    },
+    {
+      "path": "frontend/src/components/SmartFolderSaveButton.tsx",
+      "read": "partial",
+      "reason": "Changed hunks only."
+    },
+    {
+      "path": "frontend/src/components/TreeToggle.tsx",
+      "read": "partial",
+      "reason": "Changed hunks only."
+    },
+    {
+      "path": "frontend/src/components/VideoPlayer.tsx",
+      "read": "partial",
+      "reason": "Lines 120-229 read from the file."
+    },
+    {
+      "path": "frontend/src/components/folder/RightPaneFile.tsx",
+      "read": "full",
+      "reason": "Read the whole file."
+    },
+    {
+      "path": "frontend/src/components/folder/TwoPaneLayout.tsx",
+      "read": "full",
+      "reason": "Read the whole file."
+    },
+    {
+      "path": "frontend/src/components/markdown/MarkdownDocumentLayout.tsx",
+      "read": "partial",
+      "reason": "Changed hunks only."
+    },
+    {
+      "path": "frontend/src/components/queue/FolderQueueHost.tsx",
+      "read": "full",
+      "reason": "New file; whole content in the diff."
+    },
+    {
+      "path": "frontend/src/components/queue/QueuePageContext.tsx",
+      "read": "full",
+      "reason": "New file; whole content in the diff."
+    },
+    {
+      "path": "frontend/src/components/queue/QueuePane.tsx",
+      "read": "full",
+      "reason": "New file; whole content in the diff."
+    },
+    {
+      "path": "frontend/src/components/queue/QueueRows.tsx",
+      "read": "full",
+      "reason": "New file; whole content in the diff."
+    },
+    {
+      "path": "frontend/src/components/queue/QueueTrail.tsx",
+      "read": "full",
+      "reason": "New file; whole content in the diff."
+    },
+    {
+      "path": "frontend/src/components/queue/folderQueue.ts",
+      "read": "full",
+      "reason": "New file; whole content in the diff."
+    },
+    {
+      "path": "frontend/src/components/queue/loopStorage.ts",
+      "read": "full",
+      "reason": "New file; whole content in the diff."
+    },
+    {
+      "path": "frontend/src/components/queue/playIntent.ts",
+      "read": "full",
+      "reason": "New file; whole content in the diff."
+    },
+    {
+      "path": "frontend/src/components/queue/queue.ts",
+      "read": "full",
+      "reason": "New file; whole content in the diff."
+    },
+    {
+      "path": "frontend/src/components/queue/queuePagePresence.ts",
+      "read": "full",
+      "reason": "New file; whole content in the diff."
+    },
+    {
+      "path": "frontend/src/components/queue/queueSelectionStore.ts",
+      "read": "full",
+      "reason": "New file; whole content in the diff."
+    },
+    {
+      "path": "frontend/src/components/queue/smartQueueSource.ts",
+      "read": "full",
+      "reason": "New file; whole content in the diff."
+    },
+    {
+      "path": "frontend/src/components/sidebar/SidebarCollectionsSection.tsx",
+      "read": "partial",
+      "reason": "Changed hunks only."
+    },
+    {
+      "path": "frontend/src/hooks/useFileNav.ts",
+      "read": "partial",
+      "reason": "Changed hunks in the diff."
+    },
+    {
+      "path": "frontend/src/hooks/useSelectedFile.ts",
+      "read": "partial",
+      "reason": "Changed hunks in the diff."
+    },
+    {
+      "path": "frontend/src/hooks/useTreeVisible.ts",
+      "read": "partial",
+      "reason": "Changed hunks in the diff."
+    },
+    {
+      "path": "frontend/src/lib/canonicalFileUrl.ts",
+      "read": "partial",
+      "reason": "Changed hunks in the diff."
+    },
+    {
+      "path": "frontend/src/lib/collectionChanged.ts",
+      "read": "full",
+      "reason": "New file; whole content in the diff."
+    },
+    {
+      "path": "frontend/src/lib/fileDetailShell.ts",
+      "read": "partial",
+      "reason": "Changed hunks only."
+    },
+    {
+      "path": "frontend/src/lib/fileNavContext.tsx",
+      "read": "partial",
+      "reason": "Changed hunk only."
+    },
+    {
+      "path": "frontend/src/lib/leftPaneContext.ts",
+      "read": "partial",
+      "reason": "Changed hunk only."
+    },
+    {
+      "path": "frontend/src/lib/treeVisitStore.ts",
+      "read": "full",
+      "reason": "New file; whole content in the diff."
+    },
+    {
+      "path": "frontend/src/messages-core/en.json",
+      "read": "partial",
+      "reason": "Changed hunk only."
+    },
+    {
+      "path": "frontend/src/messages-core/ja.json",
+      "read": "partial",
+      "reason": "Changed hunk only."
+    },
+    {
+      "path": "frontend/src/__tests__/section-rows.test.tsx",
+      "read": "partial",
+      "reason": "Changed hunk only."
+    },
+    {
+      "path": "frontend/src/app/__tests__/mediaDetailTheaterCss.test.ts",
+      "read": "full",
+      "reason": "Deleted file; content in the diff."
+    },
+    {
+      "path": "frontend/src/app/drive/[name]/__tests__/layout.queue.test.tsx",
+      "read": "full",
+      "reason": "New file; content in the diff."
+    },
+    {
+      "path": "frontend/src/app/files/[id]/__tests__/page.smartCollection.test.tsx",
+      "read": "partial",
+      "reason": "Changed hunks only."
+    },
+    {
+      "path": "frontend/src/app/files/[id]/__tests__/page.test.tsx",
+      "read": "partial",
+      "reason": "Changed hunks only."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/__tests__/DocumentSideSlot.test.tsx",
+      "read": "partial",
+      "reason": "Changed hunks only."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/__tests__/FileDetailCanvas.test.tsx",
+      "read": "full",
+      "reason": "Deleted file; content in the diff (skimmed)."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/__tests__/FileDetailContent.test.tsx",
+      "read": "partial",
+      "reason": "Changed hunks only."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/__tests__/FileDetailPageRow.test.tsx",
+      "read": "partial",
+      "reason": "Changed hunks only."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/__tests__/FileNavControls.test.tsx",
+      "read": "partial",
+      "reason": "Changed hunks only."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/__tests__/FindInFile.test.tsx",
+      "read": "partial",
+      "reason": "Changed hunks only."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/__tests__/InspectorTabsSlot.test.tsx",
+      "read": "partial",
+      "reason": "Changed hunk only."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/__tests__/LoftMetadataPlacement.test.tsx",
+      "read": "partial",
+      "reason": "Changed hunks only."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/__tests__/PlainTextDocument.test.tsx",
+      "read": "partial",
+      "reason": "Changed hunks only."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/__tests__/WorkbenchCollection.test.tsx",
+      "read": "full",
+      "reason": "Deleted file; content in the diff (skimmed)."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/__tests__/WorkbenchPendingEntry.test.tsx",
+      "read": "partial",
+      "reason": "Changed hunk only."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/__tests__/WorkbenchPlayerFocus.test.tsx",
+      "read": "partial",
+      "reason": "Changed hunks only."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/__tests__/WorkbenchRowBeside.test.tsx",
+      "read": "partial",
+      "reason": "Changed hunks only."
+    },
+    {
+      "path": "frontend/src/components/__tests__/CollectionDetail.queue.test.tsx",
+      "read": "full",
+      "reason": "New file; content in the diff."
+    },
+    {
+      "path": "frontend/src/components/__tests__/CollectionDetail.queueState.test.tsx",
+      "read": "full",
+      "reason": "New file; content in the diff."
+    },
+    {
+      "path": "frontend/src/components/__tests__/CollectionDetail.test.tsx",
+      "read": "partial",
+      "reason": "Changed hunks only."
+    },
+    {
+      "path": "frontend/src/components/__tests__/CollectionPanel.test.tsx",
+      "read": "full",
+      "reason": "Deleted file; content in the diff (skimmed)."
+    },
+    {
+      "path": "frontend/src/components/__tests__/FileDetailFullScreen.headerRow.test.tsx",
+      "read": "full",
+      "reason": "Deleted file; content in the diff (skimmed)."
+    },
+    {
+      "path": "frontend/src/components/__tests__/FileDetailFullScreen.inboxNav.test.tsx",
+      "read": "full",
+      "reason": "Deleted file; content in the diff (skimmed)."
+    },
+    {
+      "path": "frontend/src/components/__tests__/FileDetailFullScreen.smartCollection.test.tsx",
+      "read": "full",
+      "reason": "Deleted file; content in the diff (skimmed)."
+    },
+    {
+      "path": "frontend/src/components/__tests__/FileDetailFullScreen.test.tsx",
+      "read": "full",
+      "reason": "Deleted file; content in the diff (skimmed)."
+    },
+    {
+      "path": "frontend/src/components/__tests__/FolderBrowser.playAll.test.tsx",
+      "read": "full",
+      "reason": "New file; content in the diff."
+    },
+    {
+      "path": "frontend/src/components/__tests__/QueueMediaSession.test.tsx",
+      "read": "full",
+      "reason": "New file; content in the diff."
+    },
+    {
+      "path": "frontend/src/components/__tests__/SearchPage.smartCollectionPlay.test.tsx",
+      "read": "partial",
+      "reason": "Changed hunks only."
+    },
+    {
+      "path": "frontend/src/components/__tests__/TreeToggle.test.tsx",
+      "read": "partial",
+      "reason": "Changed hunks only."
+    },
+    {
+      "path": "frontend/src/components/__tests__/componentFixtureParity.test.tsx",
+      "read": "partial",
+      "reason": "Changed hunks only."
+    },
+    {
+      "path": "frontend/src/components/__tests__/noHorizontalScrollFixtureParity.test.tsx",
+      "read": "partial",
+      "reason": "Changed hunks only."
+    },
+    {
+      "path": "frontend/src/components/__tests__/queueStrings.test.ts",
+      "read": "full",
+      "reason": "New file; content in the diff."
+    },
+    {
+      "path": "frontend/src/components/folder/__tests__/TreeYield.test.tsx",
+      "read": "partial",
+      "reason": "Changed hunks only."
+    },
+    {
+      "path": "frontend/src/components/folder/__tests__/TwoPaneLayout.queueOverlay.test.tsx",
+      "read": "full",
+      "reason": "New file; content in the diff."
+    },
+    {
+      "path": "frontend/src/components/folder/__tests__/TwoPaneLayout.queuePane.test.tsx",
+      "read": "full",
+      "reason": "New file; content in the diff."
+    },
+    {
+      "path": "frontend/src/components/queue/__tests__/queue.test.ts",
+      "read": "full",
+      "reason": "New file; content in the diff."
+    },
+    {
+      "path": "frontend/src/hooks/__tests__/useFileNav.test.tsx",
+      "read": "partial",
+      "reason": "Changed hunks only."
+    },
+    {
+      "path": "frontend/src/hooks/__tests__/useSelectedFile.test.tsx",
+      "read": "partial",
+      "reason": "Changed hunk only."
+    },
+    {
+      "path": "frontend/src/lib/__tests__/fileDetailShell.test.ts",
+      "read": "partial",
+      "reason": "Changed hunks only."
+    }
+  ],
+  "confidence": 75
+}

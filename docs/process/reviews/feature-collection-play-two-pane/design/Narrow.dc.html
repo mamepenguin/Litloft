@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>キューが畳まれた幅</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:#62625b}a:hover{color:#211922}
+</style>
+</helmet>
+<div style="width: 1024px; height: 768px; box-sizing: border-box; display: flex; flex-direction: column; background: #ffffff; color: #211922; font-family: -apple-system, system-ui, 'Segoe UI', 'Hiragino Sans', 'ヒラギノ角ゴ Pro W3', Meiryo, sans-serif; overflow: hidden">
+  <header style="height: 56px; flex-shrink: 0; display: flex; align-items: center; gap: 8px; padding: 0 12px; border-bottom: 1px solid rgba(145,145,140,0.2)">
+    <button type="button" aria-label="メニュー" style="width: 40px; height: 40px; border: 0; border-radius: 12px; background: transparent; color: #62625b; display: flex; align-items: center; justify-content: center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+    <button type="button" aria-label="キューを表示" aria-pressed="false" style="width: 40px; height: 40px; border: 0; border-radius: 12px; background: transparent; color: #62625b; display: flex; align-items: center; justify-content: center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/></svg></button>
+    <div style="flex: 1; display: flex; justify-content: center">
+      <div style="width: 420px; height: 36px; border-radius: 18px; background: #f6f6f3; color: #62625b; font-size: 13px; display: flex; align-items: center; padding: 0 16px">Videos を検索</div>
+    </div>
+    <div style="width: 48px"></div>
+  </header>
+
+  <section style="flex: 1; min-height: 0; display: flex; flex-direction: column">
+    <div style="height: 48px; flex-shrink: 0; display: flex; align-items: center; gap: 8px; padding: 0 16px; border-bottom: 1px solid rgba(145,145,140,0.2); font-size: 13px">
+      <a href="#" style="text-decoration: none; white-space: nowrap">週末に見るライブ映像</a>
+      <span style="color: #91918c">/</span>
+      <span style="color: #211922; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">2024-08 野外ステージ 2 日目</span>
+      <span style="flex: 1"></span>
+      <button type="button" aria-label="前のファイル" style="width: 32px; height: 32px; border: 0; border-radius: 10px; background: transparent; color: #62625b; display: flex; align-items: center; justify-content: center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>
+      <span style="font-size: 12px; color: #62625b">3 / 12</span>
+      <button type="button" aria-label="次のファイル" style="width: 32px; height: 32px; border: 0; border-radius: 10px; background: transparent; color: #62625b; display: flex; align-items: center; justify-content: center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>
+      <button type="button" aria-label="インスペクタを隠す" style="width: 32px; height: 32px; border: 0; border-radius: 10px; background: #f6f6f3; color: #211922; display: flex; align-items: center; justify-content: center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M15 3v18"/></svg></button>
+    </div>
+
+    <div style="flex: 1; min-height: 0; display: flex">
+      <div style="flex: 1; min-width: 0; padding: 16px; display: flex; flex-direction: column; gap: 12px">
+        <div style="width: 100%; aspect-ratio: 16 / 9; border-radius: 16px; background: #0b0b0a"></div>
+        <div style="display: flex; align-items: center; gap: 6px">
+          <button type="button" aria-pressed="false" style="height: 32px; padding: 0 12px; border-radius: 16px; border: 0; background: #e5e5e0; color: #211922; font-size: 12px; font-weight: 500">チャプター</button>
+          <button type="button" aria-pressed="false" style="height: 32px; padding: 0 12px; border-radius: 16px; border: 0; background: #e5e5e0; color: #211922; font-size: 12px; font-weight: 500">ノート</button>
+        </div>
+      </div>
+      <aside aria-label="インスペクタ" style="width: 384px; flex-shrink: 0; border-left: 1px solid rgba(145,145,140,0.2); display: flex; flex-direction: column">
+        <div role="tablist" style="display: flex; padding: 0 8px; border-bottom: 1px solid rgba(145,145,140,0.2)">
+          <button type="button" role="tab" aria-selected="true" style="padding: 8px 12px; border: 0; border-bottom: 2px solid #211922; background: transparent; font-size: 12px; font-weight: 500; color: #211922">情報</button>
+          <button type="button" role="tab" aria-selected="false" style="padding: 8px 12px; border: 0; border-bottom: 2px solid transparent; background: transparent; font-size: 12px; font-weight: 500; color: #62625b">文字起こし</button>
+          <button type="button" role="tab" aria-selected="false" style="padding: 8px 12px; border: 0; border-bottom: 2px solid transparent; background: transparent; font-size: 12px; font-weight: 500; color: #62625b">関連</button>
+        </div>
+        <div style="padding: 16px; display: flex; flex-direction: column; gap: 12px">
+          <div style="font-size: 18px; font-weight: 700; line-height: 1.35">2024-08 野外ステージ 2 日目</div>
+          <div style="font-size: 12px; color: #62625b">47:30 · 1080p · 2.1 GB</div>
+        </div>
+      </aside>
+    </div>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1024,"height":768}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

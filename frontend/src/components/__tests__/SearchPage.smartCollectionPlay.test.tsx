@@ -351,8 +351,18 @@ function navigations(): string[] {
   return [...router.push.mock.calls, ...router.replace.mock.calls].map((c) => String(c[0]));
 }
 
+/**
+ * Every navigation that opens a file for playback, as `path?file=…&queue=…`
+ * with the colon decoded, so the parameters' order and encoding do not count.
+ */
 function playerNavigations(): string[] {
-  return navigations().filter((target) => target.startsWith("/files/"));
+  return navigations()
+    .filter((target) => target.startsWith("/files/") || /[?&]queue=/.test(target))
+    .map((target) => {
+      const url = new URL(target, "http://localhost");
+      if (url.pathname.startsWith("/files/")) return target;
+      return `${url.pathname}?file=${url.searchParams.get("file")}&queue=${url.searchParams.get("queue")}`;
+    });
 }
 
 describe("SPEC-CORE-109 I2 Play shows only on a Smart Collection's unedited Files view with media loaded", () => {
@@ -468,7 +478,7 @@ describe("SPEC-CORE-109 step 3 / I2 pressing Play evaluates once with the page's
   });
 });
 
-describe("SPEC-CORE-109 step 3 / I3 a successful Play stores the queue and opens the first file", () => {
+describe("SPEC-CORE-109 step 3 / I3 / SPEC-CORE-191 step 2 a successful Play stores the queue and opens the first file on the drive root", () => {
   it("keeps the video and audio in order, stores them under the tab's key, and opens the first", async () => {
     evaluation.fn.mockResolvedValue({
       complete: true,
@@ -484,7 +494,7 @@ describe("SPEC-CORE-109 step 3 / I3 a successful Play stores the queue and opens
 
     fireEvent.click(await findPlayButton());
 
-    await waitFor(() => expect(playerNavigations()).toEqual(["/files/v1?smart_collection=sf1"]));
+    await waitFor(() => expect(playerNavigations()).toEqual(["/drive/main?file=v1&queue=smart:sf1"]));
     expect(JSON.parse(sessionStorage.getItem(QUEUE_KEY) ?? "null")).toEqual({
       name: "My Folder",
       files: [
@@ -502,7 +512,7 @@ describe("SPEC-CORE-109 step 3 / I3 a successful Play stores the queue and opens
 
     fireEvent.click(await findPlayButton());
 
-    await waitFor(() => expect(playerNavigations()).toEqual(["/files/v9?smart_collection=sf1"]));
+    await waitFor(() => expect(playerNavigations()).toEqual(["/drive/main?file=v9&queue=smart:sf1"]));
     expect(JSON.parse(sessionStorage.getItem(QUEUE_KEY) ?? "null").files.map((f: { id: string }) => f.id)).toEqual(["v9"]);
   });
 
@@ -517,7 +527,7 @@ describe("SPEC-CORE-109 step 3 / I3 a successful Play stores the queue and opens
 
       fireEvent.click(await findPlayButton());
 
-      await waitFor(() => expect(playerNavigations()).toEqual(["/files/v1?smart_collection=sf1"]));
+      await waitFor(() => expect(playerNavigations()).toEqual(["/drive/main?file=v1&queue=smart:sf1"]));
     } finally {
       setItem.mockRestore();
     }
@@ -651,6 +661,6 @@ describe("SPEC-CORE-109 step 3 / I2 a change before the evaluation ends discards
     page.navigate("q=cats&type=video&smart_folder_id=sf1");
     await act(async () => pending.resolve({ complete: true, files: [file("v1")] }));
 
-    await waitFor(() => expect(playerNavigations()).toEqual(["/files/v1?smart_collection=sf1"]));
+    await waitFor(() => expect(playerNavigations()).toEqual(["/drive/main?file=v1&queue=smart:sf1"]));
   });
 });

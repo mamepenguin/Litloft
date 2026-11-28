@@ -1,7 +1,6 @@
 /**
  * SPEC-ADDON-152 / 153 in Chromium with a mouse: the real Scenes section in
- * the real file page's workbench panels, the collection surface and the
- * stacked inspector's tab, and in a bounded box whose clock the case drives.
+ * the real file page's workbench panels and the stacked inspector's tab, and in a bounded box whose clock the case drives.
  */
 
 import { test, expect, type Page } from "@playwright/test";
@@ -13,7 +12,6 @@ import {
   BOUNDED_STEP,
   CANONICAL,
   CHIP,
-  COLLECTION,
   FRAMES,
   FULL_CARD_MIN,
   PAGE_STEP,
@@ -72,12 +70,6 @@ const HOSTS: HostCase[] = [
     viewport: { width: 1440, height: 900 },
     hash: CANONICAL,
     options: { panels: ["scenes"], inspectorOpen: false, vi: "none" },
-  },
-  {
-    name: "the collection surface's Scenes panel at 1280×1400",
-    viewport: { width: 1280, height: 1400 },
-    hash: COLLECTION,
-    options: { panels: ["scenes"] },
   },
   {
     name: "the stacked inspector's Scenes tab at 768×1024",

@@ -274,27 +274,6 @@ for (const kind of ["pdf", "archive"] as const) {
     expect((await measureRow(page)).fit).toBe("overlay");
   });
 }
-
-test("SPEC-CORE-131 I1: on the collection route the PDF page area stays 80vh, while the file page fills", async ({
-  page,
-}) => {
-  await open(page, { file: PDF, width: 1280, height: 800, docside: false });
-  await ready(page, "pdf");
-  await expectFilled(page, "pdf");
-
-  await page.setViewportSize({ width: 1280, height: 800 });
-  await page.goto(`${FIXTURE_URL}?run=${++navigation}#inspector-pdf-collection`);
-  await expect(page.locator("section[data-pdf-page]").first()).toBeVisible();
-  const area = await page.evaluate(() => {
-    let node: HTMLElement | null = document.querySelector("section[data-pdf-page]");
-    while (node && !/(auto|scroll)/.test(getComputedStyle(node).overflowY)) {
-      node = node.parentElement;
-    }
-    return { height: node ? node.getBoundingClientRect().height : -1, vh: window.innerHeight };
-  });
-  expect(Math.abs(area.height - 0.8 * area.vh)).toBeLessThanOrEqual(1);
-});
-
 // ---------------------------------------------------------------------------
 // SPEC-CORE-132 / 133: the tab and the wide pane
 // ---------------------------------------------------------------------------

@@ -54,11 +54,12 @@ vi.mock("@/lib/api", () => {
 });
 
 const overlayRequests = vi.hoisted(() => [] as boolean[]);
+const sidebarState = vi.hoisted(() => ({ isOpen: false, isOverlay: true }));
 vi.mock("@/components/SidebarProvider", () => ({
   useSidebar: () => ({
     requestRefresh: vi.fn(),
-    isOpen: false,
-    isOverlay: true,
+    isOpen: sidebarState.isOpen,
+    isOverlay: sidebarState.isOverlay,
     toggle: vi.fn(),
     close: vi.fn(),
     setOverlayMode: vi.fn(),
@@ -218,13 +219,17 @@ function leftPane(): HTMLElement {
 
 const paneCollapsed = () => leftPane().getAttribute("aria-hidden") === "true";
 
-/** The row follows the pane: jsdom does not lay out, so this stands in for it. */
+/** The inline sidebar's width (`w-60` and the page frame's `pl-60`). */
+const SIDEBAR_PX = 240;
+
+/** The row follows the pane and the sidebar: jsdom does not lay out, so this stands in for it. */
 function rowWidth(): number {
   const pane = Array.from(document.querySelectorAll("aside")).find(
     (el) => !el.closest('[data-testid="file-detail-shell"]'),
   );
   const paneShown = pane !== undefined && pane.getAttribute("aria-hidden") !== "true";
-  return viewport - (paneShown ? PANE_PX : 0);
+  const sidebarInline = sidebarState.isOpen && !sidebarState.isOverlay;
+  return viewport - (paneShown ? PANE_PX : 0) - (sidebarInline ? SIDEBAR_PX : 0);
 }
 
 let resizeCallbacks: Array<() => void> = [];
@@ -321,14 +326,21 @@ afterEach(() => {
 function page(fileId: string | null) {
   mockSearchParams = new URLSearchParams(fileId ? `file=${fileId}` : "");
   return (
-    <>
-      <div data-testid="toolbar">
-        <TreeToggle drive="work" />
-      </div>
-      <TwoPaneLayout drive="work" folderPath="">
-        <div data-testid="listing">listing</div>
-      </TwoPaneLayout>
-    </>
+    <div
+      data-testid="app-content"
+      style={{
+        paddingLeft: sidebarState.isOpen && !sidebarState.isOverlay ? SIDEBAR_PX : 0,
+      }}
+    >
+      <main>
+        <div data-testid="toolbar">
+          <TreeToggle drive="work" />
+        </div>
+        <TwoPaneLayout drive="work" folderPath="">
+          <div data-testid="listing">listing</div>
+        </TwoPaneLayout>
+      </main>
+    </div>
   );
 }
 
@@ -396,16 +408,20 @@ describe("SPEC-CORE-084 the left pane yields to a player file's inspector", () =
       viewport: number;
       tree: boolean;
       inspector: "true" | "false";
+      sidebarInline?: boolean;
       yields: boolean;
     }> = [
       { name: "all conditions", fileId: VIDEO.id, viewport: 1133, tree: true, inspector: "true", yields: true },
       { name: "no player", fileId: IMAGE.id, viewport: 1133, tree: true, inspector: "true", yields: false },
       { name: "inspector closed", fileId: VIDEO.id, viewport: 1133, tree: true, inspector: "false", yields: false },
       { name: "row wide with the pane", fileId: VIDEO.id, viewport: 1600, tree: true, inspector: "true", yields: false },
+      { name: "the sidebar still holds its inline width", fileId: VIDEO.id, viewport: 1440, tree: true, inspector: "true", sidebarInline: true, yields: false },
     ];
     for (const c of cases) {
       treeEnabledStore.set("work", c.tree);
       localStorage.setItem("inspector-open:work", c.inspector);
+      sidebarState.isOpen = c.sidebarInline ?? false;
+      sidebarState.isOverlay = !c.sidebarInline;
       setViewport(c.viewport);
       const { unmount } = await openFile(c.fileId);
       await act(async () => {});
@@ -415,6 +431,26 @@ describe("SPEC-CORE-084 the left pane yields to a player file's inspector", () =
       });
       unmount();
     }
+    sidebarState.isOpen = false;
+    sidebarState.isOverlay = true;
+  });
+
+  it("SPEC-CORE-084 I7 decides the form on the row on screen when the sidebar stays inline", async () => {
+    // 1100 less the 240 the inline sidebar keeps is too narrow for both, and
+    // no pane is there to give anything back.
+    treeEnabledStore.set("work", false);
+    sidebarState.isOpen = true;
+    sidebarState.isOverlay = false;
+    setViewport(1100);
+    watchForms();
+    await openFile(VIDEO.id);
+    await waitFor(() => expect(formsSeen().length).toBeGreaterThan(0));
+
+    expect(formsSeen()).toEqual(["stacked"]);
+    expect(overlayRequests.at(-1)).toBe(false);
+    expect(localStorage.getItem("tree:enabled:work")).toBe("false");
+    sidebarState.isOpen = false;
+    sidebarState.isOverlay = true;
   });
 
   it("SPEC-CORE-084 counts a player file's default-open inspector, with nothing stored", async () => {

@@ -24,7 +24,6 @@ import {
   relationMocks,
   setApiResponses,
   setViewport,
-  loaded,
   shellLoaded,
   slotMocks,
   usePolicyMock,
@@ -182,20 +181,11 @@ function arrange(form: Form) {
   }
 }
 
-async function renderFile(
-  file: FileItem = VIDEO,
-  { surface }: { surface?: "collection" } = {},
-) {
+async function renderFile(file: FileItem = VIDEO) {
   setApiResponses(file);
-  const utils = render(
-    <FileDetailContent fileId={file.id} drive="main" surface={surface} />,
-  );
-  // The collection surface's inspector starts open and has no measured form to wait on.
-  if (surface === "collection") await loaded();
-  else {
-    await shellLoaded();
-    await waitFor(() => expect(fit()).not.toBeUndefined());
-  }
+  const utils = render(<FileDetailContent fileId={file.id} drive="main" />);
+  await shellLoaded();
+  await waitFor(() => expect(fit()).not.toBeUndefined());
   return utils;
 }
 
@@ -300,8 +290,7 @@ describe("SPEC-CORE-104 I1 where the Enlarge panels button is drawn", () => {
     form: Form;
     file: FileItem;
     stored: string[];
-    surface?: "collection";
-    /** The rows that vary only the player or the surface still show the panel. */
+    /** A row that still shows the panel even though no button is drawn. */
     panelShown?: boolean;
   };
   it.each<Absent>([
@@ -326,22 +315,14 @@ describe("SPEC-CORE-104 I1 where the Enlarge panels button is drawn", () => {
       stored: ["transcript"],
       panelShown: true,
     },
-    {
-      name: "on the collection surface",
-      form: "beside",
-      file: VIDEO,
-      stored: ["transcript"],
-      surface: "collection",
-      panelShown: true,
-    },
   ])(
     "SPEC-CORE-104 I1 draws no button $name, where the canonical page with a panel draws one",
-    async ({ form, file, stored, surface, panelShown }) => {
+    async ({ form, file, stored, panelShown }) => {
       window.localStorage.setItem(FOCUS_KEY, "true");
       arrange(form);
       claimSlot("player-side", [TRANSCRIPT]);
       storePanels(stored);
-      await renderFile(file, { surface });
+      await renderFile(file);
       if (form === "stacked-open") {
         expect(fit()).toBe("stacked");
         expect(screen.getByTestId("inspector-pane")).toBeInTheDocument();
@@ -601,28 +582,6 @@ describe("SPEC-CORE-104 I6 only a press writes the value", () => {
     expect(focusWrites(writes)).toEqual([[FOCUS_KEY, "true"]]);
   });
 });
-
-describe("SPEC-CORE-104 I7 surfaces the value does not reach", () => {
-  it("SPEC-CORE-104 I7 the collection surface hands its player the same share with the value on as with it absent", async () => {
-    arrange("beside");
-    claimSlot("player-side", [TRANSCRIPT]);
-    storePanels(["transcript"]);
-    await renderFile(VIDEO, { surface: "collection" });
-    const absent = playerShare();
-
-    drawAgain();
-    window.localStorage.setItem(FOCUS_KEY, "true");
-    arrange("beside");
-    await renderFile(VIDEO, { surface: "collection" });
-    expect(playerShare()).toBe(absent);
-    expect(buttons()).toHaveLength(0);
-
-    drawAgain();
-    await renderCanonicalWithPanel();
-    expect(playerShare()).toBe(FOCUSED_SHARE);
-  });
-});
-
 /* ------------------------------------------------------------------ *
  * The coarse-pointer box. jsdom applies no media query, so the rule is
  * read from the stylesheet for the classes the drawn button carries.

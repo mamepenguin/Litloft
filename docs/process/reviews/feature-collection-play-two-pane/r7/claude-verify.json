@@ -1,0 +1,120 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1",
+      "status": "confirmed",
+      "note": "Breadcrumb.tsx:54 declares `ancestorSegments`, and Breadcrumb.tsx:89 spreads them into the items. FileDetailChrome.tsx:198 and queue/QueueTrail.tsx:26 use it. Breadcrumb.tsx is not in the touch-point list."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F2",
+      "status": "confirmed",
+      "note": "useInspectorFit.ts:28 adds `extraRowWidth`, and useInspectorFit.ts:100-101 adds it to rowWidth. FileDetailShell.tsx:104-108 (`inlineSidebarWidth`) reads the padding-left of main's parent, and FileDetailShell.tsx:215 passes it in. useInspectorFit.ts is not in the touch-point list."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F3",
+      "status": "confirmed",
+      "note": "AppShell.tsx:387-390 gives main's parent `min-[1200px]:pl-60` whenever the sidebar is inline. TwoPaneLayout.tsx:174 asks for the overlay form only when `treeBeside || yielded`, so with the tree off and no visit the 240px padding stays. inlineSidebarWidth (FileDetailShell.tsx:104-108) still returns it, and useInspectorFit.ts:100-116 adds it to the row. The threshold is 60.5rem = 968px (layoutSizes.ts:15-16). At the default 16px root font, a viewport of 1200-1207px therefore measures `beside` for a row of about 960px, where the right form is stacked/overlay. With a larger root font the window widens: at 20px it is about 1200-1509px, because pl-60 and the threshold scale with rem while the 1200px breakpoint does not."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F4",
+      "status": "confirmed",
+      "note": "frontend/src/lib/treeVisitStore.ts exists. TwoPaneLayout.tsx:29, 117-133 and 156 use it. It is not in the touch-point list."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F5",
+      "status": "confirmed",
+      "note": "All five files and fixtures/queuePage.tsx exist at the commit, and none is in the touch-point list. A grep for collection/COLLECTION in those five files finds nothing, which is consistent with the collection cases having been removed. I did not inspect the base side of the diff."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F6",
+      "status": "confirmed",
+      "note": "The listed tests exist (e.g. components/queue/__tests__/queue.test.ts, folder/__tests__/TwoPaneLayout.queuePane.test.tsx, app/drive/[name]/__tests__/layout.queue.test.tsx), and none is named in the touch-point list. I could not inspect the base side to confirm which files were modified rather than added."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F7",
+      "status": "confirmed",
+      "note": "FileDetailChrome.tsx:70-81 uses queuePage.name/href for the back control whenever a QueuePage is provided. FileDetailChrome.tsx:195-202 drops folderPath and passes the queue as the only ancestor. FolderQueueHost.tsx:268-272 provides a QueuePage for every isQueue (folder and smart), with href = trailHref (FolderQueueHost.tsx:205, which falls back to the drive root) and name possibly \"\" (FolderQueueHost.tsx:194-199). Effect: a nested folder queue loses its intermediate ancestor crumbs, and a Smart queue on the drive root adds a Smart crumb. I28 allows a different trail only on a collection page, and I7 limits the trail difference to D2, which is collection-only."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F8",
+      "status": "confirmed",
+      "note": "CollectionDetail.tsx:444 passes `queuePane={fileId !== null}`. TwoPaneLayout.tsx:125-131 clears treeVisitStore whenever `queuePane && hasFile` is false, so clearing ?file= on the collection page ends the visit. With the setting off, the pane is then hidden (TwoPaneLayout.tsx:180-182, w-0). This contradicts spec §1 Collection step 12 ('On a collection page the visit ends when the page is left') and I19 ('the listing shows the pane ... or a queue pane is shown for the visit on a collection page')."
+    }
+  ],
+  "unspecified_scores": [
+    {
+      "source_reviewer": "claude-read",
+      "index": 0,
+      "frequency": 2,
+      "impact": 3,
+      "reason": "After Play all on a folder the user had already sorted in the URL, × or a choice outside the queue drops that sort too, and the listing returns to its default order."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "index": 1,
+      "frequency": 3,
+      "impact": 2,
+      "reason": "With the tree off, opening any collection file (even from a grid card) shows the item pane beside it, which matches the spirit of step 3 and is harmless."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "index": 2,
+      "frequency": 3,
+      "impact": 3,
+      "reason": "With Autoplay off, choosing a row in the collection pane before any file is open does not start playback, so the user must press play, which contradicts the expectation that a queue action starts it."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "index": 3,
+      "frequency": 1,
+      "impact": 2,
+      "reason": "Only for a cold Smart queue URL while the smart-folders read is pending or failed: the trail briefly shows an empty crumb linking to the drive root."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "index": 4,
+      "frequency": 1,
+      "impact": 2,
+      "reason": "A user who hid the visit-shown pane sees it come back after resizing across md or reopening a file, and must hide it again."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "index": 5,
+      "frequency": 1,
+      "impact": 2,
+      "reason": "Only after a navigation guard cancels a queue selection: a later arrival at the same file autoplays once regardless of the preference."
+    }
+  ],
+  "specification_compliance": [
+    "I28/I7: the folder and Smart queue trails differ from today's FileDetailChrome trail, although the spec allows a different trail only on a collection page (F7 confirmed).",
+    "I19 and §1 step 12: a visit-shown pane ends on clearing ?file= instead of on leaving the collection page (F8 confirmed)."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "useInspectorFit now adds the inline sidebar padding on every FileDetailShell page. In the 1200px-to-(968px+padding) window, and more widely with a larger root font, this mis-picks the inspector form on non-queue file pages."
+  ],
+  "test_coverage": [
+    "No test found covering the inspector form with the tree off and the sidebar inline after the extraRowWidth change.",
+    "No test found asserting the pane stays on the collection listing after ?file= is cleared with the tree setting off."
+  ],
+  "not_verified": [
+    "The base side of the diff (origin/develop): I could not confirm which of the F5/F6 files were modified rather than newly added.",
+    "Did not run any test or e2e; F3's mis-measured form is derived from reading the code, not observed in a browser.",
+    "Did not verify that intermediate ancestors are absent from QueueTrail on phone widths."
+  ],
+  "confidence": 80
+}

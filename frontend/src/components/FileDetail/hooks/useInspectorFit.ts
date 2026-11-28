@@ -20,6 +20,12 @@ interface UseInspectorFitOptions {
    * give that width back.
    */
   paneToYield?: () => HTMLElement | null;
+  /**
+   * Width the page frame is still giving the inline sidebar, read before the
+   * pane takes that place. The sidebar's width arrives there over a
+   * transition, so reading it live keeps the row the same while it moves.
+   */
+  extraRowWidth?: (host: HTMLElement) => number;
   /** The row is too narrow to hold the pane and the inspector together. */
   onYield?: () => void;
 }
@@ -47,6 +53,7 @@ export function useInspectorFit({
   isPlayerFile,
   onMeasure,
   paneToYield,
+  extraRowWidth,
   onYield,
 }: UseInspectorFitOptions): InspectorFit {
   const hostRef = useRef<HTMLElement | null>(null);
@@ -56,6 +63,8 @@ export function useInspectorFit({
   onMeasureRef.current = onMeasure;
   const paneToYieldRef = useRef(paneToYield);
   paneToYieldRef.current = paneToYield;
+  const extraRowWidthRef = useRef(extraRowWidth);
+  extraRowWidthRef.current = extraRowWidth;
   const onYieldRef = useRef(onYield);
   onYieldRef.current = onYield;
 
@@ -88,10 +97,12 @@ export function useInspectorFit({
         Number.parseFloat(getComputedStyle(document.documentElement).fontSize) ||
         16;
       const threshold = INSPECTOR_BESIDE_MIN_REM * rootFontSize;
+      const rowWidth =
+        host.clientWidth + (extraRowWidthRef.current?.(host) ?? 0);
       // The pane's width is part of the row because it is about to give it
       // back; read once, before it collapses.
-      const fits = host.clientWidth + paneWidth >= threshold;
-      const narrow = host.clientWidth < threshold;
+      const fits = rowWidth + paneWidth >= threshold;
+      const narrow = rowWidth < threshold;
       // On a phone nothing depends on the form — the inspector is the sheet
       // — so the attribute keeps its two old values there.
       const form: Exclude<InspectorForm, "absent"> = isMobile

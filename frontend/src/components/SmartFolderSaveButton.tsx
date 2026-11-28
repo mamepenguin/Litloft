@@ -27,6 +27,7 @@ import { parseSearchQuery } from "@/lib/searchQuery";
 import { fetchSemanticHits } from "@/lib/semanticSearch";
 import { evaluateSmartCollection } from "@/lib/smartCollectionEval";
 import { smartQueueEntry, storeSmartQueue } from "@/lib/smartQueue";
+import { requestPlay } from "@/components/queue/playIntent";
 import { useSmartFolders } from "@/hooks/useSmartFolders";
 import { Button } from "./Button";
 import { ConfirmDialog } from "./ConfirmDialog";
@@ -369,8 +370,9 @@ export function SmartFolderController({
         files: files.map(smartQueueEntry),
       });
       finish();
+      requestPlay(files[0].id);
       router.push(
-        `/files/${files[0].id}?smart_collection=${encodeURIComponent(targetId)}`,
+        `/drive/${encodeURIComponent(start.drive)}?file=${files[0].id}&queue=smart:${encodeURIComponent(targetId)}`,
       );
     })();
   }, [router, t]);

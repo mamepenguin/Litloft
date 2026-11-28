@@ -1193,6 +1193,8 @@ row.
 - **Touch targets: 44px on a coarse pointer, 32px on a fine one.** 32px clears the
   24px minimum for repeated controls; 44px everywhere costs height long
   transcripts cannot spare.
+- **The collection queue's reorder and remove controls are 26 × 28 on a fine
+  pointer**; they still reach 44px on a coarse pointer.
 - **Every control in the row reaches the floor**, or the finger still lands on the
   small one.
 - **Several controls together are one group.** On a coarse pointer they sit with
@@ -1365,7 +1367,8 @@ The stacked form is chosen by the row's width and by the file kind, never by
 whether the inspector is open: opening and closing it only turns the layout on
 and off, so a window drag cannot close what it opened.
 
-The two-pane route's left pane — the folder tree, or a collection's item list —
+The two-pane route's left pane — the folder tree, or a queue such as a
+collection's item list or a folder's or Smart Collection's playback queue —
 steps aside when it is what stops a player file's inspector fitting beside the
 player. The collapse belongs to the file page, not to the tree setting:
 `tree:enabled:{drive}` is not written, the tree button brings the pane back,

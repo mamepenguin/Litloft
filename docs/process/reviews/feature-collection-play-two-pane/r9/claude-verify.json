@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "F1",
+      "status": "confirmed",
+      "note": "Traced in code. In TwoPaneLayout.tsx:141-152, the visit begins when queuePane && hasFile is true. With visitUntilLeft (CollectionDetail.tsx:446), the visit stays active after ?file= is cleared, because visitStarted stays true until pathname changes (lines 136-139). The effect calls treeVisitStore.show() only when !active (line 152). treeVisitStore.toggle (treeVisitStore.ts:35-39) leaves active=true and flips hidden. CollectionDetail.playFile (229-236) touches only treeNarrowOpenStore, requestPlay and selectFile, and never treeVisitStore. useTreeVisible.ts:48-49 then gives visitVisible=false while hidden=true, and with the setting off, visible is false. Repro: tree setting off at md+; press Play; hide the pane with the button; go back to the list through the crumb; press Play or pick a card. The pane stays hidden. The code comment at TwoPaneLayout.tsx:151 shows this is deliberate. Whether it breaks I13 depends on whether a second Play on the same collection page counts as 'starting a queue' (spec §1 step 12: 'On a collection page the visit ends when the page is left'). The mechanics match the claim."
+    }
+  ],
+  "unspecified_scores": [
+    {
+      "source_reviewer": "claude-read",
+      "index": 0,
+      "frequency": 2,
+      "impact": 3,
+      "reason": "After hiding the visit-shown pane and pressing Play or a row again on the same collection page, the user sees no queue pane until they press the tree button once."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "index": 1,
+      "frequency": 4,
+      "impact": 2,
+      "reason": "With the tree setting off, opening any file of a collection (even from a grid card) shows the item pane, and the list keeps it until the user leaves the page; this is visible but harmless and can be hidden with the button."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "index": 2,
+      "frequency": 2,
+      "impact": 3,
+      "reason": "When a folder queue ends on a listing whose URL already carried its own sort/order, the listing falls back to its default sort and the user must pick the sort again."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "index": 3,
+      "frequency": 1,
+      "impact": 2,
+      "reason": "Resizing or rotating across md brings back a visit pane the user hid; one press hides it again."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "index": 4,
+      "frequency": 1,
+      "impact": 2,
+      "reason": "A cancelled queue selection leaves the module-level pending id (playIntent.ts:6-10), so a later arrival at that same file by any route starts playing even with Autoplay off."
+    }
+  ],
+  "specification_compliance": [
+    "Spec §1 step 12 requires that starting a queue shows the pane when the setting is off. The code shows it on the first start of a visit only; a pane hidden during the visit stays hidden on a later Play on the same collection page (TwoPaneLayout.tsx:151-152).",
+    "Hiding and re-showing the visit pane writes no storage (useTreeVisible.ts:66-70), which matches I13 and I18."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "The visit state is held per drive in a module-level store (treeVisitStore.ts:19). Correctness relies on the layout-effect clears in TwoPaneLayout on pathname change and on unmount."
+  ],
+  "test_coverage": [
+    "TwoPaneLayout.queuePane.test.tsx exercises visitUntilLeft. I did not find a case that hides the pane, returns to the list and starts the queue again."
+  ],
+  "not_verified": [
+    "I did not run any tests or the app; every result comes from reading the code.",
+    "I did not check whether FolderQueueHost or the Smart queue path handles re-starting after a hide in the same way.",
+    "I did not check whether a cancelled navigation actually leaves the play intent pending (unspecified index 4)."
+  ],
+  "confidence": 82
+}

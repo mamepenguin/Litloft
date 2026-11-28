@@ -201,7 +201,7 @@ describe("FileDetailContent", () => {
       new Error("API error: 404"),
     );
     (api.recordFileView as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
-    render(<FileDetailContent fileId="f1" drive="main" surface="collection" />);
+    render(<FileDetailContent fileId="f1" drive="main" />);
 
     expect(await screen.findByText("File not found")).toBeInTheDocument();
     expect(screen.queryByText("Trashed clip")).toBeNull();
@@ -402,40 +402,15 @@ describe("FileDetailContent", () => {
     await loaded();
     expect(captured).toBe("untouched");
   });
-
-  it("forwards miniPlayerRoot to FilePreview", async () => {
+  it("forwards initialSection to FilePreview", async () => {
     setApiResponses(makeFile());
     const { FilePreview: MockedPreview } = await import("../../FilePreview");
-    const root = document.createElement("section");
-    render(
-      <FileDetailContent
-        fileId="f1"
-        drive="main"
-        miniPlayerRoot={root}
-        surface="collection"
-      />,
-    );
+    render(<FileDetailContent fileId="f1" drive="main" initialSection={6} />);
     await loaded();
     const calls = (MockedPreview as ReturnType<typeof vi.fn>).mock.calls;
     expect(calls.length).toBeGreaterThan(0);
-    const lastProps = calls[calls.length - 1][0] as {
-      miniPlayerRoot?: Element | null;
-    };
-    expect(lastProps.miniPlayerRoot).toBe(root);
+    expect((calls[calls.length - 1][0] as { initialSection?: number }).initialSection).toBe(6);
   });
-
-  it.each(["canonical", "collection"] as const)(
-    "forwards initialSection to FilePreview on the %s surface",
-    async (surface) => {
-      setApiResponses(makeFile());
-      const { FilePreview: MockedPreview } = await import("../../FilePreview");
-      render(<FileDetailContent fileId="f1" drive="main" initialSection={6} surface={surface} />);
-      await loaded();
-      const calls = (MockedPreview as ReturnType<typeof vi.fn>).mock.calls;
-      expect(calls.length).toBeGreaterThan(0);
-      expect((calls[calls.length - 1][0] as { initialSection?: number }).initialSection).toBe(6);
-    },
-  );
 
   it("gives the player the shell's scroll container, not the host's", async () => {
     setApiResponses(makeFile());

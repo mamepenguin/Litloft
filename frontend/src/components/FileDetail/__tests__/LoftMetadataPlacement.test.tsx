@@ -1,6 +1,5 @@
 /**
- * Where a `.loft`'s provider metadata is drawn: in the canonical page's Info
- * tab, and under the player only on the collection surface, which has none.
+ * Where a `.loft`'s provider metadata is drawn: in the file page's Info tab.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
@@ -8,7 +7,6 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { FileDetailContent } from "../../FileDetailContent";
 import {
   claimSlot,
-  loaded,
   makeFile,
   relationMocks,
   setApiResponses,
@@ -132,15 +130,6 @@ async function renderCanonical() {
   return utils;
 }
 
-async function renderCollection() {
-  setApiResponses(LOFT);
-  const utils = render(
-    <FileDetailContent fileId={LOFT.id} drive="main" surface="collection" />,
-  );
-  await loaded();
-  return utils;
-}
-
 function metadataEntry(): HTMLElement {
   const nodes = screen.getAllByTestId("addon-slot-loft-metadata");
   expect(nodes).toHaveLength(1);
@@ -193,35 +182,6 @@ describe.each([
     expect(metadataEntry()).toHaveAttribute("data-prop-drive", LOFT.drive);
   });
 });
-
-describe("on the collection surface, which has no Info tab", () => {
-  it("draws the .loft metadata once, under the player", async () => {
-    setViewport(1400);
-    installRow(WIDE_ROW);
-    claimSlot("loft-metadata", [LOFT_METADATA]);
-    await renderCollection();
-
-    const player = document.querySelector(".media-detail-player");
-    const entry = metadataEntry();
-    const aside = document.querySelector(".media-detail-player-aside");
-    expect(aside).not.toBeNull();
-    expect(aside!.contains(entry)).toBe(true);
-    expect(player!.contains(entry)).toBe(false);
-    expect(follows(player!, entry)).toBe(true);
-    expect(document.querySelector("#inspector-panel-info")).toBeNull();
-  });
-
-  it("gives the panel the file's id and drive", async () => {
-    setViewport(1400);
-    installRow(WIDE_ROW);
-    claimSlot("loft-metadata", [LOFT_METADATA]);
-    await renderCollection();
-
-    expect(metadataEntry()).toHaveAttribute("data-prop-file-id", LOFT.id);
-    expect(metadataEntry()).toHaveAttribute("data-prop-drive", LOFT.drive);
-  });
-});
-
 describe("a file whose slot is not filled", () => {
   it("draws no box and no entry", async () => {
     setViewport(1400);

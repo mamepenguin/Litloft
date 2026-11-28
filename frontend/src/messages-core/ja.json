@@ -548,7 +548,12 @@
     "queueFailed": "キューを読み込めませんでした",
     "moveUp": "上へ移動",
     "moveDown": "下へ移動",
-    "removeFromCollection": "コレクションから削除"
+    "removeFromCollection": "コレクションから削除",
+    "queueLabel": "キュー",
+    "queueShow": "キューを表示",
+    "queueHide": "キューを隠す",
+    "queueEnd": "キューを閉じてフォルダツリーに戻す",
+    "queueOverlayClose": "キューを閉じる"
   },
   "subtitles": {
     "title": "字幕",

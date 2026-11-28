@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>スマホ キュー</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:#62625b}a:hover{color:#211922}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; display: flex; flex-direction: column; background: #ffffff; color: #211922; font-family: -apple-system, system-ui, 'Hiragino Sans', 'ヒラギノ角ゴ Pro W3', Meiryo, sans-serif; overflow: hidden">
+  <header style="height: 52px; flex-shrink: 0; display: flex; align-items: center; gap: 4px; padding: 0 6px; border-bottom: 1px solid rgba(145,145,140,0.2)">
+    <button type="button" aria-label="メニュー" style="width: 44px; height: 44px; border: 0; background: transparent; color: #62625b; display: flex; align-items: center; justify-content: center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+    <button type="button" aria-label="キューを隠す" aria-pressed="true" style="width: 44px; height: 44px; border: 0; border-radius: 12px; background: #f6f6f3; color: #211922; display: flex; align-items: center; justify-content: center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/></svg></button>
+  </header>
+  <div style="display: flex; justify-content: flex-end; padding: 4px; border-bottom: 1px solid rgba(145,145,140,0.2)">
+    <button type="button" aria-label="キューを閉じる" style="width: 44px; height: 44px; border: 0; background: transparent; color: #62625b; display: flex; align-items: center; justify-content: center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+  </div>
+  <div style="padding: 12px 8px 12px 16px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid rgba(145,145,140,0.2)">
+    <div style="flex: 1; min-width: 0">
+      <a href="#" style="display: block; font-size: 16px; font-weight: 600; color: #211922; text-decoration: none">週末に見るライブ映像</a>
+      <div style="margin-top: 2px; font-size: 12px; color: #62625b">3 / 12</div>
+    </div>
+    <button type="button" aria-label="ループ再生をオフにする" aria-pressed="true" style="width: 44px; height: 44px; border: 0; border-radius: 12px; background: rgba(214,48,49,0.12); color: #d63031; display: flex; align-items: center; justify-content: center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg></button>
+  </div>
+  <ul style="list-style: none; margin: 0; padding: 8px; display: flex; flex-direction: column; gap: 2px; overflow: hidden; flex: 1">
+    <sc-for list="{{ rows }}" as="row" hint-placeholder-count="10">
+      <li style="{{ row.rowStyle }}">
+        <button type="button" style="flex: 1; min-width: 0; min-height: 44px; display: flex; align-items: center; gap: 10px; border: 0; background: transparent; padding: 0; text-align: left; font: inherit; color: inherit">
+          <span style="{{ row.numStyle }}">{{ row.num }}</span>
+          <span style="width: 56px; height: 32px; border-radius: 4px; flex-shrink: 0; background: {{ row.thumb }}"></span>
+          <span style="min-width: 0; flex: 1; display: flex; flex-direction: column">
+            <span style="{{ row.titleStyle }}">{{ row.title }}</span>
+            <span style="font-size: 11px; color: #62625b">{{ row.dur }}</span>
+          </span>
+        </button>
+        <span style="display: flex; flex-shrink: 0; color: #62625b">
+          <button type="button" aria-label="上へ" style="width: 36px; height: 44px; border: 0; background: transparent; color: inherit; display: flex; align-items: center; justify-content: center"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m18 15-6-6-6 6"/></svg></button>
+          <button type="button" aria-label="下へ" style="width: 36px; height: 44px; border: 0; background: transparent; color: inherit; display: flex; align-items: center; justify-content: center"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+          <button type="button" aria-label="コレクションから外す" style="width: 36px; height: 44px; border: 0; background: transparent; color: inherit; display: flex; align-items: center; justify-content: center"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg></button>
+        </span>
+      </li>
+    </sc-for>
+  </ul>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const items = [
+      ['1日目 開場前の様子', '12:40', '#c9c2b8'],
+      ['1日目 メインステージ', '58:02', '#8a9a8c'],
+      ['2024-08 野外ステージ 2 日目', '47:30', '#3d4a5c'],
+      ['アンコール（客席から）', '09:15', '#6b5b73'],
+      ['撤収とスタッフ挨拶', '04:51', '#a89276'],
+      ['2023 冬の屋内公演', '1:12:08', '#55606e'],
+      ['リハーサル抜粋', '22:17', '#7d8a6e'],
+      ['ファンミーティング', '35:44', '#9c7f6a'],
+      ['ドキュメンタリー 前編', '41:00', '#4f5a52']
+    ];
+    const rows = items.map((it, i) => {
+      const current = i === 2;
+      return {
+        num: String(i + 1), title: it[0], dur: it[1], thumb: it[2],
+        rowStyle: 'display: flex; align-items: center; gap: 2px; padding: 4px 2px 4px 6px; border-radius: 12px;' + (current ? ' background: rgba(214,48,49,0.08); box-shadow: inset 0 0 0 1px rgba(214,48,49,0.4);' : ''),
+        numStyle: 'width: 18px; flex-shrink: 0; text-align: center; font-size: 10px; font-family: ui-monospace, Menlo, monospace; ' + (current ? 'color: #d63031; font-weight: 700' : 'color: #62625b'),
+        titleStyle: 'font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #211922;' + (current ? ' font-weight: 600' : '')
+      };
+    });
+    return { rows };
+  }
+}
+</script>
+</body>
+</html>

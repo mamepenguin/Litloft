@@ -5,11 +5,9 @@ import { useTranslations } from "next-intl";
 import { FileDetailShell } from "../FileDetailShell";
 import { Skeleton } from "../ui/Skeleton";
 import { useIsMobile } from "@/hooks/useIsMobile";
-import type { FileDetailSurface } from "@/lib/fileDetailShell";
 
 interface FileDetailSkeletonProps {
   drive: string;
-  surface: FileDetailSurface;
   onBack?: () => void;
   onScrollRootChange?: (node: HTMLElement | null) => void;
   resetKey: string;
@@ -55,21 +53,12 @@ function CanvasSkeleton() {
  */
 export function FileDetailSkeleton({
   drive,
-  surface,
   onBack,
   onScrollRootChange,
   resetKey,
 }: FileDetailSkeletonProps) {
   const isMobile = useIsMobile();
   const t = useTranslations("common");
-
-  if (surface !== "canonical") {
-    return (
-      <div role="status" aria-label={t("loading")} data-testid="file-detail-skeleton">
-        <CanvasSkeleton />
-      </div>
-    );
-  }
 
   return (
     <FileDetailShell

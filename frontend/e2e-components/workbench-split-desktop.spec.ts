@@ -13,7 +13,6 @@ const FIXTURE = FIXTURE_URL;
 test.beforeEach(({ context }) => serveFixture(context));
 const CANONICAL = "#inspector-video";
 const SIDEBAR = "#inspector-video-sidebar";
-const COLLECTION = "#inspector-video-collection";
 const REM = 16;
 const SPLIT_FROM = 61 * REM;
 const SHARE = 0.6;
@@ -393,14 +392,6 @@ for (const pointer of POINTERS) {
 }
 
 const ABSENT = [
-  {
-    name: "on the collection surface",
-    size: { width: 1440, height: 900 },
-    hash: COLLECTION,
-    inspectorOpen: undefined,
-    panelVisible: true,
-    stored: ["transcript"],
-  },
   {
     name: "in stacked with the inspector open",
     size: { width: 800, height: 900 },

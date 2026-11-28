@@ -1,15 +1,11 @@
 import { redirect, notFound } from "next/navigation";
 import { cookies } from "next/headers";
 
-import { FileDetailFullScreen } from "@/components/FileDetailFullScreen";
-import { buildCanonicalFileUrl } from "@/lib/canonicalFileUrl";
+import {
+  buildCanonicalFileUrl,
+  buildLegacyQueueUrl,
+} from "@/lib/canonicalFileUrl";
 import type { FileItem } from "@/types";
-
-/**
- * Collection mode is 2-pane-exempt: the CollectionPanel and the player share
- * the same column, which the right pane can't host cleanly. The redirect is
- * 307, not 308: file moves invalidate the redirect target.
- */
 
 async function fetchFile(id: string): Promise<FileItem | null> {
   const cookieStore = await cookies();
@@ -40,17 +36,8 @@ export default async function FileRoute({ params, searchParams }: PageProps) {
   const { id } = await params;
   const sp = await searchParams;
 
-  const hasCollection =
-    typeof sp.collection === "string" ||
-    typeof sp.playlist === "string" ||
-    typeof sp.smart_collection === "string" ||
-    sp.folder_play === "1";
-  if (hasCollection) {
-    return <FileDetailFullScreen fileId={id} />;
-  }
-
   const file = await fetchFile(id);
   if (!file) notFound();
 
-  redirect(buildCanonicalFileUrl(file, id, sp));
+  redirect(buildLegacyQueueUrl(file, id, sp) ?? buildCanonicalFileUrl(file, id, sp));
 }

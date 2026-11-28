@@ -82,7 +82,7 @@ When the conditions of an open Smart Collection differ from what it saved — a 
 - A search whose `in:` names a Smart Collection cannot be saved, because expanding it again would nest one Smart Collection inside another. The save is refused and nothing is written; rename or edit the query first.
 - Everyone who uses the drive sees the same Smart Collections.
 
-On a saved Smart Collection's page, while it shows the saved query and type in **ファイル**, **再生 / Play** plays its video and audio. The files play as a queue in the order shown, and when a file ends the next one opens. The queue is fixed when you press Play: later changes to the Smart Collection do not alter it, and only the next Play replaces it. Play is absent when the results hold no video or audio; on a phone it is the first row of the `…` sheet.
+On a saved Smart Collection's page, while it shows the saved query and type in **ファイル**, **再生 / Play** plays its video and audio. The files play as a queue in the file page's left pane, in the order shown, and when a file ends the next one opens. The queue is fixed when you press Play: later changes to the Smart Collection do not alter it, and only the next Play replaces it. Close the queue with × to go back to the folder tree. Play is absent when the results hold no video or audio; on a phone it is the first row of the `…` sheet.
 
 With the intelligence addon, `…` also holds **ここに質問 / Ask here**, which opens Ask scoped to this Smart Collection. See **Ask** below.
 

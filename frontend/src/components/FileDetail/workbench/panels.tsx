@@ -5,18 +5,16 @@ import type { ReactNode } from "react";
 import type { SlotEntry } from "@/lib/addons";
 import type { FileItem } from "@/types";
 import type { MediaController } from "@/lib/mediaController";
-import type { FileDetailSurface } from "@/lib/fileDetailShell";
 import { slotEntryLabel } from "@/lib/slotLabel";
 import { ActiveSummaryHost } from "../../ActiveSummaryHost";
-import { ChaptersPanel } from "../../ChaptersPanel";
 import { SlotEntryRenderer } from "../../AddonSlot";
 import { slotAvailabilityKey, type SlotAvailability } from "../hooks/useSlotAvailability";
 
 /** The inspector's own tab ids. A `player-side` entry may not take one. */
 export const CORE_TAB_IDS = ["info", "find", "pages", "chapters", "related"];
 
-/** Ids the core draws as a panel, on the surface where it applies. */
-export const CORE_PANEL_IDS = ["active-summary", "chapters"];
+/** Ids the core draws as a panel. */
+export const CORE_PANEL_IDS = ["active-summary"];
 
 const RESERVED_IDS = new Set([...CORE_TAB_IDS, ...CORE_PANEL_IDS]);
 
@@ -31,7 +29,6 @@ interface CoreRenderProps {
 }
 
 interface CorePanelContext {
-  surface: FileDetailSurface;
   hasPlayer: boolean;
   file: FileItem;
 }
@@ -58,31 +55,6 @@ export const CORE_PANELS: CorePanelDefinition[] = [
       />
     ),
   },
-  {
-    id: "chapters",
-    labelKey: "inspector.tabs.chapters",
-    priority: 50,
-    applies: ({ surface, hasPlayer }) =>
-      hasPlayer && surface === "collection",
-    render: ({
-      fileId,
-      mediaController,
-      chaptersVersion,
-      onChaptersResolved,
-      onAvailability,
-    }) => (
-      <ChaptersPanel
-        fileId={fileId}
-        mediaController={mediaController}
-        refreshToken={chaptersVersion}
-        onResolved={(count) => {
-          onChaptersResolved(count);
-          onAvailability(count > 0);
-        }}
-        className="h-full"
-      />
-    ),
-  },
 ];
 
 export interface WorkbenchPanelItem {
@@ -96,7 +68,6 @@ export interface WorkbenchPanelItem {
 }
 
 interface BuildWorkbenchPanelsArgs {
-  surface: FileDetailSurface;
   hasPlayer: boolean;
   file: FileItem;
   fileId: string;
@@ -115,7 +86,6 @@ interface BuildWorkbenchPanelsArgs {
  * a tie, and two slot entries keep the catalogue's order.
  */
 export function buildWorkbenchPanels({
-  surface,
   hasPlayer,
   file,
   fileId,
@@ -130,7 +100,7 @@ export function buildWorkbenchPanels({
 }: BuildWorkbenchPanelsArgs): WorkbenchPanelItem[] {
   if (!hasPlayer) return [];
 
-  const context: CorePanelContext = { surface, hasPlayer, file };
+  const context: CorePanelContext = { hasPlayer, file };
   const coreItems = CORE_PANELS.filter((panel) => panel.applies(context)).map(
     (panel) => {
       const key = slotAvailabilityKey("core", panel.id);

@@ -5,7 +5,7 @@ import { useEffect, useState, type ReactNode } from "react";
 
 import { DriveUnavailable } from "@/components/DriveUnavailable";
 import { RightPaneFile } from "@/components/folder/RightPaneFile";
-import { TwoPaneLayout } from "@/components/folder/TwoPaneLayout";
+import { FolderQueueHost } from "@/components/queue/FolderQueueHost";
 import { getAuthStatus, getDriveSummary } from "@/lib/api";
 import { ApiStatusError } from "@/lib/apiError";
 import {
@@ -121,8 +121,8 @@ export default function DriveLayout({ children }: { children: ReactNode }) {
     : "";
 
   return (
-    <TwoPaneLayout drive={driveName} folderPath={folderPath}>
+    <FolderQueueHost drive={driveName} folderPath={folderPath}>
       {children}
-    </TwoPaneLayout>
+    </FolderQueueHost>
   );
 }

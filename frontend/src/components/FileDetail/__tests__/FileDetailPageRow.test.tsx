@@ -8,7 +8,6 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { FileDetailContent } from "../../FileDetailContent";
 import * as api from "@/lib/api";
 import {
-  loaded,
   makeFile,
   relationMocks,
   setApiResponses,
@@ -144,15 +143,6 @@ describe("file detail page row", () => {
 
     expect(screen.getAllByTestId("file-detail-chrome")).toHaveLength(1);
     expect(screen.getAllByTestId("file-detail-back")).toHaveLength(1);
-    expect(api.getFile).toHaveBeenCalledWith("f1");
-  });
-
-  it("draws none on the collection route, where the host owns the row", async () => {
-    setApiResponses(makeFile());
-    render(<FileDetailContent fileId="f1" drive="main" surface="collection" />);
-    await loaded();
-
-    expect(screen.queryByTestId("file-detail-chrome")).toBeNull();
     expect(api.getFile).toHaveBeenCalledWith("f1");
   });
 });

@@ -13,6 +13,7 @@ import { ContextMenu, type MenuItem } from "@/components/ContextMenu";
 import { SmartFolderSaveDialog } from "@/components/SmartFolderSaveDialog";
 import { useSmartFolders } from "@/hooks/useSmartFolders";
 import { addCollectionItems } from "@/lib/api";
+import { emitCollectionChanged } from "@/lib/collectionChanged";
 import { useImeKeyGuard } from "@/lib/ime";
 import { focusEnd } from "@/lib/nameInUse";
 import { smartFolderHref } from "@/lib/driveViews";
@@ -226,6 +227,7 @@ export function SidebarCollectionsSection({
         const fileIds: string[] = JSON.parse(raw);
         if (fileIds.length === 0) return;
         await addCollectionItems(currentDrive, collectionId, fileIds);
+        emitCollectionChanged({ drive: currentDrive, collectionId });
         await reloadCollections();
       } catch {
         // silently ignore errors (e.g. duplicate items)

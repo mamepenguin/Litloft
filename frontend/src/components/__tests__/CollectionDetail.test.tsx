@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent, within } from "@testing-library/react";
 
 import { CollectionDetail } from "../CollectionDetail";
 import { accentFills } from "@/__tests__/helpers/accentFills";
@@ -138,6 +138,20 @@ function makeFile(
   };
 }
 
+/**
+ * The file Play opened on this page: through the selection hook, or a push
+ * to this page's own URL with `?file=`. A push anywhere else is not a
+ * selection on the same page.
+ */
+function playedFile(): string | null {
+  const selected = selectFileSpy.mock.calls[0]?.[0];
+  if (typeof selected === "string") return selected;
+  const pushed = mockPush.mock.calls[0]?.[0];
+  if (typeof pushed !== "string") return null;
+  const url = new URL(pushed, "http://localhost");
+  return url.pathname === "/drive/main/collections/c1" ? url.searchParams.get("file") : null;
+}
+
 beforeEach(() => {
   try {
     localStorage.clear();
@@ -145,6 +159,7 @@ beforeEach(() => {
     // ignore
   }
   mockPush.mockClear();
+  selectFileSpy.mockClear();
   setOverrideDriveSpy.mockClear();
   toastErrorSpy.mockClear();
   for (const fn of Object.values(apiMocks)) (fn as ReturnType<typeof vi.fn>).mockClear();
@@ -204,11 +219,50 @@ describe("CollectionDetail", () => {
     expect(screen.queryByRole("button", { name: "Play" })).toBeNull();
   });
 
-  it("navigates to the playback queue on Play click, starting at the first media item", async () => {
+  it("SPEC-CORE-190 step 2 / I16 Play selects the first media item on the same page", async () => {
     render(<CollectionDetail drive="main" collectionId="c1" />);
     const play = await screen.findByRole("button", { name: "Play" });
     fireEvent.click(play);
-    expect(mockPush).toHaveBeenCalledWith("/files/b?collection=c1");
+    expect(playedFile()).toBe("b");
+  });
+
+  it("SPEC-CORE-190 step 2 / I16 Play skips media that is missing or in the trash", async () => {
+    apiMocks.getCollection.mockResolvedValueOnce({
+      id: "c1",
+      name: "Mixed",
+      description: null,
+      drive: "main",
+      items: [
+        { id: 1, position: 0, file: makeFile("doc", "document") },
+        { id: 2, position: 1, file: { ...makeFile("gone", "video"), missing_since: "2026-01-01T00:00:00Z" } },
+        { id: 3, position: 2, file: { ...makeFile("bin", "audio"), deleted_at: "2026-01-01T00:00:00Z" } },
+        { id: 4, position: 3, file: makeFile("ok", "video") },
+      ],
+      created_at: "",
+      updated_at: "",
+    });
+    render(<CollectionDetail drive="main" collectionId="c1" />);
+    fireEvent.click(await screen.findByRole("button", { name: "Play" }));
+    expect(playedFile()).toBe("ok");
+  });
+
+  it("SPEC-CORE-190 step 2 / I16 shows no Play when every media item is missing or in the trash", async () => {
+    apiMocks.getCollection.mockResolvedValueOnce({
+      id: "c1",
+      name: "Gone",
+      description: null,
+      drive: "main",
+      items: [
+        { id: 1, position: 0, file: makeFile("doc", "document") },
+        { id: 2, position: 1, file: { ...makeFile("gone", "video"), missing_since: "2026-01-01T00:00:00Z" } },
+        { id: 3, position: 2, file: { ...makeFile("bin", "audio"), deleted_at: "2026-01-01T00:00:00Z" } },
+      ],
+      created_at: "",
+      updated_at: "",
+    });
+    render(<CollectionDetail drive="main" collectionId="c1" />);
+    await screen.findByRole("heading", { name: "Gone" });
+    expect(screen.queryByRole("button", { name: "Play" })).toBeNull();
   });
 
   it("renders FileGrid by default and switches to FileList via the toggle", async () => {
@@ -290,10 +344,16 @@ describe("CollectionDetail", () => {
       expect(apiMocks.updateCollection).not.toHaveBeenCalled();
     });
 
-    it("names the collection once, in the heading and not the trail", () => {
+    it("names the collection in the heading and the queue pane, not the trail", () => {
       render(<CollectionDetail drive="main" collectionId="c1" />);
       return waitFor(() => {
-        expect(screen.getAllByText("My Collection")).toHaveLength(1);
+        expect(screen.getByRole("button", { name: "My Collection" })).toBeInTheDocument();
+        expect(
+          within(screen.getByTestId("left-pane")).getByText("My Collection"),
+        ).toBeInTheDocument();
+        expect(
+          within(screen.getByTestId("right-pane")).getAllByText("My Collection"),
+        ).toHaveLength(1);
         expect(screen.getByRole("link", { name: "main" })).toBeInTheDocument();
       });
     });

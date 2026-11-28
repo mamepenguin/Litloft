@@ -294,8 +294,8 @@ export function ArchivePreview({
 
   // The measured box, always mounted: the fill hook measures the node its
   // ref points at once, so a wrapper that came and went would leave it
-  // measuring a detached element. `contents` keeps the collection surface's
-  // and the loading box's layout exactly as they were.
+  // measuring a detached element. `contents` keeps the loading box's layout
+  // exactly as it was.
   const frame = (content: ReactNode) => (
     <div
       ref={fillCanvas ? fillRef : undefined}
@@ -363,8 +363,7 @@ export function ArchivePreview({
   const displayEntries = applySortFilter(currentEntries);
 
   return frame(
-    // `h-full` on the collection surface, where the canvas above gives it a
-    // box. On the file page the measured wrapper is that box.
+    // The measured wrapper is this listing's box.
     <div className="flex h-full w-full flex-col">
       <ArchiveToolbar
         fileId={fileId}

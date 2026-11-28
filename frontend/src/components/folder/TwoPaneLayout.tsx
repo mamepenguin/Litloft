@@ -10,6 +10,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
 import type { ReactNode } from "react";
 
@@ -25,6 +26,7 @@ import { useTreeBeside } from "@/hooks/useTreeBeside";
 import { useTreeEnabled } from "@/hooks/useTreeEnabled";
 import { useTreeVisible } from "@/hooks/useTreeVisible";
 import { treeNarrowOpenStore } from "@/lib/treeNarrowOpenStore";
+import { treeVisitStore } from "@/lib/treeVisitStore";
 import { treeYieldStore } from "@/lib/treeYieldStore";
 import { driveHref } from "@/lib/driveViews";
 import { TreeRefreshContext } from "@/components/TreeRefreshContext";
@@ -39,6 +41,16 @@ interface TwoPaneLayoutProps {
   children: ReactNode;
   leftPane?: ReactNode;
   leftPaneAriaLabel?: string;
+  /** This page has a queue, so its pane is shown for the visit when the tree setting is off. */
+  queuePane?: boolean;
+  /**
+   * A pane shown for the visit on this page lasts until the page is left,
+   * not only while the open file is its queue's. A collection names itself
+   * as a place, so clearing `?file=` stays on it with the item list shown.
+   */
+  visitUntilLeft?: boolean;
+  /** A queue's pane replaces the tree on screen while the tree stays mounted. */
+  treeUnderPane?: boolean;
 }
 
 export function TwoPaneLayout({
@@ -47,9 +59,13 @@ export function TwoPaneLayout({
   children,
   leftPane,
   leftPaneAriaLabel,
+  queuePane = false,
+  visitUntilLeft = false,
+  treeUnderPane = false,
 }: TwoPaneLayoutProps) {
   const t = useTranslations("rightPane");
   const tView = useTranslations("view");
+  const tPlayback = useTranslations("playback");
   const router = useGuardedRouter();
   const pathname = usePathname();
   const { fileId, selectFile, clearFile } = useSelectedFile();
@@ -105,6 +121,46 @@ export function TwoPaneLayout({
   const { visible: treeOpen, beside: treeBeside, yielded } = useTreeVisible(drive);
   const { enabled: treeEnabled } = useTreeEnabled(drive);
   const besideViewport = useTreeBeside();
+  const visit = useSyncExternalStore(
+    treeVisitStore.subscribe,
+    () => treeVisitStore.get(drive),
+    () => treeVisitStore.get(drive),
+  );
+
+  // A queue started with the tree setting off shows its pane for this visit.
+  // A page that keeps its visit keeps it once started, until it is left. The
+  // pane's own visibility (yield, narrow) is the tree's, unchanged.
+  const visitRoute = useRef(pathname);
+  const visitStarted = useRef(false);
+  useLayoutEffect(() => {
+    if (visitRoute.current !== pathname) {
+      visitRoute.current = pathname;
+      visitStarted.current = false;
+      treeVisitStore.clear(drive);
+    }
+    const startsVisit = queuePane && hasFile;
+    if (startsVisit) visitStarted.current = true;
+    const wanted =
+      !treeEnabled &&
+      besideViewport &&
+      (startsVisit || (visitUntilLeft && visitStarted.current));
+    if (!wanted) {
+      treeVisitStore.clear(drive);
+      return;
+    }
+    // A pane the reader hid stays hidden until the button asks for it.
+    if (!treeVisitStore.get(drive).active) treeVisitStore.show(drive);
+  }, [
+    queuePane,
+    hasFile,
+    treeEnabled,
+    besideViewport,
+    visitUntilLeft,
+    drive,
+    pathname,
+  ]);
+
+  useLayoutEffect(() => () => treeVisitStore.clear(drive), [drive]);
   // The pane keeps its setting, its mounted tree and its yield, and only stops
   // taking width: the focus layout gives that width to the page, and the pane
   // is back the way that state left it when the layout ends.
@@ -124,15 +180,31 @@ export function TwoPaneLayout({
   // replacement just set.
   useLayoutEffect(() => () => treeYieldStore.clear(drive), [drive]);
 
-  const leftPaneState = useMemo(
-    () => ({ element: paneElement, shownBySetting: treeEnabled && besideViewport }),
-    [paneElement, treeEnabled, besideViewport],
-  );
-
   // The sidebar and the tree both name where you are, and only one such
   // surface is allowed at a time. A yielded pane still owns the place it
   // gave back, so the sidebar stays in its overlay form.
-  useOverlaySidebarWhen(treeBeside || yielded);
+  const sidebarOverlay = treeBeside || yielded;
+  useOverlaySidebarWhen(sidebarOverlay);
+
+  const leftPaneState = useMemo(
+    () => ({
+      element: paneElement,
+      shownBySetting: (treeEnabled || visit.active) && besideViewport,
+      coversFilePage: treeOpen && !focusLayout && hasFile && queuePane,
+      sidebarOverlay,
+    }),
+    [
+      paneElement,
+      treeEnabled,
+      visit.active,
+      besideViewport,
+      treeOpen,
+      focusLayout,
+      hasFile,
+      queuePane,
+      sidebarOverlay,
+    ],
+  );
 
   const [hasEverEnabled, setHasEverEnabled] = useState(treeOpen);
   useEffect(() => {
@@ -141,10 +213,24 @@ export function TwoPaneLayout({
   const treeAsideWidth =
     !treeOpen || focusLayout
       ? "w-0"
-      : hasFile
+      : hasFile && !queuePane
         ? "w-0 md:w-[280px]"
         : "w-[100vw] md:w-[280px]";
-  const showSectionOnMobile = !treeOpen || hasFile;
+  // A queue pane takes the phone's full width; the file page stays mounted
+  // behind it but must not keep the document wider than the viewport.
+  const showSectionOnMobile = !treeOpen || (hasFile && !queuePane);
+
+  const treeNode = hasEverEnabled ? (
+    <FolderTreePane
+      drive={drive}
+      selectedPath={selectedTreePath}
+      selectedFileId={fileId}
+      currentFolderPath={folderPath}
+      onSelectFolder={handleSelectFolder}
+      onSelectFile={handleSelectFile}
+      externalRefreshKey={treeRefreshKey}
+    />
+  ) : null;
 
   return (
     <TreeRefreshContext.Provider value={refreshTree}>
@@ -167,25 +253,27 @@ export function TwoPaneLayout({
               <button
                 type="button"
                 onClick={() => treeNarrowOpenStore.set(drive, false)}
-                aria-label={tView("treeOff")}
+                aria-label={
+                  queuePane ? tPlayback("queueOverlayClose") : tView("treeOff")
+                }
                 className="rounded-lg p-2 text-text-muted hover:text-text-primary"
               >
                 <X size={18} />
               </button>
             </div>
-            {hasEverEnabled
-              ? leftPane ?? (
-                  <FolderTreePane
-                    drive={drive}
-                    selectedPath={selectedTreePath}
-                    selectedFileId={fileId}
-                    currentFolderPath={folderPath}
-                    onSelectFolder={handleSelectFolder}
-                    onSelectFile={handleSelectFile}
-                    externalRefreshKey={treeRefreshKey}
-                  />
-                )
-              : null}
+            {treeUnderPane ? (
+              <>
+                <div
+                  className={leftPane ? "hidden" : "contents"}
+                  aria-hidden={leftPane ? true : undefined}
+                >
+                  {treeNode}
+                </div>
+                {leftPane}
+              </>
+            ) : hasEverEnabled ? (
+              leftPane ?? treeNode
+            ) : null}
           </div>
         </aside>
         <section

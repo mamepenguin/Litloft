@@ -90,8 +90,7 @@ export function FileDetailContainer({
   const lowerInspector = useLowerInspectorRegistry();
 
   const addonCatalogue = catalogueDrive === drive ? addons : {};
-  const findEnabled =
-    surface === "canonical" && Boolean(addonCatalogue["intelligence"]);
+  const findEnabled = Boolean(addonCatalogue["intelligence"]);
   const find = useFindInFile({
     fileId,
     drive,
@@ -156,7 +155,6 @@ export function FileDetailContainer({
     return (
       <FileDetailSkeleton
         drive={drive}
-        surface={surface}
         onBack={onBack}
         onScrollRootChange={setShellScrollRoot}
         resetKey={fileId}
@@ -341,13 +339,12 @@ export function FileDetailContainer({
           fileId={fileId}
           drive={drive}
           isMobile={isMobile}
-          ridesShell={ridesShell}
           findEnabled={findEnabled}
         isHtmlPreview={isHtmlPreview}
         hasPlayer={hasPlayer}
         usesCanvasViewer={usesCanvasViewer}
         plainTextDocument={plainTextDocument}
-        hasInspector={surface === "canonical"}
+        hasInspector
         playerFramed={playerFramed}
         slotAvailability={slotAvailability}
         chaptersPresent={data.chaptersPresent}

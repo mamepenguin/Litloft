@@ -96,6 +96,16 @@ interface FileDetailShellProps {
  * unmount when collapsed, or the keystroke would only close the pane and
  * never reopen it.
  */
+/**
+ * The width the page frame still gives the sidebar while it moves to its
+ * overlay form.
+ */
+function inlineSidebarWidth(host: HTMLElement): number {
+  const content = host.closest("main")?.parentElement;
+  if (!content) return 0;
+  return Number.parseFloat(getComputedStyle(content).paddingLeft) || 0;
+}
+
 export function FileDetailShell({
   drive,
   folderPath,
@@ -180,6 +190,7 @@ export function FileDetailShell({
     [publishesForm, fileId, isMobile],
   );
   const leftPane = useLeftPane();
+  const paneCoversPage = leftPane?.coversFilePage ?? false;
   const yieldable =
     leftPane !== null &&
     leftPane.shownBySetting &&
@@ -192,6 +203,13 @@ export function FileDetailShell({
     if (state.yielded || state.reopened) return null;
     return leftPane?.element ?? null;
   }, [yieldable, leftPane, drive]);
+  // Only a sidebar yielding its place is on its way out of the row; one that
+  // stays inline is already inside the measured box.
+  const extraRowWidth = useCallback(
+    (host: HTMLElement) =>
+      leftPane?.sidebarOverlay ? inlineSidebarWidth(host) : 0,
+    [leftPane],
+  );
   const handleYield = useCallback(() => {
     treeYieldStore.collapse(drive);
   }, [drive]);
@@ -200,6 +218,7 @@ export function FileDetailShell({
     isPlayerFile,
     onMeasure: handleMeasuredForm,
     paneToYield,
+    extraRowWidth,
     onYield: handleYield,
   });
   const attachInspectorFitHost = useCallback(
@@ -522,7 +541,7 @@ export function FileDetailShell({
           <InspectorPane wide={inspectorWide}>{inspector}</InspectorPane>
         )}
       </div>
-      {isMobile && (
+      {isMobile && !paneCoversPage && (
         <MobileInspectorSheet
           state={sheetOverride ?? sheetState}
           onStateChange={handleSheetStateChange}

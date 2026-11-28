@@ -11,6 +11,8 @@ export interface FileNavState {
   nextId: string | null;
   position: number | null;
   total: number | null;
+  /** A queue knows its item count even when it does not hold the open file. */
+  queue?: boolean;
   navigatePrev: () => void;
   navigateNext: () => void;
 }

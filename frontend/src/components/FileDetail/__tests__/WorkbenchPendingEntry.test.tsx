@@ -56,7 +56,6 @@ const FILE = { id: "f1", file_type: "video" } as FileItem;
 function Host({ stored }: { stored: string[] }) {
   const availability = useSlotAvailability("f1");
   const items = buildWorkbenchPanels({
-    surface: "canonical",
     hasPlayer: true,
     file: FILE,
     fileId: "f1",

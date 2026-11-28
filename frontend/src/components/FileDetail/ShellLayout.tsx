@@ -71,6 +71,7 @@ import {
 } from "@/lib/workbenchSplit";
 import { TextScrollFileIdContext } from "@/lib/textScrollProgress";
 import { HighlightFileContext } from "@/lib/highlightStore";
+import { useQueuePage } from "../queue/QueuePageContext";
 
 
 export interface ShellLayoutProps {
@@ -185,6 +186,7 @@ export function ShellLayout({
   const searchParams = useSearchParams();
   const inboxWalk = searchParams.get("nav") === "inbox";
   const find = useFind();
+  const queuePage = useQueuePage();
 
   // A layout effect, not an effect: a deferred measurement paints one frame
   // with the panels still under the player.
@@ -273,7 +275,6 @@ export function ShellLayout({
   const storedPanels = useWorkbenchPanels();
   const playerFocus = useWorkbenchPlayerFocus();
   const workbenchItems = buildWorkbenchPanels({
-    surface: "canonical",
     hasPlayer,
     file,
     fileId,
@@ -683,12 +684,13 @@ export function ShellLayout({
         chromeControls={
           <>
             {findEnabled && <FindButton />}
-            {/* Images only. The arrow keys walk the folder for archives,
-                PDFs and text as well, but those are surfaces for reading
-                into a file, and a pair of arrows in their page row reads
-                as the viewer's own paging instead. The inbox's row is the
-                exception: there every kind walks the arrivals. */}
-            {file.file_type === "image" && !inboxWalk && <FileNavControls />}
+            {/* A queue page walks the queue for every file type; elsewhere
+                only images change file with the arrows. The inbox's row is
+                the exception: there every kind walks the arrivals. */}
+            {!inboxWalk &&
+              (queuePage !== null || file.file_type === "image") && (
+                <FileNavControls />
+              )}
           </>
         }
         inspector={inspector}

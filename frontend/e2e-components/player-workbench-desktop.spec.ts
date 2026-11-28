@@ -13,7 +13,6 @@ const FIXTURE = FIXTURE_URL;
 
 test.beforeEach(({ context }) => serveFixture(context));
 const CANONICAL = "#inspector-video";
-const COLLECTION = "#inspector-video-collection";
 const REM = 16;
 const PANEL_FLOOR = 18 * REM;
 const COLUMNS_FROM = 41 * REM;
@@ -22,11 +21,6 @@ const LONG_DESCRIPTION = Array.from(
   { length: 24 },
   (_, i) => `Sentence ${i + 1} of a description that runs well past three lines.`,
 ).join(" ");
-
-const MEDIUM_DESCRIPTION =
-  "A description that fits in two lines on a desktop window but needs more " +
-  "than three once the window is as narrow as a phone held upright, so the " +
-  "button appears only after the resize.";
 
 let navigation = 0;
 
@@ -669,12 +663,6 @@ test("SPEC-CORE-104 I8 with a preview action the button ends 0.5rem left of it, 
 
 const UNAFFECTED = [
   {
-    name: "the collection surface",
-    size: { width: 1280, height: 800 },
-    hash: COLLECTION,
-    inspectorOpen: undefined,
-  },
-  {
     name: "stacked with the inspector open",
     size: { width: 800, height: 900 },
     hash: CANONICAL,
@@ -708,9 +696,6 @@ for (const form of UNAFFECTED) {
     if (form.name === "the phone") {
       await expect(page.getByTestId("mobile-inspector-peek")).toBeVisible();
     }
-    if (form.name === "the collection surface") {
-      await transcriptLoaded(page);
-    }
     const absent = await box(page, "video");
 
     await open(page, form.hash, {
@@ -726,57 +711,6 @@ for (const form of UNAFFECTED) {
     await expect(enlarge(page)).toHaveAttribute("aria-pressed", "true");
   });
 }
-
-/* ------------------------------------------------------------------ *
- * The collection surface
- * ------------------------------------------------------------------ */
-
-test("SPEC-CORE-090 I5 the collection surface gives its panels 60% of the visible height, never caps the player, and orders the page", async ({
-  page,
-}) => {
-  await page.setViewportSize({ width: 1280, height: 800 });
-  await open(page, COLLECTION, { stored: [] });
-  await expect(panelGroup(page)).toBeVisible();
-  const uncapped = await videoHeight(page);
-
-  await page.getByRole("button", { name: "Transcript" }).click();
-  await transcriptLoaded(page);
-
-  const panel = await cardBox(page, "Transcript");
-  const container = await scrollContainer(page, "Transcript");
-  const expected = Math.max(container.visibleHeight * 0.6, PANEL_FLOOR);
-  expect(Math.abs(panel.height - expected)).toBeLessThanOrEqual(2);
-  expect(await bodyScrollsInside(page, "Transcript")).toBe(true);
-  expect(Math.abs((await videoHeight(page)) - uncapped)).toBeLessThanOrEqual(1);
-
-  const player = await box(page, "video");
-  const row = await box(page, '[role="group"][aria-label="Panels"]');
-  const title = await box(page, "h1");
-  expect(row.top).toBeGreaterThanOrEqual(player.bottom - 1);
-  expect(panel.top).toBeGreaterThanOrEqual(row.bottom - 1);
-  expect(title.top).toBeGreaterThanOrEqual(panel.bottom - 1);
-});
-
-test("SPEC-CORE-090 two stacked panels on the collection surface share its 60% equally", async ({
-  page,
-}) => {
-  await page.setViewportSize({ width: 600, height: 900 });
-  await open(page, COLLECTION, {
-    panels: "two",
-    stored: ["transcript", "outline"],
-  });
-  await expect(panelGroup(page)).toBeVisible();
-
-  const first = await cardBox(page, "Transcript");
-  const second = await cardBox(page, "Outline");
-  const container = await scrollContainer(page, "Transcript");
-  const expected = Math.max(container.visibleHeight * 0.6, PANEL_FLOOR);
-  expect(second.top).toBeGreaterThanOrEqual(first.bottom - 1);
-  expect(Math.abs(first.height - second.height)).toBeLessThanOrEqual(2);
-  expect(
-    Math.abs(second.bottom - first.top - expected),
-  ).toBeLessThanOrEqual(4);
-});
 
 /* ------------------------------------------------------------------ *
  * The description
@@ -852,22 +786,6 @@ test("SPEC-CORE-088 I7 a description that fits draws no Show more", async ({ pag
   await expect(info.getByText("Recorded on location.")).toBeVisible();
   await expect(info.getByRole("button", { name: /Show (more|less)/ })).toHaveCount(0);
 });
-
-test("SPEC-CORE-088 I7 Show more appears when a resize makes the description need a fourth line", async ({
-  page,
-}) => {
-  await page.setViewportSize({ width: 1280, height: 800 });
-  await open(page, COLLECTION, { description: MEDIUM_DESCRIPTION });
-  await expect(page.getByText(MEDIUM_DESCRIPTION.slice(0, 40))).toBeVisible();
-  await expect(panelGroup(page)).toBeVisible();
-  await expect(page.getByRole("button", { name: "Show more" })).toHaveCount(0);
-
-  await page.setViewportSize({ width: 360, height: 800 });
-
-  await expect(page.getByRole("button", { name: "Show more" })).toBeVisible();
-  expect(await descriptionLines(page, MEDIUM_DESCRIPTION)).toBeLessThanOrEqual(3.05);
-});
-
 /* ------------------------------------------------------------------ *
  * Enlarge panels: the row beside the player
  * ------------------------------------------------------------------ */

@@ -17,9 +17,11 @@ import { AutoplayToggle } from "./AutoplayToggle";
 import { AudioTransport } from "./player/AudioTransport";
 import { useShellMedia } from "@/hooks/useShellMedia";
 import { isNativeShell } from "@/lib/nativeBridge";
+import { useQueuePage } from "./queue/QueuePageContext";
 
 export function AudioPlayer({ file, onEnded, autoPlay, onMediaController }: { file: FileItem; onEnded?: () => void; autoPlay?: boolean; onMediaController?: (mc: MediaController | null) => void }) {
   const t = useTranslations("player");
+  const queuePage = useQueuePage();
   const [preferAutoplay] = useAutoplayPreference();
   const audioRef = useRef<HTMLAudioElement>(null);
   const [elementMc, setElementMc] = useState<MediaController | null>(null);
@@ -82,6 +84,8 @@ export function AudioPlayer({ file, onEnded, autoPlay, onMediaController }: { fi
 
   // In the shell the lock screen is the shell's, and two owners would fight
   // over it.
+  const queueNext = queuePage?.onEnded;
+  const queuePrevious = queuePage?.previousTrack;
   useEffect(() => {
     if (!mc || native) return;
     return setupMediaSession(
@@ -91,9 +95,22 @@ export function AudioPlayer({ file, onEnded, autoPlay, onMediaController }: { fi
         artist: file.folder_path || file.drive,
         artwork: [{ src: getThumbnailUrl(file.id) }],
       },
-      { onNextTrack: onEnded },
+      queueNext && queuePrevious
+        ? { onNextTrack: queueNext, onPreviousTrack: queuePrevious }
+        : { onNextTrack: onEnded },
     );
-  }, [mc, native, file.id, file.title, file.filename, file.folder_path, file.drive, onEnded]);
+  }, [
+    mc,
+    native,
+    file.id,
+    file.title,
+    file.filename,
+    file.folder_path,
+    file.drive,
+    onEnded,
+    queueNext,
+    queuePrevious,
+  ]);
 
   return (
     <div className="flex w-full flex-col items-center justify-center rounded-xl bg-bg-card py-12">

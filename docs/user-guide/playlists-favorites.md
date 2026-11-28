@@ -23,7 +23,7 @@ A collection is an ordered list of files from one drive. Smart Collections share
 
 ### Playing a collection
 
-When one file ends and **Autoplay** is on, the player moves to the next item in the collection. The queue appears beside the player on the file page, including in theatre mode.
+**Play** opens the collection's first video or audio file, with the collection as the queue in the file page's left pane. When a file ends, the next playable item opens and plays, whether or not **Autoplay** is on. Previous and next in the page row walk the queue, and so do ← / → on files where those keys change file.
 
 ### Missing or trashed files
 

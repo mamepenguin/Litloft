@@ -13,7 +13,6 @@ import {
   makeFile,
   setApiResponses,
   setViewport,
-  loaded,
   shellLoaded,
   slotMocks,
   relationMocks,
@@ -176,19 +175,11 @@ function arrange(form: Form) {
   }
 }
 
-async function renderFile(
-  file: FileItem = VIDEO,
-  { surface }: { surface?: "collection" } = {},
-) {
+async function renderFile(file: FileItem = VIDEO) {
   setApiResponses(file);
-  const utils = render(
-    <FileDetailContent fileId={file.id} drive="main" surface={surface} />,
-  );
-  if (surface === "collection") await loaded();
-  else {
-    await shellLoaded();
-    await waitFor(() => expect(fit()).not.toBeUndefined());
-  }
+  const utils = render(<FileDetailContent fileId={file.id} drive="main" />);
+  await shellLoaded();
+  await waitFor(() => expect(fit()).not.toBeUndefined());
   return utils;
 }
 
@@ -294,7 +285,6 @@ describe("SPEC-CORE-105 §3 where the beside state holds", () => {
     form: Form;
     file: FileItem;
     stored: string[];
-    surface?: "collection";
   };
   it.each<Absent>([
     { name: "with no panel turned on", form: "beside", file: VIDEO, stored: [] },
@@ -311,21 +301,14 @@ describe("SPEC-CORE-105 §3 where the beside state holds", () => {
       file: AUDIO,
       stored: ["transcript"],
     },
-    {
-      name: "on the collection surface",
-      form: "beside",
-      file: VIDEO,
-      stored: ["transcript"],
-      surface: "collection",
-    },
   ])(
     "SPEC-CORE-105 I5 sets no attribute $name with the value on, where the canonical page with a panel sets it",
-    async ({ form, file, stored, surface }) => {
+    async ({ form, file, stored }) => {
       window.localStorage.setItem(FOCUS_KEY, "true");
       arrange(form);
       claimSlot("player-side", [TRANSCRIPT]);
       storePanels(stored);
-      await renderFile(file, { surface });
+      await renderFile(file);
       if (form === "stacked-open") {
         expect(fit()).toBe("stacked");
         expect(screen.getByTestId("inspector-pane")).toBeInTheDocument();

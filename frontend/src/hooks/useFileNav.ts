@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 
 import { getFileNeighbors, getInboxNeighbors } from "@/lib/api";
+import type { FileNavState } from "@/lib/fileNavContext";
 import { playerKind } from "@/lib/playerKind";
 import type { FileItem, Neighbors } from "@/types";
 import { officeGridOwnsArrows } from "@/components/office/officeGridActive";
@@ -29,12 +30,16 @@ interface UseFileNavOpts {
   mimeType?: string | null;
   enabled?: boolean;
   countable?: boolean;
+  /** A queue page's walk, which replaces `/neighbors` as the source. */
+  queue?: FileNavState | null;
   onNavigate: (nextFileId: string) => void;
 }
 
 interface UseFileNavResult {
   prevId: string | null;
   nextId: string | null;
+  /** This walk is a queue's, which knows its count before it can rank the file. */
+  queue: boolean;
   /**
    * Both come straight from `/neighbors`, which counts them over exactly
    * the rows `prevId` / `nextId` can reach — so a visible `n / N` and the
@@ -56,6 +61,7 @@ export function useFileNav({
   mimeType,
   enabled = true,
   countable = true,
+  queue = null,
   onNavigate,
 }: UseFileNavOpts): UseFileNavResult {
   const tsc = useTranslations("shortcuts");
@@ -63,7 +69,7 @@ export function useFileNav({
   const inboxWalk = nav === "inbox";
 
   useEffect(() => {
-    if (!enabled || !fileId || (inboxWalk && !drive)) {
+    if (queue || !enabled || !fileId || (inboxWalk && !drive)) {
       setNeighbors(null);
       return;
     }
@@ -82,21 +88,24 @@ export function useFileNav({
     return () => {
       cancelled = true;
     };
-  }, [fileId, sort, order, enabled, inboxWalk, drive]);
+  }, [fileId, sort, order, enabled, inboxWalk, drive, queue]);
 
   const shortcutsEnabled =
-    enabled &&
-    !!neighbors &&
+    (enabled || queue !== null) &&
+    (queue !== null || neighbors !== null) &&
     playerKind({ mime_type: mimeType, file_type: fileType }) === null &&
     !PAGED_MIMES.has(mimeType ?? "");
 
-  const navigatePrev = useCallback(() => {
+  const folderPrev = useCallback(() => {
     if (neighbors?.prev_id) onNavigate(neighbors.prev_id);
   }, [neighbors, onNavigate]);
 
-  const navigateNext = useCallback(() => {
+  const folderNext = useCallback(() => {
     if (neighbors?.next_id) onNavigate(neighbors.next_id);
   }, [neighbors, onNavigate]);
+
+  const navigatePrev = queue ? queue.navigatePrev : folderPrev;
+  const navigateNext = queue ? queue.navigateNext : folderNext;
 
   useShortcuts(
     "file-nav",
@@ -124,10 +133,19 @@ export function useFileNav({
   );
 
   return {
-    prevId: neighbors?.prev_id ?? null,
-    nextId: neighbors?.next_id ?? null,
-    position: countable ? (neighbors?.position ?? null) : null,
-    total: countable ? (neighbors?.total ?? null) : null,
+    prevId: queue ? queue.prevId : (neighbors?.prev_id ?? null),
+    nextId: queue ? queue.nextId : (neighbors?.next_id ?? null),
+    queue: queue !== null,
+    position: queue
+      ? queue.position
+      : countable
+        ? (neighbors?.position ?? null)
+        : null,
+    total: queue
+      ? queue.total
+      : countable
+        ? (neighbors?.total ?? null)
+        : null,
     // Handed out so a visible button and the arrow key run the same
     // code. Two call paths into "go to the next file" is how one of
     // them ends up skipping `navigationGuard` and losing an unsaved

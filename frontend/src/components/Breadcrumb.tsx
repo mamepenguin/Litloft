@@ -47,6 +47,11 @@ interface BreadcrumbProps {
    * crosses the breakpoint.
    */
   compact?: boolean;
+  /**
+   * Ancestors that are not folders on the drive's path, such as the
+   * collection a file was opened from.
+   */
+  ancestorSegments?: Array<{ label: string; href: string }>;
 }
 
 interface TrailItem {
@@ -64,6 +69,7 @@ export function Breadcrumb({
   trailingSegment,
   driveIsAncestor,
   compact = false,
+  ancestorSegments,
 }: BreadcrumbProps) {
   const t = useTranslations("toolbar");
   const folderLink = useFolderLink();
@@ -79,6 +85,11 @@ export function Breadcrumb({
         .slice(0, i + 1)
         .map(encodeURIComponent)
         .join("/")}`,
+    })),
+    ...(ancestorSegments ?? []).map((segment) => ({
+      path: segment.href,
+      label: segment.label,
+      href: segment.href,
     })),
   ];
 

@@ -12,7 +12,6 @@ import { AppShell } from "@/components/AppShell";
 import { ClipboardProvider } from "@/components/ClipboardProvider";
 import { CurrentDriveProvider } from "@/components/CurrentDriveProvider";
 import { FileDetailContent } from "@/components/FileDetailContent";
-import { FileDetailFullScreen } from "@/components/FileDetailFullScreen";
 import { MarkdownDocumentLayout } from "@/components/markdown/MarkdownDocumentLayout";
 import { TextLines } from "@/components/TextLines";
 import { TwoPaneLayout } from "@/components/folder/TwoPaneLayout";
@@ -349,16 +348,6 @@ export const HeaderRowTwoPaneLongArrangement = CanonicalRoute;
 export const HeaderRowInboxNoteArrangement = CanonicalRoute;
 export const HeaderRowInboxLongArrangement = CanonicalRoute;
 
-/** The collection route (`/files/{id}`). */
-export function HeaderRowCollectionArrangement(): ReactElement {
-  installFetch();
-  return (
-    <Shell>
-      <FileDetailFullScreen fileId={HEADER_ROW_VIDEO_ID} />
-    </Shell>
-  );
-}
-
 export const HeaderRowLateArrangement = (): ReactElement => (
   <FilePage fileId={HEADER_ROW_LATE_ID} />
 );
@@ -385,31 +374,3 @@ export function HeaderRowSwapArrangement(): ReactElement {
   );
 }
 
-/** The collection route with a Markdown note, which rides the file-detail shell. */
-export function HeaderRowCollectionNoteArrangement(): ReactElement {
-  installFetch();
-  return (
-    <Shell>
-      <FileDetailFullScreen fileId={HEADER_ROW_NOTE_ID} />
-    </Shell>
-  );
-}
-
-/** The collection route, starting on the video, with the file switched by the case. */
-export function HeaderRowCollectionSwapArrangement(): ReactElement {
-  installFetch();
-  const [fileId, setFileId] = useState(HEADER_ROW_VIDEO_ID);
-  return (
-    <Shell>
-      <div className="fixed bottom-0 left-0 z-50 flex gap-2">
-        <button type="button" onClick={() => setFileId(HEADER_ROW_NOTE_ID)}>
-          to-note
-        </button>
-        <button type="button" onClick={() => setFileId(HEADER_ROW_LONG_NOTE_ID)}>
-          to-long-note
-        </button>
-      </div>
-      <FileDetailFullScreen fileId={fileId} />
-    </Shell>
-  );
-}

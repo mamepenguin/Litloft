@@ -548,7 +548,12 @@
     "queueFailed": "Could not load the queue",
     "moveUp": "Move up",
     "moveDown": "Move down",
-    "removeFromCollection": "Remove from collection"
+    "removeFromCollection": "Remove from collection",
+    "queueLabel": "Queue",
+    "queueShow": "Show the queue",
+    "queueHide": "Hide the queue",
+    "queueEnd": "Close the queue and show the folder tree",
+    "queueOverlayClose": "Close the queue"
   },
   "subtitles": {
     "title": "Subtitles",

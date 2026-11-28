@@ -37,6 +37,8 @@ import { useIsInternalDragging } from "@/hooks/useIsInternalDragging";
 import { useTreeRefresh } from "@/components/TreeRefreshContext";
 import { FolderToolbar } from "@/components/folder/FolderToolbar";
 import { FolderContent } from "@/components/folder/FolderContent";
+import { folderQueueHref, storeFolderQueue } from "@/components/queue/folderQueue";
+import { requestPlay } from "@/components/queue/playIntent";
 import { PassageList } from "@/components/search/PassageList";
 import { passageCounts } from "@/lib/searchPassages";
 import { buildWidenTagScope } from "@/components/folder/WidenTagScopeLink";
@@ -634,18 +636,26 @@ export function FolderBrowser({
   }, [selectRange, visibleFileIds]);
 
   const handlePlayAll = useCallback(() => {
-    const firstPlayable = files.find(
+    const playable = files.filter(
       (f) => f.file_type === "audio" || f.file_type === "video"
     );
+    const firstPlayable = playable[0];
     if (!firstPlayable) return;
     const params = new URLSearchParams();
-    params.set("folder_play", "1");
-    if (sort !== "random") {
+    params.set("file", firstPlayable.id);
+    params.set("queue", "folder");
+    if (effectiveSort === "random") {
+      params.set("sort", "random");
+      storeFolderQueue(driveName, folderPath ?? "", playable);
+    } else {
       params.set("sort", effectiveSort);
       params.set("order", effectiveOrder);
     }
-    folderRouter.push(`/files/${firstPlayable.id}?${params.toString()}`);
-  }, [files, sort, effectiveSort, effectiveOrder, folderRouter]);
+    requestPlay(firstPlayable.id);
+    folderRouter.push(
+      `${folderQueueHref(driveName, folderPath ?? "")}?${params.toString()}`,
+    );
+  }, [files, effectiveSort, effectiveOrder, driveName, folderPath, folderRouter]);
 
   // `!loading` is not enough to adopt a `total`: `reset()` lives in an effect,
   // so on the render where the subject changes the hook still reports

@@ -48,11 +48,6 @@ interface ScrollBox extends Box {
   flexWrap: string;
 }
 
-interface CollectionReading {
-  list: ScrollBox;
-  scrolledTo: number;
-  tracks: Box[];
-}
 
 interface TabReading {
   strip: ScrollBox;
@@ -71,8 +66,6 @@ interface BreadcrumbReading {
 
 declare global {
   interface Window {
-    buildCollectionPanel: (spec: { width: number; tracks: number }) => void;
-    measureCollection: (scrollTop?: number) => CollectionReading;
     buildPageTabs: (spec: { width: number; tabs: number }) => void;
     buildInspectorTabs: (spec: { width: number; tabs: number }) => void;
     measureTabs: () => TabReading;
@@ -128,8 +121,6 @@ const within = (inner: Box, outer: Box) =>
   inner.top >= outer.top - TOLERANCE &&
   inner.bottom <= outer.bottom + TOLERANCE;
 
-const COLLECTION_TRACKS = 18;
-
 const STRIP_TABS = 12;
 
 const BREADCRUMB_SEGMENTS = [
@@ -138,15 +129,6 @@ const BREADCRUMB_SEGMENTS = [
   "One more nested folder with a long name",
   "The deepest folder that names the current place",
 ];
-
-async function collection(page: Page, width: number) {
-  await page.goto(FIXTURE);
-  await page.evaluate((spec) => window.buildCollectionPanel(spec), {
-    width,
-    tracks: COLLECTION_TRACKS,
-  });
-  return page.evaluate(() => window.measureCollection(0));
-}
 
 async function tabs(
   page: Page,
@@ -228,10 +210,6 @@ test.describe("mouse environment", () => {
   test.describe("SPEC-CORE-064 I1 — nothing scrolls sideways under a mouse", () => {
     const CASES = [
       {
-        name: "the collection panel's track strip",
-        open: (page: Page) => collection(page, 900),
-      },
-      {
         name: "the page tab strip",
         open: (page: Page) => tabs(page, "page", 560),
       },
@@ -251,37 +229,6 @@ test.describe("mouse environment", () => {
         expect(await horizontalScrollers(page)).toEqual([]);
       });
     }
-  });
-
-  test.describe("SPEC-CORE-065 I4 — no drawn item is clipped by its wrapper", () => {
-    test("the collection panel scrolls vertically and every track stays reachable", async ({
-      page,
-    }) => {
-      const start = await collection(page, 900);
-
-      for (const track of start.tracks) {
-        expect(track.left).toBeGreaterThanOrEqual(start.list.left - TOLERANCE);
-        expect(track.right).toBeLessThanOrEqual(start.list.right + TOLERANCE);
-      }
-      expect(start.list.overflowY === "auto" || start.list.overflowY === "scroll").toBe(
-        true,
-      );
-      expect(start.list.scrollHeight).toBeGreaterThan(
-        start.list.clientHeight + TOLERANCE,
-      );
-
-      // About two rows of tracks, so the box is a window onto the queue
-      // rather than the whole queue.
-      const trackHeight = start.tracks[0]!.height;
-      expect(start.list.height).toBeGreaterThan(trackHeight * 1.5);
-      expect(start.list.height).toBeLessThan(trackHeight * 2.5);
-
-      const end = await page.evaluate(() => window.measureCollection(1_000_000));
-      const last = end.tracks[end.tracks.length - 1]!;
-      expect(end.scrolledTo).toBeGreaterThan(0);
-      expect(last.top).toBeGreaterThanOrEqual(end.list.top - TOLERANCE);
-      expect(last.bottom).toBeLessThanOrEqual(end.list.bottom + TOLERANCE);
-    });
   });
 
   test.describe("SPEC-CORE-065 I5 — every tab is visible, and the inspector strip keeps one tab stop", () => {
@@ -391,11 +338,6 @@ test.describe("mouse environment", () => {
         "breadcrumbLeaf",
         "breadcrumbLink",
         "breadcrumbSegment",
-        "collectionCard",
-        "collectionCount",
-        "collectionHead",
-        "collectionOuter",
-        "collectionTitle",
         "inspectorStrip",
         "inspectorTab",
         "inspectorTabIdle",
@@ -404,11 +346,6 @@ test.describe("mouse environment", () => {
         "pageTabIdle",
         "pageTabSelected",
         "pageTabs",
-        "track",
-        "trackBody",
-        "trackList",
-        "trackThumb",
-        "trackTitle",
       ].sort(),
     );
   });
@@ -435,11 +372,6 @@ test.describe("touch environment", () => {
 
   test.describe("SPEC-CORE-065 I3 — the strips still scroll sideways", () => {
     const CASES = [
-      {
-        name: "the collection panel's track strip",
-        open: (page: Page) => collection(page, 393),
-        strip: (reading: CollectionReading) => reading.list,
-      },
       {
         name: "the page tab strip",
         open: (page: Page) => tabs(page, "page", 393),

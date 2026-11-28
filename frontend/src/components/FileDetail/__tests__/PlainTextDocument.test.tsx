@@ -169,13 +169,12 @@ const txtFile = (over: Parameters<typeof makeFile>[0] = {}) =>
 
 const MAX = 1_048_576;
 
-function mount(file = txtFile(), surface: "canonical" | "collection" = "canonical", extra = {}) {
+function mount(file = txtFile(), extra = {}) {
   setApiResponses(file);
   return render(
     <FileDetailContent
       fileId="f1"
       drive="main"
-      surface={surface}
       {...extra}
     />,
   );
@@ -218,7 +217,7 @@ afterEach(() => {
 
 describe("SPEC-CORE-020 which files take the document layout", () => {
   it("opens a .txt in the document layout and mounts the knowledge-edit slot with plainTextDocument and the search term", async () => {
-    mount(txtFile(), "canonical", { highlight: "needle" });
+    mount(txtFile(), { highlight: "needle" });
     const stub = await isDocument();
     expect(stub.dataset.plainText).toBe("true");
     expect(stub.dataset.highlight).toBe("needle");
@@ -233,7 +232,6 @@ describe("SPEC-CORE-020 which files take the document layout", () => {
         mime_type: "text/markdown",
         file_type: "document",
       }),
-      "canonical",
       { highlight: "needle" },
     );
     const stub = await screen.findByTestId("knowledge-edit-stub");
@@ -254,12 +252,6 @@ describe("SPEC-CORE-020 which files take the document layout", () => {
   it("takes an empty .txt", async () => {
     mount(txtFile({ file_size: 0 }));
     expect((await isDocument()).dataset.plainText).toBe("true");
-  });
-
-  it("does the same on the collection surface", async () => {
-    mount(txtFile(), "collection");
-    expect((await isDocument()).dataset.plainText).toBe("true");
-    expect(screen.queryByTestId("file-preview")).toBeNull();
   });
 
   const control = async () => {
@@ -398,29 +390,11 @@ describe("SPEC-CORE-020 deciding needs the addon's slot list for this drive (I8)
 });
 
 describe("SPEC-CORE-020 the page row and the two-way switch (I5)", () => {
-  it("draws one page row on the canonical surface", async () => {
+  it("draws one page row", async () => {
     mount();
     await isDocument();
     expect(screen.getAllByTestId("file-detail-chrome")).toHaveLength(1);
     expect(screen.getAllByTestId("file-detail-back")).toHaveLength(1);
-  });
-
-  it("draws the same number of page rows on the collection surface as a .md does", async () => {
-    const md = mount(
-      makeFile({
-        filename: "note.md",
-        mime_type: "text/markdown",
-        file_type: "document",
-      }),
-      "collection",
-    );
-    await screen.findByTestId("view-mode-edit");
-    const expected = screen.queryAllByTestId("file-detail-chrome").length;
-    md.unmount();
-
-    mount(txtFile(), "collection");
-    await isDocument();
-    expect(screen.queryAllByTestId("file-detail-chrome")).toHaveLength(expected);
   });
 
   it("offers Read and Edit only, at 1400px", async () => {

@@ -203,7 +203,7 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-CORE-087 | implemented | docs/specs/player-workbench.md | sha256:ce54fa3c850c8a6716af16cc777c927c8e401b4727f48c783d6b8b30540cd58d |
 | SPEC-CORE-088 | implemented | docs/specs/player-workbench.md | sha256:ce54fa3c850c8a6716af16cc777c927c8e401b4727f48c783d6b8b30540cd58d |
 | SPEC-CORE-089 | implemented | docs/specs/player-workbench.md | sha256:ce54fa3c850c8a6716af16cc777c927c8e401b4727f48c783d6b8b30540cd58d |
-| SPEC-CORE-090 | implemented | docs/specs/player-workbench.md | sha256:ce54fa3c850c8a6716af16cc777c927c8e401b4727f48c783d6b8b30540cd58d |
+| SPEC-CORE-090 | superseded | docs/specs/player-workbench.md | sha256:ce54fa3c850c8a6716af16cc777c927c8e401b4727f48c783d6b8b30540cd58d |
 | SPEC-ADDON-099 | implemented | docs/specs/player-workbench.md | sha256:ce54fa3c850c8a6716af16cc777c927c8e401b4727f48c783d6b8b30540cd58d |
 | SPEC-ADDON-102 | implemented | docs/specs/pickup-recency.md | sha256:37ab5c30c12c4080ec924415c4d1484e95df77abef5279ac2b1af8d87e08928a |
 | SPEC-ADDON-103 | implemented | docs/specs/pickup-recency.md | sha256:37ab5c30c12c4080ec924415c4d1484e95df77abef5279ac2b1af8d87e08928a |
@@ -380,3 +380,7 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-ADDON-187 | implemented | docs/specs/subtitle-sidecars.md | sha256:a4f02644cb6995df4e62ebb72e0f86523974d57e56e96a038f6bd9b518812d8d |
 | SPEC-CORE-188 | implemented | docs/specs/sidebar-follows-events.md | sha256:c0630a41f8072f90a1f9cfbde1a80830d6b007dfc552f6324dee157f1efe5cac |
 | SPEC-CORE-189 | implemented | docs/specs/sidebar-follows-events.md | sha256:c0630a41f8072f90a1f9cfbde1a80830d6b007dfc552f6324dee157f1efe5cac |
+| SPEC-CORE-190 | implemented | docs/specs/collection-play-two-pane.md | sha256:17637e522d4bd7687f504bf1d3f065b5596654d09b95229f55be0aeea30869e4 |
+| SPEC-CORE-191 | implemented | docs/specs/collection-play-two-pane.md | sha256:17637e522d4bd7687f504bf1d3f065b5596654d09b95229f55be0aeea30869e4 |
+| SPEC-CORE-192 | implemented | docs/specs/collection-play-two-pane.md | sha256:17637e522d4bd7687f504bf1d3f065b5596654d09b95229f55be0aeea30869e4 |
+| SPEC-CORE-193 | implemented | docs/specs/collection-play-two-pane.md | sha256:17637e522d4bd7687f504bf1d3f065b5596654d09b95229f55be0aeea30869e4 |

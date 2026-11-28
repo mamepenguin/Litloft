@@ -8,6 +8,7 @@ import { ChevronLeft, PanelBottom, PanelBottomClose, PanelRight, PanelRightClose
 
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { useMarkdownChrome } from "@/lib/markdownChromeContext";
+import { useQueuePage } from "../queue/QueuePageContext";
 import { Breadcrumb } from "../Breadcrumb";
 import { InboxDetailActions } from "../inbox/InboxDetailActions";
 import {
@@ -55,6 +56,7 @@ export function FileDetailChrome({
   const hosted = useFileHeaderRowHost() !== null;
   const searchParams = useSearchParams();
   const markdown = useMarkdownChrome();
+  const queuePage = useQueuePage();
 
   // A narrow row gives everything right of the heading to the heading: the
   // Inbox walk has no room for the file's own controls, and a rename needs
@@ -64,10 +66,18 @@ export function FileDetailChrome({
   const hideDocumentControls = isMobile && (inboxWalk || renaming);
   const hideInboxActions = isMobile && renaming;
 
+  // Only a collection page replaces the file's own place with the collection's.
+  const collectionPage = queuePage?.replacesTrail ? queuePage : null;
+
   const segments = folderPath ? folderPath.split("/").filter(Boolean) : [];
-  const parentName = segments.length > 0 ? segments[segments.length - 1] : drive;
-  const parentHref =
-    segments.length > 0
+  const parentName = collectionPage
+    ? collectionPage.name
+    : segments.length > 0
+      ? segments[segments.length - 1]
+      : drive;
+  const parentHref = collectionPage
+    ? collectionPage.href
+    : segments.length > 0
       ? `/drive/${encodeURIComponent(drive)}/${segments
           .map(encodeURIComponent)
           .join("/")}`
@@ -181,13 +191,18 @@ export function FileDetailChrome({
               {backControl}
             </div>
           )}
-          <div className="flex min-w-0 flex-1 flex-col md:flex-row md:items-center md:gap-1">
+          <div className="flex min-w-0 flex-1 flex-col overflow-hidden md:flex-row md:items-center md:gap-1">
             {isMobile && (
               <div className="flex min-w-0 items-center">{backControl}</div>
             )}
             <Breadcrumb
               driveName={drive}
-              folderPath={folderPath}
+              folderPath={collectionPage ? undefined : folderPath}
+              ancestorSegments={
+                collectionPage
+                  ? [{ label: collectionPage.name, href: collectionPage.href }]
+                  : undefined
+              }
               trailingSegment={wideLeaf}
               compact
             />

@@ -6,7 +6,6 @@
 
 import { useState, type ReactElement, type ReactNode } from "react";
 import { NextIntlClientProvider } from "next-intl";
-import { usePathname, useSearchParams } from "next/navigation";
 
 import { AddonSlotsProvider } from "@/components/AddonSlotsProvider";
 import { AppShell } from "@/components/AppShell";
@@ -14,7 +13,6 @@ import { ClipboardProvider } from "@/components/ClipboardProvider";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { CurrentDriveProvider } from "@/components/CurrentDriveProvider";
 import { DriveUnavailable } from "@/components/DriveUnavailable";
-import { FileDetailFullScreen } from "@/components/FileDetailFullScreen";
 import { ProfileProvider } from "@/components/ProfileProvider";
 import { RenameDialog } from "@/components/RenameDialog";
 import { ShortcutsProvider } from "@/components/ShortcutsProvider";
@@ -189,27 +187,7 @@ function UnavailableRoute(): ReactElement {
   );
 }
 
-/** `/files/{id}`: the id is read from the stub router's pathname. */
-function FilesRoute(): ReactElement {
-  install();
-  const pathname = usePathname();
-  useSearchParams();
-  const match = pathname.match(/^\/files\/([^/]+)/);
-  return (
-    <Shell>
-      {match ? (
-        <FileDetailFullScreen fileId={decodeURIComponent(match[1])} />
-      ) : (
-        <div data-testid="fixture-listing" className="p-4 text-sm">
-          Listing
-        </div>
-      )}
-    </Shell>
-  );
-}
-
 export const FOCUS_MODE_ARRANGEMENTS: Record<string, () => ReactElement> = {
   "focus-drive": DriveRoute,
-  "focus-files": FilesRoute,
   "focus-unavailable": UnavailableRoute,
 };

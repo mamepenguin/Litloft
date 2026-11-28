@@ -62,20 +62,8 @@ describe("ridesFileDetailShell", () => {
       knowledgeEditorEnabled: true,
       plainTextDocument: file.plainTextDocument ?? false,
     });
-  const collection = (file: {
-    mimeType?: string;
-    fileType?: string;
-    plainTextDocument?: boolean;
-  }) =>
-    ridesFileDetailShell({
-      surface: "collection",
-      mimeType: file.mimeType,
-      fileType: file.fileType,
-      knowledgeEditorEnabled: true,
-      plainTextDocument: file.plainTextDocument ?? false,
-    });
 
-  it("routes media through the shell on the canonical surface", () => {
+  it("routes media through the shell", () => {
     expect(canonical({ mimeType: "video/mp4", fileType: "video" })).toBe(true);
     expect(canonical({ mimeType: "audio/mpeg", fileType: "audio" })).toBe(true);
   });
@@ -91,21 +79,13 @@ describe("ridesFileDetailShell", () => {
     ).toBe(true);
   });
 
-  it("leaves media on the collection route alone", () => {
-    // `/files/{id}` keeps the legacy stack: the canonical URL is a
-    // file's address, so a second inspector there would be work to
-    // throw away.
-    expect(collection({ mimeType: "video/mp4", fileType: "video" })).toBe(false);
-    expect(collection({ mimeType: "audio/mpeg", fileType: "audio" })).toBe(
-      false,
+  it("keeps documents on the shell", () => {
+    expect(canonical({ mimeType: "text/markdown", fileType: "document" })).toBe(
+      true,
     );
-  });
-
-  it("keeps documents on the shell on both surfaces", () => {
-    for (const on of [canonical, collection]) {
-      expect(on({ mimeType: "text/markdown", fileType: "document" })).toBe(true);
-      expect(on({ mimeType: "text/html", fileType: "document" })).toBe(true);
-    }
+    expect(canonical({ mimeType: "text/html", fileType: "document" })).toBe(
+      true,
+    );
   });
 
   it("routes the other viewers through the shell as well", () => {
@@ -127,19 +107,9 @@ describe("ridesFileDetailShell", () => {
     expect(canonical({ mimeType: "image/heic", fileType: "image" })).toBe(true);
   });
 
-  it("leaves the other viewers on the collection route alone", () => {
-    for (const file of [
-      { mimeType: "application/pdf", fileType: "document" },
-      { mimeType: "application/zip", fileType: "archive" },
-      { mimeType: "image/jpeg", fileType: "image" },
-    ]) {
-      expect(collection(file)).toBe(false);
-    }
-  });
-
   it("routes the kinds that were only ever a fallthrough as well", () => {
-    // The shell is the skeleton for opening a file, so the surface decides
-    // and there is no list of kinds to be absent from.
+    // The shell is the skeleton for opening a file, so there is no list of
+    // kinds to be absent from.
     for (const mimeType of [
       "text/plain",
       "application/json",
@@ -149,9 +119,6 @@ describe("ridesFileDetailShell", () => {
       "application/octet-stream",
     ]) {
       expect(canonical({ mimeType, fileType: "document" }), mimeType).toBe(true);
-      expect(collection({ mimeType, fileType: "document" }), mimeType).toBe(
-        false,
-      );
     }
   });
 
@@ -174,7 +141,7 @@ describe("ridesFileDetailShell", () => {
     }
   });
 
-  it("answers by the surface, not by the kind", () => {
+  it("answers by the kind, not by the mime", () => {
     const kinds = [
       { mimeType: "video/mp4", fileType: "video" },
       { mimeType: "application/pdf", fileType: "document" },
@@ -197,14 +164,13 @@ describe("ridesFileDetailShell", () => {
     ]);
   });
 
-  it("keeps a plain-text document on the shell on both surfaces", () => {
+  it("keeps a plain-text document on the shell", () => {
     const file = {
       mimeType: "text/plain",
       fileType: "document",
       plainTextDocument: true,
     };
     expect(canonical(file)).toBe(true);
-    expect(collection(file)).toBe(true);
   });
 
   it("says no before the file has resolved, so the host keeps drawing the row", () => {
@@ -212,7 +178,6 @@ describe("ridesFileDetailShell", () => {
     // `ridesFileDetailShell` still takes a `fileType` it otherwise has no
     // use for.
     expect(canonical({})).toBe(false);
-    expect(collection({})).toBe(false);
     expect(canonical({ mimeType: "application/pdf" })).toBe(false);
   });
 });

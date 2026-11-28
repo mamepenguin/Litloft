@@ -10,6 +10,7 @@ import {
   renameFile,
 } from "@/lib/api";
 import { copyText } from "@/lib/copyText";
+import { emitCollectionChanged } from "@/lib/collectionChanged";
 import {
   sidecarErrorNames,
   sidecarErrorMessage,
@@ -168,12 +169,13 @@ export function FileActions({
   const handleDelete = useCallback(async () => {
     try {
       await deleteFile(file.id);
+      emitCollectionChanged({ drive: file.drive });
       setDeleteOpen(false);
       if (onDelete) onDelete();
     } catch {
       setError(t("deleteFailed"));
     }
-  }, [file.id, onDelete, t]);
+  }, [file.id, file.drive, onDelete, t]);
 
   const handleCopyId = useCallback(async () => {
     if (await copyText(file.id)) {

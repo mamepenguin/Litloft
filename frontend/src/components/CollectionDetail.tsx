@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useId, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { ArrowLeft, House, HousePlus, ListPlus, Play, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
@@ -25,14 +25,29 @@ import { CollectionItemsPane } from "@/components/CollectionItemsPane";
 import { FileGrid } from "@/components/FileGrid";
 import { FileList } from "@/components/FileList";
 import { ViewToggle } from "@/components/ViewToggle";
+import { QueuePageProvider, type QueuePageState } from "@/components/queue/QueuePageContext";
+import { QueuePane } from "@/components/queue/QueuePane";
+import { QueueTrail } from "@/components/queue/QueueTrail";
+import { getLoop, setLoopStorage } from "@/components/queue/loopStorage";
+import { clearPlayIntent, requestPlay } from "@/components/queue/playIntent";
+import { setQueuePage } from "@/components/queue/queuePagePresence";
+import {
+  isPlayable,
+  nextPlayableAfter,
+  previousPlayableBefore,
+  queueEntryFromFile,
+  queueWalk,
+} from "@/components/queue/queue";
 import { useSetOverrideDrive } from "@/components/CurrentDriveProvider";
 import { TwoPaneLayout } from "@/components/folder/TwoPaneLayout";
 import { useToast } from "@/components/ToastProvider";
 import { useCollectionViewMode } from "@/hooks/useCollectionViewMode";
 import { useSelectedFile } from "@/hooks/useSelectedFile";
+import { subscribeCollectionChanged } from "@/lib/collectionChanged";
 import { FileNavigationOverrideProvider } from "@/lib/fileNavigationOverride";
 import { useImeKeyGuard } from "@/lib/ime";
 import { focusEnd, isNameInUse } from "@/lib/nameInUse";
+import { treeNarrowOpenStore } from "@/lib/treeNarrowOpenStore";
 import { useNameSubmission } from "@/hooks/useNameSubmission";
 import type { CollectionDetail as CollectionDetailType } from "@/types";
 
@@ -43,18 +58,21 @@ interface CollectionDetailProps {
 
 export function CollectionDetail({ drive, collectionId }: CollectionDetailProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const t = useTranslations("collection");
   const tDrive = useTranslations("drive");
+  const tPlayback = useTranslations("playback");
   const tShell = useTranslations("appShell");
   const tCommon = useTranslations("common");
   const ime = useImeKeyGuard();
   const toast = useToast();
   const setOverrideDrive = useSetOverrideDrive();
-  const { selectFile } = useSelectedFile();
+  const { fileId, selectFile } = useSelectedFile();
 
   const [detail, setDetail] = useState<CollectionDetailType | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [loop, setLoop] = useState(() => getLoop());
   const { viewMode, setViewMode } = useCollectionViewMode({
     drive,
     collectionId,
@@ -88,6 +106,12 @@ export function CollectionDetail({ drive, collectionId }: CollectionDetailProps)
     return () => setOverrideDrive(null);
   }, [drive, setOverrideDrive]);
 
+  const collectionLoaded = detail !== null;
+  useEffect(() => {
+    setQueuePage(drive, collectionLoaded && fileId !== null);
+    return () => setQueuePage(drive, false);
+  }, [drive, collectionLoaded, fileId]);
+
   const load = useCallback(async () => {
     setLoading(true);
     setNotFound(false);
@@ -104,6 +128,25 @@ export function CollectionDetail({ drive, collectionId }: CollectionDetailProps)
   useEffect(() => {
     load();
   }, [load]);
+
+  const reload = useCallback(async () => {
+    try {
+      const data = await getCollection(drive, collectionId);
+      setDetail(data);
+    } catch {
+      // The old queue stays and nothing is shown.
+    }
+  }, [drive, collectionId]);
+
+  useEffect(
+    () =>
+      subscribeCollectionChanged((change) => {
+        if (change.drive !== drive) return;
+        if (change.collectionId && change.collectionId !== collectionId) return;
+        void reload();
+      }),
+    [drive, collectionId, reload],
+  );
 
   const handleSaveName = useCallback(async () => {
     if (!detail) return;
@@ -183,15 +226,31 @@ export function CollectionDetail({ drive, collectionId }: CollectionDetailProps)
     }
   }, [detail, drive, collectionId, toast, tDrive]);
 
+  const playFile = useCallback(
+    (id: string) => {
+      treeNarrowOpenStore.set(drive, false);
+      requestPlay(id);
+      selectFile(id);
+    },
+    [drive, selectFile],
+  );
+
+  const selectWithoutPlay = useCallback(
+    (id: string) => {
+      clearPlayIntent();
+      selectFile(id);
+    },
+    [selectFile],
+  );
+
   const handlePlay = useCallback(() => {
     if (!detail) return;
-    const firstMedia = detail.items.find(
-      (item) =>
-        item.file.file_type === "video" || item.file.file_type === "audio",
+    const firstPlayable = detail.items.find((item) =>
+      isPlayable(queueEntryFromFile(item.file)),
     );
-    if (!firstMedia) return;
-    router.push(`/files/${firstMedia.file.id}?collection=${collectionId}`);
-  }, [detail, collectionId, router]);
+    if (!firstPlayable) return;
+    playFile(firstPlayable.file.id);
+  }, [detail, playFile]);
 
   const handleMoveUp = useCallback(
     async (index: number) => {
@@ -211,10 +270,10 @@ export function CollectionDetail({ drive, collectionId }: CollectionDetailProps)
         );
       } catch {
         toast.error(t("errorReorder"));
-        load();
+        reload();
       }
     },
-    [detail, drive, collectionId, load, toast, t],
+    [detail, drive, collectionId, reload, toast, t],
   );
 
   const handleMoveDown = useCallback(
@@ -235,10 +294,10 @@ export function CollectionDetail({ drive, collectionId }: CollectionDetailProps)
         );
       } catch {
         toast.error(t("errorReorder"));
-        load();
+        reload();
       }
     },
-    [detail, drive, collectionId, load, toast, t],
+    [detail, drive, collectionId, reload, toast, t],
   );
 
   const handleRemove = useCallback(
@@ -250,10 +309,74 @@ export function CollectionDetail({ drive, collectionId }: CollectionDetailProps)
         await removeCollectionItem(drive, collectionId, itemId);
       } catch {
         toast.error(t("errorRemoveItem"));
-        load();
+        reload();
       }
     },
-    [detail, drive, collectionId, load, toast, t],
+    [detail, drive, collectionId, reload, toast, t],
+  );
+
+  const items = useMemo(() => detail?.items ?? [], [detail?.items]);
+  const entries = useMemo(
+    () => items.map((item) => queueEntryFromFile(item.file)),
+    [items],
+  );
+  const walk = useMemo(
+    () => queueWalk(entries, fileId),
+    [entries, fileId],
+  );
+  const listHref = pathname;
+
+  const toggleLoop = useCallback(() => {
+    setLoop((previous) => {
+      const next = !previous;
+      setLoopStorage(next);
+      return next;
+    });
+  }, []);
+
+  const navigatePrev = useCallback(() => {
+    if (walk.prevId) playFile(walk.prevId);
+  }, [walk.prevId, playFile]);
+
+  const navigateNext = useCallback(() => {
+    if (walk.nextId) playFile(walk.nextId);
+  }, [walk.nextId, playFile]);
+
+  const onEnded = useCallback(() => {
+    if (!fileId) return;
+    const next = nextPlayableAfter(entries, fileId, loop);
+    if (next) playFile(next.id);
+  }, [entries, fileId, loop, playFile]);
+
+  const previousTrack = useCallback(() => {
+    if (!fileId) return;
+    const previous = previousPlayableBefore(entries, fileId, loop);
+    if (previous) playFile(previous.id);
+  }, [entries, fileId, loop, playFile]);
+
+  const queuePage = useMemo<QueuePageState>(
+    () => ({
+      replacesTrail: true,
+      name: detail?.name ?? "",
+      href: listHref,
+      prevId: walk.prevId,
+      nextId: walk.nextId,
+      position: walk.position,
+      total: walk.total,
+      navigatePrev,
+      navigateNext,
+      onEnded,
+      previousTrack,
+    }),
+    [
+      detail?.name,
+      listHref,
+      walk,
+      navigatePrev,
+      navigateNext,
+      onEnded,
+      previousTrack,
+    ],
   );
 
   if (loading) {
@@ -280,26 +403,50 @@ export function CollectionDetail({ drive, collectionId }: CollectionDetailProps)
     );
   }
 
-  const items = detail.items;
   const files = items.map((i) => i.file);
-  const hasMedia = items.some(
-    (i) => i.file.file_type === "video" || i.file.file_type === "audio",
+  const hasPlayable = items.some((i) => isPlayable(queueEntryFromFile(i.file)));
+  const currentFileTitle =
+    items.find((item) => item.file.id === fileId)?.file.title ?? fileId ?? "";
+
+  const leftPane = (
+    <QueuePane
+      name={detail.name}
+      href={listHref}
+      showPosition={fileId !== null}
+      position={walk.position}
+      total={walk.total}
+      loop={loop}
+      onToggleLoop={toggleLoop}
+    >
+      <CollectionItemsPane
+        items={items}
+        onMoveUp={handleMoveUp}
+        onMoveDown={handleMoveDown}
+        onRemove={handleRemove}
+        onSelect={playFile}
+        scrollCurrentIntoView={fileId !== null}
+      />
+    </QueuePane>
   );
 
   return (
-    <TwoPaneLayout
-      drive={drive}
-      folderPath=""
-      leftPane={
-        <CollectionItemsPane
-          items={items}
-          onMoveUp={handleMoveUp}
-          onMoveDown={handleMoveDown}
-          onRemove={handleRemove}
+    <QueuePageProvider value={queuePage}>
+      {fileId && (
+        <QueueTrail
+          drive={drive}
+          name={detail.name}
+          href={listHref}
+          fileTitle={currentFileTitle}
         />
-      }
-      leftPaneAriaLabel={t("itemListLabel")}
-    >
+      )}
+      <TwoPaneLayout
+        drive={drive}
+        folderPath=""
+        queuePane={fileId !== null}
+        visitUntilLeft
+        leftPane={leftPane}
+        leftPaneAriaLabel={fileId ? tPlayback("queueLabel") : t("itemListLabel")}
+      >
       {/* No `px-4` here: PageHeader carries its own, and an outer one would
           indent the header past everything under it. */}
       <PageFrame
@@ -407,7 +554,7 @@ export function CollectionDetail({ drive, collectionId }: CollectionDetailProps)
             }
             actions={
               <>
-                {hasMedia && (
+                {hasPlayable && (
                   <Button variant="primary" onClick={handlePlay}>
                     <Play size={16} />
                     {t("play")}
@@ -475,7 +622,7 @@ export function CollectionDetail({ drive, collectionId }: CollectionDetailProps)
               <ViewToggle mode={viewMode} onChange={setViewMode} />
             </div>
 
-            <FileNavigationOverrideProvider onNavigate={selectFile}>
+            <FileNavigationOverrideProvider onNavigate={selectWithoutPlay}>
               {viewMode === "grid" ? (
                 <FileGrid files={files} onRefresh={load} />
               ) : (
@@ -521,6 +668,7 @@ export function CollectionDetail({ drive, collectionId }: CollectionDetailProps)
           </div>
         )}
       </PageFrame>
-    </TwoPaneLayout>
+      </TwoPaneLayout>
+    </QueuePageProvider>
   );
 }

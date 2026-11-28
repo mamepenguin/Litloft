@@ -29,7 +29,7 @@ const PROTECTED_KEYS = [
 type Box = { left: number; top: number; width: number; height: number };
 
 interface OpenOptions {
-  arrangement?: "focus-drive" | "focus-files" | "focus-unavailable";
+  arrangement?: "focus-drive" | "focus-unavailable";
   path?: string;
   query?: string;
   width?: number;
@@ -314,17 +314,6 @@ test("SPEC-CORE-128 §1.1 / I9 (loading state): the Focus mode button is drawn, 
   const t = await box(inspectorToggle(page));
   expect(Math.abs(t.left - (f.left + f.width) - 12)).toBeLessThanOrEqual(0.5);
 });
-
-test("SPEC-CORE-128 §1.1 / I9 (/files/{id}): the Focus mode button is drawn there too, as a collection video's last control", async ({
-  page,
-}) => {
-  await open(page, { arrangement: "focus-files", path: `/files/${VIDEO}`, query: "" });
-  await ready(page);
-  await expect(focusButton(page)).toHaveCount(1);
-  const last = header(page).locator("button, a[href]").filter({ visible: true }).last();
-  await expect(last).toHaveAccessibleName("Focus mode (T)");
-});
-
 test("SPEC-CORE-098 I3 as revised / §3: a page that is not a file page has no Focus mode button and T changes nothing there; the same T on a file page enters", async ({
   page,
 }) => {
@@ -414,27 +403,6 @@ test("SPEC-CORE-128 §1.3: entering from the keyboard moves focus inside the hea
   await expectFocusLayout(page);
   expect(await page.evaluate(() => document.activeElement === document.body)).toBe(true);
 });
-
-test("SPEC-CORE-128 §1.3 / I1 / D9 (/files/{id}, 1440×900): the content moves up by the header's height and keeps its gap, measured from the viewport's top", async ({
-  page,
-}) => {
-  await open(page, {
-    arrangement: "focus-files",
-    path: `/files/${VIDEO}`,
-    query: "",
-    width: 1440,
-    height: 900,
-  });
-  await ready(page);
-  const before = await box(page.locator("video"));
-  await focusButton(page).click();
-  await expect.poll(async () => (await chrome(page)).headerInert).toBe(true);
-  await expect
-    .poll(async () => Math.round((await box(page.locator("video"))).top))
-    .toBe(Math.round(before.top - 56));
-  expect((await chrome(page)).appHeaderH).toBe("0px");
-});
-
 // ---------------------------------------------------------------------------
 // Keyboard
 // ---------------------------------------------------------------------------

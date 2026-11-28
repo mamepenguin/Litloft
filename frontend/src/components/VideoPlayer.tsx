@@ -34,6 +34,7 @@ import { useReassertCaptions } from "./player/hooks/useReassertCaptions";
 import { useVideoShortcuts } from "./player/hooks/useVideoShortcuts";
 import { ShellVideoPlayer } from "./player/ShellVideoPlayer";
 import { isNativeShell } from "@/lib/nativeBridge";
+import { useQueuePage } from "./queue/QueuePageContext";
 import {
   NativeToggleButtons,
   SubtitleTrackPicker,
@@ -136,6 +137,7 @@ const BrowserVideoPlayer = forwardRef(function BrowserVideoPlayer(
   ref: Ref<HTMLVideoElement>,
 ) {
   const t = useTranslations("player");
+  const queuePage = useQueuePage();
   const frameRef = useRef<HTMLDivElement>(null);
   const fullscreenToggleRef = useRef<(() => void) | null>(null);
   const [playerUi, setPlayerUi] = useNativePlayerUiPreference();
@@ -199,6 +201,8 @@ const BrowserVideoPlayer = forwardRef(function BrowserVideoPlayer(
     return setupBackgroundPiP(videoElement);
   }, [videoElement]);
 
+  const queueNext = queuePage?.onEnded;
+  const queuePrevious = queuePage?.previousTrack;
   useEffect(() => {
     if (!mc || !title) return;
     return setupMediaSession(
@@ -208,9 +212,19 @@ const BrowserVideoPlayer = forwardRef(function BrowserVideoPlayer(
         artist: subtitleText ?? "",
         artwork: [{ src: getThumbnailUrl(videoId) }],
       },
-      { onNextTrack: onEnded },
+      queueNext && queuePrevious
+        ? { onNextTrack: queueNext, onPreviousTrack: queuePrevious }
+        : { onNextTrack: onEnded },
     );
-  }, [mc, videoId, title, subtitleText, onEnded]);
+  }, [
+    mc,
+    videoId,
+    title,
+    subtitleText,
+    onEnded,
+    queueNext,
+    queuePrevious,
+  ]);
 
   useVideoShortcuts(mc, fullscreenToggleRef);
 
