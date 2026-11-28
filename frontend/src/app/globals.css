@@ -1408,6 +1408,29 @@ pre mark.ask-citation-highlight {
 }
 
 /* ------------------------------------------------------------------
+   The player layer: one fixed box over the slot the file page draws.
+   The layer itself carries no transform, filter or contain: any of them
+   would become the containing block of the player's own `fixed inset-0`
+   pseudo full screen.
+   ------------------------------------------------------------------ */
+[data-player-layer] {
+  position: fixed;
+  z-index: 15;
+}
+
+/* The tier the pinned frame has today, taken by the layer so the frame
+   inside it can cover the page. */
+:root[data-player-fullscreen] [data-player-layer] {
+  z-index: 50;
+}
+
+@media (max-width: 767.98px) {
+  :root[data-player-fullscreen] [data-player-layer] {
+    z-index: 60;
+  }
+}
+
+/* ------------------------------------------------------------------
    The player on a phone: stuck to the top of the canvas.
 
    **On the wrapper, not on the frame inside it.** A sticky box travels
@@ -1440,13 +1463,6 @@ pre mark.ask-citation-highlight {
    iframe whatever z-index the box carries. */
 :root[data-player-fullscreen] [data-sheet-snap] .media-detail-player {
   position: static;
-}
-
-/* The tier the pinned frame needs, on the frame rather than on the box: the
-   box may not carry a stacking context, and the frame's own `z-50` loses to
-   the chrome buttons, which are `z-50` and come later. */
-:root[data-player-fullscreen] [data-sheet-snap] [data-pseudo-fullscreen] {
-  z-index: 60;
 }
 
 /* Holds the pinned frame's slot open so the page under it does not move.

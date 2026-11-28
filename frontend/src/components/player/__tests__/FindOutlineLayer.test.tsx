@@ -3,7 +3,7 @@ import { act, cleanup, render } from "@testing-library/react";
 
 import { FindProvider } from "@/components/FileDetail/find/FindContext";
 import type { FindContextValue } from "@/components/FileDetail/find/types";
-import { MiniPlayerBoxContext } from "@/hooks/useMiniPlayer";
+import { MiniPlayerBoxContext } from "@/components/player/layer/MiniPlayerBoxContext";
 import type { FindRow } from "@/lib/fileFind";
 import type { MediaController } from "@/lib/mediaController";
 

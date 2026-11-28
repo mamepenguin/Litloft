@@ -39,7 +39,6 @@ export interface FileDetailPresenterProps {
   initialPage?: number;
   initialSection?: number;
   highlight?: string;
-  miniPlayerRoot?: Element | null;
   onScrollRootChange: (node: HTMLElement | null) => void;
   onEnded?: () => void;
   autoPlay?: boolean;
@@ -80,7 +79,6 @@ export function FileDetailPresenter({
   initialPage,
   initialSection,
   highlight,
-  miniPlayerRoot,
   onScrollRootChange,
   onEnded,
   autoPlay,
@@ -121,7 +119,6 @@ export function FileDetailPresenter({
       initialPage={initialPage}
       initialSection={initialSection}
       highlight={highlight}
-      miniPlayerRoot={miniPlayerRoot}
       onScrollRootChange={onScrollRootChange}
       onEnded={onEnded}
       autoPlay={autoPlay}

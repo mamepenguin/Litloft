@@ -52,7 +52,6 @@ export function MediaCanvas({
   splitColumnWidth,
   showPreviewActions,
   addonSlotProps,
-  miniPlayerRoot,
   ...playerProps
 }: MediaCanvasProps) {
   return (
@@ -67,7 +66,6 @@ export function MediaCanvas({
         {...playerProps}
         file={file}
         addonSlotProps={addonSlotProps}
-        miniPlayerRoot={miniPlayerRoot}
         playerWrapperRef={metrics.playerWrapperRef}
         framed={framed}
         bleed={isDocumentViewer(file.mime_type)}

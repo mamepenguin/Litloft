@@ -44,6 +44,20 @@ const FindContext = createContext<FindContextValue>(EMPTY_FIND);
 const FindMarksContext = createContext<FindMarksValue>(EMPTY_MARKS);
 const FindTextBodyContext = createContext(false);
 
+export function FindMarksProvider({
+  value,
+  children,
+}: {
+  value: FindMarksValue;
+  children: ReactNode;
+}): ReactElement {
+  return (
+    <FindMarksContext.Provider value={value}>
+      {children}
+    </FindMarksContext.Provider>
+  );
+}
+
 export function FindProvider({
   value,
   children,

@@ -102,7 +102,6 @@ export interface ShellLayoutProps {
   initialPage?: number;
   initialSection?: number;
   highlight?: string;
-  miniPlayerRoot?: Element | null;
   onScrollRootChange: (node: HTMLElement | null) => void;
   onEnded?: () => void;
   autoPlay?: boolean;
@@ -170,7 +169,6 @@ export function ShellLayout({
   initialPage,
   initialSection,
   highlight,
-  miniPlayerRoot,
   onScrollRootChange,
   onEnded,
   autoPlay,
@@ -725,7 +723,6 @@ export function ShellLayout({
           onArchiveController={setArchiveController}
           markdownReloadKey={markdownReloadKey}
           onMarkdownTagsSaved={onMarkdownTagsSaved}
-          miniPlayerRoot={miniPlayerRoot}
           onEnded={onEnded}
           autoPlay={autoPlay}
           addonSlotProps={addonSlotProps}

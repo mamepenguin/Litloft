@@ -1373,11 +1373,8 @@ describe("what the canvas keeps and what the inspector takes", () => {
         return this.tagName === "MAIN" ? 500 : 999;
       },
     );
-    const hostRoot = document.createElement("section");
     setApiResponses(makeFile({ has_chapters: false }));
-    const { container } = render(
-      <FileDetailContent fileId="f1" drive="main" miniPlayerRoot={hostRoot} />,
-    );
+    const { container } = render(<FileDetailContent fileId="f1" drive="main" />);
     await loaded();
 
     const host = container.querySelector<HTMLElement>(".media-detail-host");
