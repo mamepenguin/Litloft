@@ -51,6 +51,8 @@ interface VideoPlayerProps {
   subtitleText?: string;
   onMediaController?: (mc: MediaController | null) => void;
   posterUrl?: string;
+  src?: string;
+  onError?: () => void;
 }
 
 interface LitloftVideoControlsProps {
@@ -133,6 +135,8 @@ const BrowserVideoPlayer = forwardRef(function BrowserVideoPlayer(
     subtitleText,
     onMediaController,
     posterUrl,
+    src,
+    onError,
   }: VideoPlayerProps,
   ref: Ref<HTMLVideoElement>,
 ) {
@@ -167,7 +171,7 @@ const BrowserVideoPlayer = forwardRef(function BrowserVideoPlayer(
       setMc(null);
       onMediaController?.(null);
     };
-  }, [videoElement, videoId, onMediaController]);
+  }, [videoElement, videoId, src, onMediaController]);
 
   const { notifyEnded, notifyReady } = usePlaybackProgress({
     mc,
@@ -243,7 +247,7 @@ const BrowserVideoPlayer = forwardRef(function BrowserVideoPlayer(
       >
         <video
           ref={setVideoElement}
-          src={getStreamUrl(videoId)}
+          src={src || getStreamUrl(videoId)}
           poster={posterUrl}
           controls={playerUi === "browser"}
           playsInline
@@ -251,6 +255,7 @@ const BrowserVideoPlayer = forwardRef(function BrowserVideoPlayer(
           className="h-full w-full object-contain"
           onLoadedMetadata={handleLoadedMetadata}
           onEnded={handleEnded}
+          onError={onError}
           onPlay={() => setPlaying(true)}
           onPause={() => setPlaying(false)}
           onWaiting={(event) =>
@@ -319,9 +324,9 @@ const BrowserVideoPlayer = forwardRef(function BrowserVideoPlayer(
  * hand back through `ref`.
  */
 export const VideoPlayer = forwardRef(function VideoPlayer(
-  props: VideoPlayerProps,
+  { src, ...props }: VideoPlayerProps,
   ref: Ref<HTMLVideoElement>,
 ) {
-  if (isNativeShell()) return <ShellVideoPlayer {...props} />;
-  return <BrowserVideoPlayer {...props} ref={ref} />;
+  if (isNativeShell() && !src) return <ShellVideoPlayer {...props} />;
+  return <BrowserVideoPlayer {...props} src={src} ref={ref} />;
 });

@@ -1,0 +1,113 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "F1",
+      "origin": "reviewer",
+      "claim": "The I3b tests' check that no position from the new element is saved before the reseek, `expect(savedAfter.map(call => call[1])).not.toContain(0)`, can never fail, because `write` is never called with 0.",
+      "impact": "The I3b clause 'never saves a position read from the new element before that' has no working test. A regression that saved a stale or new-element position after a src change would pass the suite.",
+      "evidence": "frontend/src/components/__tests__/VideoPlayer.src.test.tsx (I3b block, both tests) asserts only that 0 is absent. frontend/src/lib/playbackProgress.ts:105, :191 and :269 call `write` only after the `usable()` check (`value > 0`), so 0 cannot appear in saveProgress calls at all. In jsdom the old controller's teardown (playbackProgress.ts:264-275) reads currentTime 30 from the same reused <video> after its src changed and writes 30. The assertion accepts that.",
+      "repro": "Mutation in my head: make the new controller's first onTick write `mc.getCurrentTime()` without checking resumePending or the interval gate. That saves 30 (test 1) or 0→skipped, and the assertion `not.toContain(0)` still passes. Not run.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "No declared invariant is broken by the code. The test meant to guard I3b's last clause is vacuous, so it reads as if it covers the clause.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Assert on the exact saveProgress calls after the new controller is handed out, for example that none of them carry the pre-change position (30) or any position other than the reseek target. Alternatively, reset currentTime to 0 and duration to NaN on src change in the test, as a real load does, and assert no save before the seek."
+    },
+    {
+      "id": "F2",
+      "origin": "reviewer",
+      "claim": "The I5 clause 'a request to a matching path is sent to backendProxy whatever its query string' has no test. Only `isStreamPath` on bare pathnames is tested, and the query stripping in server.js is not exercised.",
+      "impact": "If server.js stopped passing only the pathname, for example by passing req.url, addon streams with a query such as `?v=` would silently take the stalling Next.js rewrite. No test would fail.",
+      "evidence": "frontend/src/__tests__/server-routes.test.ts:5-34 tests pathnames only. frontend/server.js:61 and :72 strip the query with `new URL(req.url).pathname` and route on it. server.js has no unit test and is unchanged by this diff.",
+      "repro": "not_reproduced",
+      "introduced": "pre-existing",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "The current code satisfies I5 (server.js:61). The gap is test coverage of an unchanged file.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    }
+  ],
+  "specification_compliance": [
+    "Touch-point question: every place the diff reaches is in the declared touch-point list. The diff changes: VideoPlayer.tsx (VideoPlayerProps, the BrowserVideoPlayer destructure, the controller effect's deps, the <video> src/onError attributes, VideoPlayer); server-routes.js (isStreamPath's regex and its comment); frontend/src/__tests__/server-routes.test.ts; a new test under frontend/src/components/__tests__/; docs/ADDON-DEVELOPMENT.md. The spec, INDEX.md and review records are implicit. No unplanned touch point was found, so the answer is empty.",
+    "I1: VideoPlayer.tsx:250 uses `src || getStreamUrl(videoId)`, so undefined and \"\" fall back. VideoPlayer.tsx:330 renders ShellVideoPlayer in the shell when !src. Satisfied.",
+    "I2: a non-empty src renders BrowserVideoPlayer everywhere (VideoPlayer.tsx:330-331), and the <video> src is exactly that value (:250). Satisfied.",
+    "I3: progress (:176-180), the controller lifecycle (:165-174), ended ordering (:196-200) and the media session artwork (:217) stay keyed on videoId. Satisfied.",
+    "I3b: src is in the controller effect's deps (:174), so a src change runs cleanup (null) and then a new controller. usePlaybackProgress resets resumedRef per mc (playbackProgress.ts:117-122) and reseeks to initialTime or the stored position. Satisfied by reading; real-browser load-reset timing was not verified.",
+    "I3c: handleLoadedMetadata is unchanged (:182-191). Satisfied.",
+    "I4: onError is attached only to <video> (:258). Track elements carry no handler. Satisfied by reading.",
+    "I5: the regex at server-routes.js:15-16 matches the two shapes, anchored, with a 12-char id class and the name `[a-z][a-z0-9_-]*`. /api/internal is handled before it in server.js:67. Satisfied."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    {
+      "behavior": "Inside the native shell without src, an onError prop is forwarded to ShellVideoPlayer, which ignores it, so it is never called.",
+      "frequency": 0,
+      "impact": 2,
+      "reason": "No caller passes onError without src today. An addon always passes src, so nobody sees a silent drop in ordinary use."
+    },
+    {
+      "behavior": "On a src change under the same videoId, in a real browser the old controller's teardown save reads the new element's reset currentTime (0), so the last up-to-5 s of progress on the old source is not written.",
+      "frequency": 0,
+      "impact": 2,
+      "reason": "The spec states no caller changes src under one videoId, so this needs use that does not occur."
+    },
+    {
+      "behavior": "A whitespace-only src string is truthy, so it is used as the element source and selects the browser player inside the shell, instead of falling back like \"\".",
+      "frequency": 0,
+      "impact": 2,
+      "reason": "Only a malformed caller-supplied src triggers it, which is outside ordinary first-party use."
+    }
+  ],
+  "regression_risks": [
+    "Existing FilePreview callers pass no src. `src` (undefined) is a constant extra dep of the controller effect and `src || getStreamUrl` keeps today's value, so there is no regression by reading.",
+    "The regex alternation is anchored by an outer group with ^ and $, so lookalikes such as trailing slash or extra segments stay on Next.js; the tests cover these.",
+    "React may synthetically bubble a <source> child's error to the video's onError. There are no <source> children here, only <track>, so this does not apply today. Adding <source> children later would change I4 behavior."
+  ],
+  "test_coverage": [
+    "I1/I2: table test over browser and shell × undefined, \"\" and non-empty src. A mutation dropping `&& !src` or the `src ||` fallback would be killed.",
+    "I3: progress, controller lifecycle, ended ordering and artwork are each tested with and without src. Queue next and previous handlers with src are not tested.",
+    "I3b: a mutation removing `src` from the deps is killed by the null-then-controller sequence assertion. The 'never saves a position from the new element' clause is effectively untested (F1).",
+    "I3c: covers preference on, the autoPlay prop, and neither with src, plus preference on without src.",
+    "I4: two error events give two calls. A track error does not call onError (fireEvent error does not bubble). The no-onError case only checks that nothing throws.",
+    "I5: the pathname table covers the positive and negative shapes. The query-string routing in server.js is untested (F2)."
+  ],
+  "not_verified": [
+    "Real browser behavior on a src change on the same <video> (load algorithm reset of currentTime and default playback start position relative to the seek from the new controller).",
+    "Whether React attaches a non-delegated error listener to <track> and synthetically bubbles it to the parent <video>'s onError in the React version used.",
+    "The contents of commit 86114c664 itself, as opposed to the branch diff (I cannot run git). I reviewed the provided diff and the files at HEAD.",
+    "Tests were not run.",
+    "iOS shell playback through the web player."
+  ],
+  "coverage": [
+    {
+      "path": "frontend/server-routes.js",
+      "read": "full",
+      "reason": "Read the whole file (22 lines), plus the isStreamPath call site in server.js."
+    },
+    {
+      "path": "frontend/src/components/VideoPlayer.tsx",
+      "read": "full",
+      "reason": "Read the whole file (333 lines), plus usePlaybackProgress in lib/playbackProgress.ts and the ShellVideoPlayer signature."
+    },
+    {
+      "path": "frontend/src/__tests__/server-routes.test.ts",
+      "read": "full",
+      "reason": "Read the whole file."
+    },
+    {
+      "path": "frontend/src/components/__tests__/VideoPlayer.src.test.tsx",
+      "read": "full",
+      "reason": "A new file. Its whole content is in the provided diff, and I read it there."
+    }
+  ],
+  "confidence": 80
+}

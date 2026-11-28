@@ -629,6 +629,7 @@
     "volume": "Volume",
     "speed": "Playback speed",
     "loadFailed": "Could not load this file",
+    "loftReadFailed": "Could not read the .loft file",
     "buffering": "Loading…",
     "fullscreen": "Full screen",
     "exitFullscreen": "Exit full screen",

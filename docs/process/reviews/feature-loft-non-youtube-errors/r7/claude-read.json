@@ -1,0 +1,191 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [],
+  "specification_compliance": [
+    "I6 (the r6 F2 sequence A fail → B success → A): YouTubeEmbed.tsx:128-130 runs before the load effect at :265, because effects run in declaration order. When videoId changes it clears failedVideoIdRef, unless the ref already holds the new id. On the return to A the ref is null, so the guard at :267 lets the load run and setLoadFailed(false) happens. A then either plays or fails again and shows the link card (:381-384, :454-455). No empty box remains for this sequence.",
+    "§3 191 (a link card is not turned back into a player by a youtubeUi toggle or a new callback identity): the clearing effect depends only on [videoId]. On a rerun of the load effect for the same id, the ref still equals videoId and the effect returns at :267 while loadFailed stays true (it is set together with the ref at :383-384), so the link card stays. A fileId change with the same URL also keeps the link card.",
+    "I7: the restricted and playing paths are unchanged by this round. setEmbedRestricted(false) is still reset only past the guard.",
+    "The other invariants (I1-I5, I8-I10) are untouched by this fix commit. This round changes only YouTubeEmbed.tsx and EmbedLinkCard.test.tsx inside the media_import submodule."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [
+    {
+      "behavior": "Two different .loft files that point to the same YouTube video id share the no-retry guard when one embed instance moves between them. After the first file's API load failed, the second file shows the link card without a new load attempt.",
+      "frequency": 0,
+      "impact": 2,
+      "reason": "It needs two .loft files for the same video played one after the other in the same embed instance, right after a transient script failure. The user sees the link card, not a blank box."
+    }
+  ],
+  "regression_risks": [
+    "When loadFailed is true and the URL changes while window.YT is already present (for example loaded by another embed instance), loadYouTubeIframeApi resolves at once (loadYouTubeIframeApi.ts:38-39). The load effect's .then may then run before the re-render that mounts hostRef. It would return at YouTubeEmbed.tsx:277 and leave an empty box. The same ordering exists for the embedRestricted → new URL path and predates this round. I did not confirm React's flush order in a real browser, and the tests wrap rerenders in act(), which hides it.",
+    "The clearing effect relies on being declared before the load effect. Moving it below line 265 would make the A→B→A return-to-A case fail again. The new test would catch that."
+  ],
+  "test_coverage": [
+    "EmbedLinkCard.test.tsx adds 'returning to a URL whose load failed earlier tries the load again' (A fail → B success → A). It asserts that a second YT.Player is constructed. Removing the clearing effect at YouTubeEmbed.tsx:128-130 leaves constructed at 1 and fails the test. Moving the effect below the load effect has the same result.",
+    "The new test does not assert the rendered output for A on the return (a player box, or the link card if A fails again). It also does not cover A fail → B fail → A.",
+    "The existing test 'shows the link card for a viewer whose stored skin is YouTube's' still covers no retry on a rerun for the same id. Deleting the guard at :267 would make that test fail only if the effect reran for the same id, so the guard against retrying on a youtubeUi toggle is covered only indirectly."
+  ],
+  "not_verified": [
+    "Ran no tests; the fix was judged by reading YouTubeEmbed.tsx and the new test.",
+    "Did not confirm React 18's ordering of passive-effect state updates against the microtask from an already-resolved loadYouTubeIframeApi in a real browser (see regression_risks).",
+    "Did not re-read the files outside this fix round beyond the diff, because they did not change since r6.",
+    "Did not check whether pages above LoftPlayer key it by fileId, which affects how often embed instances are reused."
+  ],
+  "coverage": [
+    {
+      "path": "addons/intelligence/app/routers/rag.py",
+      "read": "partial",
+      "reason": "Changed image_applies hunk in the diff only; unchanged in this fix round."
+    },
+    {
+      "path": "addons/media_import/backend/router.py",
+      "read": "partial",
+      "reason": "Changed hunks (create_loft except branches, _loft_url_from_file, refresh_loft) in the diff only; unchanged in this fix round."
+    },
+    {
+      "path": "addons/media_import/backend/service.py",
+      "read": "partial",
+      "reason": "Changed hunks (LoftTitleFetchError, _title_fetch_failure_code, create_loft_sync title wrap) in the diff only."
+    },
+    {
+      "path": "addons/media_import/frontend/CaptionStatusBadge.ja.test.tsx",
+      "read": "full",
+      "reason": "New file, read in full from the diff."
+    },
+    {
+      "path": "addons/media_import/frontend/CaptionStatusBadge.test.tsx",
+      "read": "partial",
+      "reason": "Changed hunks in the diff only."
+    },
+    {
+      "path": "addons/media_import/frontend/Composer.test.tsx",
+      "read": "partial",
+      "reason": "Changed hunk in the diff only."
+    },
+    {
+      "path": "addons/media_import/frontend/Composer.tsx",
+      "read": "partial",
+      "reason": "Changed hunks (imports, ti hook, createLoft try/catch) in the diff only."
+    },
+    {
+      "path": "addons/media_import/frontend/ImportErrors.ja.test.tsx",
+      "read": "full",
+      "reason": "New file, read in full from the diff."
+    },
+    {
+      "path": "addons/media_import/frontend/ImportErrors.test.tsx",
+      "read": "full",
+      "reason": "New file, read in full from the diff."
+    },
+    {
+      "path": "addons/media_import/frontend/ImportFromUrl.test.tsx",
+      "read": "partial",
+      "reason": "Changed hunks in the diff only."
+    },
+    {
+      "path": "addons/media_import/frontend/ImportFromUrlDialog.tsx",
+      "read": "partial",
+      "reason": "Changed hunks in the diff only."
+    },
+    {
+      "path": "addons/media_import/frontend/api.ts",
+      "read": "partial",
+      "reason": "Changed hunks (CreateLoftError, createLoft) in the diff only."
+    },
+    {
+      "path": "addons/media_import/frontend/lib/linkFailure.ts",
+      "read": "full",
+      "reason": "New file, read in full from the diff."
+    },
+    {
+      "path": "addons/media_import/frontend/messages/en.json",
+      "read": "partial",
+      "reason": "Changed hunks in the diff only."
+    },
+    {
+      "path": "addons/media_import/frontend/messages/ja.json",
+      "read": "partial",
+      "reason": "Changed hunks in the diff only."
+    },
+    {
+      "path": "addons/media_import/frontend/players/VimeoEmbed.tsx",
+      "read": "partial",
+      "reason": "Changed hunks in the diff, which include the whole component body."
+    },
+    {
+      "path": "addons/media_import/frontend/players/YouTubeEmbed.tsx",
+      "read": "full",
+      "reason": "Read lines 100-499 from disk (the component, the new clearing effect, the load effect and the render branches) and the import hunk in the diff; this covers every changed hunk with its enclosing function."
+    },
+    {
+      "path": "addons/media_import/frontend/players/loadYouTubeIframeApi.ts",
+      "read": "full",
+      "reason": "Read the whole file from disk."
+    },
+    {
+      "path": "frontend/src/components/loft/LoftPlayer.tsx",
+      "read": "partial",
+      "reason": "Changed hunks in the diff (state type, isLoftContent, the effect and the render branches)."
+    },
+    {
+      "path": "frontend/src/messages-core/en.json",
+      "read": "partial",
+      "reason": "Changed hunk in the diff only."
+    },
+    {
+      "path": "frontend/src/messages-core/ja.json",
+      "read": "partial",
+      "reason": "Changed hunk in the diff only."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_114_text_video_frames.py",
+      "read": "partial",
+      "reason": "Changed hunk in the diff only."
+    },
+    {
+      "path": "addons/media_import/backend/tests/test_spec_addon_188_189_link_errors.py",
+      "read": "full",
+      "reason": "New file, read in full from the diff."
+    },
+    {
+      "path": "addons/media_import/frontend/__tests__/importErrorCases.tsx",
+      "read": "full",
+      "reason": "New file, read in full from the diff."
+    },
+    {
+      "path": "addons/media_import/frontend/players/__tests__/EmbedLinkCard.test.tsx",
+      "read": "full",
+      "reason": "New file, read in full from the diff, including the test added in this fix round."
+    },
+    {
+      "path": "addons/media_import/frontend/players/__tests__/loadYouTubeIframeApi.test.ts",
+      "read": "full",
+      "reason": "New file, read in full from the diff."
+    },
+    {
+      "path": "frontend/src/components/loft/__tests__/LoftPlayer.pictureOverlay.test.tsx",
+      "read": "partial",
+      "reason": "Changed hunk in the diff only."
+    },
+    {
+      "path": "frontend/src/components/loft/__tests__/LoftPlayer.readFailure.ja.test.tsx",
+      "read": "full",
+      "reason": "New file, read in full from the diff."
+    },
+    {
+      "path": "frontend/src/components/loft/__tests__/LoftPlayer.readFailure.test.tsx",
+      "read": "full",
+      "reason": "New file, read in full from the diff."
+    },
+    {
+      "path": "frontend/src/components/loft/__tests__/LoftPlayer.test.tsx",
+      "read": "partial",
+      "reason": "Changed hunk in the diff only."
+    }
+  ],
+  "confidence": 80,
+  "trajectory": "One fix round (31294ed45) came after r6. It adds a new branch: an effect keyed on [videoId] that clears failedVideoIdRef. That branch patches the failedVideoIdRef guard, a state with an early return that an earlier round had added so a failed load would not retry on a youtubeUi toggle. The guard then needed a reset rule for the case r6 F2 found. So the retry policy of YouTubeEmbed is being patched with extra state rather than designed: a ref plus an ordering-dependent reset effect beside loadFailed, when a single 'failed for id X' state could carry both. The round removes no branch or state. It closes the A→B→A empty box, and I found no new invariant break."
+}

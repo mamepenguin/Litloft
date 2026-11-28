@@ -17,9 +17,12 @@ beforeEach(() => {
   registerLoftPlayer("youtube", ProbeEmbed);
   vi.stubGlobal(
     "fetch",
-    vi.fn().mockResolvedValue({
-      json: async () => ({ provider: "youtube", url: "https://youtu.be/abcdefghijk" }),
-    }),
+    vi.fn(async () =>
+      new Response(JSON.stringify({ provider: "youtube", url: "https://youtu.be/abcdefghijk" }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    ),
   );
 });
 

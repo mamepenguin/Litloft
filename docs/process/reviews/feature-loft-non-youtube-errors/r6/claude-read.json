@@ -1,0 +1,259 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "F1",
+      "origin": "reviewer",
+      "claim": "The diff adds a product module, addons/media_import/frontend/lib/linkFailure.ts, which the touch-point list of the declared invariants does not name.",
+      "impact": "None at runtime. A reviewer who scopes by the touch-point list would skip the function that decides which message Composer and ImportFromUrlDialog show (the I2/I2b mapping).",
+      "evidence": "addons/media_import/frontend/lib/linkFailure.ts:1-19 (new file) defines linkFailureMessage, which Composer.tsx and ImportFromUrlDialog.tsx import. The touch points list api.ts, Composer.tsx and ImportFromUrlDialog.tsx but no lib/ module. Every other product path the diff reaches is listed: router.py, service.py, api.ts, Composer.tsx, ImportFromUrlDialog.tsx, the messages files, VimeoEmbed, YouTubeEmbed, loadYouTubeIframeApi, rag.py, LoftPlayer and messages-core. file_question.py is listed but is only called, not changed.",
+      "repro": "Compare the product file list with the Touch points section of docs/specs/loft-non-youtube-errors.md.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "An incomplete touch-point list. It breaks no invariant.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Add addons/media_import/frontend/lib/linkFailure.ts to the touch points."
+    },
+    {
+      "id": "F2",
+      "origin": "reviewer",
+      "claim": "After a YouTubeEmbed instance's IFrame API load fails for video A, then succeeds for video B, then the same instance is given A again, the effect returns early at the failedVideoIdRef check while loadFailed is false, so it shows an empty player box instead of a player or the link card.",
+      "impact": "In collection or queue play, a rebuilt-in-place embed that returns to a video whose earlier load failed shows a blank player area and never retries, although the API loads by then. Reopening the page recovers it.",
+      "evidence": "YouTubeEmbed.tsx:264 `if (failedVideoIdRef.current === videoId) return;` skips setLoadFailed. Line 266 cleared loadFailed when B's effect ran, and line 380 sets failedVideoIdRef only on failure, so it still holds A. B's cleanup (lines 383-415) destroys the player and empties the host. Line 451 then renders neither the link card nor a player for A.",
+      "repro": "not_reproduced. Mentally: render URL_A with a rejecting loader; rerender URL_B with a working loader; rerender URL_A. No YT.Player is constructed for A and no link card is shown. EmbedLinkCard.test.tsx covers only A→B.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "A",
+        "reason": "An embed whose IFrame API load was rejected for its URL renders an empty box. I6 requires a link and says it never renders nothing.",
+        "invariant_ref": "I6"
+      },
+      "severity": "LOW",
+      "proposed_fix": "In the early-return branch, call setLoadFailed(true). Alternatively, reset failedVideoIdRef when videoId changes, so a new URL retries."
+    },
+    {
+      "id": "F3",
+      "origin": "reviewer",
+      "claim": "With no metadata row, a refresh whose stored file_path hits an AmbiguousPath in resolve_on_disk raises an uncaught exception and answers 500, not the 404 'unreadable' answer.",
+      "impact": "The menu shows the same refreshFailed toast. It needs case-ambiguous duplicate directory names on disk.",
+      "evidence": "router.py:265-270 catches only (OSError, ValueError). service.py:367-373 _resolve_drive_file_path calls resolve_on_disk, which can raise AmbiguousPath (backend/app/services/diskpath.py:31 subclasses Exception directly).",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "It needs a filesystem state outside ordinary use, and the user sees the same toast.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Also catch AmbiguousPath in _loft_url_from_file."
+    }
+  ],
+  "specification_compliance": [
+    "188: create_loft wraps only the title fetch's exception in LoftTitleFetchError and classifies its __cause__ (unsupported first, then _classify_fetch_error). Every other exception answers 500 'failed'. The named codes are logged at info with the URL.",
+    "188 I1: create_loft_sync writes nothing before the title fetch and folder resolution, and its DB except branch unlinks the file.",
+    "188 I2/I2b: createLoft keeps only the three known string codes. linkFailureMessage maps unsupported_url and unavailable and sends everything else to the form's fallback. The subscription calls in the Composer keep their server text.",
+    "189 I4/I4b: refresh checks _require_active_file_in_drive before reading the file. It reads the file only when there is no row, checks the mime type, and requires a dict with a non-empty string url. It queues with the default stt_mode 'manual'.",
+    "190: the noCaptions texts no longer name YouTube in ja or en.",
+    "191: VimeoEmbed and YouTubeEmbed render GenericLinkCard for a missing id or a failed load. The loader removes a failed script tag. See F2 for the A→B→A gap.",
+    "192: in rag.py, image_applies now requires _has_frame_source, so a non-YouTube or unreadable .loft gets status 'none' and no attempt.",
+    "CORE-195 I9/I10: LoftPlayer validates res.ok and the body shape, and a `current` flag ignores stale answers."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    {
+      "behavior": "A YouTubeEmbed reused for a video id whose API load failed earlier, after another URL loaded in between, renders an empty player box and makes no new load attempt.",
+      "frequency": 1,
+      "impact": 4,
+      "reason": "It needs a transient IFrame API failure followed by success while the same embed moves A→B→A in queue play; the user sees a blank player until a reload."
+    },
+    {
+      "behavior": "rag.py now calls _has_frame_source, which reads the .loft file, for every question about a .loft video with a position, including for a profile that cannot see.",
+      "frequency": 5,
+      "impact": 1,
+      "reason": "Each Ask on a .loft reads one small file from disk; nothing visible changes."
+    },
+    {
+      "behavior": "A refresh with no metadata row queues the .loft file's url as stored, without stripping it, though the emptiness check uses strip().",
+      "frequency": 0,
+      "impact": 2,
+      "reason": "Only a hand-edited .loft with surrounding whitespace in url triggers it; yt-dlp receives the padded URL."
+    }
+  ],
+  "regression_risks": [
+    "CreateLoftError's message is now the code or 'Error: <status>', not the server detail. Any other consumer that showed e.message would change, but grep finds createLoft used only by the Composer and the dialog (plus tests).",
+    "The early return on failedVideoIdRef in YouTubeEmbed can leave the embed blank when the instance returns to a previously failed id (F2).",
+    "LoftPlayer now treats non-OK responses as failures. Any .loft stream answered with a non-2xx status that used to render will now show the message."
+  ],
+  "test_coverage": [
+    "test_spec_addon_188_189_link_errors.py covers each title-failure class, folder and DB failures leaving no file or row, refresh with and without a row, and the unusable-file cases. No test covers AmbiguousPath.",
+    "ImportErrors(.ja).test.tsx runs the real createLoft against stubbed fetch answers, in both forms and both locales.",
+    "EmbedLinkCard.test.tsx covers a Vimeo URL with no id, a YouTube URL with no id, a failed load on a later mount, a stored YouTube skin, and A(fail)→B(success)→restricted. It does not cover returning to A after B (F2).",
+    "loadYouTubeIframeApi.test.ts covers removal of the script tag and the retry.",
+    "LoftPlayer.readFailure tests cover the I9 body shapes and the I10 stale answers in both orders.",
+    "test_spec_addon_114: a non-YouTube or unreadable .loft gets image 'none', and with a blind profile meta has no image key."
+  ],
+  "not_verified": [
+    "Ran no tests; every behaviour above was judged by reading the code.",
+    "Did not read the internals of _classify_fetch_error in subscription/providers/youtube.py or the marker lists.",
+    "Did not check whether LoftPlayer keeps the same YouTubeEmbed instance across fileId changes in collection play, which F2 depends on.",
+    "Did not read GenericLinkCard or the rest of LoftPlayer outside the diff."
+  ],
+  "coverage": [
+    {
+      "path": "addons/intelligence/app/routers/rag.py",
+      "read": "partial",
+      "reason": "Read lines 545-614 (_text_question_stream, including the changed image_applies hunk) and file_question.py lines 300-360."
+    },
+    {
+      "path": "addons/media_import/backend/router.py",
+      "read": "partial",
+      "reason": "Read the imports and lines 170-330 (create_loft, _require_active_file_in_drive, _loft_url_from_file, refresh_loft)."
+    },
+    {
+      "path": "addons/media_import/backend/service.py",
+      "read": "partial",
+      "reason": "Read the imports and lines 225-395 and 745-840 (classification helpers, _resolve_drive_file_path, create_loft_sync, enqueue_fetch)."
+    },
+    {
+      "path": "addons/media_import/frontend/CaptionStatusBadge.ja.test.tsx",
+      "read": "full",
+      "reason": "New file, read in full from the diff."
+    },
+    {
+      "path": "addons/media_import/frontend/CaptionStatusBadge.test.tsx",
+      "read": "partial",
+      "reason": "Changed hunks in the diff only."
+    },
+    {
+      "path": "addons/media_import/frontend/Composer.test.tsx",
+      "read": "partial",
+      "reason": "Changed hunk in the diff only."
+    },
+    {
+      "path": "addons/media_import/frontend/Composer.tsx",
+      "read": "partial",
+      "reason": "Changed hunks of the submit handler in the diff only."
+    },
+    {
+      "path": "addons/media_import/frontend/ImportErrors.ja.test.tsx",
+      "read": "full",
+      "reason": "New file, read in full from the diff."
+    },
+    {
+      "path": "addons/media_import/frontend/ImportErrors.test.tsx",
+      "read": "full",
+      "reason": "New file, read in full from the diff."
+    },
+    {
+      "path": "addons/media_import/frontend/ImportFromUrl.test.tsx",
+      "read": "partial",
+      "reason": "Changed hunks in the diff only."
+    },
+    {
+      "path": "addons/media_import/frontend/ImportFromUrlDialog.tsx",
+      "read": "partial",
+      "reason": "Changed hunks in the diff only."
+    },
+    {
+      "path": "addons/media_import/frontend/api.ts",
+      "read": "partial",
+      "reason": "Changed hunks (CreateLoftError, createLoft) in the diff only."
+    },
+    {
+      "path": "addons/media_import/frontend/lib/linkFailure.ts",
+      "read": "full",
+      "reason": "New file, read in full from the diff."
+    },
+    {
+      "path": "addons/media_import/frontend/messages/en.json",
+      "read": "partial",
+      "reason": "Changed hunks in the diff only."
+    },
+    {
+      "path": "addons/media_import/frontend/messages/ja.json",
+      "read": "partial",
+      "reason": "Changed hunks in the diff only."
+    },
+    {
+      "path": "addons/media_import/frontend/players/VimeoEmbed.tsx",
+      "read": "partial",
+      "reason": "Changed hunks in the diff, which include the component body."
+    },
+    {
+      "path": "addons/media_import/frontend/players/YouTubeEmbed.tsx",
+      "read": "partial",
+      "reason": "Read lines 95-494, covering the component, the player effect and the render branches. The import hunk was read in the diff."
+    },
+    {
+      "path": "addons/media_import/frontend/players/loadYouTubeIframeApi.ts",
+      "read": "partial",
+      "reason": "Changed onerror hunk in the diff only."
+    },
+    {
+      "path": "frontend/src/components/loft/LoftPlayer.tsx",
+      "read": "partial",
+      "reason": "Changed hunks in the diff, which cover the state, effect and render branches."
+    },
+    {
+      "path": "frontend/src/messages-core/en.json",
+      "read": "partial",
+      "reason": "Changed hunk in the diff only."
+    },
+    {
+      "path": "frontend/src/messages-core/ja.json",
+      "read": "partial",
+      "reason": "Changed hunk in the diff only."
+    },
+    {
+      "path": "addons/intelligence/tests/test_spec_addon_114_text_video_frames.py",
+      "read": "partial",
+      "reason": "Changed hunk in the diff only."
+    },
+    {
+      "path": "addons/media_import/backend/tests/test_spec_addon_188_189_link_errors.py",
+      "read": "full",
+      "reason": "New file, read in full from the diff."
+    },
+    {
+      "path": "addons/media_import/frontend/__tests__/importErrorCases.tsx",
+      "read": "full",
+      "reason": "New file, read in full from the diff."
+    },
+    {
+      "path": "addons/media_import/frontend/players/__tests__/EmbedLinkCard.test.tsx",
+      "read": "full",
+      "reason": "New file, read in full from the diff."
+    },
+    {
+      "path": "addons/media_import/frontend/players/__tests__/loadYouTubeIframeApi.test.ts",
+      "read": "full",
+      "reason": "New file, read in full from the diff."
+    },
+    {
+      "path": "frontend/src/components/loft/__tests__/LoftPlayer.pictureOverlay.test.tsx",
+      "read": "partial",
+      "reason": "Changed hunk in the diff only."
+    },
+    {
+      "path": "frontend/src/components/loft/__tests__/LoftPlayer.readFailure.ja.test.tsx",
+      "read": "full",
+      "reason": "New file, read in full from the diff."
+    },
+    {
+      "path": "frontend/src/components/loft/__tests__/LoftPlayer.readFailure.test.tsx",
+      "read": "full",
+      "reason": "New file, read in full from the diff."
+    },
+    {
+      "path": "frontend/src/components/loft/__tests__/LoftPlayer.test.tsx",
+      "read": "partial",
+      "reason": "Changed hunk in the diff only."
+    }
+  ],
+  "confidence": 78
+}
