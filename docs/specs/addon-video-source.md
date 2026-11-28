@@ -238,7 +238,7 @@ I3. With `src`, these behave as they do without it:
 - `onMediaController` receives a controller, and `null` on unmount;
 - `ended` calls `notifyEnded` and then `onEnded`;
 - when `title` is given, the media session's artwork is `getThumbnailUrl(videoId)`, and inside a queue page its next and previous handlers are the queue's.
-I3b. Changing `src` while `videoId` stays the same rebuilds the controller and resumes from the saved position. It never saves a position read from the new element before resuming.
+I3b. Changing `src` while `videoId` stays the same hands `null` and then a new controller to `onMediaController`, and positions the new element as a new `videoId` would: at `initialTime` when one is given, otherwise at the stored position. It never saves a position read from the new element before that.
 I3c. With `src`, as without it, the element starts playing on `loadedmetadata` when the `autoPlay` prop is true or the Autoplay preference is on, and does not start otherwise.
 I4. An `error` event on the `<video>` element calls `onError` once per event. A `<track>` load failure, including a 404 for the generated caption track, does not call it. Without `onError`, an error changes nothing compared with today.
 I5. `isStreamPath` is true for the pathnames `/api/files/<12-char id>/stream` and `/api/addons/<name>/files/<12-char id>/stream`, where `<name>` is any string matching `^[a-z][a-z0-9_-]*$`. It is false for every other pathname, including `/api/internal/...`, other segment counts, ids of another length, and names with upper case or a leading digit. A request to a matching path is sent to `backendProxy` whatever its query string.
