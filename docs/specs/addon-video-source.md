@@ -39,8 +39,12 @@ This change is for the owner of a personal Litloft who runs such an addon.
 
 **SPEC-CORE-196.**
 
-1. An addon's `.loft` player renders `VideoPlayer` with:
-   - `videoId={fileId}`, `src={url}` and `onError={...}`;
+1. An addon's `.loft` player imports `VideoPlayer` from `@/components/VideoPlayer` and
+   renders it with:
+   - `videoId={fileId}`;
+   - `src` set to the addon's own stream URL, `/api/addons/<name>/files/<fileId>/stream`,
+     not `LoftEmbedProps.url` (the external URL stored in the `.loft`);
+   - `onError={...}`;
    - from `LoftEmbedProps`: `initialTime`, `duration={durationHint}`, `onEnded`,
      `onMediaController` and `posterUrl`;
    - `title={mediaSessionMetadata?.title}` and
@@ -64,8 +68,12 @@ This change is for the owner of a personal Litloft who runs such an addon.
    - the `ended` handling.
 4. The effect that builds the media controller depends on `src` as well as on
    `videoElement`, `videoId` and `onMediaController`. A new `src` under the same `videoId`
-   therefore rebuilds the controller, and `usePlaybackProgress` resumes from the saved
-   position, as it does for a new `videoId`.
+   therefore rebuilds the controller and is handled as a new `videoId` is:
+   - `usePlaybackProgress` seeks to `initialTime` when one is given, and otherwise to the
+     stored position;
+   - playback then starts only if the `loadedmetadata` autoplay decision says so.
+
+   No caller changes `src` under one `videoId` today. This fixes what one would get.
 5. When the `<video>` element fires `error`, `BrowserVideoPlayer` calls `onError?.()`. This
    is an `onError` attribute on the `<video>` element, added next to the existing handlers.
    A `<track>` element's load failure fires on the track, not on the video, and does not call
@@ -82,8 +90,16 @@ This change is for the owner of a personal Litloft who runs such an addon.
    A request whose path matches is bypassed whatever query it carries.
 2. `server.js` sends a matched request to `backendProxy` instead of `nextProxy`. The
    `/api/internal` block is still evaluated first.
-3. The backend route that answers is the addon's in-process router. That router authorizes
-   by the file id in the path, because a `<video src>` cannot send `X-Lit-Drive`.
+3. The backend route that answers is the addon's in-process router. It authorizes by the
+   file id in the path, because a `<video src>` cannot send `X-Lit-Drive`. The docs state
+   what such a route must do:
+   - load the file by id and call `check_drive_access`;
+   - answer 404 for a locked or unknown drive and for a trashed file, as core's stream
+     does, and 410 or 404 for a missing file.
+
+   Core does not gate in-process routes by `drives.json` policy
+   (`design-decisions.md`), so whether the route honours the addon's per-drive policy is
+   the addon's own decision. The docs say that too.
 
 ### 2. Failure cases
 
@@ -106,7 +122,7 @@ This change is for the owner of a personal Litloft who runs such an addon.
 
 None new. The player's states are today's.
 
-- A change of `src` under the same `videoId` rebuilds the controller and resumes (item 1,
+- A change of `src` under the same `videoId` is handled as a new `videoId` (item 1,
   step 4).
 - Inside the shell, switching `src` between a non-empty string and `undefined` swaps
   `BrowserVideoPlayer` and `ShellVideoPlayer`, which remounts the player. No caller does
@@ -128,9 +144,11 @@ None. `src` is whatever URL the caller passes, normally a same-origin addon endp
 - **SPEC-CORE-197.** The custom server forwards without inspecting the request, as it does
   for core's stream. The in-process addon route performs the drive check from the file id.
 - **Independent-service addons.** Their `/api/addons/<name>/...` routes pass through core's
-  `addon_proxy`, which needs `X-Lit-Drive` for `scope: "drive"` routes and gates features on
-  it. They are not a supported source for `src` (`## Checked, no action`), and the docs say
-  so.
+  `addon_proxy`. Header-less media can reach them through `drive_optional` with a
+  `file_access` pre-check, and `stream: true` routes are streamed. But
+  `_STREAM_WALL_CLOCK_TIMEOUT_SEC = 600` cuts every proxied stream response after ten
+  minutes, which ends a long video's open range mid-play. They are not a supported `src`
+  (`## Checked, no action`), and the docs say why.
 
 ### 7. Effect on existing features
 
@@ -141,6 +159,9 @@ None. `src` is whatever URL the caller passes, normally a same-origin addon endp
 - **The generated caption track** (`/api/addons/intelligence/files/<videoId>/subtitles.vtt`)
   is still requested for a `src` player with no subtitles. For a file with no transcript it
   fails as it does today, and does not call `onError`.
+- **Find outlines (SPEC-CORE-135 I7).** A `src` `.loft` plays in core's `<video>`, so it is
+  the "native" case of I7: outlines are placed in `videoWidth` × `videoHeight`. No
+  revision is needed.
 - **Autoplay.** A `src` `.loft` follows the Autoplay preference as a local video does:
   - it starts on `loadedmetadata` when the preference is on;
   - it does not start when the preference is off, including after a queue action.
@@ -218,6 +239,7 @@ I3. With `src`, these behave as they do without it:
 - `ended` calls `notifyEnded` and then `onEnded`;
 - when `title` is given, the media session's artwork is `getThumbnailUrl(videoId)`, and inside a queue page its next and previous handlers are the queue's.
 I3b. Changing `src` while `videoId` stays the same rebuilds the controller and resumes from the saved position. It never saves a position read from the new element before resuming.
+I3c. With `src`, as without it, the element starts playing on `loadedmetadata` when the `autoPlay` prop is true or the Autoplay preference is on, and does not start otherwise.
 I4. An `error` event on the `<video>` element calls `onError` once per event. A `<track>` load failure, including a 404 for the generated caption track, does not call it. Without `onError`, an error changes nothing compared with today.
 I5. `isStreamPath` is true for the pathnames `/api/files/<12-char id>/stream` and `/api/addons/<name>/files/<12-char id>/stream`, where `<name>` is any string matching `^[a-z][a-z0-9_-]*$`. It is false for every other pathname, including `/api/internal/...`, other segment counts, ids of another length, and names with upper case or a leading digit. A request to a matching path is sent to `backendProxy` whatever its query string.
 
@@ -237,8 +259,8 @@ I5. `isStreamPath` is true for the pathnames `/api/files/<12-char id>/stream` an
 - **Making `backendProxy` answer 502 when the backend is unreachable.** That would change
   core's own stream too. Today both wait until the browser gives up, which shows only while
   the backend restarts. It is left for a separate change, if wanted.
-- **Supporting independent-service addons as a `src`.** `addon_proxy` requires
-  `X-Lit-Drive` and buffers or caps responses. An addon that needs this can serve the
-  stream from an in-process router.
+- **Supporting independent-service addons as a `src`.** `addon_proxy` cuts every proxied
+  stream at 600 s of wall time. Lifting that cap is a separate change. An addon that needs
+  `src` today serves the stream from an in-process router.
 - **A "core names no addon" invariant.** It is a review rule (`design-decisions.md`), not
   observable behavior. The diff is checked for addon or provider literals in review.
