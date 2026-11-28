@@ -54,10 +54,10 @@ async function transcriptLoaded(page: Page) {
   await expect(page.getByTestId("fixture-transcript").first()).toBeVisible();
 }
 
-/** The visible area of the nearest y-scrolling ancestor of the video, or the document. */
+/** The visible area of the nearest y-scrolling ancestor of the slot, or the document. */
 async function visibleArea(page: Page) {
-  return page.locator("video").first().evaluate((video) => {
-    let node = video.parentElement;
+  return page.locator("[data-player-slot]").first().evaluate((slot) => {
+    let node = slot.parentElement;
     while (node && node !== document.body) {
       const overflow = getComputedStyle(node).overflowY;
       if (overflow === "auto" || overflow === "scroll") {

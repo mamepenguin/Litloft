@@ -4,6 +4,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { FindProvider } from "@/components/FileDetail/find/FindContext";
 import type { FindContextValue } from "@/components/FileDetail/find/types";
 import { FindOutlineLayer } from "@/components/player/FindOutlineLayer";
+import { PlayerLayerProvider, PlayerSlot } from "@/components/player/layer";
 import { VideoPlayer } from "@/components/VideoPlayer";
 import type { FindRow } from "@/lib/fileFind";
 import type { MediaController } from "@/lib/mediaController";
@@ -90,11 +91,15 @@ function NativeArrangement(): ReactElement {
   const rows = rowsFor(NATIVE_OUTLINE_CASES[0], null);
   return (
     <NextIntlClientProvider locale="en" messages={enMessages}>
-      <FindProvider value={findValue(rows)}>
-        <div id="picture-host" style={{ width: "640px" }}>
-          <VideoPlayer videoId="outline00001" />
-        </div>
-      </FindProvider>
+      <PlayerLayerProvider>
+        <FindProvider value={findValue(rows)}>
+          <div id="picture-host" style={{ width: "640px" }}>
+            <PlayerSlot>
+              <VideoPlayer videoId="outline00001" />
+            </PlayerSlot>
+          </div>
+        </FindProvider>
+      </PlayerLayerProvider>
     </NextIntlClientProvider>
   );
 }

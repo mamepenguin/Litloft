@@ -303,20 +303,6 @@ describe("RightPaneFile", () => {
     });
   });
 
-  it("passes a scroll-container element as miniPlayerRoot once attached", async () => {
-    mockGetFile.mockResolvedValue(baseFile);
-    render(<RightPaneFile fileId="abc123" drive="work" />);
-    await waitFor(() =>
-      expect(screen.getByTestId("file-detail-content")).toBeInTheDocument(),
-    );
-    // After the second render (post ref attach), miniPlayerRoot should
-    // be a real Element. Wait for that to propagate.
-    await waitFor(() => {
-      const last = fileDetailProps[fileDetailProps.length - 1];
-      expect(last.miniPlayerRoot).toBeInstanceOf(Element);
-    });
-  });
-
   it("forwards onAfterDelete to clearFile (file removed → close right pane)", async () => {
     mockGetFile.mockResolvedValue(baseFile);
     render(<RightPaneFile fileId="abc123" drive="work" />);

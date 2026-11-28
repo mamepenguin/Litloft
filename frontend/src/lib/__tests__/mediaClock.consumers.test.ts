@@ -1,10 +1,7 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { renderHook, act } from "@testing-library/react";
-import { createRef } from "react";
+import { describe, it, expect, vi } from "vitest";
+import { renderHook } from "@testing-library/react";
 import type { MediaController } from "../mediaController";
-import { MEDIA_CLOCK_ACTIVE_MS } from "../mediaClock";
 import { useMediaControlsState } from "@/components/player/MediaControls/hooks/useMediaControlsState";
-import { useMiniPlayer } from "@/hooks/useMiniPlayer";
 
 function makeMc(overrides: Partial<MediaController> = {}): MediaController {
   return {
@@ -27,73 +24,7 @@ function makeMc(overrides: Partial<MediaController> = {}): MediaController {
   };
 }
 
-/**
- * `vi.getTimerCount()` is no use here: the control bar also keeps an
- * auto-hide `setTimeout` pending. Spies are installed after `useFakeTimers`
- * so they wrap the faked globals.
- */
-function spyOnIntervals() {
-  return {
-    set: vi.spyOn(globalThis, "setInterval"),
-    clear: vi.spyOn(globalThis, "clearInterval"),
-  };
-}
-
-let intervalSpies: ReturnType<typeof spyOnIntervals>;
-
-function liveIntervals(): number {
-  return (
-    intervalSpies.set.mock.calls.length -
-    intervalSpies.clear.mock.calls.length
-  );
-}
-
-beforeEach(() => {
-  vi.useFakeTimers();
-  intervalSpies = spyOnIntervals();
-});
-
-afterEach(() => {
-  vi.restoreAllMocks();
-  vi.useRealTimers();
-});
-
 describe("mediaClock consumers", () => {
-  it("runs a single interval for the control bar and the mini player", () => {
-    const mc = makeMc();
-    const containerRef = createRef<HTMLElement>();
-
-    const controls = renderHook(() => useMediaControlsState({ mc }));
-    const mini = renderHook(() => useMiniPlayer({ containerRef, mc }));
-
-    expect(liveIntervals()).toBe(1);
-
-    controls.unmount();
-    expect(liveIntervals()).toBe(1);
-
-    mini.unmount();
-    expect(liveIntervals()).toBe(0);
-  });
-
-  it("keeps the two consumers agreeing about whether playback is running", () => {
-    const isPaused = vi.fn().mockReturnValue(false);
-    const mc = makeMc({ isPaused });
-    const containerRef = createRef<HTMLElement>();
-
-    const controls = renderHook(() => useMediaControlsState({ mc }));
-    const mini = renderHook(() => useMiniPlayer({ containerRef, mc }));
-
-    expect(controls.result.current.paused).toBe(false);
-
-    isPaused.mockReturnValue(true);
-    act(() => {
-      vi.advanceTimersByTime(MEDIA_CLOCK_ACTIVE_MS);
-    });
-
-    expect(controls.result.current.paused).toBe(true);
-    expect(mini.result.current.isMini).toBe(false);
-  });
-
   it("still reports the fields the shared snapshot excludes", () => {
     const mc = makeMc({
       getVolume: vi.fn().mockReturnValue(0.25),

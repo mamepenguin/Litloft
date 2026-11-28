@@ -6,6 +6,7 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  useSyncExternalStore,
   type ReactNode,
 } from "react";
 import { useTranslations } from "next-intl";
@@ -20,6 +21,7 @@ import {
 import { useReportPageBackground } from "@/hooks/useReportPageBackground";
 import { canTakeFocusModeShortcut, isHeaderMenuOpen } from "@/lib/findShortcut";
 import { focusModeStore } from "@/lib/focusModeStore";
+import { isNativeShell } from "@/lib/nativeBridge";
 import { forgetReadingAnchor, restoreReadingAnchor } from "@/lib/readingAnchor";
 
 import { ChromeButtons } from "./ChromeButtons";
@@ -27,11 +29,20 @@ import { useCurrentDrive } from "./CurrentDriveProvider";
 import { FileHeaderRowProvider } from "./FileHeaderRowProvider";
 import { FocusModeShortcuts } from "./FocusModeShortcuts";
 import { Header } from "./Header";
+import { PlayerLayerProvider } from "./player/layer";
 import { Sidebar } from "./Sidebar";
 import { useFocusSidebarWhen, useSidebar } from "./SidebarProvider";
 import { ShortcutsProvider } from "./ShortcutsProvider";
 import { QuickNoteProvider } from "./quick-note";
 import { GlobalSearchProvider } from "./search/GlobalSearchProvider";
+
+/**
+ * The shell answers a browser at hydration and a native shell once it has
+ * announced itself, without a hydration mismatch from the server's "no".
+ */
+const subscribeToShell = () => () => {};
+const inNativeShell = () => isNativeShell();
+const notNativeShell = () => false;
 
 /** How the header was brought back, because that decides how it leaves. */
 type Reveal = "hidden" | "pointer" | "tap";
@@ -122,6 +133,11 @@ export function AppShell({ children }: { children: ReactNode }) {
   const filePageUrl = useIsFilePageUrl();
   useFocusSidebarWhen(focusLayout);
   const pointers = useAnyPointer();
+  const nativeShell = useSyncExternalStore(
+    subscribeToShell,
+    inNativeShell,
+    notNativeShell,
+  );
 
   const [covered, setCovered] = useState(false);
   const [reveal, setReveal] = useState<Reveal>("hidden");
@@ -362,61 +378,63 @@ export function AppShell({ children }: { children: ReactNode }) {
       <QuickNoteProvider>
         <GlobalSearchProvider>
           <FileHeaderRowProvider>
-            <FocusModeShortcuts active={filePageUrl} />
-            <div className="min-h-dvh">
-              <Sidebar hiddenKeys={hiddenEntries} />
-              <ChromeButtons hidden={chromeHidden} />
-              {revealTargets && pointers.fine && (
-                <FocusRevealStrip
-                  onReveal={(x, y) => {
-                    pointerAt.current = { x, y };
-                    cancelHide();
-                    setReveal("pointer");
-                  }}
-                />
-              )}
-              {revealTargets && pointers.coarse && (
-                <FocusRevealHandle
-                  label={tFocus("reveal")}
-                  onReveal={() => {
-                    cancelHide();
-                    setReveal("tap");
-                  }}
-                />
-              )}
-              <div
-                className={`flex min-h-dvh min-w-0 flex-col transition-[padding] duration-150 ease-out ${
-                  inlineOpen && !focusLayout ? "min-[1200px]:pl-60" : ""
-                }`}
-                style={
-                  focusLayout
-                    ? { paddingTop: "env(safe-area-inset-top, 0px)" }
-                    : undefined
-                }
-              >
-                <Header focusLayout={focusLayout} hidden={chromeHidden} />
-                <main className="flex min-w-0 flex-1 flex-col">{children}</main>
-              </div>
-              {focusLayout && !covered && (reveal === "tap" || swallowing) && (
-                // Every press outside the header is the dismiss gesture, so
-                // it lands here and nowhere on the page, carrying the tap or
-                // the scroll it starts with it. It stays for the rest of the
-                // gesture when the header it uncovered has already gone.
+            <PlayerLayerProvider enabled={!nativeShell}>
+              <FocusModeShortcuts active={filePageUrl} />
+              <div className="min-h-dvh">
+                <Sidebar hiddenKeys={hiddenEntries} />
+                <ChromeButtons hidden={chromeHidden} />
+                {revealTargets && pointers.fine && (
+                  <FocusRevealStrip
+                    onReveal={(x, y) => {
+                      pointerAt.current = { x, y };
+                      cancelHide();
+                      setReveal("pointer");
+                    }}
+                  />
+                )}
+                {revealTargets && pointers.coarse && (
+                  <FocusRevealHandle
+                    label={tFocus("reveal")}
+                    onReveal={() => {
+                      cancelHide();
+                      setReveal("tap");
+                    }}
+                  />
+                )}
                 <div
-                  aria-hidden
-                  data-testid="focus-reveal-dismiss"
-                  className="fixed inset-0 z-20 touch-none"
-                  onPointerDown={dismissTap}
-                  onPointerUp={() => {
-                    // After the click the gesture produces, so that click
-                    // lands here too.
-                    window.setTimeout(() => setSwallowing(false), 0);
-                  }}
-                  onPointerCancel={() => setSwallowing(false)}
-                  onClick={(event) => event.preventDefault()}
-                />
-              )}
-            </div>
+                  className={`flex min-h-dvh min-w-0 flex-col transition-[padding] duration-150 ease-out ${
+                    inlineOpen && !focusLayout ? "min-[1200px]:pl-60" : ""
+                  }`}
+                  style={
+                    focusLayout
+                      ? { paddingTop: "env(safe-area-inset-top, 0px)" }
+                      : undefined
+                  }
+                >
+                  <Header focusLayout={focusLayout} hidden={chromeHidden} />
+                  <main className="flex min-w-0 flex-1 flex-col">{children}</main>
+                </div>
+                {focusLayout && !covered && (reveal === "tap" || swallowing) && (
+                  // Every press outside the header is the dismiss gesture, so
+                  // it lands here and nowhere on the page, carrying the tap or
+                  // the scroll it starts with it. It stays for the rest of the
+                  // gesture when the header it uncovered has already gone.
+                  <div
+                    aria-hidden
+                    data-testid="focus-reveal-dismiss"
+                    className="fixed inset-0 z-20 touch-none"
+                    onPointerDown={dismissTap}
+                    onPointerUp={() => {
+                      // After the click the gesture produces, so that click
+                      // lands here too.
+                      window.setTimeout(() => setSwallowing(false), 0);
+                    }}
+                    onPointerCancel={() => setSwallowing(false)}
+                    onClick={(event) => event.preventDefault()}
+                  />
+                )}
+              </div>
+            </PlayerLayerProvider>
           </FileHeaderRowProvider>
         </GlobalSearchProvider>
       </QuickNoteProvider>

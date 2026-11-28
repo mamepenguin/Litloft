@@ -1,0 +1,434 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "TP-1",
+      "origin": "reviewer",
+      "claim": "frontend/e2e-layout/pseudo-fullscreen.spec.ts is reached by the diff but is not in the touch-point list; the list names only its fixtures, and the diff changes an assertion in it.",
+      "impact": "The check that guarded the iOS WebKit pinned-frame rule changes meaning: before, it asserted that the pinned frame carries its own z-index 60 (the old comment says a stacking context above the frame is what iOS refuses to paint the frame out of). Now it asserts that the layer, an ancestor stacking context, carries z-index 60. A reader of the touch-point list would not expect a suite assertion to change.",
+      "evidence": "frontend/e2e-layout/pseudo-fullscreen.spec.ts:80-85: `expect(m.frameZ).toBe(\"60\")` is replaced by `expect(m.layerZ).toBe(\"60\")`. The diff also adds `layerZ` 15 checks at about :95 and :111. The touch-point list names only `frontend/e2e-layout/fixtures/pseudo-fullscreen.html`, `mobile-inspector-sheet.html` and `build-fixture-css.ts`.",
+      "repro": "Compare the diff's file list with the touch-point list. The spec file is absent from the list.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "An unplanned touch point. No declared invariant is broken by the edit itself; whether iOS paints the frame correctly from inside the layer's stacking context was not checked here.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Add the spec to the touch-point list, or record in the review that the assertion was re-keyed from the frame's tier to the layer's tier."
+    },
+    {
+      "id": "TP-2",
+      "origin": "reviewer",
+      "claim": "frontend/e2e-components/spec-viewport.spec.ts is reached by the diff but is not in the touch-point list.",
+      "impact": "None for a user. The new specs are registered in the width-guard list, which is a planning gap only.",
+      "evidence": "frontend/e2e-components/spec-viewport.spec.ts:59 adds \"player-layer.spec.ts\" to AT_THE_PHONE_WIDTH, and :170-171 add the two desktop specs to AT_THE_DESKTOP_WIDTH. The touch-point list names only `projects.ts` `DESKTOP_ONLY`.",
+      "repro": "Compare the diff's file list with the touch-point list.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "An unplanned touch point. No invariant is involved.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    },
+    {
+      "id": "TP-3",
+      "origin": "reviewer",
+      "claim": "Three real-browser specs are re-keyed from the `video` element to `[data-player-slot]`, and none of them is in the touch-point list: player-workbench-desktop.spec.ts, workbench-no-page-scroll-desktop.spec.ts and workbench-split-desktop.spec.ts.",
+      "impact": "These suites now find their scroller from the slot's ancestors instead of the video's. The list only covers specs that use the `.media-detail-player > :first-child` selector, so these edits were not planned.",
+      "evidence": "player-workbench-desktop.spec.ts:121 changes `node.querySelector(\"video\")` to `node.querySelector(\"[data-player-slot]\")`. workbench-no-page-scroll-desktop.spec.ts:57-60 changes `page.locator(\"video\")` to `page.locator(\"[data-player-slot]\")`. workbench-split-desktop.spec.ts:137-138 changes `document.querySelector(\"video\")` to the slot.",
+      "repro": "Compare the diff's file list with the touch-point list, which says \"a check that reads the player's box through `.media-detail-player > :first-child` ... and any other spec using that selector\". These specs used `video`, not that selector.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "An unplanned touch point. The re-keying keeps the measured scroller the same, so no invariant is broken.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    },
+    {
+      "id": "TP-4",
+      "origin": "reviewer",
+      "claim": "frontend/src/__tests__/row-action-reveal.test.ts is reached by the diff but is not in the touch-point list.",
+      "impact": "The expected reveal count drops from 15 to 14 because MiniPlayerContainer's `group-hover/mini` reveal is deleted. The edit is correct but was not planned.",
+      "evidence": "row-action-reveal.test.ts:141 changes `expect(reveals.length).toBe(15)` to `toBe(14)`. The touch-point list's unit-test section does not name this file.",
+      "repro": "Compare the diff's file list with the touch-point list.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "An unplanned touch point. No invariant is involved.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    },
+    {
+      "id": "TP-5",
+      "origin": "reviewer",
+      "claim": "The new unit test frontend/src/components/__tests__/FilePreview.slot.test.tsx is not in the touch-point list.",
+      "impact": "None for a user. The list's unit-test section names only removed, re-imported and kept tests, so the I9 test is an unplanned addition.",
+      "evidence": "frontend/src/components/__tests__/FilePreview.slot.test.tsx is a new file in the diff (I9 cases). The list names `FilePreview.test.tsx` as kept as it is, and does not name this file.",
+      "repro": "Compare the diff's file list with the touch-point list.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "An unplanned touch point. No invariant is involved.",
+        "invariant_ref": null
+      },
+      "severity": "INFO"
+    },
+    {
+      "id": "B-1",
+      "origin": "reviewer",
+      "claim": "In the iOS shell, `PlayerLayerProvider` hydrates with `enabled` true (server snapshot) and then re-renders with `enabled` false. It switches its returned element from `PlayerLayerContext.Provider` to a Fragment, which remounts every child of AppShell's content, the routed page included. A video page open at that moment gets a player mounted in the layer and then torn down.",
+      "impact": "On every load of the app in the iOS shell, the whole shell content (sidebar, header, routed page) mounts twice, and its fetches and effects run twice. When the app opens on a video or `.loft` file page, the player is first created in the layer outside the slot (with the `GET /progress` and the native-shell player messages that go with it), then destroyed with its teardown sends, then created again in place.",
+      "evidence": "AppShell.tsx:43-45 and :136-140: `useSyncExternalStore(subscribeToShell, inNativeShell, notNativeShell)`, where the server snapshot is always false and `subscribe` is a no-op. AppShell.tsx:381: `<PlayerLayerProvider enabled={!nativeShell}>`. PlayerLayer.tsx:270-280: `if (!store) return <>{children}</>;` versus `<PlayerLayerContext.Provider value={store}>{children}<PlayerLayerFrame/></PlayerLayerContext.Provider>`. A different element type at the same position remounts the subtree. app/layout.tsx:84 renders AppShell in the server-rendered root layout. nativeBridge.ts:165-167: isNativeShell reads `window.webkit.messageHandlers` and `__litloftShell`, which exist on the client in the shell.",
+      "repro": "not_reproduced. This was reasoned from React's reconciliation rules: hydration uses getServerSnapshot, then React re-renders when getSnapshot differs, and the Provider-to-Fragment type change remounts the children.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "A",
+        "reason": "I1 requires the player to be inside the slot in the iOS shell. The first hydrated commit renders it in the layer instead, and runs its mount effects there before the remount.",
+        "invariant_ref": "I1"
+      },
+      "severity": "MEDIUM",
+      "proposed_fix": "Keep the element type stable across the flip: always render the Provider, with a null store when disabled, and render PlayerLayerFrame only when enabled. Or decide `enabled` before the first client render."
+    },
+    {
+      "id": "B-2",
+      "origin": "reviewer",
+      "claim": "The layer's wheel handler calls preventDefault on every wheel event over the frame and applies only deltaY to the slot's scroller. A wheel over the player's own scrollable settings panel then scrolls the page instead of the panel. Ctrl+wheel (trackpad pinch-zoom) and horizontal wheel or swipe deltas are swallowed.",
+      "impact": "With a short frame, for example with a workbench panel shown, the settings panel overflows. Its lower rows (speed, subtitles) cannot be reached with the wheel: the wheel moves the canvas under the player instead. A trackpad pinch or a two-finger horizontal swipe that starts on the player scrolls the canvas vertically, or does nothing, instead of zooming or going back.",
+      "evidence": "PlayerLayer.tsx:217-230: `onWheel` returns early only when there is no scroller; otherwise it always calls `event.preventDefault()` and sets `scroller.scrollTop += event.deltaY * unit`. It checks neither `event.ctrlKey` nor `deltaX`, nor whether an element inside the frame can scroll. OverFrameSettingsPanel.tsx:91-92: the panel is `max-h-[calc(100%-5rem)]` with `overflow-y-auto` and sits inside the frame, so inside the layer.",
+      "repro": "not_reproduced. Steps: open a video file page at 1280x800 with a workbench panel shown, open the player's Settings, and scroll the wheel over the panel. The canvas scrolls and the panel does not. The I7 test (player-layer-desktop.spec.ts, the \"a wheel that starts on the player\" case) only wheels over the bare video, so it does not catch this.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "A",
+        "reason": "I7 says a wheel that starts on the player scrolls the slot's scroller by the same amount it would without the layer. Without the layer, a wheel over the settings panel scrolls the panel and leaves the canvas still; with the layer, the canvas moves.",
+        "invariant_ref": "I7"
+      },
+      "severity": "MEDIUM",
+      "proposed_fix": "Before calling preventDefault, skip events with ctrlKey, and skip those whose target has a scrollable ancestor inside the frame that can still scroll in the wheel's direction. Apply deltaX to the scroller as well, or let horizontal deltas pass through."
+    },
+    {
+      "id": "T-1",
+      "origin": "reviewer",
+      "claim": "The fixtures that wrap a bare `<VideoPlayer>` in `PlayerLayerProvider` (PlayerCaptions and TransitionPage in app.tsx, NativeArrangement in frameOutline.tsx) never run the layer. Only `PlayerSlot` registers with the store, so the player still renders in place.",
+      "impact": "The captions, pseudo-full-screen transition and find-outline suites pass without exercising the layer. In particular, I6's frame outlines through the forwarded FindMarks context, and the pseudo-full-screen move from inside the layer, have no real-browser check. A regression in FindMarksProvider forwarding would pass.",
+      "evidence": "e2e-components/fixtures/app.tsx:2424-2437 and :2452-2472, :2481; fixtures/frameOutline.tsx:95-99: the provider wraps VideoPlayer directly. PlayerSlot.tsx:42-55 is the only caller of `store.register`, and PlayerLayer.tsx:247 renders nothing while no slot is served.",
+      "repro": "Mutation: remove `<FindMarksProvider value={served.findMarks}>` from PlayerLayer.tsx:251. The frame-outline suite still passes, because its VideoPlayer never enters the layer.",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "A test gap rather than a product defect. The fixtures read as if they run the layer.",
+        "invariant_ref": null
+      },
+      "severity": "LOW",
+      "proposed_fix": "Wrap the player in these fixtures in `<PlayerSlot>`, or render it through FilePreview, so the suites run through the layer."
+    }
+  ],
+  "specification_compliance": [
+    "I1: the desktop spec checks one <video> inside the layer and outside the routed content, and the ordering of the old file's sends before the new file's GET /progress on a queue page. The iOS-shell clause is not tested, and the first hydrated commit in the shell breaks it (B-1).",
+    "I2/I3: the layer follows the slot through layout effects on every slot publish, ResizeObservers on the slot and all its ancestors, capturing scroll, resize, fullscreenchange, MutationObservers on the full-screen marks, and 40-frame rAF loops on transitions of the slot's ancestors. The clip-path is computed from ancestors with non-visible overflow. Code paths look consistent with the invariant.",
+    "I4: the layer is position: fixed with z-index 15, 50 while :root[data-player-fullscreen] is set, and 60 under 768px, which matches useIsMobile's breakpoint and data-sheet-snap. The providers whose surfaces render after children (QuickNote, GlobalSearch, Shortcuts, Toast) wrap the layer, so they stay later in the DOM.",
+    "I5/I8: the player element belongs to the served registration and is not re-parented. When the slot has no box, the frame is set to display: none and inert.",
+    "I7: the wheel is forwarded with preventDefault on every event, which breaks the clause for scrollable parts of the player (B-2).",
+    "I9: without a store, PlayerSlot renders children in place as its only child. The I9 unit test covers both the video and the .loft case.",
+    "I11: readingAnchor.ts resolves a hit on the layer to the slot with the same id.",
+    "I12/I13: an error boundary keyed per served id; the store serves the first registered slot and promotes the next one on unregister. Both are covered by jsdom tests.",
+    "First-review question: the touch points reached but not listed are e2e-layout/pseudo-fullscreen.spec.ts, e2e-components/spec-viewport.spec.ts, player-workbench-desktop.spec.ts, workbench-no-page-scroll-desktop.spec.ts, workbench-split-desktop.spec.ts, src/__tests__/row-action-reveal.test.ts and src/components/__tests__/FilePreview.slot.test.tsx (TP-1 to TP-5)."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    {
+      "behavior": "In the iOS shell, AppShell's whole content remounts once after hydration, because PlayerLayerProvider's returned element type flips from Provider to Fragment.",
+      "frequency": 5,
+      "impact": 3,
+      "reason": "Every app launch in the iOS shell triggers it; the user may see a re-render flash, and a video page opened at launch creates, destroys and recreates its player."
+    },
+    {
+      "behavior": "A wheel over any part of the layer, including the player's scrollable settings panel, scrolls the page's canvas; ctrl+wheel and horizontal deltas are swallowed.",
+      "frequency": 2,
+      "impact": 3,
+      "reason": "Wheeling over an overflowing settings panel on a short frame moves the page instead of the panel; a pinch-zoom or swipe-back started on the player does not work."
+    },
+    {
+      "behavior": "While the player is in pseudo full screen on a desktop browser that refuses element full screen, a wheel over it scrolls the hidden canvas under it, so the page has moved on exit.",
+      "frequency": 0,
+      "impact": 2,
+      "reason": "Only when requestFullscreen is refused on a device with a wheel; on exit the page is at a different scroll position."
+    },
+    {
+      "behavior": "Every render of the slot publishes to the store, which re-renders the layer and the player element tree with the page's latest props.",
+      "frequency": 10,
+      "impact": 1,
+      "reason": "Every page re-render re-renders the player subtree; nothing visible, only extra render work."
+    }
+  ],
+  "regression_risks": [
+    "iOS WebKit painting of a pinned cross-origin iframe inside the layer's z-60 stacking context: the old CSS comment said an ancestor stacking context was what iOS refused to paint the frame out of.",
+    "Slot height is written imperatively as px from the layer's content height. Any page CSS that expected the player's own content to size `.media-detail-player` now depends on follow() running before paint.",
+    "Transition following is limited to 40 rAF frames from transitionrun, transitionstart, transitionend and transitioncancel of the slot's ancestors. A longer or JS-driven animation (Web Animations API) of an ancestor would leave the player trailing.",
+    "React synthetic events from the player no longer bubble through page components. No page handler on the shell or canvas was found that relied on this, but addon slots were not checked."
+  ],
+  "test_coverage": [
+    "I1: desktop element placement and file-to-file send ordering are covered. No test covers a .loft iframe count or the iOS shell path.",
+    "I2: covered at 1440x900 and 1280x800 for no panel, inspector, tree, focus, find bar, docked sidebar and partial scroll; the workbench states and the inspector forms in the states spec; the phone pinned scroll. The sheet at each snap and the queue pane at 1440 are not covered.",
+    "I3: covered by every-frame checks for the inspector, focus in and out, find bar, resize, controls mode, panel, Enlarge, split, beside and stacked inspector. The .loft loading-to-embed change, the chips line arriving, the workbench row wrapping and a sheet snap are not covered.",
+    "I4: covered for the shortcut sheet, the search palette, a dialog, the file menu, the overlay sidebar, a toast, phone pseudo full screen with the shortcut sheet, and the revised routed-dialog case. Most surfaces in I4's list are not checked: the header menus, ContextMenu, ChromeButtons, the upload overlay and drawer, the find bar, the overlay inspector, the mobile sheet and strip, the focus-mode dismiss layer, the strip and handle, and the revealed header.",
+    "I6: covered for space, arrows and m, a chapter press, the queue's end-of-file and media-session next and previous. f and p, description timestamps, Ask pills, cast, frame capture, the addon videoRef, find outlines through the layer (see T-1) and the focus reveal over an iframe are not covered.",
+    "I7: a bare-video wheel in Chromium pixel mode is covered. Scrollable descendants and line mode are not (see B-2).",
+    "I8, I10, I11: one case each (phone, desktop, desktop).",
+    "I12, I13: jsdom only. I12 does not check that the header and sidebar stay usable.",
+    "Fixtures that wrap a bare VideoPlayer in PlayerLayerProvider do not run the layer (T-1)."
+  ],
+  "not_verified": [
+    "I did not run any test or browser; every behavior claim was reasoned from the code.",
+    "Whether React's hydration of useSyncExternalStore with a mismatching server snapshot runs the first commit's passive effects before the forced re-render (B-1).",
+    "Whether iOS WebKit paints the pinned YouTube iframe over the chrome from inside the layer's z-60 stacking context.",
+    "Whether the OverFrameSettingsPanel actually overflows at common frame heights (B-2's frequency).",
+    "Addon embeds (player-side, file-preview-actions) for page-context reads or DOM-ancestor assumptions that the layer would break.",
+    "Every DialogPortal target and its DOM order relative to the layer, for desktop pseudo full screen at equal z-50.",
+    "The full bodies of ShellLayout.tsx, AppShell.tsx and the e2e fixtures beyond the ranges listed in coverage."
+  ],
+  "coverage": [
+    {
+      "path": "frontend/e2e-components/document-summary-inspector-desktop.spec.ts",
+      "read": "partial",
+      "reason": "Only the diff hunk in measureFill (about lines 223-233); the file was not opened."
+    },
+    {
+      "path": "frontend/e2e-components/document-summary-inspector.spec.ts",
+      "read": "partial",
+      "reason": "Only the diff hunk (about lines 91-100); the file was not opened."
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/app.tsx",
+      "read": "partial",
+      "reason": "The diff hunks, plus lines 2440-2490 read from disk, and a grep for player and layer usage."
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/frameOutline.tsx",
+      "read": "partial",
+      "reason": "The diff hunks, plus a grep showing VideoPlayer wrapped directly at lines 95-99."
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/inspectorResponsive.tsx",
+      "read": "partial",
+      "reason": "The diff hunks, plus a grep at lines 17 and 538."
+    },
+    {
+      "path": "frontend/e2e-components/player-layer-desktop.spec.ts",
+      "read": "full",
+      "reason": "A new file; its whole content was read in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/player-layer-states-desktop.spec.ts",
+      "read": "full",
+      "reason": "A new file; its whole content was read in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/player-layer.measure.ts",
+      "read": "full",
+      "reason": "A new file; its whole content was read in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/player-layer.spec.ts",
+      "read": "full",
+      "reason": "A new file; its whole content was read in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/player-workbench-desktop.spec.ts",
+      "read": "partial",
+      "reason": "Only the diff hunk in scrollContainer (about line 121)."
+    },
+    {
+      "path": "frontend/e2e-components/projects.ts",
+      "read": "partial",
+      "reason": "Only the diff hunk adding two DESKTOP_ONLY entries."
+    },
+    {
+      "path": "frontend/e2e-components/spec-viewport.spec.ts",
+      "read": "partial",
+      "reason": "Only the diff hunks adding three entries."
+    },
+    {
+      "path": "frontend/e2e-components/workbench-no-page-scroll-desktop.spec.ts",
+      "read": "partial",
+      "reason": "Only the diff hunk in visibleArea."
+    },
+    {
+      "path": "frontend/e2e-components/workbench-split-desktop.spec.ts",
+      "read": "partial",
+      "reason": "Only the diff hunk in splitLayout."
+    },
+    {
+      "path": "frontend/e2e-layout/fixtures/mobile-inspector-sheet.html",
+      "read": "partial",
+      "reason": "Only the diff hunks at about lines 193-246."
+    },
+    {
+      "path": "frontend/e2e-layout/fixtures/pseudo-fullscreen.html",
+      "read": "partial",
+      "reason": "Only the diff hunks at about lines 71-180."
+    },
+    {
+      "path": "frontend/e2e-layout/pseudo-fullscreen.spec.ts",
+      "read": "partial",
+      "reason": "Only the diff hunks at about lines 18-111."
+    },
+    {
+      "path": "frontend/src/app/globals.css",
+      "read": "partial",
+      "reason": "Lines 930-990, 1205-1240 and 1400-1565 from disk, and greps for --player-avail and player selectors."
+    },
+    {
+      "path": "frontend/src/components/AppShell.tsx",
+      "read": "partial",
+      "reason": "Lines 120-150 and 360-443 from disk, plus the import and constant hunks in the diff."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/FileDetailContainer.tsx",
+      "read": "partial",
+      "reason": "Lines 40-150 from disk, a grep for ridesShell, and the hunk at about line 358 in the diff."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/FileDetailPresenter.tsx",
+      "read": "partial",
+      "reason": "Lines 30-130 from disk, which cover every changed hunk."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/MediaCanvas.tsx",
+      "read": "full",
+      "reason": "The whole file from disk."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/MediaPlayerBlock.tsx",
+      "read": "full",
+      "reason": "The whole file from disk."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/ShellLayout.tsx",
+      "read": "partial",
+      "reason": "Lines 700-740 from disk, plus the prop and interface hunks in the diff."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/find/FindContext.tsx",
+      "read": "partial",
+      "reason": "Lines 1-90 from disk, which include the new FindMarksProvider."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/hooks/useCompanionMetrics.ts",
+      "read": "full",
+      "reason": "The whole file from disk."
+    },
+    {
+      "path": "frontend/src/components/FilePreview.tsx",
+      "read": "partial",
+      "reason": "Lines 80-160 from disk, plus the import hunks in the diff."
+    },
+    {
+      "path": "frontend/src/components/MiniPlayerContainer.tsx",
+      "read": "full",
+      "reason": "Deleted; the removal hunk is the whole file, and a Glob confirms it is gone."
+    },
+    {
+      "path": "frontend/src/components/folder/RightPaneFile.tsx",
+      "read": "full",
+      "reason": "The whole file from disk."
+    },
+    {
+      "path": "frontend/src/components/player/FindOutlineLayer.tsx",
+      "read": "partial",
+      "reason": "Lines 1-30 from disk; only the import changed."
+    },
+    {
+      "path": "frontend/src/components/player/layer/MiniPlayerBoxContext.tsx",
+      "read": "full",
+      "reason": "A new file of 10 lines, read in the diff."
+    },
+    {
+      "path": "frontend/src/components/player/layer/PlayerLayer.tsx",
+      "read": "full",
+      "reason": "The whole file from disk."
+    },
+    {
+      "path": "frontend/src/components/player/layer/PlayerLayerContext.ts",
+      "read": "full",
+      "reason": "The whole file from disk."
+    },
+    {
+      "path": "frontend/src/components/player/layer/PlayerSlot.tsx",
+      "read": "full",
+      "reason": "The whole file from disk."
+    },
+    {
+      "path": "frontend/src/components/player/layer/index.ts",
+      "read": "full",
+      "reason": "A new file of 3 lines, read in the diff."
+    },
+    {
+      "path": "frontend/src/hooks/useMiniPlayer.ts",
+      "read": "full",
+      "reason": "Deleted; the removal hunk is the whole file, and a Glob confirms it is gone."
+    },
+    {
+      "path": "frontend/src/lib/readingAnchor.ts",
+      "read": "full",
+      "reason": "The whole file from disk."
+    },
+    {
+      "path": "frontend/src/__tests__/row-action-reveal.test.ts",
+      "read": "partial",
+      "reason": "Only the diff hunk changing the count to 14."
+    },
+    {
+      "path": "frontend/src/__tests__/uploadDrawerPlacement.test.tsx",
+      "read": "partial",
+      "reason": "The diff hunks, plus a grep showing that the MINI_PLAYER_* imports are still used at lines 49 and 55."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/__tests__/FileDetailContent.test.tsx",
+      "read": "partial",
+      "reason": "Only the removed-case diff hunk."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/__tests__/MediaShell.test.tsx",
+      "read": "partial",
+      "reason": "Only the diff hunk at about line 1373."
+    },
+    {
+      "path": "frontend/src/components/__tests__/FilePreview.slot.test.tsx",
+      "read": "full",
+      "reason": "A new file; its whole content was read in the diff."
+    },
+    {
+      "path": "frontend/src/components/folder/__tests__/RightPaneFile.test.tsx",
+      "read": "partial",
+      "reason": "Only the removed-case diff hunk."
+    },
+    {
+      "path": "frontend/src/components/player/__tests__/FindOutlineLayer.test.tsx",
+      "read": "partial",
+      "reason": "Only the import diff hunk."
+    },
+    {
+      "path": "frontend/src/components/player/layer/__tests__/PlayerLayer.test.tsx",
+      "read": "full",
+      "reason": "A new file; its whole content was read in the diff."
+    },
+    {
+      "path": "frontend/src/hooks/__tests__/useMiniPlayer.test.ts",
+      "read": "full",
+      "reason": "Deleted; the removal hunk is the whole file, and a Glob confirms it is gone."
+    },
+    {
+      "path": "frontend/src/lib/__tests__/mediaClock.consumers.test.ts",
+      "read": "partial",
+      "reason": "Only the diff hunks removing the useMiniPlayer cases."
+    }
+  ],
+  "confidence": 74
+}

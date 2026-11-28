@@ -38,7 +38,6 @@ export interface MediaPlayerBlockProps {
   onDocumentController?: (c: DocumentController | null) => void;
   markdownReloadKey: number;
   onMarkdownTagsSaved: () => void;
-  miniPlayerRoot?: Element | null;
   onEnded?: () => void;
   autoPlay?: boolean;
   addonSlotProps: Record<string, unknown>;
@@ -74,7 +73,6 @@ export function MediaPlayerBlock({
   onDocumentController,
   markdownReloadKey,
   onMarkdownTagsSaved,
-  miniPlayerRoot,
   onEnded,
   autoPlay,
   addonSlotProps,
@@ -114,7 +112,6 @@ export function MediaPlayerBlock({
           onDocumentController={onDocumentController}
           markdownReloadKey={markdownReloadKey}
           onMarkdownTagsSaved={onMarkdownTagsSaved}
-          miniPlayerRoot={miniPlayerRoot}
           onEnded={onEnded}
           autoPlay={autoPlay}
           fillCanvas={fillCanvas}

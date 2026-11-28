@@ -46,7 +46,6 @@ export interface FileDetailContentProps {
   highlight?: string;
   initialFind?: string;
   onMediaController?: (mc: MediaController | null) => void;
-  miniPlayerRoot?: Element | null;
   onRequestImageGallery?: () => void;
   onAfterDelete?: () => void;
   onBack?: () => void;
@@ -64,7 +63,6 @@ export function FileDetailContainer({
   highlight,
   initialFind,
   onMediaController,
-  miniPlayerRoot,
   onRequestImageGallery,
   onAfterDelete,
   onBack,
@@ -125,15 +123,13 @@ export function FileDetailContainer({
     plainTextDocument,
   });
 
-  // The shell owns the element that scrolls the canvas, so on the shell
-  // it — not the host's wrapper — is what the mini player observes and
-  // what `--rail-avail` is measured against. The host's wrapper is
-  // still there and still has a height; it just never scrolls any more,
-  // so measuring it would report the whole page.
+  // The shell owns the element that scrolls the canvas, so it — not the
+  // host's wrapper — is what `--rail-avail` is measured against. The host's
+  // wrapper is still there and still has a height; it just never scrolls any
+  // more, so measuring it would report the whole page.
   const [shellScrollRoot, setShellScrollRoot] = useState<Element | null>(null);
-  const scrollRoot = ridesShell ? shellScrollRoot : (miniPlayerRoot ?? null);
 
-  const metrics = useCompanionMetrics(file?.id, scrollRoot);
+  const metrics = useCompanionMetrics(file?.id, shellScrollRoot);
 
   const handleMediaController = useCallback(
     (mc: MediaController | null) => {
@@ -362,7 +358,6 @@ export function FileDetailContainer({
         initialPage={initialPage}
         initialSection={initialSection}
         highlight={highlight}
-        miniPlayerRoot={scrollRoot}
         onScrollRootChange={setShellScrollRoot}
         onEnded={onEnded}
         autoPlay={autoPlay}

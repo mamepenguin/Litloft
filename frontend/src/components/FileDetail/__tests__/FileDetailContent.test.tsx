@@ -412,26 +412,6 @@ describe("FileDetailContent", () => {
     expect((calls[calls.length - 1][0] as { initialSection?: number }).initialSection).toBe(6);
   });
 
-  it("gives the player the shell's scroll container, not the host's", async () => {
-    setApiResponses(makeFile());
-    const { FilePreview: MockedPreview } = await import("../../FilePreview");
-    const hostRoot = document.createElement("section");
-    const { container } = render(
-      <FileDetailContent fileId="f1" drive="main" miniPlayerRoot={hostRoot} />,
-    );
-    await loaded();
-
-    const main = container.querySelector("main");
-    expect(main).not.toBeNull();
-    await waitFor(() => {
-      const calls = (MockedPreview as ReturnType<typeof vi.fn>).mock.calls;
-      const lastProps = calls[calls.length - 1][0] as {
-        miniPlayerRoot?: Element | null;
-      };
-      expect(lastProps.miniPlayerRoot).toBe(main);
-    });
-  });
-
   it("lists the Related tab in a Markdown note's inspector when the note has a relation", async () => {
     withRelations(2);
     setApiResponses(

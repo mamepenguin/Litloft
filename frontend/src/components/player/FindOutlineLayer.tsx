@@ -10,7 +10,7 @@ import {
 } from "react";
 
 import { useFindMarks } from "@/components/FileDetail/find/FindContext";
-import { useInMiniPlayerBox } from "@/hooks/useMiniPlayer";
+import { useInMiniPlayerBox } from "./layer/MiniPlayerBoxContext";
 import type { FindRow } from "@/lib/fileFind";
 import type { MediaController } from "@/lib/mediaController";
 import {

@@ -37,7 +37,7 @@ function rowBlockPx(row: HTMLElement | null): number {
  */
 export function useCompanionMetrics(
   resolvedFileId: string | undefined,
-  miniPlayerRoot: Element | null | undefined,
+  scrollRoot: Element | null | undefined,
 ): CompanionMetrics {
   // How tall the rail may be: the visible height of whatever scrolls.
   // Measured rather than computed, because the two hosts do not differ
@@ -50,7 +50,7 @@ export function useCompanionMetrics(
   const playerAvailableRef = useRef<number | null>(null);
 
   useEffect(() => {
-    const pane = miniPlayerRoot ?? null;
+    const pane = scrollRoot ?? null;
     const scope: ParentNode & Node = pane ?? document;
     const publishAvailable = (value: number) => {
       if (value === railAvailableRef.current) return;
@@ -145,7 +145,7 @@ export function useCompanionMetrics(
     };
     // `resolvedFileId` is here for the player wrapper, which renders on
     // every branch as soon as there is a file, so one dependency covers it.
-  }, [resolvedFileId, miniPlayerRoot]);
+  }, [resolvedFileId, scrollRoot]);
 
   return { railAvailable, playerAvailable, playerWrapperRef };
 }

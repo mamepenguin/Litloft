@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "V-1",
+      "origin": "verifier",
+      "claim": "A wheel that starts over a `.loft` provider iframe (YouTube) is never seen by the layer's wheel forwarder. The iframe sits in the `position: fixed` layer outside the canvas scroller, so the browser chains that scroll to the document instead of the slot's scrolling ancestor.",
+      "impact": "On a desktop file page with a YouTube `.loft`, a wheel over the embed probably does not scroll the canvas the way it did before the layer, while the same wheel over a native video does. I7 requires the same scroll for both.",
+      "evidence": "frontend/src/components/player/layer/PlayerLayer.tsx:261 registers the wheel listener on the layer frame in the parent document. Wheel events inside a cross-origin iframe are dispatched in the iframe's own document and never bubble to that listener. frontend/src/app/globals.css:1416-1419 makes `[data-player-layer]` `position: fixed`, so the iframe's scroll chain no longer passes through the canvas scroller. The only I7 e2e case (frontend/e2e-components/player-layer-desktop.spec.ts:443-488) opens the default file page and does not exercise a provider iframe.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "A",
+        "invariant_ref": "I7",
+        "reason": "I7 requires a wheel that starts on the player to scroll the slot's nearest scrolling ancestor by the same amount as without the layer, and the player includes the `.loft` provider iframe (I1)."
+      },
+      "severity": "MEDIUM",
+      "proposed_fix": "Verify in a real browser with a YouTube `.loft` and add an I7 e2e case over the iframe. If the canvas does not scroll, forward the scroll some other way, for example with a transparent wheel-catching overlay while the iframe is not being interacted with, or by scrolling the canvas when the document scrolls."
+    }
+  ],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "W-1",
+      "status": "confirmed",
+      "note": "frontend/src/components/player/layer/PlayerLayer.tsx:247 returns (leaving the event alone) only when |deltaX| > |deltaY|. Otherwise, past the ctrl, full-screen and inner-scroller checks, line 252 calls preventDefault and line 259 applies only `deltaY * unit` to `scroller.scrollTop`. Nothing applies deltaX, so the horizontal part of a diagonal wheel is lost. It matters only where the slot's scroller (or an ancestor) also scrolls horizontally."
+    }
+  ],
+  "unspecified_scores": [
+    {
+      "source_reviewer": "claude-read",
+      "index": 0,
+      "frequency": 2,
+      "impact": 2,
+      "reason": "A wheel over the player in pseudo or system full screen is not forwarded (PlayerLayer.tsx:249); the covered page cannot be seen anyway and the e2e case confirms the page stays put, so the user sees nothing wrong."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "index": 1,
+      "frequency": 3,
+      "impact": 2,
+      "reason": "Hand-made scroll chaining: wheeling over the player's settings panel scrolls it to its end and then the canvas jumps instantly by the raw delta, ignoring overscroll-behavior and smooth scrolling; it feels slightly different from a native scroll."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "index": 2,
+      "frequency": 2,
+      "impact": 2,
+      "reason": "A diagonal trackpad swipe over the player moves only vertically, which shows only if the canvas also overflows horizontally, and that is rare on the file page."
+    }
+  ],
+  "specification_compliance": [
+    "I7 holds for a native `<video>` (the vertical wheel is forwarded with deltaMode scaling; ctrl, sideways, full-screen and inner-scroller cases are excluded). For a provider iframe it is in doubt (V-1)."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    {
+      "behavior": "A wheel whose horizontal and vertical parts are equal and non-zero is treated as vertical and preventDefaulted, so the horizontal part is dropped as well.",
+      "frequency": 1,
+      "impact": 1,
+      "reason": "An exactly diagonal trackpad input over the player scrolls only vertically, which is barely noticeable."
+    }
+  ],
+  "regression_risks": [
+    "A scroll over a YouTube `.loft` embed may not reach the canvas because the iframe now lives in a fixed layer outside the scroller."
+  ],
+  "test_coverage": [
+    "player-layer-desktop.spec.ts:443 covers the vertical wheel over the default player only; no case covers a diagonal wheel or a wheel over a provider iframe.",
+    "player-layer-wheel.spec.ts covers the settings-panel chaining and pseudo full screen; player-layer-wheel-desktop.spec.ts covers ctrl+wheel."
+  ],
+  "not_verified": [
+    "Did not run any browser to confirm V-1's scroll chaining for a cross-origin iframe inside a fixed layer.",
+    "Did not check whether the default fixture in the I7 desktop test is a native video or a `.loft` embed.",
+    "Did not verify behavior in Safari/WebKit."
+  ],
+  "confidence": 80
+}

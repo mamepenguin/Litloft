@@ -1,0 +1,232 @@
+{
+  "risk": "HIGH",
+  "score": 7,
+  "base": 3,
+  "zone_max": "MEDIUM",
+  "modifiers": [],
+  "promotions": [],
+  "zones_touched": [
+    {
+      "path": "DESIGN.md",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "docs/specs/INDEX.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/player-layer.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/user-guide/viewers-and-players.md",
+      "level": "LOW"
+    },
+    {
+      "path": "frontend/e2e-components/document-summary-inspector-desktop.spec.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/document-summary-inspector.spec.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/app.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/frameOutline.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/inspectorResponsive.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/player-layer-desktop.spec.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/player-layer-states-desktop.spec.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/player-layer-wheel-desktop.spec.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/player-layer-wheel.spec.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/player-layer.measure.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/player-layer.spec.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/player-workbench-desktop.spec.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/projects.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/pseudo-fullscreen-transition.spec.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/spec-viewport.spec.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/workbench-no-page-scroll-desktop.spec.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/workbench-split-desktop.spec.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-layout/fixtures/mobile-inspector-sheet.html",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-layout/fixtures/pseudo-fullscreen.html",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-layout/pseudo-fullscreen.spec.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/__tests__/row-action-reveal.test.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/__tests__/uploadDrawerPlacement.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/app/globals.css",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/AppShell.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/FileDetailContainer.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/FileDetailPresenter.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/MediaCanvas.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/MediaPlayerBlock.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/ShellLayout.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/__tests__/FileDetailContent.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/__tests__/MediaShell.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/find/FindContext.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/hooks/useCompanionMetrics.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FilePreview.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/MiniPlayerContainer.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/FilePreview.slot.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/folder/RightPaneFile.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/folder/__tests__/RightPaneFile.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/player/FindOutlineLayer.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/player/__tests__/FindOutlineLayer.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/player/layer/MiniPlayerBoxContext.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/player/layer/PlayerLayer.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/player/layer/PlayerLayerContext.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/player/layer/PlayerSlot.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/player/layer/__tests__/PlayerLayer.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/player/layer/index.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/hooks/__tests__/useMiniPlayer.test.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/hooks/useMiniPlayer.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/__tests__/mediaClock.consumers.test.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/readingAnchor.ts",
+      "level": "MEDIUM"
+    }
+  ],
+  "human_zones_touched": [],
+  "protected_paths_touched": [],
+  "docs_only": false,
+  "reasons": [
+    "highest zone MEDIUM (4 points)"
+  ]
+}

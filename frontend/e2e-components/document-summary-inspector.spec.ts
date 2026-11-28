@@ -91,9 +91,10 @@ for (const arrangement of ["inspector-pdf", "inspector-archive"] as const) {
             main.clientHeight -
             Number.parseFloat(getComputedStyle(main).paddingBottom) -
             (kind === "inspector-archive" ? 16 : 0);
-          const viewerBottom = document
-            .querySelector(".media-detail-player > :first-child")!
-            .getBoundingClientRect().bottom;
+          const viewerBottom = (
+            document.querySelector("[data-player-slot]") ??
+            document.querySelector(".media-detail-player > :first-child")
+          )!.getBoundingClientRect().bottom;
           const peekTop = document
             .querySelector('[data-testid="mobile-inspector-peek"]')!
             .getBoundingClientRect().top;

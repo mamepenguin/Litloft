@@ -52,7 +52,22 @@ function visibleTop(scroller: HTMLElement | null): number {
 function probeAt(x: number, y: number): Element | null {
   if (y < 0 || y > window.innerHeight) return null;
   const element = document.elementFromPoint(x, y);
-  return element && !element.closest(CHROME) ? element : null;
+  if (!element || element.closest(CHROME)) return null;
+  return resolveLayerHit(element);
+}
+
+/**
+ * A point on the layer is a point on the slot it covers: the layer is outside
+ * the page, so its own ancestors say nothing about where the reader was.
+ */
+function resolveLayerHit(element: Element): Element {
+  const layer = element.closest("[data-player-layer]");
+  if (!layer) return element;
+  const id = layer.getAttribute("data-player-layer");
+  for (const slot of document.querySelectorAll("[data-player-slot]")) {
+    if (slot.getAttribute("data-player-slot") === id) return slot;
+  }
+  return element;
 }
 
 function probeBelow(x: number, top: number): Element | null {

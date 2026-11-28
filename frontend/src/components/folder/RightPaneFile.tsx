@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 
@@ -60,13 +60,6 @@ export function RightPaneFile({ fileId, drive }: RightPaneFileProps) {
   const [galleryOpen, setGalleryOpen] = useState(false);
   // The pane's own left edge is where the header's file row starts.
   const [paneRoot, setPaneRoot] = useState<HTMLDivElement | null>(null);
-  // Callback ref + state so FileDetailContent receives the actual DOM
-  // element on first render (a useRef value would be null on the
-  // initial pass).
-  const [scrollRoot, setScrollRoot] = useState<Element | null>(null);
-  const setScrollRootCb = useCallback((el: HTMLDivElement | null) => {
-    setScrollRoot(el);
-  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -136,7 +129,6 @@ export function RightPaneFile({ fileId, drive }: RightPaneFileProps) {
         // identical bars. The error state above still draws the row,
         // because there is no shell mounted to draw it.
         chrome={undefined}
-        scrollRef={setScrollRootCb}
       >
         {/* The hook has to stay with the host because only the host
             knows what "navigate" means in its URL model. */}
@@ -152,7 +144,6 @@ export function RightPaneFile({ fileId, drive }: RightPaneFileProps) {
               initialSection={initialSection}
               highlight={highlight}
               initialFind={initialFind}
-              miniPlayerRoot={scrollRoot}
               onRequestImageGallery={() => setGalleryOpen(true)}
               onAfterDelete={clearFile}
               onEnded={queuePage?.onEnded}
@@ -184,22 +175,17 @@ export function RightPaneFile({ fileId, drive }: RightPaneFileProps) {
 
 function PaneShell({
   chrome,
-  scrollRef,
   rootRef,
   children,
 }: {
   chrome?: React.ReactNode;
-  scrollRef?: (el: HTMLDivElement | null) => void;
   rootRef?: (el: HTMLDivElement | null) => void;
   children: React.ReactNode;
 }) {
   return (
     <div ref={rootRef} className="flex h-full flex-col bg-bg-primary">
       {chrome}
-      <div
-        ref={scrollRef}
-        className={chrome ? "flex-1 overflow-auto p-4" : "flex-1 overflow-auto"}
-      >
+      <div className={chrome ? "flex-1 overflow-auto p-4" : "flex-1 overflow-auto"}>
         {children}
       </div>
     </div>

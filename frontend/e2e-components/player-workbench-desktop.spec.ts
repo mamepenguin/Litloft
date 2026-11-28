@@ -118,7 +118,7 @@ async function scrollContainer(page: Page, label: string) {
         const overflow = getComputedStyle(node).overflowY;
         if (
           (overflow === "auto" || overflow === "scroll") &&
-          node.querySelector("video")
+          node.querySelector("[data-player-slot]")
         ) {
           const r = node.getBoundingClientRect();
           return {

@@ -63,17 +63,47 @@ async function arrange(page: Page, id: string, viewport: { width: number; height
   await expect(page.locator("body")).toHaveAttribute("data-arrangement", id);
 }
 
-const frame = (page: Page) => page.locator("#player [data-testid='player-frame']");
+const frame = (page: Page) => page.locator("[data-player-layer] [data-testid='player-frame']");
 const fullscreenButton = (page: Page) =>
   frame(page).getByRole("button", { name: "Full screen", exact: true });
 
 /**
- * In landscape the frame is taller than the viewport, and clicking the
- * button would scroll the page first; bring it into view before measuring
- * the slot the frame leaves.
+ * In landscape the frame is taller than the viewport. The frame lives in the
+ * layer, so scrolling the button's own ancestors cannot move it; scroll the
+ * canvas the slot is in, and the layer follows.
  */
 async function reachButton(page: Page) {
-  await fullscreenButton(page).scrollIntoViewIfNeeded();
+  const button = fullscreenButton(page);
+  await expect(button).toBeAttached();
+  const viewport = page.viewportSize();
+  if (!viewport) return;
+  const box = await button.boundingBox();
+  if (!box) return;
+  const overflow = box.y + box.height - viewport.height;
+  if (overflow <= 0) return;
+  // Bring the button to the top quarter rather than barely onto the screen:
+  // the frame is much taller than the viewport, so a barely-visible slot
+  // would leave almost the whole viewport covered at the end of the exit.
+  const by = Math.max(overflow, box.y - viewport.height / 4);
+  await page.evaluate((amount) => {
+    const slot = document.querySelector("[data-player-slot]");
+    for (let p = slot?.parentElement ?? null; p; p = p.parentElement) {
+      const style = getComputedStyle(p);
+      if (
+        /(auto|scroll)/.test(style.overflowY) &&
+        p.scrollHeight > p.clientHeight
+      ) {
+        p.scrollTop += amount;
+        return;
+      }
+    }
+  }, by + 8);
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+      ),
+  );
 }
 
 async function rectOf(page: Page, selector: string): Promise<Box> {
@@ -118,7 +148,7 @@ function expectSameBox(actual: Box, expected: Box) {
 async function startSampling(page: Page) {
   await page.evaluate(() => {
     window.__samples = [];
-    const frameEl = document.querySelector<HTMLElement>("#player [data-testid='player-frame']")!;
+    const frameEl = document.querySelector<HTMLElement>("[data-player-layer] [data-testid='player-frame']")!;
     const afterEl = document.getElementById("after-player")!;
     const tick = () => {
       if (!window.__samples) return;
@@ -222,6 +252,7 @@ function expectCarried(
 }
 
 async function enter(page: Page) {
+  await reachButton(page);
   await fullscreenButton(page).click();
 }
 
@@ -248,7 +279,7 @@ async function settlesAt(page: Page, box: Box) {
  */
 async function freezeHalfway(page: Page) {
   await page.evaluate(() => {
-    const frameEl = document.querySelector("#player [data-testid='player-frame']")!;
+    const frameEl = document.querySelector("[data-player-layer] [data-testid='player-frame']")!;
     for (const a of frameEl.getAnimations()) {
       a.pause();
       a.currentTime = Number(a.effect?.getTiming().duration) / 2;
@@ -292,7 +323,7 @@ for (const { id, sibling } of ARRANGEMENTS) {
       }) => {
         await arrange(page, id, orientation);
         await reachButton(page);
-        const inline = await rectOf(page, "#player [data-testid='player-frame']");
+        const inline = await rectOf(page, "[data-player-layer] [data-testid='player-frame']");
         await page.evaluate(() => {
           window.__holdAnimations = true;
         });
@@ -327,7 +358,7 @@ for (const { id, sibling } of ARRANGEMENTS) {
       }) => {
         await arrange(page, id, orientation);
         await reachButton(page);
-        const inline = await rectOf(page, "#player [data-testid='player-frame']");
+        const inline = await rectOf(page, "[data-player-layer] [data-testid='player-frame']");
         const after = await rectOf(page, "#after-player");
         const row = sibling ? await rectOf(page, sibling) : null;
 
@@ -357,7 +388,7 @@ for (const { id, sibling } of ARRANGEMENTS) {
                 JSON.stringify({
                   hit: `${hit?.tagName}#${hit?.id}.${hit?.className}`,
                   connected: el.isConnected,
-                  same: el === document.querySelector("#player [data-testid='player-frame']"),
+                  same: el === document.querySelector("[data-player-layer] [data-testid='player-frame']"),
                   cls: el.className,
                   data: { ...(el as HTMLElement).dataset },
                   position: cs.position,
@@ -467,7 +498,7 @@ for (const { id, sibling } of ARRANGEMENTS) {
         await page.emulateMedia({ reducedMotion: "reduce" });
         await arrange(page, id, orientation);
         await reachButton(page);
-        const inline = await rectOf(page, "#player [data-testid='player-frame']");
+        const inline = await rectOf(page, "[data-player-layer] [data-testid='player-frame']");
         const after = await rectOf(page, "#after-player");
         const viewport = { left: 0, top: 0, width: orientation.width, height: orientation.height };
 

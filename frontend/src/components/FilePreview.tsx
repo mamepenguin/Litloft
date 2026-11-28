@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState, type Ref } from "react";
+import { useCallback, type Ref } from "react";
 import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
 import { FileQuestion } from "lucide-react";
@@ -17,8 +17,7 @@ import { OfficeExcerpt } from "./OfficeExcerpt";
 import { OfficePreview } from "./office/OfficePreview";
 import { officeViewerFor } from "@/lib/officeFiles";
 import LoftPlayer from "./loft/LoftPlayer";
-import { MiniPlayerContainer } from "./MiniPlayerContainer";
-import { useInspectorForm } from "@/hooks/useInspectorForm";
+import { PlayerSlot } from "./player/layer";
 import { formatFileSize } from "@/lib/format";
 import { getStreamUrl, getThumbnailUrl } from "@/lib/api";
 import { playerKind } from "@/lib/playerKind";
@@ -78,12 +77,6 @@ interface FilePreviewProps {
   onDocumentController?: (controller: DocumentController | null) => void;
   markdownReloadKey?: number;
   onMarkdownTagsSaved?: (tags: string[]) => void;
-  /**
-   * When the player lives inside a host whose own ``overflow-y: auto``
-   * handles scrolling the host must pass its
-   * scroll container here; document-scroll hosts can omit it.
-   */
-  miniPlayerRoot?: Element | null;
   /** The viewer takes the file page's canvas height. */
   fillCanvas?: boolean;
 }
@@ -104,32 +97,24 @@ export function FilePreview({
   onDocumentController,
   markdownReloadKey,
   onMarkdownTagsSaved,
-  miniPlayerRoot,
   fillCanvas,
 }: FilePreviewProps) {
   const t = useTranslations("file");
   const tc = useTranslations("common");
-  const [localMc, setLocalMc] = useState<MediaController | null>(null);
   const relayMc = useCallback(
     (mc: MediaController | null) => {
-      setLocalMc(mc);
       onMediaController?.(mc);
     },
     [onMediaController],
   );
 
-  const { stacked: stackedLayout } = useInspectorForm(file.id);
   const kind = playerKind(file);
   const posterUrl = file.has_thumbnail ? getThumbnailUrl(file.id) : undefined;
 
   if (kind === "loft") {
     return (
       <div className="-mx-4 -mt-4 bg-black md:mx-0 md:mt-0">
-        <MiniPlayerContainer
-          mc={localMc}
-          root={miniPlayerRoot}
-          stacked={stackedLayout}
-        >
+        <PlayerSlot>
           <LoftPlayer
             fileId={file.id}
             onMediaController={relayMc}
@@ -143,7 +128,7 @@ export function FilePreview({
               artwork: [{ src: getThumbnailUrl(file.id) }],
             }}
           />
-        </MiniPlayerContainer>
+        </PlayerSlot>
       </div>
     );
   }
@@ -151,11 +136,7 @@ export function FilePreview({
   if (kind === "video") {
     return (
       <div className="-mx-4 -mt-4 bg-black md:mx-0 md:mt-0">
-        <MiniPlayerContainer
-          mc={localMc}
-          root={miniPlayerRoot}
-          stacked={stackedLayout}
-        >
+        <PlayerSlot>
           <VideoPlayer
             ref={videoRef}
             videoId={file.id}
@@ -169,7 +150,7 @@ export function FilePreview({
             subtitleText={file.folder_path || file.drive}
             onMediaController={relayMc}
           />
-        </MiniPlayerContainer>
+        </PlayerSlot>
       </div>
     );
   }

@@ -1,0 +1,322 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-read",
+  "role": "read",
+  "risk": "HIGH",
+  "findings": [
+    {
+      "id": "W-1",
+      "origin": "reviewer",
+      "claim": "The layer's wheel forwarder drops the horizontal part of a diagonal wheel. When |deltaY| >= |deltaX| it calls preventDefault and applies only deltaY to the slot's scroller.",
+      "impact": "A trackpad scroll over the player that is mostly vertical loses its sideways component. Without the layer the browser would apply both axes. No file-page scroller is known to scroll sideways, so nothing visible is expected today.",
+      "evidence": "PlayerLayer.tsx onWheel (fix 6dc5eae): it returns only when `Math.abs(event.deltaX) > Math.abs(event.deltaY)`. Otherwise it calls `event.preventDefault(); scroller.scrollTop += event.deltaY * unit`, and nothing applies deltaX.",
+      "repro": "not_reproduced",
+      "introduced": "introduced",
+      "bucket_proposal": {
+        "bucket": "B",
+        "reason": "I7 speaks of the amount scrolled, and the tested canvas scrolls only vertically. This is a gap in the emulation with no known user path, not a broken declared invariant.",
+        "invariant_ref": null
+      },
+      "severity": "INFO",
+      "proposed_fix": "Also apply deltaX to scrollLeft, or document that only vertical scrolling is forwarded."
+    }
+  ],
+  "specification_compliance": [
+    "B-1 (r6): fixed. PlayerLayerProvider now always returns PlayerLayerContext.Provider, and only PlayerLayerFrame is conditional. Flipping `enabled` no longer changes the element type at AppShell's position, so the shell's content stays mounted. A jsdom test pins this ('turning the layer off keeps the page mounted'). When the store becomes null, PlayerSlot's register effect (deps [store, id]) unregisters and the slot renders its children in place, so only the player subtree moves, as I1 requires for the iOS shell.",
+    "B-2 (r6): fixed for the reported cases. onWheel now leaves the event to the browser for ctrl+wheel, for a mostly-horizontal wheel, in full screen (system or pseudo, through isFullscreenNow), and when an overflowing ancestor inside the frame can still scroll in the wheel's direction. New tests cover ctrl+wheel (synthetic event, desktop), the settings panel taking the wheel and then chaining to the page at its end (390x200), and pseudo full screen leaving the canvas still (390x844).",
+    "T-1 (r6): fixed. PlayerCaptions, TransitionPage and NativeArrangement now wrap VideoPlayer in PlayerSlot, so those suites run through the layer. In frameOutline.tsx, FindProvider now sits inside PlayerLayerProvider and around the slot, so the slot forwards the find marks through FindMarksProvider. pseudo-fullscreen-transition.spec.ts is re-keyed to `[data-player-layer] [data-testid='player-frame']`, and reachButton scrolls the slot's scroller instead of the button's own ancestors.",
+    "TP-1 to TP-5 were planning-only findings. The fix commits add two more unlisted e2e files (player-layer-wheel*.spec.ts) and registrations in projects.ts and spec-viewport.spec.ts; none of them affects a user."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    {
+      "behavior": "In pseudo or system full screen a wheel over the player is no longer forwarded; the browser applies it to the layer's own ancestors (the document) instead of the canvas.",
+      "frequency": 1,
+      "impact": 1,
+      "reason": "If the document itself can scroll on some host page, a wheel during full screen could move it under the player; on the file page nothing visible is expected."
+    },
+    {
+      "behavior": "The forwarder emulates scroll chaining by hand: an overflowing element inside the player keeps the wheel until its end, and the rest is applied to the slot's nearest scroller, ignoring overscroll-behavior and smooth-scroll settings.",
+      "frequency": 2,
+      "impact": 2,
+      "reason": "A wheel over the player scrolls the canvas instantly instead of with the browser's smooth wheel scrolling, which may feel different from a wheel beside it."
+    },
+    {
+      "behavior": "A diagonal trackpad scroll over the player loses its horizontal component (W-1).",
+      "frequency": 1,
+      "impact": 1,
+      "reason": "Only visible if a horizontally scrolling ancestor existed; none is known on the file page."
+    }
+  ],
+  "regression_risks": [
+    "Each new player element that scrolls or takes a wheel (a future panel, a range input with wheel handling, an addon embed) has to be handled by innerScrollerTakes or by another early return, or the page takes the wheel from it.",
+    "innerScrollerTakes sees only overflow-y auto or scroll elements between the target and the frame. A player element that handles wheel in JavaScript without overflow (a volume slider, for example) still loses the wheel to the page.",
+    "The iOS shell still mounts the layer during the hydration commit. If the file page ever renders its player before the post-hydration re-render (cached data, SSR), the player would mount in the layer once and then move into the slot."
+  ],
+  "test_coverage": [
+    "B-1: a jsdom test flips `enabled` and checks that a child does not remount. It does not drive AppShell's useSyncExternalStore hydration path.",
+    "B-2: ctrl+wheel is tested only with a synthetic WheelEvent dispatched on the video. The settings-panel case and the pseudo-full-screen case run at phone width with real mouse wheels. The horizontal wheel and system full screen are not tested.",
+    "T-1: the captions, transition and frame-outline fixtures now render the player through PlayerSlot, so removing FindMarksProvider from the layer would now fail the frame-outline suite, provided that suite asserts outlines (frame-outline-desktop.spec.ts:145 measures against #picture-host, which still contains the slot)."
+  ],
+  "not_verified": [
+    "I ran no test and no browser; every claim was reasoned from the code and the diffs.",
+    "Whether, in the iOS shell, the file page's player can render before AppShell's post-hydration re-render to enabled=false (I assumed the file fetch makes it later).",
+    "Whether the document scrolls on any host page when a wheel is left to the browser in full screen.",
+    "Whether OverFrameSettingsPanel or any other player element sets overscroll-behavior; my grep found none, but its glob may have missed the file.",
+    "The full bodies of most changed files beyond the diff hunks and PlayerLayer.tsx lines 125-204."
+  ],
+  "trajectory": "Round 1 (5fc0b20) removes a branch: the Fragment return for a disabled provider is gone, and one element type remains. Round 2 (6dc5eae) adds four early-return branches to onWheel (ctrl, horizontal, full screen, an inner scroller that can still scroll) and a new predicate, innerScrollerTakes. It extends the wheel forwarder from the earlier round, which had already added its own 'no scroller' branch. Each round adds more cases to a hand-made copy of the browser's scroll chaining, so that part of the design is being patched. Round 3 (afab9e2) changes tests and fixtures only. Round 4 (9e2a2b2) and round 5 (a05a9e3) are review records.",
+  "coverage": [
+    {
+      "path": "frontend/e2e-components/document-summary-inspector-desktop.spec.ts",
+      "read": "partial",
+      "reason": "Only the diff hunk in measureFill."
+    },
+    {
+      "path": "frontend/e2e-components/document-summary-inspector.spec.ts",
+      "read": "partial",
+      "reason": "Only the diff hunk near line 91."
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/app.tsx",
+      "read": "partial",
+      "reason": "The diff hunks for PlayerCaptions and TransitionPage, plus the fix commit afab9e2."
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/frameOutline.tsx",
+      "read": "partial",
+      "reason": "The diff hunks for NativeArrangement, plus the fix commit."
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/inspectorResponsive.tsx",
+      "read": "partial",
+      "reason": "The diff hunks only."
+    },
+    {
+      "path": "frontend/e2e-components/player-layer-desktop.spec.ts",
+      "read": "full",
+      "reason": "A new file; the whole content is in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/player-layer-states-desktop.spec.ts",
+      "read": "full",
+      "reason": "A new file; the whole content is in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/player-layer-wheel-desktop.spec.ts",
+      "read": "full",
+      "reason": "A new file; the whole content is in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/player-layer-wheel.spec.ts",
+      "read": "full",
+      "reason": "A new file; the whole content is in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/player-layer.measure.ts",
+      "read": "full",
+      "reason": "A new file; the whole content is in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/player-layer.spec.ts",
+      "read": "full",
+      "reason": "A new file; the whole content is in the diff."
+    },
+    {
+      "path": "frontend/e2e-components/player-workbench-desktop.spec.ts",
+      "read": "partial",
+      "reason": "Only the diff hunk in scrollContainer."
+    },
+    {
+      "path": "frontend/e2e-components/projects.ts",
+      "read": "partial",
+      "reason": "Only the diff hunk adding DESKTOP_ONLY entries."
+    },
+    {
+      "path": "frontend/e2e-components/pseudo-fullscreen-transition.spec.ts",
+      "read": "partial",
+      "reason": "Every diff hunk (selectors, reachButton, enter)."
+    },
+    {
+      "path": "frontend/e2e-components/spec-viewport.spec.ts",
+      "read": "partial",
+      "reason": "Only the diff hunks adding list entries."
+    },
+    {
+      "path": "frontend/e2e-components/workbench-no-page-scroll-desktop.spec.ts",
+      "read": "partial",
+      "reason": "Only the diff hunk in visibleArea."
+    },
+    {
+      "path": "frontend/e2e-components/workbench-split-desktop.spec.ts",
+      "read": "partial",
+      "reason": "Only the diff hunk in splitLayout."
+    },
+    {
+      "path": "frontend/e2e-layout/fixtures/mobile-inspector-sheet.html",
+      "read": "partial",
+      "reason": "Only the diff hunks near lines 193-246."
+    },
+    {
+      "path": "frontend/e2e-layout/fixtures/pseudo-fullscreen.html",
+      "read": "partial",
+      "reason": "Only the diff hunks near lines 71-180."
+    },
+    {
+      "path": "frontend/e2e-layout/pseudo-fullscreen.spec.ts",
+      "read": "partial",
+      "reason": "Only the diff hunks."
+    },
+    {
+      "path": "frontend/src/app/globals.css",
+      "read": "partial",
+      "reason": "Only the diff hunks near line 1407 and line 1442."
+    },
+    {
+      "path": "frontend/src/components/AppShell.tsx",
+      "read": "partial",
+      "reason": "The diff hunks (imports, the nativeShell store, the provider wrap)."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/FileDetailContainer.tsx",
+      "read": "partial",
+      "reason": "The diff hunks only."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/FileDetailPresenter.tsx",
+      "read": "partial",
+      "reason": "The diff hunks only (prop removal)."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/MediaCanvas.tsx",
+      "read": "partial",
+      "reason": "The diff hunks only (prop removal)."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/MediaPlayerBlock.tsx",
+      "read": "partial",
+      "reason": "The diff hunks only (prop removal)."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/ShellLayout.tsx",
+      "read": "partial",
+      "reason": "The diff hunks only (prop removal)."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/find/FindContext.tsx",
+      "read": "partial",
+      "reason": "The diff hunk adding FindMarksProvider."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/hooks/useCompanionMetrics.ts",
+      "read": "partial",
+      "reason": "The diff hunks only (rename to scrollRoot)."
+    },
+    {
+      "path": "frontend/src/components/FilePreview.tsx",
+      "read": "partial",
+      "reason": "The diff hunks only."
+    },
+    {
+      "path": "frontend/src/components/MiniPlayerContainer.tsx",
+      "read": "full",
+      "reason": "Deleted; the removal hunk is the whole file."
+    },
+    {
+      "path": "frontend/src/components/folder/RightPaneFile.tsx",
+      "read": "partial",
+      "reason": "The diff hunks only."
+    },
+    {
+      "path": "frontend/src/components/player/FindOutlineLayer.tsx",
+      "read": "partial",
+      "reason": "The import diff hunk only."
+    },
+    {
+      "path": "frontend/src/components/player/layer/MiniPlayerBoxContext.tsx",
+      "read": "full",
+      "reason": "A new 10-line file read in the diff."
+    },
+    {
+      "path": "frontend/src/components/player/layer/PlayerLayer.tsx",
+      "read": "full",
+      "reason": "The whole new file in the diff, the fix diffs, and lines 125-204 from disk."
+    },
+    {
+      "path": "frontend/src/components/player/layer/PlayerLayerContext.ts",
+      "read": "full",
+      "reason": "A new file read in the diff."
+    },
+    {
+      "path": "frontend/src/components/player/layer/PlayerSlot.tsx",
+      "read": "full",
+      "reason": "A new file read in the diff."
+    },
+    {
+      "path": "frontend/src/components/player/layer/index.ts",
+      "read": "full",
+      "reason": "A new 3-line file read in the diff."
+    },
+    {
+      "path": "frontend/src/hooks/useMiniPlayer.ts",
+      "read": "full",
+      "reason": "Deleted; the removal hunk is the whole file."
+    },
+    {
+      "path": "frontend/src/lib/readingAnchor.ts",
+      "read": "partial",
+      "reason": "The diff hunk adding resolveLayerHit and the change to probeAt."
+    },
+    {
+      "path": "frontend/src/__tests__/row-action-reveal.test.ts",
+      "read": "partial",
+      "reason": "The diff hunk only."
+    },
+    {
+      "path": "frontend/src/__tests__/uploadDrawerPlacement.test.tsx",
+      "read": "partial",
+      "reason": "The diff hunks only."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/__tests__/FileDetailContent.test.tsx",
+      "read": "partial",
+      "reason": "The removed-case hunk only."
+    },
+    {
+      "path": "frontend/src/components/FileDetail/__tests__/MediaShell.test.tsx",
+      "read": "partial",
+      "reason": "The diff hunk only."
+    },
+    {
+      "path": "frontend/src/components/__tests__/FilePreview.slot.test.tsx",
+      "read": "full",
+      "reason": "A new file read in the diff."
+    },
+    {
+      "path": "frontend/src/components/folder/__tests__/RightPaneFile.test.tsx",
+      "read": "partial",
+      "reason": "The removed-case hunk only."
+    },
+    {
+      "path": "frontend/src/components/player/__tests__/FindOutlineLayer.test.tsx",
+      "read": "partial",
+      "reason": "The import hunk only."
+    },
+    {
+      "path": "frontend/src/components/player/layer/__tests__/PlayerLayer.test.tsx",
+      "read": "full",
+      "reason": "A new file read in the diff and in fix 5fc0b20."
+    },
+    {
+      "path": "frontend/src/hooks/__tests__/useMiniPlayer.test.ts",
+      "read": "full",
+      "reason": "Deleted; the removal hunk is the whole file."
+    },
+    {
+      "path": "frontend/src/lib/__tests__/mediaClock.consumers.test.ts",
+      "read": "partial",
+      "reason": "The diff hunks only."
+    }
+  ],
+  "confidence": 75
+}

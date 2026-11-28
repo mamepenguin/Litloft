@@ -193,19 +193,19 @@
         const player = document.createElement("div");
         player.className = SPEC.player;
         player.dataset.testid = "media-detail-player";
-        const frame = document.createElement("div");
-        frame.style.background = "#000";
-        // The negative top margin is drawn so the player starts at the
-        // scrollport's edge because the stylesheet cancels it, not because
-        // there is no margin.
-        frame.className = SPEC.playerBleed;
+        const bleed = document.createElement("div");
+        bleed.className = SPEC.playerBleed;
+        bleed.style.background = "#000";
+        const slot = document.createElement("div");
+        slot.className = "w-full";
+        slot.dataset.playerSlot = "";
         if (framed) {
           player.dataset.framed = "true";
-          frame.style.paddingTop = SPEC.framedShimPaddingTop;
         } else {
-          frame.style.height = `${playerPx}px`;
+          slot.style.height = `${playerPx}px`;
         }
-        player.append(frame);
+        bleed.append(slot);
+        player.append(bleed);
 
         const below = document.createElement("div");
         below.dataset.testid = "media-detail-body";
@@ -224,6 +224,26 @@
         // caps a framed player's width. Set after the append, because there
         // is nothing to measure before it.
         mediaHost.style.setProperty("--rail-avail", `${canvas.clientHeight}px`);
+
+        // The slot holds the player's frame height: 16:9 of the box the cap
+        // gives it. Audio's bar is its own height.
+        if (framed) {
+          slot.style.height = `${(player.getBoundingClientRect().width * 9) / 16}px`;
+        }
+
+        // The layer draws the player over the slot, outside the page.
+        const box = slot.getBoundingClientRect();
+        const layer = document.createElement("div");
+        layer.dataset.playerLayer = "";
+        layer.style.top = `${box.top}px`;
+        layer.style.left = `${box.left}px`;
+        layer.style.width = `${box.width}px`;
+        layer.style.height = `${box.height}px`;
+        const layerFrame = document.createElement("div");
+        layerFrame.style.background = "#000";
+        layerFrame.style.aspectRatio = "16 / 9";
+        layer.append(layerFrame);
+        host.append(layer);
       };
 
       window.scrollCanvas = (to) => {
