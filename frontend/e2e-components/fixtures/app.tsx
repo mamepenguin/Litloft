@@ -39,7 +39,7 @@ import { MarkdownPreview } from "@/components/MarkdownPreview";
 import { SaveDot } from "@/components/markdown/SaveDot";
 import { ContextMenu } from "@/components/ContextMenu";
 import { TouchControlsPresenter } from "@/components/player/MediaControls/TouchControlsPresenter";
-import { PlayerLayerProvider } from "@/components/player/layer";
+import { PlayerLayerProvider, PlayerSlot } from "@/components/player/layer";
 import { VideoPlayer } from "@/components/VideoPlayer";
 import type { ArchiveEntry, FileKind, SubtitleInfo } from "@/types";
 import { ShortcutsProvider } from "@/components/ShortcutsProvider";
@@ -2422,7 +2422,9 @@ function PlayerCaptions(): ReactElement {
   return (
     <NextIntlClientProvider locale="en" messages={enMessages}>
       <PlayerLayerProvider>
-        <VideoPlayer videoId="vid" subtitles={subtitles} />
+        <PlayerSlot>
+          <VideoPlayer videoId="vid" subtitles={subtitles} />
+        </PlayerSlot>
         <button
           type="button"
           id="subtitles-arrive"
@@ -2461,7 +2463,7 @@ function TransitionPage({ children }: { children: ReactNode }): ReactElement {
             </div>
             <div className="media-detail-host shrink-0">
               <div id="player" className="media-detail-player">
-                {children}
+                <PlayerSlot>{children}</PlayerSlot>
               </div>
             </div>
             <div id="after-player" className="shrink-0" style={{ height: "2000px" }}>
