@@ -384,5 +384,5 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-CORE-191 | implemented | docs/specs/collection-play-two-pane.md | sha256:17637e522d4bd7687f504bf1d3f065b5596654d09b95229f55be0aeea30869e4 |
 | SPEC-CORE-192 | implemented | docs/specs/collection-play-two-pane.md | sha256:17637e522d4bd7687f504bf1d3f065b5596654d09b95229f55be0aeea30869e4 |
 | SPEC-CORE-193 | implemented | docs/specs/collection-play-two-pane.md | sha256:17637e522d4bd7687f504bf1d3f065b5596654d09b95229f55be0aeea30869e4 |
-| SPEC-CORE-196 | approved | docs/specs/addon-video-source.md | sha256:16ce7779a1bffec7b68d05b4779c1d9375bbe91b78b40442b8adbe614aa3da78 |
-| SPEC-CORE-197 | approved | docs/specs/addon-video-source.md | sha256:16ce7779a1bffec7b68d05b4779c1d9375bbe91b78b40442b8adbe614aa3da78 |
+| SPEC-CORE-196 | implemented | docs/specs/addon-video-source.md | sha256:16ce7779a1bffec7b68d05b4779c1d9375bbe91b78b40442b8adbe614aa3da78 |
+| SPEC-CORE-197 | implemented | docs/specs/addon-video-source.md | sha256:16ce7779a1bffec7b68d05b4779c1d9375bbe91b78b40442b8adbe614aa3da78 |

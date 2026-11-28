@@ -11,3 +11,9 @@ evidence: Stack built from 815c131f0 with scripts/dev/r5_stack.py (clone, up; co
   (Backend stopped, which tells the two paths apart) /api/files/<id>/stream, /api/addons/intelligence/files/<id>/stream and the same with ?q=1: no answer within 8 s (backendProxy). /api/addons/Intelligence/files/<id>/stream, /api/addons/intelligence/files/<11-char>/stream and /api/drives: 500 in under 15 ms (the rewrite). The spec's failure case says the rewrite path "answers 502 at once"; it answered 500.
   Screenshots: /private/tmp/claude-502/-Users-libre-Sources-video-share/8fb5c97f-285e-44c2-aec9-3de6e6359c42/scratchpad/r5/ (folder-hover.jpg, ended.jpg). Stack brought down and destroyed afterwards.
 pending: SPEC-CORE-196 with a real `src` caller (src playback, onError on a failing src, src change under one videoId, autoplay and queue controls for a src .loft), to the first consuming addon's R-5. agent_cannot_verify, to the owner with that addon: playback in the iOS app through the web player, and no stall near the end of a long response on the real LAN. Browser full screen was not verifiable in this automated Chrome (develop build the same).
+author_resolutions:
+- claude-read:F1 accept: the I3b test cannot see a save of the pre-change position; no caller changes `src` under one videoId (frequency 0), so the gap guards a path nobody takes today. Revisit with the first caller that does.
+- claude-read:F2 accept: pre-existing; server.js is unchanged and has no unit test. R-5 showed by curl, with the backend stopped, that a matching path with a query is sent to backendProxy.
+- claude-read:unspecified 1 accept: no caller passes onError without src; the documented pattern always passes both.
+- claude-read:unspecified 2 accept: needs a src change under one videoId, which no caller does; the loss is at most the last few seconds of the old source's position.
+- claude-read:unspecified 3 accept: only a caller's own bug passes a whitespace-only src.

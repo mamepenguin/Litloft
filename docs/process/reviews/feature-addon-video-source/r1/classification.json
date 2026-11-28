@@ -1,0 +1,44 @@
+{
+  "risk": "HIGH",
+  "score": 7,
+  "base": 3,
+  "zone_max": "MEDIUM",
+  "modifiers": [],
+  "promotions": [],
+  "zones_touched": [
+    {
+      "path": "docs/ADDON-DEVELOPMENT.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/INDEX.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/addon-video-source.md",
+      "level": "LOW"
+    },
+    {
+      "path": "frontend/server-routes.js",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/__tests__/server-routes.test.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/VideoPlayer.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/VideoPlayer.src.test.tsx",
+      "level": "MEDIUM"
+    }
+  ],
+  "human_zones_touched": [],
+  "protected_paths_touched": [],
+  "docs_only": false,
+  "reasons": [
+    "highest zone MEDIUM (4 points)"
+  ]
+}

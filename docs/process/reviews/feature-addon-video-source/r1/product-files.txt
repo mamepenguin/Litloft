@@ -1,0 +1,2 @@
+frontend/server-routes.js
+frontend/src/components/VideoPlayer.tsx
