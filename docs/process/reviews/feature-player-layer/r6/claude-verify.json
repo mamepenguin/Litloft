@@ -1,0 +1,118 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-1",
+      "status": "confirmed",
+      "note": "frontend/e2e-layout/pseudo-fullscreen.spec.ts:85 asserts `m.layerZ` is \"60\", and :95 and :111 assert `layerZ` is \"15\". The file is listed in the diff (r6/product-files.txt:17, classification.json:90). docs/specs/player-layer.md has no match for `pseudo-fullscreen.spec`; the touch points name only the fixtures."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-2",
+      "status": "confirmed",
+      "note": "frontend/e2e-components/spec-viewport.spec.ts:59 lists player-layer.spec.ts, and :170-171 list the two desktop specs. The file is in the diff (r6/product-files.txt:12). The touch points name only projects.ts DESKTOP_ONLY; spec-viewport does not appear in docs/specs/player-layer.md."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-3",
+      "status": "confirmed",
+      "note": "The `[data-player-slot]` selector is at player-workbench-desktop.spec.ts:121, workbench-no-page-scroll-desktop.spec.ts:59 and workbench-split-desktop.spec.ts:137. All three files are in r6/product-files.txt:10,13,14, and none is named in docs/specs/player-layer.md. The touch points name only specs that use `.media-detail-player > :first-child`."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-4",
+      "status": "confirmed",
+      "note": "frontend/src/__tests__/row-action-reveal.test.ts:141 has `toBe(14)`. The file is the first entry in r6/test-files.txt, and it is absent from the touch points' unit-test section."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "TP-5",
+      "status": "confirmed",
+      "note": "frontend/src/components/__tests__/FilePreview.slot.test.tsx exists and is in r6/test-files.txt:5. It is not named in docs/specs/player-layer.md."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "B-1",
+      "status": "confirmed",
+      "note": "AppShell.tsx:43-45,136-140 call useSyncExternalStore with a no-op subscribe and a server snapshot of `false`. AppShell is server-rendered from app/layout.tsx:84, and none of the providers above it gate their children until mount. During hydration nativeShell is false, so `enabled` is true. Once the client snapshot (isNativeShell, nativeBridge.ts:165) returns true, `enabled` becomes false. PlayerLayer.tsx:270-274 then gives `store` null and returns a Fragment instead of PlayerLayerContext.Provider (:276). A different element type at the same position remounts everything under AppShell.tsx:381, the routed page included. The remount happens once after hydration in the shell only."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "B-2",
+      "status": "confirmed",
+      "note": "PlayerLayer.tsx:217-229: onWheel returns early only when there is no scroller. Otherwise it always calls preventDefault and adds only deltaY to scroller.scrollTop. It never checks ctrlKey, deltaX or whether a scrollable descendant is under the pointer. OverFrameSettingsPanel.tsx:91-92 (`max-h-...`, `overflow-y-auto`) is rendered without a portal by SettingsSheet, which PointerControlsPresenter.tsx:194 and TouchControlsPresenter.tsx:245 render inside the player, so the panel is inside the layer's frame."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "T-1",
+      "status": "confirmed",
+      "note": "e2e-components/fixtures/app.tsx:2424-2425 (PlayerCaptions), :2452-2481 (TransitionPage and PlayerTransition) and fixtures/frameOutline.tsx:95-97 (NativeArrangement) wrap a bare VideoPlayer in PlayerLayerProvider. Only PlayerSlot calls store.register (PlayerSlot.tsx:44). In src, only FilePreview.tsx:117 and :139 use PlayerSlot, and VideoPlayer has no reference to the store. No slot is ever served there, so PlayerLayer.tsx:247 renders null and the player stays in place."
+    }
+  ],
+  "unspecified_scores": [
+    {
+      "source_reviewer": "claude-read",
+      "index": 0,
+      "frequency": 5,
+      "impact": 3,
+      "reason": "Each time the iOS shell loads or reloads a page, AppShell's content remounts once after hydration. A video page opened at that moment loses its first player instance and its fetches, and the user sees a flash or a restart."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "index": 1,
+      "frequency": 3,
+      "impact": 3,
+      "reason": "On a desktop with a long settings panel open, a wheel over the panel scrolls the page behind it instead of the panel. A trackpad pinch over the player also scrolls the page instead of zooming, and horizontal swipes do nothing."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "index": 2,
+      "frequency": 1,
+      "impact": 3,
+      "reason": "Pseudo full screen is the fallback when element full screen is refused, which on a wheel-equipped desktop is rare. There a wheel scrolls the hidden canvas, so the page is at a different scroll position when the user exits."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "index": 3,
+      "frequency": 8,
+      "impact": 1,
+      "reason": "Each render of the file page's slot publishes to the store and re-renders the layer's player tree with the latest props. That is the intended way props reach the player and the user sees nothing."
+    }
+  ],
+  "specification_compliance": [
+    "The touch-point list omits pseudo-fullscreen.spec.ts, spec-viewport.spec.ts, three workbench desktop specs, row-action-reveal.test.ts and FilePreview.slot.test.tsx (TP-1 to TP-5 confirmed).",
+    "I1 says that in the iOS shell the player is inside the slot. The final state holds that, but after hydration the provider is first enabled and then switched off, which remounts the subtree (B-1).",
+    "I7 (a wheel scrolls the same as without the layer) holds for vertical page scrolls. It does not hold for a scrollable panel inside the player, for horizontal deltas or for ctrl+wheel (B-2)."
+  ],
+  "unspecified_behavior_found": true,
+  "potential_unspecified_behavior": [
+    {
+      "behavior": "In system (element) full screen, the full-screen element is inside the layer's frame, so a wheel over it reaches the frame's onWheel. The handler does not check isFullscreenNow and scrolls the canvas hidden behind the full-screen player.",
+      "frequency": 3,
+      "impact": 3,
+      "reason": "A desktop user who scrolls the wheel while watching full screen comes back to the page at a different scroll position on exit."
+    }
+  ],
+  "regression_risks": [
+    "The iOS shell's post-hydration remount of AppShell's children can restart a video page's first load.",
+    "The layer's wheel handler blocks scrolling inside the player's settings panel and blocks trackpad pinch-zoom over the player.",
+    "e2e fixtures that wrap a bare VideoPlayer in the provider pass without ever exercising the layer."
+  ],
+  "test_coverage": [
+    "PlayerCaptions, PlayerTransition and NativeArrangement fixtures render no PlayerSlot, so their suites do not run the layer (T-1).",
+    "I found no test of the wheel handler with ctrlKey, deltaX or a scrollable descendant.",
+    "I found no test of the iOS-shell hydration path of PlayerLayerProvider."
+  ],
+  "not_verified": [
+    "No command, test or browser was run; every finding was checked by reading the code only.",
+    "I did not view the actual diff hunks. Which files changed is taken from r6/product-files.txt and r6/test-files.txt, and the changed lines are checked against their current content only.",
+    "Whether, without the layer, a wheel in element full screen chains to the inner canvas scroller in Chrome or Safari.",
+    "The exact order of the post-hydration re-render relative to the slot's registration in the iOS shell."
+  ],
+  "confidence": 82
+}
