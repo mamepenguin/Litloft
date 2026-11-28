@@ -57,6 +57,7 @@ const AT_THE_PHONE_WIDTH = [
   "page-header-actions.spec.ts",
   "player-captions.spec.ts",
   "player-layer.spec.ts",
+  "player-layer-wheel.spec.ts",
   "player-menu-layer.spec.ts",
   "player-seek-indicator.spec.ts",
   "pseudo-fullscreen-transition.spec.ts",
@@ -169,6 +170,7 @@ const AT_THE_DESKTOP_WIDTH = [
   "queue-page-desktop.spec.ts",
   "player-layer-desktop.spec.ts",
   "player-layer-states-desktop.spec.ts",
+  "player-layer-wheel-desktop.spec.ts",
 ] as const;
 
 test.describe("the component fixture lays out at the width it was given", () => {

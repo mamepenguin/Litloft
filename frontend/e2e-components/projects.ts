@@ -63,6 +63,7 @@ export const DESKTOP_ONLY = [
   "**/queue-page-desktop.spec.ts",
   "**/player-layer-desktop.spec.ts",
   "**/player-layer-states-desktop.spec.ts",
+  "**/player-layer-wheel-desktop.spec.ts",
 ];
 
 /** Literals rather than a device preset, which can change under it. */

@@ -74,6 +74,29 @@ function nearestScroller(slot: HTMLElement): HTMLElement | null {
   return null;
 }
 
+/**
+ * Whether a scrollable ancestor of the target, still inside the layer's
+ * frame, can take this wheel's vertical direction. Such an element belongs to
+ * the player (its settings panel), so the page must not take the wheel from it.
+ */
+function innerScrollerTakes(event: WheelEvent, frame: HTMLElement): boolean {
+  const delta = event.deltaY;
+  if (delta === 0) return true;
+  for (
+    let el = event.target instanceof Element ? event.target : null;
+    el && el !== frame;
+    el = el.parentElement
+  ) {
+    const style = getComputedStyle(el);
+    if (!/(auto|scroll)/.test(style.overflowY)) continue;
+    if (el.scrollHeight <= el.clientHeight) continue;
+    const canDown = el.scrollTop + el.clientHeight < el.scrollHeight - 1;
+    const canUp = el.scrollTop > 0;
+    if (delta > 0 ? canDown : canUp) return true;
+  }
+  return false;
+}
+
 class PlayerErrorBoundary extends Component<
   { children: ReactNode },
   { failed: boolean }
@@ -217,7 +240,15 @@ function PlayerLayerFrame({ store }: { store: PlayerLayerStore }) {
     const onWheel = (event: WheelEvent) => {
       const slot = store.getServed()?.slotEl;
       const scroller = slot ? nearestScroller(slot) : null;
-      if (!scroller) return;
+      if (!frame || !scroller) return;
+      // A trackpad pinch is a zoom gesture, not a scroll.
+      if (event.ctrlKey) return;
+      // A sideways wheel belongs to whatever it is over.
+      if (Math.abs(event.deltaX) > Math.abs(event.deltaY)) return;
+      // In full screen the page behind the player is out of reach.
+      if (isFullscreenNow(frame)) return;
+      // A player element that scrolls itself keeps the wheel while it can.
+      if (innerScrollerTakes(event, frame)) return;
       event.preventDefault();
       const unit =
         event.deltaMode === 1
