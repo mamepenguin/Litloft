@@ -1,0 +1,16 @@
+# Decisions
+
+decision:
+ran_in_app: yes
+at: 787ff96d0a628e9caccdbea90967e8b90569ecec
+by: agent
+evidence: Worktree stack from `r5_stack.py clone --with-drives` + `up` (images built from this tree; backend image contains `unsupported_url`), opened at http://video-share-loft-errors.localhost:3101 in headless Chromium (Playwright) with NEXT_LOCALE=ja. Two hand-written files put in drive 動画 under r5-loft-errors/ and the drive rescanned (`added: 2`, neither has a loft_metadata row): vimeo-user.loft `{"provider":"vimeo","url":"https://vimeo.com/user123"}` and yt-handwritten.loft (YouTube jNQXAC9IVRw). Screenshots in docs/process/reviews/feature-loft-non-youtube-errors/r5/ (gitignored).
+  188 Composer (Media Import page → ソースを追加): pasted https://example.com/ (hint 「単発取り込み（プロバイダー未認識）」), 取り込む → POST /link 422 `{"detail":"unsupported_url"}`; the error box reads 「このURLからは動画を読み取れません。対応していないサイトか、動画のないページです」, the URL stays in the field. At 375px the box is 301px wide within a 375px viewport, document scrollWidth 375, text wraps on three lines (188-composer-375.png, 188-composer-1280.png).
+  188 dialog (folder r5-loft-errors → 追加 → URL から取り込む): same URL → same 422 and same Japanese message under the field, URL kept, dialog stays open; at 375px box 301px, document scrollWidth 375 (188-dialog-375.png, 188-dialog-1280.png). The .loft row count in the DB was 536 before and after both runs, and no new .loft file appeared on the drive.
+  191 Vimeo: opening vimeo-user.loft shows the link card (external-link icon and the link https://vimeo.com/user123), no iframe (191-vimeo-user.png).
+  191 YouTube blocked: with requests to youtube.com/iframe_api aborted by route interception, yt-handwritten.loft shows the link card with https://www.youtube.com/watch?v=jNQXAC9IVRw, no iframe and no leftover iframe_api <script> (191-youtube-blocked.png). Going back to the folder by the breadcrumb and opening the file again in the same page session made a second iframe_api request (2 total) and showed the link card again (191-youtube-blocked-remount.png).
+  191 YouTube unblocked: the same file renders the YouTube iframe with the Litloft controls (0:00 / 0:19); after pressing 再生 it played to 0:19 / 0:19 (191-youtube-unblocked.png, 189-after-3s.png).
+  190: the YouTube .loft XmYxQgE2Vlcy (has_captions=0) shows the badge 「この動画には字幕がありません」; the old 「YouTubeに字幕がありません」 does not appear (190-caption-badge.png).
+  189: on yt-handwritten.loft (no row), ファイル操作 ⋮ → メタデータを更新 → POST /link/Fr64Ti6tQirM/refresh 200 `{"status":"queued"}`, toast 「メタデータを更新しています」 (no failure toast). YouTube was reachable: within seconds a loft_metadata row was stored (channel jawed, published 20050424, has_captions 0, fetch_error NULL) and files.duration 19.0; the panel's re-read showed the channel, date, description and the no-captions badge without reopening the page (189-refresh-toast.png, 189-after-3s.png).
+  Not exercised (per the brief): Ask (192, needs an LLM), LoftPlayer read failure (CORE-195, unit-tested), the `unavailable` and `failed` codes against real sites. Stack stopped with `down` and removed with `destroy`.
+pending: Real-site checks named in the spec: Import from URL with a private or removed YouTube video (the `unavailable` message) and any other real failure; SPEC-ADDON-192 Ask on a non-YouTube .loft (needs an LLM); playback as seen and heard (agent_cannot_verify).
