@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "T-2",
+      "status": "confirmed",
+      "note": "PlayerLayer.tsx:239-261 attaches the wheel handler only to the layer frame in the parent document. For a provider iframe, the wheel reaches it only through GestureOverlay (frontend/src/components/player/MediaControls/GestureOverlay.tsx:45-46, absolute inset-0, pointerEvents auto only while interactive). Every e2e wheel case (player-layer-desktop.spec.ts:443-482, player-layer-wheel.spec.ts:40-122, player-layer-wheel-desktop.spec.ts:39-60) calls openFilePage, which loads file=video0000001 (player-layer.measure.ts:380) and waits for a <video> (line 383). No other spec under frontend/ that uses mouse.wheel or WheelEvent covers a .loft player."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "source_finding_id": "W-1",
+      "status": "confirmed",
+      "note": "PlayerLayer.tsx:247 returns only when |deltaX| > |deltaY|. Otherwise lines 252-259 call preventDefault and apply only scroller.scrollTop += deltaY*unit. Nothing applies deltaX, so the horizontal part of a mostly-vertical wheel is lost."
+    }
+  ],
+  "unspecified_scores": [
+    {
+      "source_reviewer": "claude-read",
+      "index": 0,
+      "frequency": 6,
+      "impact": 2,
+      "reason": "A mouse wheel over the player on desktop jumps the canvas instantly where a wheel beside the player scrolls smoothly, so the user sees a small difference in feel and nothing is lost."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "index": 1,
+      "frequency": 0,
+      "impact": 3,
+      "reason": "No element known today handles the wheel in script without CSS overflow, so the behavior only appears with a future control or addon and does not reach ordinary use now."
+    },
+    {
+      "source_reviewer": "claude-read",
+      "index": 2,
+      "frequency": 2,
+      "impact": 2,
+      "reason": "A diagonal trackpad scroll over the player drops its sideways part, which shows only when the slot's scroller can also scroll sideways, and that is rare on the file page."
+    }
+  ],
+  "specification_compliance": [
+    "I7 (r7 revision): vertical wheel forwarding exists for wheels that reach the layer frame (PlayerLayer.tsx:240-261). It is checked in a real browser only for a native video, not for a provider iframe through GestureOverlay."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "The wheel forwarding for a .loft YouTube player through GestureOverlay can regress without any test failing."
+  ],
+  "test_coverage": [
+    "The e2e wheel cases cover a native video only: openFilePage loads video0000001 (player-layer.measure.ts:380)."
+  ],
+  "not_verified": [
+    "I did not run any test or browser, so the claims are confirmed by reading the code only.",
+    "I did not check whether the wheel event bubbles from GestureOverlay to the layer frame under every wrapper element in LoftPlayer.",
+    "I did not check e2e specs outside frontend/ or the iOS Simulator runs."
+  ],
+  "confidence": 88
+}

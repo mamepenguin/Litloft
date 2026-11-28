@@ -20,6 +20,14 @@ evidence: |
   Failure cases: none producible by ordinary use for these fixes.
 pending: Real trackpad pinch / ctrl+wheel browser zoom (only synthesized ctrl+wheel was sent; it zoomed nothing and was not taken by the page); a real horizontal trackpad swipe over the player; system full screen in installed Chrome (refused under automation, checked in bundled Chromium). The shell fix on a real iPhone (agent_cannot_verify: the iOS app on a real device). Everything listed as pending in the earlier R-5 below still stands.
 
+author_resolutions:
+- claude-read:T-2 accept: on a .loft the wheel reaches the layer through the same GestureOverlay as a native video, which the I7 cases drive; whether the overlay stands down (ads, end screen, YouTube UI) is the provider's gate, and those moments are outside the revised I7.
+- claude-read:W-1 accept: no scroller a file page's slot sits in scrolls sideways, so the dropped horizontal part moves nothing; a mostly horizontal wheel is left to the browser.
+- unspecified 1 accept: the forwarded wheel applies scrollTop directly, so it steps instead of animating; nothing is lost and a wheel beside the player is unchanged.
+- unspecified 2 accept: no element inside the player handles the wheel in script without CSS overflow today.
+- unspecified 3 accept: the same as W-1.
+- r6 claude-read:TP-1..TP-5 accept: the touch-point list missed test files only; each edit re-keys a selector or a count to the slot without weakening an assertion, and the iOS pinned frame's z 60 was drawn in iOS Simulator Safari in R-5.
+
 ## Earlier R-5 (history)
 
 earlier_ran_in_app: yes
