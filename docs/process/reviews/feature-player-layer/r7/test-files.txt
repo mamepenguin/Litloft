@@ -1,0 +1,10 @@
+frontend/src/__tests__/row-action-reveal.test.ts
+frontend/src/__tests__/uploadDrawerPlacement.test.tsx
+frontend/src/components/FileDetail/__tests__/FileDetailContent.test.tsx
+frontend/src/components/FileDetail/__tests__/MediaShell.test.tsx
+frontend/src/components/__tests__/FilePreview.slot.test.tsx
+frontend/src/components/folder/__tests__/RightPaneFile.test.tsx
+frontend/src/components/player/__tests__/FindOutlineLayer.test.tsx
+frontend/src/components/player/layer/__tests__/PlayerLayer.test.tsx
+frontend/src/hooks/__tests__/useMiniPlayer.test.ts
+frontend/src/lib/__tests__/mediaClock.consumers.test.ts
