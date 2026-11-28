@@ -103,7 +103,6 @@ Litloft draws its own control bar over the video. It looks different with a mous
 - **Browser controls** hands the video to the browser's own bar, which is where AirPlay lives. **Use Litloft controls**, under the player, switches back.
 - **Subtitles**: put `movie.srt` or `movie.vtt` next to `movie.mp4`, or `movie.en.srt`, `movie.ja.vtt` and so on for several languages. They load automatically, for `.loft` files too, and do not appear in the file list. On a video's **Info** tab, **字幕** lists each track; **字幕を追加** adds one, and each row can replace or delete it. Renaming or moving the video in Litloft takes them along. Without one, the intelligence addon's generated track is offered.
 - Resume: a video starts where you left off. A link with a time in it, such as an Ask citation, starts there instead.
-- Mini player: on a computer, scrolling the video out of view shrinks it into a small window at the bottom right. It has only play, time, mute and seeking; set speed and subtitles before you scroll away, or restore the full player.
 - The lock screen and media keys control playback, including next and previous in a collection.
 - **Cast**: a Chromecast button appears when one is found.
 - `.mts` files have no player, because that extension also names a TypeScript module. For footage from a camcorder, rename them to `.m2ts`.
