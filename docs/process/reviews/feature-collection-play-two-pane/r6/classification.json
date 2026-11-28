@@ -1,0 +1,508 @@
+{
+  "risk": "HIGH",
+  "score": 7,
+  "base": 3,
+  "zone_max": "MEDIUM",
+  "modifiers": [],
+  "promotions": [],
+  "zones_touched": [
+    {
+      "path": "DESIGN.md",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "docs/specs/INDEX.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/specs/collection-play-two-pane.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/user-guide/keyboard-shortcuts.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/user-guide/playlists-favorites.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/user-guide/search.md",
+      "level": "LOW"
+    },
+    {
+      "path": "docs/user-guide/tags-and-relations.md",
+      "level": "LOW"
+    },
+    {
+      "path": "frontend/e2e-components/collection-workbench-metrics-desktop.spec.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/document-summary-inspector-desktop.spec.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/file-header-row-desktop.spec.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/app.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/fileHeaderRow.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/focusMode.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/inspectorResponsive.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/fixtures/queuePage.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/focus-mode-desktop.spec.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/header-row-crowding.spec.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/player-workbench-desktop.spec.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/projects.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/queue-page-desktop.spec.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/queue-page-phone.spec.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/scenes-scroll-list-desktop.spec.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/scenes-scroll-list.cases.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/spec-viewport.spec.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/workbench-no-panel-desktop.spec.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-components/workbench-split-desktop.spec.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-layout/fixtures/no-horizontal-scroll.html",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-layout/no-horizontal-scroll-states.spec.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/e2e-layout/no-horizontal-scroll.spec.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/__tests__/section-rows.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/app/__tests__/mediaDetailTheaterCss.test.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/app/drive/[name]/__tests__/layout.queue.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/app/drive/[name]/layout.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/app/files/[id]/__tests__/page.smartCollection.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/app/files/[id]/__tests__/page.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/app/files/[id]/page.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/app/globals.css",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/ArchivePreview.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/AudioPlayer.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/Breadcrumb.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/ChromeButtons.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/CollectionDetail.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/CollectionItemsPane.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/CollectionPanel.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/CollectionPicker.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileActions.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/FileDetailCanvas.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/FileDetailChrome.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/FileDetailContainer.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/FileDetailPresenter.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/FileDetailSkeleton.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/FileNavControls.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/ShellLayout.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/__tests__/DocumentSideSlot.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/__tests__/FileDetailCanvas.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/__tests__/FileDetailContent.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/__tests__/FileDetailPageRow.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/__tests__/FileNavControls.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/__tests__/FindInFile.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/__tests__/InspectorTabsSlot.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/__tests__/LoftMetadataPlacement.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/__tests__/PlainTextDocument.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/__tests__/WorkbenchCollection.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/__tests__/WorkbenchPendingEntry.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/__tests__/WorkbenchPlayerFocus.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/__tests__/WorkbenchRowBeside.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/hooks/useInspectorFit.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetail/workbench/panels.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetailFullScreen.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FileDetailShell.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/FolderBrowser.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/SmartFolderSaveButton.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/TreeToggle.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/VideoPlayer.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/CollectionDetail.queue.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/CollectionDetail.queueState.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/CollectionDetail.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/CollectionPanel.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/FileDetailFullScreen.headerRow.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/FileDetailFullScreen.inboxNav.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/FileDetailFullScreen.smartCollection.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/FileDetailFullScreen.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/FolderBrowser.playAll.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/QueueMediaSession.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/SearchPage.smartCollectionPlay.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/TreeToggle.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/componentFixtureParity.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/noHorizontalScrollFixtureParity.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/__tests__/queueStrings.test.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/folder/RightPaneFile.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/folder/TwoPaneLayout.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/folder/__tests__/TreeYield.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/folder/__tests__/TwoPaneLayout.queueOverlay.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/folder/__tests__/TwoPaneLayout.queuePane.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/markdown/MarkdownDocumentLayout.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/queue/FolderQueueHost.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/queue/QueuePageContext.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/queue/QueuePane.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/queue/QueueRows.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/queue/QueueTrail.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/queue/__tests__/queue.test.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/queue/folderQueue.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/queue/loopStorage.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/queue/playIntent.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/queue/queue.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/queue/queuePagePresence.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/queue/queueSelectionStore.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/queue/smartQueueSource.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/components/sidebar/SidebarCollectionsSection.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/hooks/__tests__/useFileNav.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/hooks/__tests__/useSelectedFile.test.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/hooks/useFileNav.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/hooks/useSelectedFile.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/hooks/useTreeVisible.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/__tests__/fileDetailShell.test.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/canonicalFileUrl.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/collectionChanged.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/fileDetailShell.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/fileNavContext.tsx",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/leftPaneContext.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/lib/treeVisitStore.ts",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/messages-core/en.json",
+      "level": "MEDIUM"
+    },
+    {
+      "path": "frontend/src/messages-core/ja.json",
+      "level": "MEDIUM"
+    }
+  ],
+  "human_zones_touched": [],
+  "protected_paths_touched": [],
+  "docs_only": false,
+  "reasons": [
+    "highest zone MEDIUM (4 points)"
+  ]
+}

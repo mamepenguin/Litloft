@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "reviewer": "claude-verify",
+  "role": "verify",
+  "risk": "HIGH",
+  "findings": [],
+  "verification": [],
+  "unspecified_scores": [],
+  "specification_compliance": [
+    "No findings were listed for verification, and no unspecified behaviors were listed for scoring.",
+    "I1 spot check: outside tests, the only callers of deleteWatchProgress are the user-initiated 'Remove from history' paths (ContinueWatchingSection.tsx:106, CardFileMenu.tsx:313). The playback-completion path in the queue module calls neither deleteWatchProgress nor clearProgress.",
+    "I2 spot check: nextPlayableAfter (queue.ts:44-60) searches forward for a playable item, wraps only with loop on, stops before the ended item, and returns null when nothing qualifies. FolderQueueHost.onEnded (FolderQueueHost.tsx:245-249) acts only when the queue is ready and goes through playFile, which calls requestPlay and then selectFile.",
+    "I3/I10 spot check: queueWalk (queue.ts:85-99) walks every entry without wrapping, returns a 1-based position, and returns null prev/next/position when the open file is not in the queue, while total stays the item count.",
+    "I5 spot check: FolderQueueHost.handleClose (FolderQueueHost.tsx:257-266) removes queue, sort and order.",
+    "I14 spot check: the collection-loop key is written only through setLoopStorage, which is called only from the loop toggles in CollectionDetail.tsx:330-332 and FolderQueueHost.tsx:229-235.",
+    "I15 spot check: under sort=random the folder queue uses the stored queue when one exists (FolderQueueHost.tsx:145-152)."
+  ],
+  "unspecified_behavior_found": false,
+  "potential_unspecified_behavior": [],
+  "regression_risks": [
+    "The loop state is read from storage once per host mount (FolderQueueHost.tsx:81, CollectionDetail.tsx:75). A toggle in another mounted host or another tab is not picked up until remount. This was not examined beyond reading the code."
+  ],
+  "test_coverage": [
+    "frontend/src/components/queue/__tests__/queue.test.ts exists for the pure queue helpers. I did not read its contents.",
+    "frontend/src/__tests__/watchHistoryCallSites.test.ts guards the call sites of deleteWatchProgress and clearProgress."
+  ],
+  "not_verified": [
+    "Legacy redirect behavior in frontend/src/app/files/[id]/page.tsx and canonicalFileUrl.ts (I6)",
+    "Layout and measurement invariants (I8, I9, I12, SPEC-CORE-082/085/094/104/126/128/131 revisions), which need a browser",
+    "Collection-page freshness and the reorder/removal paths in CollectionDetail.tsx (I4, I14 re-reads)",
+    "The autoplay intent semantics in playIntent.ts and the player components (I11)",
+    "The tree-setting non-write behavior in useTreeVisible and leftPaneContext (I13)",
+    "How the system media session next-track is wired to the queue (I3's last bullet)"
+  ],
+  "confidence": 80
+}
