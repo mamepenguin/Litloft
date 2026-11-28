@@ -435,6 +435,24 @@ describe("SPEC-CORE-084 the left pane yields to a player file's inspector", () =
     sidebarState.isOverlay = true;
   });
 
+  it("SPEC-CORE-084 I7 decides the form on the row on screen when the sidebar stays inline", async () => {
+    // 1100 less the 240 the inline sidebar keeps is too narrow for both, and
+    // no pane is there to give anything back.
+    treeEnabledStore.set("work", false);
+    sidebarState.isOpen = true;
+    sidebarState.isOverlay = false;
+    setViewport(1100);
+    watchForms();
+    await openFile(VIDEO.id);
+    await waitFor(() => expect(formsSeen().length).toBeGreaterThan(0));
+
+    expect(formsSeen()).toEqual(["stacked"]);
+    expect(overlayRequests.at(-1)).toBe(false);
+    expect(localStorage.getItem("tree:enabled:work")).toBe("false");
+    sidebarState.isOpen = false;
+    sidebarState.isOverlay = true;
+  });
+
   it("SPEC-CORE-084 counts a player file's default-open inspector, with nothing stored", async () => {
     localStorage.removeItem("inspector-open:work");
     await openFile(VIDEO.id);

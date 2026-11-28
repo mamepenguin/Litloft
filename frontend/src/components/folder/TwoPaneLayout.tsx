@@ -180,11 +180,18 @@ export function TwoPaneLayout({
   // replacement just set.
   useLayoutEffect(() => () => treeYieldStore.clear(drive), [drive]);
 
+  // The sidebar and the tree both name where you are, and only one such
+  // surface is allowed at a time. A yielded pane still owns the place it
+  // gave back, so the sidebar stays in its overlay form.
+  const sidebarOverlay = treeBeside || yielded;
+  useOverlaySidebarWhen(sidebarOverlay);
+
   const leftPaneState = useMemo(
     () => ({
       element: paneElement,
       shownBySetting: (treeEnabled || visit.active) && besideViewport,
       coversFilePage: treeOpen && !focusLayout && hasFile && queuePane,
+      sidebarOverlay,
     }),
     [
       paneElement,
@@ -195,13 +202,9 @@ export function TwoPaneLayout({
       focusLayout,
       hasFile,
       queuePane,
+      sidebarOverlay,
     ],
   );
-
-  // The sidebar and the tree both name where you are, and only one such
-  // surface is allowed at a time. A yielded pane still owns the place it
-  // gave back, so the sidebar stays in its overlay form.
-  useOverlaySidebarWhen(treeBeside || yielded);
 
   const [hasEverEnabled, setHasEverEnabled] = useState(treeOpen);
   useEffect(() => {

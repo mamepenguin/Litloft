@@ -97,9 +97,8 @@ interface FileDetailShellProps {
  * never reopen it.
  */
 /**
- * The width the page frame still gives an inline sidebar. A queue page's
- * first frames are measured while that width is on its way back to the
- * page, so it has to count as part of the row.
+ * The width the page frame still gives the sidebar while it moves to its
+ * overlay form.
  */
 function inlineSidebarWidth(host: HTMLElement): number {
   const content = host.closest("main")?.parentElement;
@@ -204,6 +203,13 @@ export function FileDetailShell({
     if (state.yielded || state.reopened) return null;
     return leftPane?.element ?? null;
   }, [yieldable, leftPane, drive]);
+  // Only a sidebar yielding its place is on its way out of the row; one that
+  // stays inline is already inside the measured box.
+  const extraRowWidth = useCallback(
+    (host: HTMLElement) =>
+      leftPane?.sidebarOverlay ? inlineSidebarWidth(host) : 0,
+    [leftPane],
+  );
   const handleYield = useCallback(() => {
     treeYieldStore.collapse(drive);
   }, [drive]);
@@ -212,7 +218,7 @@ export function FileDetailShell({
     isPlayerFile,
     onMeasure: handleMeasuredForm,
     paneToYield,
-    extraRowWidth: inlineSidebarWidth,
+    extraRowWidth,
     onYield: handleYield,
   });
   const attachInspectorFitHost = useCallback(
