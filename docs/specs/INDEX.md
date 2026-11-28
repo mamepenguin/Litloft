@@ -384,9 +384,9 @@ Approval is the commit sha from the spec file's Approval line, or empty while dr
 | SPEC-CORE-191 | implemented | docs/specs/collection-play-two-pane.md | sha256:17637e522d4bd7687f504bf1d3f065b5596654d09b95229f55be0aeea30869e4 |
 | SPEC-CORE-192 | implemented | docs/specs/collection-play-two-pane.md | sha256:17637e522d4bd7687f504bf1d3f065b5596654d09b95229f55be0aeea30869e4 |
 | SPEC-CORE-193 | implemented | docs/specs/collection-play-two-pane.md | sha256:17637e522d4bd7687f504bf1d3f065b5596654d09b95229f55be0aeea30869e4 |
-| SPEC-ADDON-188 | approved | docs/specs/loft-non-youtube-errors.md | sha256:d08072139020e1d15e2a0e30be0caa10ce8fea2930606713ab62794f22290ba2 |
-| SPEC-ADDON-189 | approved | docs/specs/loft-non-youtube-errors.md | sha256:d08072139020e1d15e2a0e30be0caa10ce8fea2930606713ab62794f22290ba2 |
-| SPEC-ADDON-190 | approved | docs/specs/loft-non-youtube-errors.md | sha256:d08072139020e1d15e2a0e30be0caa10ce8fea2930606713ab62794f22290ba2 |
-| SPEC-ADDON-191 | approved | docs/specs/loft-non-youtube-errors.md | sha256:d08072139020e1d15e2a0e30be0caa10ce8fea2930606713ab62794f22290ba2 |
-| SPEC-ADDON-192 | approved | docs/specs/loft-non-youtube-errors.md | sha256:d08072139020e1d15e2a0e30be0caa10ce8fea2930606713ab62794f22290ba2 |
-| SPEC-CORE-195 | approved | docs/specs/loft-non-youtube-errors.md | sha256:d08072139020e1d15e2a0e30be0caa10ce8fea2930606713ab62794f22290ba2 |
+| SPEC-ADDON-188 | implemented | docs/specs/loft-non-youtube-errors.md | sha256:d08072139020e1d15e2a0e30be0caa10ce8fea2930606713ab62794f22290ba2 |
+| SPEC-ADDON-189 | implemented | docs/specs/loft-non-youtube-errors.md | sha256:d08072139020e1d15e2a0e30be0caa10ce8fea2930606713ab62794f22290ba2 |
+| SPEC-ADDON-190 | implemented | docs/specs/loft-non-youtube-errors.md | sha256:d08072139020e1d15e2a0e30be0caa10ce8fea2930606713ab62794f22290ba2 |
+| SPEC-ADDON-191 | implemented | docs/specs/loft-non-youtube-errors.md | sha256:d08072139020e1d15e2a0e30be0caa10ce8fea2930606713ab62794f22290ba2 |
+| SPEC-ADDON-192 | implemented | docs/specs/loft-non-youtube-errors.md | sha256:d08072139020e1d15e2a0e30be0caa10ce8fea2930606713ab62794f22290ba2 |
+| SPEC-CORE-195 | implemented | docs/specs/loft-non-youtube-errors.md | sha256:d08072139020e1d15e2a0e30be0caa10ce8fea2930606713ab62794f22290ba2 |
