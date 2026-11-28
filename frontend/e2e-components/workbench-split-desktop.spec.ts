@@ -134,8 +134,8 @@ async function splitLayout(page: Page): Promise<SplitLayout> {
       height: r.height,
     });
     const rem = parseFloat(getComputedStyle(document.documentElement).fontSize);
-    const video = document.querySelector("video")!;
-    let scroller: HTMLElement | null = video.parentElement;
+    const slot = document.querySelector("[data-player-slot]")!;
+    let scroller: HTMLElement | null = slot.parentElement;
     while (scroller && scroller !== document.body) {
       const overflow = getComputedStyle(scroller).overflowY;
       if (overflow === "auto" || overflow === "scroll") break;

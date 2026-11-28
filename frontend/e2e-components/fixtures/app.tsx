@@ -39,6 +39,7 @@ import { MarkdownPreview } from "@/components/MarkdownPreview";
 import { SaveDot } from "@/components/markdown/SaveDot";
 import { ContextMenu } from "@/components/ContextMenu";
 import { TouchControlsPresenter } from "@/components/player/MediaControls/TouchControlsPresenter";
+import { PlayerLayerProvider } from "@/components/player/layer";
 import { VideoPlayer } from "@/components/VideoPlayer";
 import type { ArchiveEntry, FileKind, SubtitleInfo } from "@/types";
 import { ShortcutsProvider } from "@/components/ShortcutsProvider";
@@ -2420,18 +2421,20 @@ function PlayerCaptions(): ReactElement {
   const [subtitles, setSubtitles] = useState<SubtitleInfo[]>([]);
   return (
     <NextIntlClientProvider locale="en" messages={enMessages}>
-      <VideoPlayer videoId="vid" subtitles={subtitles} />
-      <button
-        type="button"
-        id="subtitles-arrive"
-        onClick={() =>
-          setSubtitles([
-            { index: 0, language: "ja", label: "Japanese", format: "srt" },
-          ])
-        }
-      >
-        subtitles arrive
-      </button>
+      <PlayerLayerProvider>
+        <VideoPlayer videoId="vid" subtitles={subtitles} />
+        <button
+          type="button"
+          id="subtitles-arrive"
+          onClick={() =>
+            setSubtitles([
+              { index: 0, language: "ja", label: "Japanese", format: "srt" },
+            ])
+          }
+        >
+          subtitles arrive
+        </button>
+      </PlayerLayerProvider>
     </NextIntlClientProvider>
   );
 }
@@ -2446,7 +2449,8 @@ function TransitionPage({ children }: { children: ReactNode }): ReactElement {
   return (
     <NextIntlClientProvider locale="en" messages={enMessages}>
       <ShortcutsProvider>
-        <div data-sheet-snap="peek" className="absolute inset-0 flex flex-col">
+        <PlayerLayerProvider>
+          <div data-sheet-snap="peek" className="absolute inset-0 flex flex-col">
           <main id="page" className="flex min-h-0 flex-1 flex-col overflow-auto">
             <div
               id="page-header"
@@ -2464,7 +2468,8 @@ function TransitionPage({ children }: { children: ReactNode }): ReactElement {
               the description
             </div>
           </main>
-        </div>
+          </div>
+        </PlayerLayerProvider>
       </ShortcutsProvider>
     </NextIntlClientProvider>
   );

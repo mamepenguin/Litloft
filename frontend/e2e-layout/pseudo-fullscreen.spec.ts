@@ -18,6 +18,7 @@ interface FrameHits {
   viewport: { width: number; height: number };
   playerZ: string;
   playerPosition: string;
+  layerZ: string;
   frameZ: string;
   shellZ: string;
   hits: Record<string, string>;
@@ -79,9 +80,9 @@ for (const sheet of SHEETS) {
       underToast: "toast",
     });
     expect(m.playerPosition).toBe("static");
-    // The tier is the frame's own, not an ancestor's: a stacking context
-    // above the frame is what iOS refuses to paint the frame out of.
-    expect(m.frameZ).toBe("60");
+    // The tier is the layer's: the pinned frame sits inside the layer's
+    // stacking context, so the layer is what has to outrank the chrome.
+    expect(m.layerZ).toBe("60");
     expect(m.shellZ).toBe("auto");
   });
 
@@ -91,6 +92,7 @@ for (const sheet of SHEETS) {
     await build(page, { sheet, pinned: true, marked: true, rootless: true });
     const m = await page.evaluate(() => window.hitTheFrame());
 
+    expect(m.layerZ).toBe("15");
     expect(m.frameZ).toBe("50");
     expect(m.playerPosition).toBe("sticky");
     expect(m.hits.topLeft).toBe("header");
@@ -106,6 +108,7 @@ for (const sheet of SHEETS) {
 
     expect(m.playerPosition).toBe("sticky");
     expect(m.playerZ).toBe("10");
+    expect(m.layerZ).toBe("15");
     expect(m.hits.topLeft).toBe("header");
     expect(m.hits.underMenuButton).toBe("menu-button");
     expect(m.hits.bottomMiddle).toBe(COVERS_THE_BOTTOM[sheet]);

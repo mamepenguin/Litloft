@@ -223,7 +223,10 @@ const measureFill = (page: Page, kind: Kind): Promise<Fill> =>
       main.clientHeight -
       Number.parseFloat(style.paddingBottom) -
       (kind === "archive" ? 16 : 0);
-    const viewer = document.querySelector(".media-detail-player > :first-child")!;
+    const viewer = (
+      document.querySelector("[data-player-slot]") ??
+      document.querySelector(".media-detail-player > :first-child")
+    )!;
     return {
       gap: contentBottom - viewer.getBoundingClientRect().bottom,
       overflow: main.scrollHeight - main.clientHeight,

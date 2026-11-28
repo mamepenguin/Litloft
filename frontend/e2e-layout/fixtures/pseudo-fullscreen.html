@@ -71,22 +71,12 @@
         const canvas = el("main", SPEC.canvas, "canvas");
         const host = el("div", SPEC.mediaHost);
         const player = el("div", SPEC.player, "player");
-        const wrapper = el("div", "w-full");
-        const frame = el(
-          "div",
-          `${SPEC.frameBase} ${pinned ? SPEC.framePinned : SPEC.frameInline}`,
-          "frame",
-        );
-        if (marked) {
-          frame.dataset.pseudoFullscreen = "true";
-        }
-        if (marked && !rootless) {
-          document.documentElement.dataset.playerFullscreen = "true";
-        } else {
-          delete document.documentElement.dataset.playerFullscreen;
-        }
-        wrapper.append(frame);
-        player.append(wrapper);
+        const bleed = el("div", "-mx-4 -mt-4 bg-black md:mx-0 md:mt-0", "bleed");
+        const slot = el("div", "w-full", "slot");
+        slot.dataset.playerSlot = "";
+        slot.style.aspectRatio = "16 / 9";
+        bleed.append(slot);
+        player.append(bleed);
         const body = el("div");
         body.style.height = "1500px";
         body.textContent = "the description";
@@ -103,6 +93,32 @@
         }
 
         root.append(header, shell);
+
+        // The layer draws the player over the slot, from outside the page.
+        const box = slot.getBoundingClientRect();
+        const layer = el("div", "", "layer");
+        layer.dataset.playerLayer = "";
+        layer.style.top = `${box.top}px`;
+        layer.style.left = `${box.left}px`;
+        layer.style.width = `${box.width}px`;
+        layer.style.height = `${box.height}px`;
+        const wrapper = el("div", "w-full");
+        const frame = el(
+          "div",
+          `${SPEC.frameBase} ${pinned ? SPEC.framePinned : SPEC.frameInline}`,
+          "frame",
+        );
+        if (marked) {
+          frame.dataset.pseudoFullscreen = "true";
+        }
+        if (marked && !rootless) {
+          document.documentElement.dataset.playerFullscreen = "true";
+        } else {
+          delete document.documentElement.dataset.playerFullscreen;
+        }
+        wrapper.append(frame);
+        layer.append(wrapper);
+        root.append(layer);
 
         const chrome = el("div", SPEC.chromeButtons, "chrome-buttons");
         chrome.style.top = "8px";
@@ -161,6 +177,7 @@
           viewport: { width: window.innerWidth, height: window.innerHeight },
           playerZ: getComputedStyle(document.getElementById("player")).zIndex,
           playerPosition: getComputedStyle(document.getElementById("player")).position,
+          layerZ: getComputedStyle(document.getElementById("layer")).zIndex,
           frameZ: getComputedStyle(frame).zIndex,
           shellZ: getComputedStyle(document.getElementById("shell")).zIndex,
           hits: out,

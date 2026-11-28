@@ -14,6 +14,7 @@ import { AddonSlotsProvider } from "@/components/AddonSlotsProvider";
 import { ClipboardProvider } from "@/components/ClipboardProvider";
 import { CurrentDriveProvider } from "@/components/CurrentDriveProvider";
 import { FileDetailContent } from "@/components/FileDetailContent";
+import { PlayerLayerProvider } from "@/components/player/layer";
 import { ShortcutsProvider } from "@/components/ShortcutsProvider";
 import { SidebarProvider } from "@/components/SidebarProvider";
 import { TreeToggle } from "@/components/TreeToggle";
@@ -533,7 +534,9 @@ function Providers({ children }: { children: ReactElement }): ReactElement {
         <SidebarProvider>
           <ShortcutsProvider>
             <AddonSlotsProvider>
-              <ClipboardProvider>{children}</ClipboardProvider>
+              <ClipboardProvider>
+                <PlayerLayerProvider>{children}</PlayerLayerProvider>
+              </ClipboardProvider>
             </AddonSlotsProvider>
           </ShortcutsProvider>
         </SidebarProvider>
