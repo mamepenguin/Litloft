@@ -6,11 +6,15 @@ import type { FileNavState } from "@/lib/fileNavContext";
 
 /**
  * The page row and the right pane read a queue page's own walk instead of
- * `/neighbors`, and the collection crumb replaces the file's folder in the
- * trail.
+ * `/neighbors`.
  */
 export interface QueuePageState extends FileNavState {
-  /** The queue's name, as the trail and the pane's top block show it. */
+  /**
+   * A collection page names itself in the trail; a folder or Smart queue
+   * keeps the file's own folders.
+   */
+  replacesTrail: boolean;
+  /** The queue's name, as the pane's top block shows it. */
   name: string;
   /** Where the name goes: the collection list, or the folder's listing. */
   href: string;

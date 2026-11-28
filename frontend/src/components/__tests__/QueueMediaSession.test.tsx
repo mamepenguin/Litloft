@@ -68,6 +68,7 @@ const FILE: FileItem = {
 
 function queueState(overrides: Partial<QueuePageState> = {}): QueuePageState {
   return {
+    replacesTrail: true,
     name: "Road Trip",
     href: "/drive/main/collections/c1",
     prevId: "a0",

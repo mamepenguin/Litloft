@@ -7,6 +7,10 @@ vi.mock("next/navigation", () => ({
 }));
 
 import { FileDetailChrome } from "../FileDetailChrome";
+import {
+  QueuePageProvider,
+  type QueuePageState,
+} from "../../queue/QueuePageContext";
 
 const back = () => screen.getByTestId("file-detail-back");
 
@@ -299,6 +303,79 @@ describe("FileDetailChrome", () => {
     expect(back().parentElement?.className).toContain("md:hidden");
   });
 });
+function queuePage(overrides: Partial<QueuePageState>): QueuePageState {
+  return {
+    replacesTrail: true,
+    name: "Road Trip",
+    href: "/drive/main/collections/c1",
+    prevId: null,
+    nextId: null,
+    position: null,
+    total: null,
+    navigatePrev: vi.fn(),
+    navigateNext: vi.fn(),
+    onEnded: vi.fn(),
+    previousTrack: vi.fn(),
+    ...overrides,
+  };
+}
+
+describe("SPEC-CORE-094 I5 / SPEC-CORE-190 D2 the trail on a queue page", () => {
+  const cases = [
+    {
+      name: "names the collection in place of the file's folders on a collection page",
+      queue: queuePage({}),
+      trail: ["main", "Road Trip", "holiday.mp4"],
+      absent: ["videos", "clips"],
+      line1: "Road Trip",
+      href: "/drive/main/collections/c1",
+    },
+    {
+      name: "keeps the file's own folders on a folder queue page",
+      queue: queuePage({
+        replacesTrail: false,
+        name: "Q1",
+        href: "/drive/main/Q1",
+      }),
+      trail: ["main", "videos", "clips", "holiday.mp4"],
+      absent: ["Q1"],
+      line1: "clips",
+      href: "/drive/main/videos/clips",
+    },
+  ];
+
+  for (const c of cases) {
+    it(`SPEC-CORE-094 I5 ${c.name}`, () => {
+      const { unmount } = render(
+        <QueuePageProvider value={c.queue}>
+          <FileDetailChrome
+            drive="main"
+            folderPath="videos/clips"
+            title="holiday.mp4"
+          />
+        </QueuePageProvider>,
+      );
+      const crumbs = screen.getByRole("navigation");
+      for (const label of c.trail) expect(crumbs).toHaveTextContent(label);
+      for (const label of c.absent) expect(crumbs).not.toHaveTextContent(label);
+
+      unmount();
+      setViewportWidth(400);
+      render(
+        <QueuePageProvider value={c.queue}>
+          <FileDetailChrome
+            drive="main"
+            folderPath="videos/clips"
+            title="holiday.mp4"
+          />
+        </QueuePageProvider>,
+      );
+      expect(back()).toHaveTextContent(c.line1);
+      expect(back()).toHaveAttribute("href", c.href);
+    });
+  }
+});
+
 describe("what makes this a chrome bar rather than a page header", () => {
   it("is a fixed-height bar with its own border and surface", () => {
     render(<FileDetailChrome drive="main" folderPath="videos" title="a.mp4" />);

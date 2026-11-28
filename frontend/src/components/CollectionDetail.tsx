@@ -356,6 +356,7 @@ export function CollectionDetail({ drive, collectionId }: CollectionDetailProps)
 
   const queuePage = useMemo<QueuePageState>(
     () => ({
+      replacesTrail: true,
       name: detail?.name ?? "",
       href: listHref,
       prevId: walk.prevId,

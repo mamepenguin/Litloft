@@ -66,14 +66,17 @@ export function FileDetailChrome({
   const hideDocumentControls = isMobile && (inboxWalk || renaming);
   const hideInboxActions = isMobile && renaming;
 
+  // Only a collection page replaces the file's own place with the collection's.
+  const collectionPage = queuePage?.replacesTrail ? queuePage : null;
+
   const segments = folderPath ? folderPath.split("/").filter(Boolean) : [];
-  const parentName = queuePage
-    ? queuePage.name
+  const parentName = collectionPage
+    ? collectionPage.name
     : segments.length > 0
       ? segments[segments.length - 1]
       : drive;
-  const parentHref = queuePage
-    ? queuePage.href
+  const parentHref = collectionPage
+    ? collectionPage.href
     : segments.length > 0
       ? `/drive/${encodeURIComponent(drive)}/${segments
           .map(encodeURIComponent)
@@ -194,10 +197,10 @@ export function FileDetailChrome({
             )}
             <Breadcrumb
               driveName={drive}
-              folderPath={queuePage ? undefined : folderPath}
+              folderPath={collectionPage ? undefined : folderPath}
               ancestorSegments={
-                queuePage
-                  ? [{ label: queuePage.name, href: queuePage.href }]
+                collectionPage
+                  ? [{ label: collectionPage.name, href: collectionPage.href }]
                   : undefined
               }
               trailingSegment={wideLeaf}

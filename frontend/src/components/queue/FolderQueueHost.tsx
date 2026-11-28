@@ -268,6 +268,7 @@ export function FolderQueueHost({
   const queuePage = useMemo<QueuePageState | null>(() => {
     if (!isQueue) return null;
     return {
+      replacesTrail: false,
       name,
       href: trailHref,
       prevId: status === "ready" ? walk.prevId : null,

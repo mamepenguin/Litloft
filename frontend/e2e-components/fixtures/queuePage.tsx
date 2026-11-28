@@ -270,6 +270,7 @@ function QueueFixture({
 
   const queuePage = useMemo<QueuePageState>(
     () => ({
+      replacesTrail: true,
       name: "Road Trip",
       href: "/drive/fixture/collections/c1",
       prevId: walk.prevId,
