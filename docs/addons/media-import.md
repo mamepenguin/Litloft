@@ -47,6 +47,8 @@ There are two ways in:
 - **Add** menu: on Home or in a Library folder, open **Add** and choose **Import from URL**. The dialog starts at the current folder (the drive root on Home) and imports one video. If the import fails, the URL and folder stay filled in so you can try again. A channel, playlist or feed URL is not imported here; the dialog offers **Open Media Import**, which opens the **YouTube & Feeds** page.
 - **YouTube & Feeds** page: open **Manage** and paste the URL into **Add a source**. For a single video you can also choose **Speech-to-text**: **Use captions**, **If no captions**, or **Always**. The choice is remembered.
 
+If the URL has no video yt-dlp can read (a site it does not support, or a page without a video), or the video is private, removed or region-locked, the import is refused with that reason and no file is created. `POST /api/addons/media_import/link` then answers 422 with `detail` `unsupported_url` or `unavailable`, or 500 with `failed` for any other error.
+
 The `.loft` file is created at once, named after the video title. If a file with that name exists, a number is added, for example `Title (1).loft`. The metadata, thumbnail and captions are then fetched in the background, so they appear a moment later.
 
 Caption downloads that failed for a temporary reason, such as rate limiting, are tried again when the backend starts.
@@ -71,8 +73,10 @@ The provider is `youtube`, `vimeo` or `soundcloud` when the URL matches one of t
 | Provider | Player |
 |---|---|
 | YouTube | Embedded YouTube player. **Player** switches between the **Litloft** and **YouTube** controls. |
-| Vimeo | Embedded Vimeo player. |
+| Vimeo | Embedded Vimeo player. A Vimeo URL with no video number, such as a profile or showcase page, shows the link card. |
 | SoundCloud and others | A link card that opens the original page. |
+
+When the YouTube player cannot load, a YouTube video also shows the link card.
 
 Your position in a YouTube video is saved like a local video's, so it appears under **Continue** on Home. The Vimeo player does not report its position.
 
@@ -85,7 +89,7 @@ In the [iOS app](../user-guide/ios-app.md), the YouTube player's settings have *
 The addon adds a panel at the top of the file's **Info** tab, under the title, with:
 
 - the channel name, publication date and the start of the description. The channel name is a link to that channel's videos;
-- the caption status, for example **YouTube has no captions for this video**. When a download failed, click the status to try again.
+- the caption status, for example **This video has no captions**. When a download failed, click the status to try again.
 
 Two actions for a `.loft` are in the file's menus:
 
