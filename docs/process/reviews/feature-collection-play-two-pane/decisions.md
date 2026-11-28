@@ -71,6 +71,12 @@ author_resolutions:
 - claude-read:unspecified 4 accept: a cold Smart queue shows an empty crumb only until the Smart Collection list answers; after F7 the trail is the file's own, so this applies to the pane name only (F1 x I2 = 2).
 - claude-read:unspecified 5 accept: a hidden visit-shown pane reappears after crossing md or reopening a file (F1 x I2 = 2).
 - claude-read:unspecified 6 accept: a play intent left by a guard-cancelled selection autoplays the next arrival at that same file once (F1 x I2 = 2).
+- r8 claude-read:F1 fix: fbec10541 sends the press to the visit whenever a visit-shown pane is active and not yielded, so the list no longer writes tree:enabled; TwoPaneLayout.queuePane.test.tsx case fails without it.
+- r8 claude-read:F2 fix: the same commit adds the list-side toggle case (render with visitUntilLeft, clear ?file=, press twice, storage untouched).
+- r8 claude-read:unspecified 1 accept: with the tree off, any file opened on a collection page keeps the item pane on the list for the visit; the page is the collection's queue page (F4 x I2 = 8).
+- r8 claude-read:unspecified 2 accept: same as r7 unspecified 1 (F2 x I3 = 6).
+- r8 claude-read:unspecified 3 accept: same as r7 unspecified 6 (F1 x I3 = 3).
+- r8 claude-read:unspecified 4 accept: same as r7 unspecified 5 (F1 x I2 = 2).
 pending: |
   - The agent_cannot_verify iOS checks of spec §10: background audio and Now Playing across an advance; full screen and Picture in Picture across an advance; the mini player while the phone overlay is open; lock screen and headphone next / previous track on a queue page with Autoplay off.
   - Not driven in this run:
