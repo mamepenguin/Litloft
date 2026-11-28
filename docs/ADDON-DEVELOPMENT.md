@@ -1397,6 +1397,23 @@ sits over the iframe and so over those controls. The embed adds no wrapper that
 takes pointer events, and it does not re-create the iframe when the node
 changes. An embed that ignores the prop renders exactly as before.
 
+An addon that relays a provider's media through its own backend can render the
+core video player instead of an embed. Import `VideoPlayer` from
+`@/components/VideoPlayer` and pass `videoId={fileId}`, `src` set to the
+addon's own stream URL (`/api/addons/<name>/files/<fileId>/stream`, not
+`LoftEmbedProps.url`), `onError`, and from `LoftEmbedProps` the `initialTime`,
+`duration={durationHint}`, `onEnded`, `onMediaController` and `posterUrl`; set
+`title` and `subtitleText` from `mediaSessionMetadata?.title` and
+`mediaSessionMetadata?.artist`. Do not render `pictureOverlay`: the player
+draws the core find overlay itself. A request to that stream path bypasses the
+Next.js rewrite and goes straight to the backend, so the route must be an
+in-process router: it loads the file by id, calls `check_drive_access`, and
+answers 404 for a locked or unknown drive and for a trashed file, and 410 or 404
+for a missing one. Core does not apply the addon's per-drive policy to an
+in-process route, so whether the route honours it is the addon's decision.
+Independent-service addons are not a supported `src`: their proxied streams are
+cut at 600 s of wall time, which ends a long video mid-play.
+
 ### Opening Quick Note
 
 An addon that offers "write a note" can open the core Quick Note panel, the
