@@ -112,21 +112,26 @@ const treeToggleButton = () =>
     .getAllByRole("button", { name: /^(Hide|Show) tree$/ })
     .find((button) => !aside().contains(button))!;
 
-function renderQueue({ queuePane }: { queuePane: boolean }) {
-  return render(
+function queueTree(queuePane: boolean, visitUntilLeft = false) {
+  return (
     <>
       <TwoPaneLayout
         drive="work"
         folderPath=""
         queuePane={queuePane}
+        visitUntilLeft={visitUntilLeft}
         leftPane={<PaneProbe />}
         leftPaneAriaLabel="Queue"
       >
         <div data-testid="listing" />
       </TwoPaneLayout>
       <TreeToggle drive="work" />
-    </>,
+    </>
   );
+}
+
+function renderQueue({ queuePane }: { queuePane: boolean }) {
+  return render(queueTree(queuePane));
 }
 
 beforeEach(() => {
@@ -151,6 +156,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  route.params = new URLSearchParams("file=f1");
   treeEnabledStore.reset();
   treeVisitStore.reset();
   treeYieldStore.reset();
@@ -183,6 +189,26 @@ describe("SPEC-CORE-190 step 12 / I13 a queue pane shown for the visit", () => {
     expect(screen.queryByTestId("pane-rows")).toBeNull();
     expect(aside().getAttribute("aria-hidden")).toBe("true");
     expect(treeToggleButton()).toHaveAttribute("aria-pressed", "false");
+    expect(localStorage.getItem("tree:enabled:work")).toBeNull();
+  });
+
+  it("on the collection list after ?file= is cleared, the button hides and re-shows the kept pane without writing", async () => {
+    const view = render(queueTree(true, true));
+    await waitFor(() =>
+      expect(aside().getAttribute("aria-hidden")).not.toBe("true"),
+    );
+
+    route.params = new URLSearchParams("");
+    view.rerender(queueTree(false, true));
+    await waitFor(() => expect(screen.getByTestId("listing")).toBeInTheDocument());
+    expect(aside().getAttribute("aria-hidden")).not.toBe("true");
+
+    fireEvent.click(treeToggleButton());
+    await waitFor(() => expect(aside().getAttribute("aria-hidden")).toBe("true"));
+    expect(localStorage.getItem("tree:enabled:work")).toBeNull();
+
+    fireEvent.click(treeToggleButton());
+    await waitFor(() => expect(aside().getAttribute("aria-hidden")).not.toBe("true"));
     expect(localStorage.getItem("tree:enabled:work")).toBeNull();
   });
 });

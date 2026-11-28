@@ -63,11 +63,14 @@ export function useTreeVisible(drive: string): UseTreeVisibleResult {
     // On one the pane has a third state — collapsed for the inspector, with
     // nothing stored — and pressing the button reports it rather than
     // writing a setting the reader did not ask of the next file page.
+    if (visit.active && besideViewport && !yieldState.yielded) {
+      treeVisitStore.toggle(drive);
+      treeNarrowOpenStore.set(drive, false);
+      return;
+    }
     if (yieldState.filePage && besideViewport) {
       if (yieldState.yielded) {
         treeYieldStore.reopen(drive);
-      } else if (visit.active) {
-        treeVisitStore.toggle(drive);
       } else if (yieldState.reopened) {
         setEnabled(false);
         treeYieldStore.settle(drive);
