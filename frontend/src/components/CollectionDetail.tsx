@@ -443,6 +443,7 @@ export function CollectionDetail({ drive, collectionId }: CollectionDetailProps)
         drive={drive}
         folderPath=""
         queuePane={fileId !== null}
+        visitUntilLeft
         leftPane={leftPane}
         leftPaneAriaLabel={fileId ? tPlayback("queueLabel") : t("itemListLabel")}
       >

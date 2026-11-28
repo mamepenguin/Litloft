@@ -43,6 +43,12 @@ interface TwoPaneLayoutProps {
   leftPaneAriaLabel?: string;
   /** This page has a queue, so its pane is shown for the visit when the tree setting is off. */
   queuePane?: boolean;
+  /**
+   * A pane shown for the visit on this page lasts until the page is left,
+   * not only while the open file is its queue's. A collection names itself
+   * as a place, so clearing `?file=` stays on it with the item list shown.
+   */
+  visitUntilLeft?: boolean;
   /** A queue's pane replaces the tree on screen while the tree stays mounted. */
   treeUnderPane?: boolean;
 }
@@ -54,6 +60,7 @@ export function TwoPaneLayout({
   leftPane,
   leftPaneAriaLabel,
   queuePane = false,
+  visitUntilLeft = false,
   treeUnderPane = false,
 }: TwoPaneLayoutProps) {
   const t = useTranslations("rightPane");
@@ -121,14 +128,37 @@ export function TwoPaneLayout({
   );
 
   // A queue started with the tree setting off shows its pane for this visit.
-  // The pane's own visibility (yield, narrow) is the tree's, unchanged.
+  // A page that keeps its visit keeps it once started, until it is left. The
+  // pane's own visibility (yield, narrow) is the tree's, unchanged.
+  const visitRoute = useRef(pathname);
+  const visitStarted = useRef(false);
   useLayoutEffect(() => {
-    if (queuePane && hasFile && !treeEnabled && besideViewport) {
-      treeVisitStore.show(drive);
-    } else {
+    if (visitRoute.current !== pathname) {
+      visitRoute.current = pathname;
+      visitStarted.current = false;
       treeVisitStore.clear(drive);
     }
-  }, [queuePane, hasFile, treeEnabled, besideViewport, drive]);
+    const startsVisit = queuePane && hasFile;
+    if (startsVisit) visitStarted.current = true;
+    const wanted =
+      !treeEnabled &&
+      besideViewport &&
+      (startsVisit || (visitUntilLeft && visitStarted.current));
+    if (!wanted) {
+      treeVisitStore.clear(drive);
+      return;
+    }
+    // A pane the reader hid stays hidden until the button asks for it.
+    if (!treeVisitStore.get(drive).active) treeVisitStore.show(drive);
+  }, [
+    queuePane,
+    hasFile,
+    treeEnabled,
+    besideViewport,
+    visitUntilLeft,
+    drive,
+    pathname,
+  ]);
 
   useLayoutEffect(() => () => treeVisitStore.clear(drive), [drive]);
   // The pane keeps its setting, its mounted tree and its yield, and only stops

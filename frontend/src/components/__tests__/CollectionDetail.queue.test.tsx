@@ -605,6 +605,48 @@ describe("SPEC-CORE-190 §9 / D1 / I8 the collection's queue pane", () => {
   });
 });
 
+describe("SPEC-CORE-190 step 12 / I13 a collection page keeps the pane shown for the visit after ?file= is cleared", () => {
+  it("keeps the item pane when the collection name clears ?file=, and ends the visit when the page is left", async () => {
+    treeEnabledStore.set("main", false);
+    const { unmount } = openAt("file=v2");
+    await fileOpen("v2");
+    await waitFor(() =>
+      expect(pane().getAttribute("aria-hidden")).not.toBe("true"),
+    );
+    const writes = vi.spyOn(Storage.prototype, "setItem");
+    const side = () => document.querySelector("aside")!;
+
+    const name = (await within(pane()).findAllByText("Road Trip"))
+      .map((el) => el.closest("a, button"))
+      .find((el): el is HTMLElement => el !== null);
+    if (!name) throw new Error("the pane's collection name is not a control");
+    const href = name.getAttribute("href");
+    if (href === null) throw new Error("the pane's collection name is not a link");
+    expect(new URL(href, "http://localhost").searchParams.has("file")).toBe(false);
+    act(() => nav.router.replace(href));
+    await waitFor(() => expect(currentFile()).toBeNull());
+
+    expect(pane().getAttribute("aria-hidden")).not.toBe("true");
+
+    act(() => nav.router.replace("/drive/main"));
+    await waitFor(() =>
+      expect(side().getAttribute("aria-hidden")).toBe("true"),
+    );
+
+    unmount();
+    openAt("");
+    await waitFor(() =>
+      expect(side()?.getAttribute("aria-label")).toBe("Collection items"),
+    );
+    expect(side().getAttribute("aria-hidden")).toBe("true");
+    expect(localStorage.getItem("tree:enabled:main")).toBe("false");
+    expect(
+      writes.mock.calls.filter(([key]) => key === "tree:enabled:main"),
+    ).toEqual([]);
+    writes.mockRestore();
+  });
+});
+
 describe("SPEC-CORE-190 §3 / D1 a collection with no file open", () => {
   it("draws the top block with the collection name and loop, and no n / N", async () => {
     openAt("");
