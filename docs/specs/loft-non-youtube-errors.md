@@ -47,12 +47,17 @@ YouTube.
 
   | Code | Status | When |
   |---|---|---|
-  | `unsupported_url` | 422 | yt-dlp raises `DownloadError` whose underlying exception (`exc_info[1]`) is `yt_dlp.utils.UnsupportedError`: no extractor matched, or the generic extractor found no video on the page |
-  | `unavailable` | 422 | otherwise, `_classify_fetch_error` classifies the exception as `ItemUnavailable` (private, removed, region-locked, members-only…) |
-  | `failed` | 500 | any other exception from `create_loft_sync`, including rate-limited and not-yet-started videos, network errors, a folder that cannot be resolved and a disk or DB failure after the title was fetched |
+  | `unsupported_url` | 422 | the title fetch (`_extract_title_sync`) raises `DownloadError` whose underlying exception (`exc_info[1]`) is `yt_dlp.utils.UnsupportedError`: no extractor matched, or the generic extractor found no video on the page |
+  | `unavailable` | 422 | otherwise, the title fetch's exception is classified `ItemUnavailable` by Media Import's existing `_classify_fetch_error` (private, removed, region-locked, members-only…) |
+  | `failed` | 500 | any other exception from `create_loft_sync`: a title fetch that is rate-limited, not yet started, a network error or anything unclassified, and every exception raised after the title was fetched (folder resolution, file write, DB) |
 
-  The checks run in that order. The form shows the message for the code under the field
-  and keeps the URL in it, as it shows an error today.
+  The checks run in that order, and only on the title fetch's exception. Classification
+  uses `_classify_fetch_error` unchanged (rate-limit markers before unavailable markers),
+  imported inside the function as `_metadata_error_is_unavailable` already does, because
+  `subscription/providers/youtube.py` imports `service` at module level. The form shows
+  the message for the code under the field and keeps the URL in it, as it shows an error
+  today. Only `createLoft` failures are mapped: the Composer's subscription calls
+  (`createSubscription`, `syncSubscription`) keep showing their server text as today.
 - **189.** The viewer opens a `.loft` and chooses ⋮ → "Refresh metadata". `POST
   /link/{file_id}/refresh` checks the file as today, then takes the URL from the
   `loft_metadata` row when one exists, and otherwise from the `.loft` file itself, and
@@ -95,21 +100,30 @@ YouTube.
 ### 3. States
 
 - **188.** Form: idle → submitting → (success: cleared as today) | (error: message for
-  `unsupported_url`, `unavailable`, `failed`, or the fallback). Editing the URL or
-  resubmitting clears the error as today.
+  `unsupported_url`, `unavailable`, `failed`, or the fallback). The error is cleared only
+  when the form is submitted again, as today; editing the URL does not clear it. No
+  transition from an error to another error without a submit.
 - **189.** No new state. A `.loft` with no metadata row moves to "has a row" when a fetch
   it queues succeeds.
-- **191.** Embed: loading → playing (as today) | restricted (as today) | link card. When
-  the URL it is given changes, YouTubeEmbed starts at loading again, as it does today.
+- **191.** Embed: loading → playing (as today) | restricted (as today) | link card. The
+  link card stays until the embed is given another URL or is mounted again; nothing else
+  (a `youtubeUi` toggle, a late promise) turns it back into a player. Restricted never
+  becomes the link card. When the URL changes, YouTubeEmbed starts at loading again, as
+  it does today.
 - **192.** Image status for this case is `"none"` instead of `"unavailable"`.
-- **CORE-195.** loading → content | read failure. When `fileId` changes, the state goes
-  back to loading, and an answer for an earlier `fileId` that arrives late is ignored.
+- **CORE-195.** loading → content | read failure. When `fileId` changes, what is shown
+  stays as it is until the answer for the new `fileId` arrives, as today (so an embed
+  rebuilt in place keeps its fullscreen and mini-player box on a queue advance); that
+  answer then decides content or read failure. An answer for an earlier `fileId` that
+  arrives later is ignored. Content and read failure change only through a new
+  `fileId`'s answer.
 
 ### 4. Data read and written
 
-- **188.** Reads nothing new. On every failure no `.loft` file and no `files` row is left
-  behind: the title is fetched before anything is written, and `create_loft_sync` already
-  removes the file when its DB write fails.
+- **188.** Reads nothing new. A failure of the title fetch or folder resolution leaves no
+  `.loft` file and no `files` row, because nothing is written before them; a DB failure
+  leaves none because `create_loft_sync` already removes the file then. A `write_text`
+  that fails partway (a full disk) can leave a partial file, as today.
 - **189.** Reads the `.loft` file (drive file system) when `loft_metadata` has no row.
   Writes nothing in the endpoint; the queued fetch writes `files.duration`, chapters, the
   thumbnail and the `loft_metadata` row as a refresh's fetch does.
@@ -149,8 +163,10 @@ own drive. The Ask route keeps its access checks.
   restricted-view behaviour is unchanged.
 - **192.** With a profile that can see, local videos and YouTube `.loft` files with text
   go to the frames path (`is_text_video`), which is unchanged; only the text path's
-  single image attempt changes. With a profile that cannot see, the `meta` event still
-  carries `image` (`"none"`), as today. Pictures and local videos are unchanged.
+  single image attempt changes. With a profile that cannot see, the `meta` event of such
+  a file no longer carries the `image` key, which `file-ask-vision.md` I3 (r1) reads as
+  `"none"`; `meta_event`'s condition is not changed. Pictures and local videos are
+  unchanged.
 - **CORE-195.** Every `.loft` player goes through this read.
 
 ### 8. Error behavior
@@ -180,24 +196,43 @@ The two new messages are shared by the Composer and the dialog.
 
 ### 10. Non-functional
 
-None new. 189 reads one small JSON file per refresh. 192 removes a yt-dlp call per
-question for these files.
+None new. 189 reads one small JSON file per refresh. 192 stops, per question for these
+files, a `.loft` read and the "file question image failed" warning log.
+
+### Verification
+
+`agent_cannot_verify` covers real third-party calls. Acceptance tests build failures
+from yt-dlp's own classes (`DownloadError` carrying a real `UnsupportedError` instance in
+`exc_info`) and from Media Import's existing unavailable marker text, and simulate the
+IFrame API script's `onerror`. R-5 blocks `youtube.com/iframe_api` in the browser to see
+the link card. The human checks once against real sites: a page with no video, and a
+private or removed YouTube video.
 
 ### Project questions (`docs/process/PROJECT.md`)
 
 - Docker / migrations: no schema change.
 - i18n: core keys go in `frontend/src/messages-core/{ja,en}.json`; Media Import keys in
   its own `frontend/messages/{ja,en}.json`.
-- Docs: `docs/addons/media-import.md` quotes the old badge text in "Where the details
-  are" and gets the new one. `docs/ADDON-DEVELOPMENT.md` "Registering a `.loft` player"
-  gets one sentence: an embed that cannot play its URL renders `GenericLinkCard` from
-  `@/components/loft/GenericLinkCard`. No endpoint, config key or WebSocket event page
-  changes.
+- Docs: `docs/addons/media-import.md`, the page that documents Media Import's
+  endpoints (`docs/reference/api.md` points there):
+  - "Importing a video": a URL with no video yt-dlp can read, or a private or removed
+    video, is refused with the reason and no file is created; `POST /link` answers 422
+    `unsupported_url` / `unavailable` or 500 `failed` as `detail`.
+  - "Watching": the Vimeo row says a Vimeo URL with no video number shows the link card,
+    and the table says the link card is also shown when a YouTube or Vimeo embed cannot
+    load.
+  - "Where the details are": the new badge text.
+
+  `docs/ADDON-DEVELOPMENT.md` "Registering a `.loft` player" gets one sentence: an embed
+  that cannot play its URL renders `GenericLinkCard` from
+  `@/components/loft/GenericLinkCard`. No config key or WebSocket event page changes.
 
 ## Touch points
 
 - `addons/media_import/backend/router.py` (`create_loft`, `refresh_loft`)
 - `addons/media_import/backend/service.py` (`create_loft_sync`, `_extract_title_sync`, error classification)
+- `addons/media_import/backend/subscription/providers/youtube.py` (`_classify_fetch_error`, read only)
+- `addons/media_import/backend/subscription/registry.py` (`ItemUnavailable`, read only)
 - `addons/media_import/frontend/api.ts` (`createLoft`)
 - `addons/media_import/frontend/Composer.tsx`
 - `addons/media_import/frontend/ImportFromUrlDialog.tsx`
@@ -218,16 +253,18 @@ question for these files.
 
 ## Invariants
 
-I1. A failed `POST /link` leaves no `.loft` file and no `files` row, whichever of the three codes it answers.
-I2. An import that yt-dlp rejects with `UnsupportedError` shows the `unsupported_url` message, and one classified `ItemUnavailable` shows the `unavailable` message, in both the Composer and the dialog; neither shows `"Failed to create link"` or any other English text in the Japanese UI.
+I1. A `POST /link` whose title fetch, folder resolution or DB write fails leaves no `.loft` file and no `files` row, whichever of the three codes it answers.
+I2. An import whose title fetch raises `UnsupportedError` shows the `unsupported_url` message, and one classified `ItemUnavailable` (and not rate-limited) shows the `unavailable` message, in both the Composer and the dialog; neither shows `"Failed to create link"` or any other English text in the Japanese UI.
+I2b. A `/link` failure answering `failed`, any other `detail`, a body that is not JSON, or a network error shows the form's own `errorFallback` and never the server's text or the code itself.
 I3. A successful `POST /link` answers and writes exactly what it does before this change.
-I4. `POST /link/{file_id}/refresh` on an active `.loft` of the scoped drive queues a fetch of the `loft_metadata` row's URL when a row exists, and of the `.loft` file's `url` when none exists, answering `{"status": "queued"}`; for a file not active on the scoped drive it answers 404 without reading the file.
+I4. `POST /link/{file_id}/refresh` on an active `.loft` of the scoped drive queues a fetch with `stt_mode` `"manual"` of the `loft_metadata` row's URL when a row exists, and of the `.loft` file's `url` when none exists, answering `{"status": "queued"}`; for a file not active on the scoped drive it answers 404 without reading the file.
+I4b. With no row, a refresh of a file whose mime type is not the `.loft` type, or whose file cannot be read, is not a JSON object, or has no non-empty string `url`, answers 404 and queues nothing.
 I5. The caption badge text for a video with no captions contains no provider name, in ja and en.
 I6. A Media Import embed whose URL yields no video id, or whose YouTube IFrame API load rejected (also on a later mount after an earlier failure), renders a link to the file's URL; it never renders nothing.
 I7. A YouTube embed whose owner disallows embedding still shows the restricted view, and one that loads still plays in the embed; neither shows the link card.
 I8. A file question about a `.loft` that is not a readable YouTube reference reports image status `"none"` and prepares no image, while a YouTube `.loft` with text still takes the frames path.
 I9. `LoftPlayer` treats a non-OK response, an unparsable body, or a body without a non-empty string `provider` and `url` as a read failure and shows the localized message; it never renders a player or link card from such a response.
-I10. After `LoftPlayer`'s `fileId` changes, what it shows is decided only by the answer for the new `fileId`.
+I10. After `LoftPlayer`'s `fileId` changes, an answer for an earlier `fileId`, success or failure, never changes what it shows.
 
 ## Revises
 
@@ -254,6 +291,9 @@ SPEC-ADDON-053 I1. The LLM receives passages, and for a picture one image, for a
 - **Recording `fetch_error` when the first fetch fails, and retrying such files at
   startup.** 189 lets the viewer recover by hand; an automatic retry is a separate
   decision.
+- **Removing a partial `.loft` when `write_text` itself fails.** A full disk during a
+  few-hundred-byte write; the behaviour is today's.
+- **Clearing the import error when the URL is edited.** Not done today; out of scope.
 - **Keeping the specific 422 / 400 / 404 texts of `/link` in the form.** They answer a
   malformed client, not a viewer's action; the fallback text is shown.
 - **SPEC-ADDON-114 I8 and its revisions** ("a `.loft` that is not a text video … answer
