@@ -423,7 +423,7 @@ export function CollectionDetail({ drive, collectionId }: CollectionDetailProps)
         onMoveUp={handleMoveUp}
         onMoveDown={handleMoveDown}
         onRemove={handleRemove}
-        onSelect={fileId ? playFile : undefined}
+        onSelect={playFile}
         scrollCurrentIntoView={fileId !== null}
       />
     </QueuePane>

@@ -415,6 +415,15 @@ describe("SPEC-CORE-190 step 5 / I11 how the file was reached decides whether it
     await fileOpen("v4");
     expect(lastPropsFor("v4")?.autoPlay).toBe(true);
   });
+
+  it("SPEC-CORE-190 I11 a row choice with no file open yet starts the file", async () => {
+    openAt("");
+    await waitFor(() => expect(pane()).toBeInTheDocument());
+    fireEvent.click(within(rowOf("v4")).getByText("File v4"));
+    await fileOpen("v4");
+    expect(lastPropsFor("v4")?.autoPlay).toBe(true);
+    expect([...nav.state.params.keys()].sort()).toEqual(["file"]);
+  });
 });
 
 describe("SPEC-CORE-190 step 6 / I2 an ended file advances to the next playable item", () => {
