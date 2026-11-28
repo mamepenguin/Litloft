@@ -271,11 +271,10 @@ export function PlayerLayerProvider({
     () => (enabled ? new PlayerLayerStore() : null),
     [enabled],
   );
-  if (!store) return <>{children}</>;
   return (
     <PlayerLayerContext.Provider value={store}>
       {children}
-      <PlayerLayerFrame store={store} />
+      {store ? <PlayerLayerFrame store={store} /> : null}
     </PlayerLayerContext.Provider>
   );
 }

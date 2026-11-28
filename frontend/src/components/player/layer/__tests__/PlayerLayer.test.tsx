@@ -37,6 +37,37 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+describe("SPEC-CORE-194: the layer provider's element type", () => {
+  it("SPEC-CORE-194: turning the layer off keeps the page mounted", () => {
+    const mounts: string[] = [];
+
+    function Shell() {
+      useEffect(() => {
+        mounts.push("mount");
+        return () => {
+          mounts.push("unmount");
+        };
+      }, []);
+      return <div data-testid="shell" />;
+    }
+
+    function Page({ enabled }: { enabled: boolean }) {
+      return (
+        <PlayerLayerProvider enabled={enabled}>
+          <Shell />
+        </PlayerLayerProvider>
+      );
+    }
+
+    const { rerender } = render(<Page enabled />);
+    expect(mounts).toEqual(["mount"]);
+
+    rerender(<Page enabled={false} />);
+    expect(mounts).toEqual(["mount"]);
+    expect(screen.getByTestId("shell")).toBeInTheDocument();
+  });
+});
+
 describe("SPEC-CORE-194 I12: a player that throws while rendering", () => {
   it("SPEC-CORE-194 I12: leaves the page rendered, draws an error card over the slot, and the next file plays", () => {
     const quiet = vi.spyOn(console, "error").mockImplementation(() => {});
